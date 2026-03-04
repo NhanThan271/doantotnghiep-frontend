@@ -1,0 +1,58 @@
+.app-download {
+    background-color: #f9fafb;
+    padding: 40px;
+    border-radius: 8px;
+}
+
+.app-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #374151;
+    margin-bottom: 20px;
+}
+
+.app-text {
+    color: #6b7280;
+    margin-bottom: 30px;
+}
+
+.app-buttons a {
+    display: block;
+    background-color: #1f2937;
+    color: white;
+    text-align: center;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-bottom: 12px;
+    transition: background-color 0.3s;
+}
+
+.app-buttons a:hover {
+    background-color: #374151;
+}
+
+.social-links {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.social-link {
+    width: 48px;
+    height: 48px;
+    background-color: #1f2937;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-decoration: none;
+    transition: background-color 0.3s;
+}
+
+.social-link:hover {
+    background-color: #374151;
+}

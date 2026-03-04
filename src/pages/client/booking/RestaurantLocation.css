@@ -1,0 +1,288 @@
+.booking-page {
+    min-height: 100vh;
+    background-color: #f9fafb;
+}
+
+/* Breadcrumb */
+.booking-breadcrumb {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 16px 0;
+}
+
+.booking-breadcrumb .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.breadcrumb-text {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.breadcrumb-text::before {
+    content: '';
+}
+
+/* Main Content */
+.booking-content {
+    padding: 0;
+}
+
+.booking-layout {
+    display: flex;
+    height: calc(100vh - 130px);
+    max-width: 100%;
+}
+
+/* Left Sidebar */
+.booking-sidebar {
+    width: 35%;
+    max-width: 500px;
+    background-color: #ffffff;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Search Container */
+.search-container {
+    position: relative;
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 40px 12px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    pointer-events: none;
+}
+
+/* Restaurant List */
+.restaurant-list {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.restaurant-item {
+    border-left: 4px solid #f97316;
+    padding-left: 20px;
+    margin-bottom: 30px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-radius: 0 4px 4px 0;
+}
+
+.restaurant-item:hover {
+    background-color: #f9fafb;
+}
+
+.restaurant-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.map-pin-icon {
+    color: #f97316;
+    flex-shrink: 0;
+}
+
+.restaurant-address {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0 0 8px 0;
+    line-height: 1.5;
+}
+
+.restaurant-hours {
+    font-size: 14px;
+    color: #9ca3af;
+    margin: 0 0 16px 0;
+}
+
+/* Restaurant Actions */
+.restaurant-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.phone-button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border: 2px solid #f97316;
+    background-color: #ffffff;
+    color: #f97316;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.phone-button:hover {
+    background-color: #fff7ed;
+}
+
+.booking-button {
+    flex: 1;
+    padding: 12px 16px;
+    background-color: #f97316;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.booking-button:hover {
+    background-color: #ea580c;
+}
+
+/* Right Map */
+.booking-map {
+    flex: 1;
+    position: relative;
+    background-color: #e5e7eb;
+}
+
+.map-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.map-label {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background-color: #ffffff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+}
+
+.map-label p {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+}
+
+/* Scrollbar Styling */
+.booking-sidebar::-webkit-scrollbar,
+.restaurant-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.booking-sidebar::-webkit-scrollbar-track,
+.restaurant-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.booking-sidebar::-webkit-scrollbar-thumb,
+.restaurant-list::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+.booking-sidebar::-webkit-scrollbar-thumb:hover,
+.restaurant-list::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .booking-sidebar {
+        width: 40%;
+    }
+}
+
+@media (max-width: 768px) {
+    .booking-layout {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .booking-sidebar {
+        width: 100%;
+        max-width: 100%;
+        height: 50vh;
+    }
+
+    .booking-map {
+        height: 50vh;
+    }
+
+    .restaurant-actions {
+        flex-direction: column;
+    }
+
+    .phone-button,
+    .booking-button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .restaurant-name {
+        font-size: 16px;
+    }
+
+    .restaurant-address,
+    .restaurant-hours {
+        font-size: 13px;
+    }
+
+    .search-input {
+        font-size: 14px;
+        padding: 10px 36px 10px 14px;
+    }
+
+    .map-label {
+        top: 10px;
+        left: 10px;
+        padding: 8px 12px;
+    }
+
+    .map-label p {
+        font-size: 12px;
+    }
+}

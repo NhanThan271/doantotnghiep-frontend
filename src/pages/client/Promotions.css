@@ -1,0 +1,37 @@
+.promotions-breadcrumb {
+    background-color: #f9fafb;
+    padding: 20px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.breadcrumb-text {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0;
+}
+
+.promotions-page {
+    background-color: #ffffff;
+    min-height: calc(100vh - 200px);
+    padding: 40px 0;
+}
+
+.promotions-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 30px;
+}
+
+@media (min-width: 768px) {
+    .promotions-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1200px) {
+    .promotions-grid {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+}
