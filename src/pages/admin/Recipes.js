@@ -77,13 +77,40 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
 
     // Filter logic
     const filteredRecipes = recipes.filter(item => {
+
         const productName = item.product?.name || '';
         const ingredientName = item.ingredient?.name || '';
-        const matchesSearch = productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+
+        const matchesSearch =
+            productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             ingredientName.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesFilter = filterProduct === 'all' ? true :
-            item.product?.id === parseInt(filterProduct);
+
+        const matchesFilter =
+            filterProduct === 'all'
+                ? true
+                : item.product?.id === parseInt(filterProduct);
+
         return matchesSearch && matchesFilter;
+    });
+
+    const groupedRecipes = {};
+
+    filteredRecipes.forEach(r => {
+        const productId = r.product?.id;
+
+        if (!groupedRecipes[productId]) {
+            groupedRecipes[productId] = {
+                product: r.product,
+                ingredients: []
+            };
+        }
+
+        groupedRecipes[productId].ingredients.push({
+            id: r.id,
+            name: r.ingredient?.name,
+            quantity: r.quantityRequired,
+            unit: r.ingredient?.unit
+        });
     });
 
     // Stats calculation
@@ -401,140 +428,66 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredRecipes.length === 0 ? (
+                            {Object.values(groupedRecipes).length === 0 ? (
                                 <tr>
-                                    <td colSpan="4" style={{ textAlign: 'center', padding: '60px 20px' }}>
-                                        <ChefHat size={64} style={{
-                                            margin: '0 auto 16px',
-                                            opacity: 0.2,
-                                            display: 'block'
-                                        }} />
-                                        <p style={{
-                                            color: 'var(--color-text-secondary)',
-                                            fontSize: '16px',
-                                            fontWeight: '500'
-                                        }}>
-                                            {searchTerm || filterProduct !== 'all'
-                                                ? 'Không tìm thấy công thức nào'
-                                                : 'Chưa có công thức nào'}
-                                        </p>
+                                    <td colSpan="4" style={{ textAlign: 'center', padding: '40px' }}>
+                                        Không có công thức
                                     </td>
                                 </tr>
                             ) : (
-                                filteredRecipes.map(item => (
-                                    <tr key={item.id} style={{
-                                        animation: 'slideInUp 0.3s ease'
-                                    }}>
+                                Object.values(groupedRecipes).map(group => (
+                                    <tr key={group.product.id}>
+
+                                        {/* PRODUCT */}
                                         <td>
-                                            <div style={{
-                                                fontWeight: '700',
-                                                fontSize: '15px',
-                                                color: 'var(--color-text-primary)',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '12px'
-                                            }}>
-                                                <div style={{
-                                                    width: '40px',
-                                                    height: '40px',
-                                                    background: 'linear-gradient(135deg, #F97316, #EA580C)',
-                                                    borderRadius: '10px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    color: '#fff',
-                                                    fontWeight: '800',
-                                                    fontSize: '16px'
-                                                }}>
-                                                    {item.product?.name?.charAt(0).toUpperCase() || 'P'}
+                                            <b>{group.product.name}</b>
+                                        </td>
+
+                                        {/* INGREDIENT LIST */}
+                                        <td>
+                                            {group.ingredients.map((ing, i) => (
+                                                <div key={i}>
+                                                    {ing.name}
                                                 </div>
-                                                {item.product?.name || 'N/A'}
-                                            </div>
+                                            ))}
                                         </td>
+
+                                        {/* QUANTITY */}
                                         <td>
-                                            <span style={{
-                                                padding: '8px 16px',
-                                                background: 'rgba(139, 92, 246, 0.15)',
-                                                border: '1px solid rgba(139, 92, 246, 0.3)',
-                                                borderRadius: '10px',
-                                                fontWeight: '600',
-                                                fontSize: '14px',
-                                                color: '#8B5CF6',
-                                                display: 'inline-block'
-                                            }}>
-                                                {item.ingredient?.name || 'N/A'}
-                                            </span>
+                                            {group.ingredients.map((ing, i) => (
+                                                <div key={i}>
+                                                    {ing.quantity} {ing.unit}
+                                                </div>
+                                            ))}
                                         </td>
+
+                                        {/* ACTION */}
                                         <td>
-                                            <span style={{
-                                                padding: '8px 16px',
-                                                background: 'rgba(16, 185, 129, 0.15)',
-                                                border: '1px solid rgba(16, 185, 129, 0.3)',
-                                                borderRadius: '10px',
-                                                fontWeight: '700',
-                                                fontSize: '14px',
-                                                color: '#10B981',
-                                                display: 'inline-block'
-                                            }}>
-                                                {item.quantityRequired} {item.ingredient?.unit || ''}
-                                            </span>
+
+                                            <button
+                                                onClick={() =>
+                                                    openEdit(
+                                                        'Recipe',
+                                                        group,
+                                                        fetchRecipes
+                                                    )
+                                                }
+                                            >
+                                                Sửa
+                                            </button>
+
+                                            <button
+                                                onClick={() =>
+                                                    handleDelete(
+                                                        group.ingredients[0].id
+                                                    )
+                                                }
+                                            >
+                                                Xóa
+                                            </button>
+
                                         </td>
-                                        <td>
-                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                                <button
-                                                    onClick={() => openEdit('Recipe', item, fetchRecipes)}
-                                                    style={{
-                                                        padding: '10px 14px',
-                                                        background: 'rgba(59, 130, 246, 0.15)',
-                                                        color: '#3B82F6',
-                                                        border: '1px solid rgba(59, 130, 246, 0.3)',
-                                                        borderRadius: '10px',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        transition: 'all 0.2s ease',
-                                                        fontWeight: '600'
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.25)';
-                                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
-                                                        e.currentTarget.style.transform = 'translateY(0)';
-                                                    }}
-                                                >
-                                                    <Edit2 size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(item.id)}
-                                                    style={{
-                                                        padding: '10px 14px',
-                                                        background: 'rgba(239, 68, 68, 0.15)',
-                                                        color: '#EF4444',
-                                                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                                                        borderRadius: '10px',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        transition: 'all 0.2s ease',
-                                                        fontWeight: '600'
-                                                    }}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
-                                                        e.currentTarget.style.transform = 'translateY(-2px)';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-                                                        e.currentTarget.style.transform = 'translateY(0)';
-                                                    }}
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
+
                                     </tr>
                                 ))
                             )}
