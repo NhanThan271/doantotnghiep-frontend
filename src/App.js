@@ -6,6 +6,8 @@ import Main from "./layouts/Main";
 import CafeStaffSystem from "./pages/employee/CafeStaffSystem";
 import AdminLayout from './layouts/AdminLayout';
 import LoginPage from './pages/login/LoginPage';
+import RegisterPage from './pages/login/RegisterPage';
+import ForgotPasswordPage from "./pages/login/ForgotPasswordPage";
 import CafeCusSystem from "./pages/customer/CafeCusSystem";
 import MomoReturn from './pages/employee/MomoReturn';
 import PaymentSuccess from './pages/employee/PaymentSuccess';
@@ -33,7 +35,10 @@ function App() {
       <Routes>
         {/* Trang đăng nhập */}
         <Route path="/login" element={<LoginPage />} />
-
+        {/* Trang đăng ký */}
+        <Route path="/register" element={<RegisterPage />} />
+        {/* Trang Quên mật khẩu */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         {/* Layout riêng cho admin, nhân viên, khách */}
         <Route path="/admin/*" element={<AdminLayout />} />
         <Route path="/manager/*" element={<ManagerLayout />} />
