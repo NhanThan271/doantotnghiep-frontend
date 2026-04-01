@@ -113,7 +113,7 @@ export default function AddProductForm({ closeForm, onSave }) {
                 formDataToSend.append('image', formData.image);
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/products`, {
+            const response = await fetch(`${API_BASE_URL}/api/foods`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
