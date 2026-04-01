@@ -21,10 +21,12 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
             })
             .catch(err => console.error('Lỗi khi lấy dữ liệu:', err));
     };
+    // Load lần đầu
     useEffect(() => {
         fetchProducts();
     }, []);
 
+    // Refresh khi có trigger từ parent
     useEffect(() => {
         if (refreshTrigger) {
             fetchProducts();
