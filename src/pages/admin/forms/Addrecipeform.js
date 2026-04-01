@@ -23,7 +23,7 @@ export default function AddRecipeForm({ closeForm, onSave }) {
     const fetchProducts = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/products`, {
+            const response = await fetch(`${API_BASE_URL}/api/foods`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
