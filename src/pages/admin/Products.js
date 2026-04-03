@@ -497,7 +497,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                             <td>
                                                 <div style={{ display: 'flex', gap: '8px' }}>
                                                     <button
-                                                        onClick={() => openEdit('Food', p, fetchProducts)}
+                                                        onClick={() => openEdit('Product', p, fetchProducts)}
                                                         style={{
                                                             padding: '10px 14px',
                                                             background: 'rgba(59, 130, 246, 0.15)',
