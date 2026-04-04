@@ -85,7 +85,7 @@ const LoginPage = () => {
                     navigate("/kitchen", { replace: true });
                     break;
                 default:
-                    navigate("/menu", { replace: true });
+                    navigate("/", { replace: true });
                     break;
             }
 
