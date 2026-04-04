@@ -64,7 +64,8 @@ const RegisterPage = () => {
                 {
                     username,
                     email,
-                    password
+                    password,
+                    role: "CUSTOMER"
                 }
             );
 
@@ -115,7 +116,6 @@ const RegisterPage = () => {
                             {error}
                         </div>
                     )}
-
 
                     {/* username */}
 
