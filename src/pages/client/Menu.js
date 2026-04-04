@@ -31,7 +31,7 @@ const Menu = () => {
     // Fetch all products
     const fetchProducts = () => {
         const token = localStorage.getItem('token');
-        fetch(`${API_BASE_URL}/api/products`, {
+        fetch(`${API_BASE_URL}/api/foods`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => res.ok ? res.json() : Promise.reject('Error'))

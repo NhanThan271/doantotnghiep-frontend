@@ -11,21 +11,22 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
 
     const fetchProducts = () => {
         const token = localStorage.getItem('token');
-        fetch(`${API_BASE_URL}/api/products`, {
+        fetch(`${API_BASE_URL}/api/foods`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => res.ok ? res.json() : Promise.reject('Unauthorized hoặc lỗi khác'))
             .then(data => {
-                console.log('Products data:', data);
+                console.log('Foods data:', data);
                 setProducts(data);
             })
-            .catch(err => console.error('Lỗi khi lấy dữ liệu sản phẩm:', err));
+            .catch(err => console.error('Lỗi khi lấy dữ liệu:', err));
     };
-
+    // Load lần đầu
     useEffect(() => {
         fetchProducts();
     }, []);
 
+    // Refresh khi có trigger từ parent
     useEffect(() => {
         if (refreshTrigger) {
             fetchProducts();
@@ -35,7 +36,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
     const handleDelete = (id) => {
         const token = localStorage.getItem('token');
         if (window.confirm('Bạn có chắc muốn xóa sản phẩm này không?')) {
-            fetch(`${API_BASE_URL}/api/products/${id}`, {
+            fetch(`${API_BASE_URL}/api/foods/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
             })
@@ -61,16 +62,23 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
 
     // Filter logic
     const filteredProducts = products.filter(p => {
-        const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase()));
-        const matchesFilter = filterStatus === 'all' ? true :
-            filterStatus === 'active' ? p.isActive : !p.isActive;
+        const matchesSearch =
+            (p.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+            (p.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+
+        const matchesFilter =
+            filterStatus === 'all'
+                ? true
+                : filterStatus === 'active'
+                    ? p.isActive === true
+                    : p.isActive === false;
+
         return matchesSearch && matchesFilter;
     });
 
     // Stats calculation
     const activeProducts = products.filter(p => p.isActive).length;
-    const totalValue = products.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0);
+    const totalValue = products.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
 
     return (
         <div>
@@ -364,6 +372,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                         <thead>
                             <tr>
                                 <th style={{ width: '100px' }}>Hình ảnh</th>
+                                <th>Danh mục</th>
                                 <th>Tên sản phẩm</th>
                                 <th style={{ width: '150px' }}>Giá</th>
                                 <th style={{ width: '120px' }}>Trạng thái</th>
@@ -432,6 +441,17 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                                 </div>
                                             </td>
                                             <td>
+                                                <span style={{
+                                                    padding: '6px 12px',
+                                                    background: 'rgba(99, 102, 241, 0.1)',
+                                                    borderRadius: '8px',
+                                                    fontSize: '13px',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    {p.category?.name || 'Chưa có'}
+                                                </span>
+                                            </td>
+                                            <td>
                                                 <div>
                                                     <div style={{
                                                         fontWeight: '700',
@@ -461,7 +481,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                                     fontSize: '16px',
                                                     color: 'var(--color-primary)'
                                                 }}>
-                                                    {p.price ? parseFloat(p.price).toLocaleString('vi-VN') + 'đ' : '0đ'}
+                                                    {p.price ? Number(p.price).toLocaleString('vi-VN') + 'đ' : '0đ'}
                                                 </span>
                                             </td>
                                             <td>
@@ -655,6 +675,14 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                             {p.name}
                                         </h3>
 
+                                        <div style={{
+                                            fontSize: '12px',
+                                            color: 'var(--color-text-secondary)',
+                                            marginBottom: '8px'
+                                        }}>
+                                            {p.category?.name || 'Chưa có danh mục'}
+                                        </div>
+
                                         {p.description && (
                                             <p style={{
                                                 fontSize: '13px',
@@ -694,7 +722,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                                     fontWeight: '800',
                                                     color: 'var(--color-primary)'
                                                 }}>
-                                                    {p.price ? parseFloat(p.price).toLocaleString('vi-VN') + 'đ' : '0đ'}
+                                                    {p.price ? Number(p.price).toLocaleString('vi-VN') + 'đ' : '0đ'}
                                                 </div>
                                             </div>
                                             <div style={{ textAlign: 'right' }}>
@@ -705,7 +733,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                         {/* Action Buttons */}
                                         <div style={{ display: 'flex', gap: '8px' }}>
                                             <button
-                                                onClick={() => openEdit('Product', p, fetchProducts)}
+                                                onClick={() => openEdit('Food', p, fetchProducts)}
                                                 style={{
                                                     flex: 1,
                                                     padding: '12px',

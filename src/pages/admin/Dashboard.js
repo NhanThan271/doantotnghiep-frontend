@@ -23,7 +23,7 @@ export default function Dashboard() {
 
         Promise.all([
             // Tổng sản phẩm
-            fetch(`${API_BASE}/api/products`, {
+            fetch(`${API_BASE}/api/foods`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             }).then(res => res.ok ? res.json() : []).catch(() => []),
 
