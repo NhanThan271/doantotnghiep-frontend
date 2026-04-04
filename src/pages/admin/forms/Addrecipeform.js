@@ -88,37 +88,40 @@ export default function AddRecipeForm({ closeForm, onSave }) {
         try {
             const token = localStorage.getItem('token');
 
-            const response = await fetch(
-                `${API_BASE_URL}/api/recipes?productId=${formData.productId}&ingredientId=${formData.ingredientId}&quantityRequired=${formData.quantityRequired}`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
+            const response = await fetch(`${API_BASE_URL}/api/recipes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json', // ❗ BẮT BUỘC
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    foodId: parseInt(formData.productId),
+                    ingredients: [
+                        {
+                            ingredientId: parseInt(formData.ingredientId),
+                            quantityRequired: parseFloat(formData.quantityRequired)
+                        }
+                    ]
+                })
+            });
 
             if (!response.ok) {
                 const errorText = await response.text();
-                if (errorText.includes('already exists')) {
-                    throw new Error('Công thức này đã tồn tại. Vui lòng chọn tổ hợp sản phẩm và nguyên liệu khác!');
-                }
                 throw new Error(errorText || 'Thêm công thức thất bại');
             }
 
             const newRecipe = await response.json();
-            console.log('Thêm công thức thành công:', newRecipe);
+            console.log('OK:', newRecipe);
 
             alert('Thêm công thức thành công!');
 
-            if (onSave) {
-                onSave(newRecipe);
-            }
+            if (onSave) onSave(newRecipe);
 
             closeForm();
+
         } catch (err) {
-            console.error('Lỗi khi thêm công thức:', err);
-            setError(err.message || 'Không thể thêm công thức. Vui lòng thử lại!');
+            console.error(err);
+            setError(err.message);
         } finally {
             setLoading(false);
         }

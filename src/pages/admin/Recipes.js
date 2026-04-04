@@ -56,19 +56,21 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
         }
     }, [refreshTrigger]);
 
-    const handleDelete = (id) => {
+    const handleDeleteGroup = (ingredients) => {
         const token = localStorage.getItem('token');
 
-        if (window.confirm('Bạn có chắc muốn xóa công thức này không?')) {
-            fetch(`${API_BASE_URL}/api/recipes/${id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            })
-                .then(res => {
-                    if (!res.ok) throw new Error('Xóa thất bại');
-                    alert('Xóa công thức thành công!');
+        if (window.confirm('Xóa toàn bộ công thức của món này?')) {
+
+            Promise.all(
+                ingredients.map(i =>
+                    fetch(`${API_BASE_URL}/api/recipes/${i.id}`, {
+                        method: 'DELETE',
+                        headers: { Authorization: `Bearer ${token}` }
+                    })
+                )
+            )
+                .then(() => {
+                    alert('Xóa thành công!');
                     fetchRecipes();
                 })
                 .catch(err => console.error(err));
@@ -96,7 +98,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
     const groupedRecipes = {};
 
     filteredRecipes.forEach(r => {
-        const productId = r.product?.id;
+        const productId = r.product?.id || 'unknown';
 
         if (!groupedRecipes[productId]) {
             groupedRecipes[productId] = {
@@ -436,11 +438,11 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                 </tr>
                             ) : (
                                 Object.values(groupedRecipes).map(group => (
-                                    <tr key={group.product.id}>
+                                    <tr key={group.product?.id || Math.random()}>
 
                                         {/* PRODUCT */}
                                         <td>
-                                            <b>{group.product.name}</b>
+                                            <b>{group.product?.name || 'Không có tên'}</b>
                                         </td>
 
                                         {/* INGREDIENT LIST */}
@@ -477,11 +479,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                             </button>
 
                                             <button
-                                                onClick={() =>
-                                                    handleDelete(
-                                                        group.ingredients[0].id
-                                                    )
-                                                }
+                                                onClick={() => handleDeleteGroup(group.ingredients)}
                                             >
                                                 Xóa
                                             </button>
@@ -665,7 +663,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                         Sửa
                                     </button>
                                     <button
-                                        onClick={() => handleDelete(item.id)}
+                                        onClick={() => handleDeleteGroup(item.id)}
                                         style={{
                                             flex: 1,
                                             padding: '12px',
