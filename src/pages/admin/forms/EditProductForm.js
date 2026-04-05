@@ -113,7 +113,7 @@ export default function EditProductForm({ product, closeForm, onSave, refreshCal
                 formDataToSend.append('image', formData.image);
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/products/${product.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/foods/${product.id}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`
