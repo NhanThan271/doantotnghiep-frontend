@@ -14,7 +14,6 @@ import PaymentSuccess from './pages/employee/PaymentSuccess';
 import PaymentCancel from './pages/employee/PaymentCancel';
 import Promotions from "./pages/client/Promotions";
 import Menu from "./pages/client/Menu";
-import Booking from "./pages/client/booking/Booking";
 import BookingDetail from "./pages/client/booking/BookingDetail";
 import RestaurantLocation from "./pages/client/booking/RestaurantLocation";
 import ManagerLayout from "./layouts/ManagerLayout";
@@ -55,7 +54,6 @@ function App() {
         <Route path="/thuc-don" element={<PublicLayout><Menu /></PublicLayout>} />
         <Route path="/dat-ban-chi-tiet" element={<PublicLayout><BookingDetail /></PublicLayout>} />
         <Route path="/dat-ban-dia-chi" element={<PublicLayout><RestaurantLocation /></PublicLayout>} />
-        <Route path="/dat-ban" element={<PublicLayout><Booking /></PublicLayout>} />
       </Routes>
     </>
   );

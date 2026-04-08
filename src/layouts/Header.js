@@ -87,11 +87,11 @@ const Header = () => {
                         </li>
                         <li className="nav-item">
                             <a
-                                className={`nav-link ${isActive('/dat-ban') ? 'active' : ''}`}
-                                href="/dat-ban"
+                                className={`nav-link ${isActive('/dat-ban-dia-chi') ? 'active' : ''}`}
+                                href="/dat-ban-dia-chi"
                                 onClick={(e) => {
                                     e.preventDefault();
-                                    navigate('/dat-ban');
+                                    navigate('/dat-ban-dia-chi');
                                 }}
                             >
                                 Đặt Bàn
