@@ -1,5 +1,5 @@
 import React from "react";
-import styles from "./EmployeeLayout.module.css";
+import styles from "./CustomerLayout.module.css";
 
 const CustomerLayout = ({ children }) => {
     return (

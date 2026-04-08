@@ -1,161 +1,110 @@
 import React, { useState, useEffect } from "react";
-import styles from "./CafeCusSystem.module.css";
-import { Grid3x3, ArrowLeft, MapPin, Building2 } from "lucide-react";
+import { Grid3x3, ArrowLeft, MapPin } from "lucide-react";
+import styles from "./TableSelectionModal.module.css";
 
 const TableSelectionModal = ({
-    show = true,
+    show = false,
+    onClose = () => { },
     selectTable = () => { },
-    onClose = () => { }
+    branchId,
+    date,
+    time
 }) => {
-    const [step, setStep] = useState("branches"); // "branches" → "areas" → "tables"
-    const [branches, setBranches] = useState([]);
-    const [selectedBranch, setSelectedBranch] = useState(null);
+    const [step, setStep] = useState("areas");
     const [areas, setAreas] = useState([]);
     const [selectedArea, setSelectedArea] = useState(null);
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API = "http://localhost:8080";
 
-    // ✅ Fetch branches khi mở modal
     useEffect(() => {
-        if (show) {
-            fetchBranches();
+        console.log("🔥 branchId FE gửi:", branchId);
+        if (show && branchId) {
+            fetchAreas();
         }
-    }, [show]);
+    }, [show, branchId]);
 
-    const fetchBranches = async () => {
+    const fetchAreas = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-
-            if (!token) {
-                alert("Vui lòng đăng nhập để chọn bàn!");
-                onClose();
-                // Chuyển hướng về trang login
-                window.location.href = '/login';
-                return;
-            }
-
-            const res = await fetch(`${API_BASE_URL}/api/branches`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!res.ok) {
-                if (res.status === 401 || res.status === 403) {
-                    alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!");
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    window.location.href = '/login';
-                    return;
-                }
-                throw new Error('Không thể tải chi nhánh');
-            }
-
-            const data = await res.json();
-            console.log("🏢 Branches:", data);
-            setBranches(data || []);
-        } catch (err) {
-            console.error("❌ Lỗi khi lấy chi nhánh:", err);
-            alert("Không thể tải danh sách chi nhánh!");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchAreas = async (branchId) => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
+            // ✅ SỬA: đúng URL
             const res = await fetch(
-                `${API_BASE_URL}/api/customer/tables/branch/${branchId}/areas`,
-                { headers }
+                `${API}/api/tables/branch/${branchId}/areas`
             );
 
-            if (!res.ok) throw new Error('Không thể tải khu vực');
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
             const data = await res.json();
-            console.log("📍 Areas:", data);
+            console.log("📋 Areas loaded:", data);
             setAreas(data || []);
             setStep("areas");
         } catch (err) {
-            console.error("❌ Lỗi khi lấy khu vực:", err);
-            alert("Không thể tải danh sách khu vực!");
+            console.error("❌ Lỗi load khu vực:", err);
+            alert("Không thể tải khu vực!");
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchTablesByArea = async (area) => {
+
+    const fetchTables = async (area) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
+            // ✅ SỬA: đúng URL, không có khoảng trắng
             const res = await fetch(
-                `${API_BASE_URL}/api/customer/tables/branch/${selectedBranch.id}/area/${encodeURIComponent(area)}`,
-                { headers }
+                `${API}/api/tables/branch/${branchId}/area/${encodeURIComponent(area)}`
             );
 
-            if (!res.ok) throw new Error('Không thể tải bàn');
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
             const data = await res.json();
-            console.log("🏓 Tables:", data);
+            console.log("📋 Tables loaded:", data);
 
-            const mappedTables = data.map((t) => ({
+            const mapped = data.map(t => ({
                 id: t.id,
                 number: t.number,
                 status: t.status === "FREE" ? "available" : "occupied",
+                capacity: t.capacity
             }));
 
-            setTables(mappedTables);
+            setTables(mapped);
             setStep("tables");
         } catch (err) {
-            console.error("❌ Lỗi khi lấy bàn:", err);
-            alert("Không thể tải danh sách bàn!");
+            console.error("❌ Lỗi load bàn:", err);
+            alert("Không thể tải bàn!");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSelectBranch = (branch) => {
-        console.log("🏢 Selected branch:", branch);
-        setSelectedBranch(branch);
-        fetchAreas(branch.id);
-    };
-
     const handleSelectArea = (area) => {
-        console.log("📍 Selected area:", area);
         setSelectedArea(area);
-        fetchTablesByArea(area);
+        fetchTables(area);
     };
 
     const handleSelectTable = (table) => {
-        console.log("🏓 Selected table:", table);
+        if (table.status !== "available") {
+            alert("❌ Bàn này không khả dụng!");
+            return;
+        }
+
         selectTable({
             id: table.id,
             number: table.number,
-            branchId: selectedBranch.id,
-            branchName: selectedBranch.name,
-            area: selectedArea
+            branchId,
+            area: selectedArea,
+            capacity: table.capacity
         });
+
         onClose();
     };
 
     const handleBack = () => {
         if (step === "tables") {
             setStep("areas");
-            setSelectedArea(null);
             setTables([]);
-        } else if (step === "areas") {
-            setStep("branches");
-            setSelectedBranch(null);
-            setAreas([]);
+            setSelectedArea(null);
         }
     };
 
@@ -166,380 +115,133 @@ const TableSelectionModal = ({
             <div
                 className={styles.modalBox}
                 onClick={(e) => e.stopPropagation()}
-                style={{ maxWidth: '900px', minHeight: '500px' }}
+                style={{ maxWidth: "800px", minHeight: "500px" }}
             >
-                {/* HEADER */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    marginBottom: '24px'
-                }}>
-                    {step !== "branches" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                    {step === "tables" && (
                         <button
                             onClick={handleBack}
                             style={{
-                                padding: '8px',
-                                background: 'rgba(212, 175, 55, 0.1)',
-                                border: '1px solid rgba(212, 175, 55, 0.3)',
-                                borderRadius: '8px',
-                                color: '#D4AF37',
+                                background: 'none',
+                                border: 'none',
                                 cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.2)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
+                                padding: '8px'
                             }}
                         >
-                            <ArrowLeft size={20} />
+                            <ArrowLeft size={20} color="#D4AF37" />
                         </button>
                     )}
-
-                    <h2 style={{
-                        margin: 0,
-                        fontSize: '24px',
-                        fontWeight: '700',
-                        color: '#e5e7eb',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px'
-                    }}>
-                        {step === "branches" && (
-                            <>
-                                <Building2 size={28} /> Chọn Chi Nhánh
-                            </>
-                        )}
-                        {step === "areas" && (
-                            <>
-                                <MapPin size={28} /> Chọn Khu Vực
-                                <span style={{ fontSize: '16px', color: '#9ca3af', fontWeight: '400' }}>
-                                    ({selectedBranch?.name})
-                                </span>
-                            </>
-                        )}
-                        {step === "tables" && (
-                            <>
-                                <Grid3x3 size={28} /> Chọn Bàn
-                                <span style={{ fontSize: '16px', color: '#9ca3af', fontWeight: '400' }}>
-                                    ({selectedArea})
-                                </span>
-                            </>
-                        )}
+                    <h2 style={{ color: "#e5e7eb", margin: 0 }}>
+                        {step === "areas" && "📍 Chọn khu vực"}
+                        {step === "tables" && `🪑 Chọn bàn (${selectedArea})`}
                     </h2>
                 </div>
 
-                {/* LOADING */}
-                {loading && (
+                {date && time && (
                     <div style={{
-                        textAlign: 'center',
-                        padding: '80px 20px',
-                        color: '#9ca3af'
+                        background: 'rgba(212, 175, 55, 0.1)',
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        marginBottom: '20px',
+                        fontSize: '14px',
+                        color: '#D4AF37'
                     }}>
-                        <div style={{
-                            width: '56px',
-                            height: '56px',
-                            border: '5px solid rgba(212, 175, 55, 0.2)',
-                            borderTopColor: '#D4AF37',
-                            borderRadius: '50%',
-                            animation: 'spin 0.8s linear infinite',
-                            margin: '0 auto 20px'
-                        }}></div>
-                        <p style={{ fontSize: '16px', fontWeight: '500' }}>Đang tải...</p>
+                        📅 Đặt bàn ngày: {new Date(date).toLocaleDateString('vi-VN')} - {time}
                     </div>
                 )}
 
-                {/* CONTENT */}
+                {loading && (
+                    <div style={{ textAlign: "center", padding: "60px", color: "#9ca3af" }}>
+                        <div style={{
+                            width: "48px",
+                            height: "48px",
+                            border: "4px solid rgba(212,175,55,0.2)",
+                            borderTopColor: "#D4AF37",
+                            borderRadius: "50%",
+                            animation: "spin 0.8s linear infinite",
+                            margin: "0 auto 20px"
+                        }}></div>
+                        <p>Đang tải...</p>
+                    </div>
+                )}
+
                 {!loading && (
                     <>
-                        {/* BƯỚC 1: CHỌN CHI NHÁNH */}
-                        {step === "branches" && (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                                gap: '20px',
-                                padding: '10px 0'
-                            }}>
-                                {branches.length === 0 ? (
-                                    <div style={{
-                                        textAlign: 'center',
-                                        padding: '60px 20px',
-                                        gridColumn: '1 / -1',
-                                        color: '#9ca3af'
-                                    }}>
-                                        <Building2 size={64} style={{ margin: '0 auto 20px', opacity: 0.3 }} />
-                                        <p style={{ fontSize: '16px' }}>Không có chi nhánh nào</p>
-                                    </div>
-                                ) : (
-                                    branches.map((branch) => (
-                                        <div
-                                            key={branch.id}
-                                            onClick={() => handleSelectBranch(branch)}
-                                            style={{
-                                                padding: '28px',
-                                                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))',
-                                                border: '2px solid rgba(212, 175, 55, 0.3)',
-                                                borderRadius: '16px',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.3s ease',
-                                                position: 'relative',
-                                                overflow: 'hidden'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(-6px)';
-                                                e.currentTarget.style.boxShadow = '0 12px 32px rgba(212, 175, 55, 0.4)';
-                                                e.currentTarget.style.borderColor = '#D4AF37';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(0)';
-                                                e.currentTarget.style.boxShadow = 'none';
-                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
-                                            }}
-                                        >
-                                            <div style={{
-                                                width: '70px',
-                                                height: '70px',
-                                                background: 'linear-gradient(135deg, #D4AF37, #B8941E)',
-                                                borderRadius: '14px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                margin: '0 auto 20px',
-                                                boxShadow: '0 6px 16px rgba(212, 175, 55, 0.5)'
-                                            }}>
-                                                <Building2 size={36} color="#fff" strokeWidth={2.5} />
-                                            </div>
-
-                                            <h3 style={{
-                                                fontSize: '20px',
-                                                fontWeight: '700',
-                                                color: '#e5e7eb',
-                                                marginBottom: '10px',
-                                                textAlign: 'center'
-                                            }}>
-                                                {branch.name}
-                                            </h3>
-
-                                            {branch.address && (
-                                                <p style={{
-                                                    fontSize: '14px',
-                                                    color: '#9ca3af',
-                                                    textAlign: 'center',
-                                                    margin: 0,
-                                                    lineHeight: '1.5'
-                                                }}>
-                                                    📍 {branch.address}
-                                                </p>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
-
-                        {/* BƯỚC 2: CHỌN KHU VỰC */}
                         {step === "areas" && (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                                gap: '18px',
-                                padding: '10px 0'
-                            }}>
+                            <div className={styles.grid}>
                                 {areas.length === 0 ? (
-                                    <div style={{
-                                        textAlign: 'center',
-                                        padding: '60px 20px',
-                                        gridColumn: '1 / -1',
-                                        color: '#9ca3af'
-                                    }}>
-                                        <MapPin size={64} style={{ margin: '0 auto 20px', opacity: 0.3 }} />
-                                        <p style={{ fontSize: '16px' }}>Không có khu vực nào</p>
-                                    </div>
+                                    <p style={{ gridColumn: "1/-1", textAlign: "center", color: "#9ca3af" }}>
+                                        Không có khu vực nào
+                                    </p>
                                 ) : (
                                     areas.map((area) => (
                                         <div
                                             key={area}
+                                            className={styles.card}
                                             onClick={() => handleSelectArea(area)}
-                                            style={{
-                                                padding: '26px',
-                                                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.04))',
-                                                border: '2px solid rgba(212, 175, 55, 0.3)',
-                                                borderRadius: '14px',
-                                                cursor: 'pointer',
-                                                textAlign: 'center',
-                                                transition: 'all 0.3s ease'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(-5px)';
-                                                e.currentTarget.style.boxShadow = '0 10px 28px rgba(212, 175, 55, 0.35)';
-                                                e.currentTarget.style.borderColor = '#D4AF37';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(0)';
-                                                e.currentTarget.style.boxShadow = 'none';
-                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
-                                            }}
                                         >
-                                            <div style={{
-                                                width: '65px',
-                                                height: '65px',
-                                                background: 'linear-gradient(135deg, #D4AF37, #B8941E)',
-                                                borderRadius: '12px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                margin: '0 auto 18px',
-                                                boxShadow: '0 5px 14px rgba(212, 175, 55, 0.45)'
-                                            }}>
-                                                <MapPin size={34} color="#fff" strokeWidth={2.5} />
-                                            </div>
-
-                                            <h3 style={{
-                                                fontSize: '19px',
-                                                fontWeight: '700',
-                                                color: '#e5e7eb',
-                                                marginBottom: 0
-                                            }}>
-                                                {area}
-                                            </h3>
+                                            <div style={{ fontSize: "32px", marginBottom: "8px" }}>📍</div>
+                                            {area}
                                         </div>
                                     ))
                                 )}
                             </div>
                         )}
 
-                        {/* BƯỚC 3: CHỌN BÀN */}
                         {step === "tables" && (
                             <>
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                                    gap: '18px',
-                                    padding: '10px 0'
-                                }}>
+                                <div className={styles.grid}>
                                     {tables.length === 0 ? (
-                                        <div style={{
-                                            textAlign: 'center',
-                                            padding: '60px 20px',
-                                            gridColumn: '1 / -1',
-                                            color: '#9ca3af'
-                                        }}>
-                                            <Grid3x3 size={64} style={{ margin: '0 auto 20px', opacity: 0.3 }} />
-                                            <p style={{ fontSize: '16px' }}>Không có bàn nào trong khu vực này</p>
-                                        </div>
+                                        <p style={{ gridColumn: "1/-1", textAlign: "center", color: "#9ca3af" }}>
+                                            ❌ Không có bàn trống trong khu vực này
+                                        </p>
                                     ) : (
                                         tables.map((t) => (
                                             <div
                                                 key={t.id}
-                                                onClick={() => t.status === "available" && handleSelectTable(t)}
-                                                style={{
-                                                    padding: '24px 16px',
-                                                    background: t.status === "available"
-                                                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.05))'
-                                                        : 'rgba(75, 85, 99, 0.15)',
-                                                    border: t.status === "available"
-                                                        ? '2px solid rgba(16, 185, 129, 0.4)'
-                                                        : '2px solid rgba(75, 85, 99, 0.3)',
-                                                    borderRadius: '14px',
-                                                    textAlign: 'center',
-                                                    cursor: t.status === "available" ? 'pointer' : 'not-allowed',
-                                                    opacity: t.status === "available" ? 1 : 0.5,
-                                                    transition: 'all 0.3s ease'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    if (t.status === "available") {
-                                                        e.currentTarget.style.transform = 'translateY(-5px)';
-                                                        e.currentTarget.style.boxShadow = '0 10px 28px rgba(16, 185, 129, 0.35)';
-                                                        e.currentTarget.style.borderColor = '#10b981';
-                                                    }
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    if (t.status === "available") {
-                                                        e.currentTarget.style.transform = 'translateY(0)';
-                                                        e.currentTarget.style.boxShadow = 'none';
-                                                        e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-                                                    }
-                                                }}
+                                                className={`
+                                                    ${styles.table}
+                                                    ${t.status === "occupied" ? styles.disabled : ""}
+                                                `}
+                                                onClick={() => handleSelectTable(t)}
                                             >
-                                                <div style={{
-                                                    fontSize: '36px',
-                                                    marginBottom: '10px',
-                                                    color: t.status === "available" ? '#10b981' : '#6b7280'
-                                                }}>
-                                                    {t.status === "available" ? "✓" : "✗"}
+                                                <div style={{ fontSize: "32px", marginBottom: "8px" }}>
+                                                    {t.status === "available" ? "🍽️" : "🔒"}
                                                 </div>
-                                                <div style={{
-                                                    fontSize: '17px',
-                                                    fontWeight: '700',
-                                                    color: '#e5e7eb',
-                                                    marginBottom: '6px'
-                                                }}>
+                                                <div style={{ fontSize: "20px", fontWeight: "bold" }}>
                                                     Bàn {t.number}
                                                 </div>
-                                                <div style={{
-                                                    fontSize: '13px',
-                                                    color: t.status === "available" ? '#10b981' : '#9ca3af',
-                                                    fontWeight: '500'
-                                                }}>
-                                                    {t.status === "available" ? "Trống" : "Đang phục vụ"}
+                                                <div style={{ fontSize: "12px", marginTop: "4px" }}>
+                                                    {t.capacity} người
                                                 </div>
+                                                <small style={{
+                                                    display: "block",
+                                                    marginTop: "8px",
+                                                    color: t.status === "available" ? "#10b981" : "#ef4444"
+                                                }}>
+                                                    {t.status === "available" ? "🟢 Trống" : "🔴 Đã có khách"}
+                                                </small>
                                             </div>
                                         ))
                                     )}
                                 </div>
 
-                                {/* LEGEND */}
                                 <div style={{
-                                    display: 'flex',
-                                    gap: 24,
-                                    justifyContent: 'center',
-                                    marginTop: 28,
-                                    padding: '16px',
-                                    background: 'rgba(31, 41, 55, 0.5)',
-                                    borderRadius: '12px'
+                                    display: "flex",
+                                    gap: "24px",
+                                    justifyContent: "center",
+                                    marginTop: "20px",
+                                    padding: "12px",
+                                    background: "rgba(31,41,55,0.5)",
+                                    borderRadius: "8px"
                                 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <div style={{
-                                            width: '44px',
-                                            height: '44px',
-                                            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1))',
-                                            border: '2px solid #10b981',
-                                            borderRadius: '10px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '20px',
-                                            color: '#10b981'
-                                        }}>
-                                            ✓
-                                        </div>
-                                        <span style={{ fontSize: '14px', color: '#9ca3af', fontWeight: '500' }}>
-                                            Bàn trống
-                                        </span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <div style={{ width: "24px", height: "24px", background: "#10b981", borderRadius: "4px" }}></div>
+                                        <span style={{ fontSize: "12px", color: "#9ca3af" }}>Trống</span>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <div style={{
-                                            width: '44px',
-                                            height: '44px',
-                                            background: 'rgba(75, 85, 99, 0.2)',
-                                            border: '2px solid #6b7280',
-                                            borderRadius: '10px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '20px',
-                                            color: '#6b7280'
-                                        }}>
-                                            ✗
-                                        </div>
-                                        <span style={{ fontSize: '14px', color: '#9ca3af', fontWeight: '500' }}>
-                                            Đang phục vụ
-                                        </span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <div style={{ width: "24px", height: "24px", background: "#ef4444", borderRadius: "4px" }}></div>
+                                        <span style={{ fontSize: "12px", color: "#9ca3af" }}>Đã có khách</span>
                                     </div>
                                 </div>
                             </>
@@ -547,33 +249,15 @@ const TableSelectionModal = ({
                     </>
                 )}
 
-                {/* CLOSE BUTTON */}
-                <button
-                    onClick={onClose}
-                    style={{
-                        width: '100%',
-                        marginTop: 24,
-                        padding: '14px',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '2px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '12px',
-                        color: '#ef4444',
-                        fontSize: '15px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                        e.currentTarget.style.borderColor = '#ef4444';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-                    }}
-                >
+                <button onClick={onClose} className={styles.closeBtn}>
                     Đóng
                 </button>
+
+                <style>{`
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                `}</style>
             </div>
         </div>
     );

@@ -1,0 +1,35 @@
+.layoutContainer {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: #121212;
+    /* nền đen */
+    color: #f5d36b;
+    /* chữ vàng đồng */
+    font-family: "Poppins", sans-serif;
+}
+
+.header {
+    background-color: #121212;
+    color: #f5d36b;
+    padding: 15px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #f5d36b;
+}
+
+.main {
+    flex: 1;
+    padding: 20px 40px;
+    background-color: #121212;
+}
+
+.footer {
+    background-color: #121212;
+    color: #bba84a;
+    text-align: center;
+    padding: 10px;
+    border-top: 1px solid #f5d36b;
+    font-size: 14px;
+}
