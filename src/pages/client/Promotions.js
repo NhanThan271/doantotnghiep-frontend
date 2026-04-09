@@ -1,47 +1,46 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import CouponCard from './CouponCard';
 import PhoneFloatButton from './booking/PhoneFloatButton';
 import './Promotions.css';
 
+const API = "http://localhost:8080/api/promotions";
+
 const Promotions = () => {
-    const coupons = [
-        {
-            id: 1,
-            value: '50.000VND',
-            displayValue: '50k',
-            validFrom: '01/10/2025',
-            validTo: '31/12/2100',
-            daysRemaining: 27396,
-            backgroundColor: '#f59e0b'
-        },
-        {
-            id: 2,
-            value: '200.000VND',
-            displayValue: '200k',
-            validFrom: '01/10/2025',
-            validTo: '31/12/2100',
-            daysRemaining: 27396,
-            backgroundColor: '#f59e0b'
-        },
-        {
-            id: 3,
-            value: '100.000VND',
-            displayValue: '100k',
-            validFrom: '01/01/2025',
-            validTo: '31/12/2025',
-            daysRemaining: 368,
-            backgroundColor: '#f59e0b'
-        },
-        {
-            id: 4,
-            value: '150.000VND',
-            displayValue: '150k',
-            validFrom: '15/12/2024',
-            validTo: '15/03/2025',
-            daysRemaining: 77,
-            backgroundColor: '#f59e0b'
+    const [coupons, setCoupons] = useState([]);
+
+    useEffect(() => {
+        fetchPromotions();
+    }, []);
+
+    const fetchPromotions = async () => {
+        try {
+            const res = await axios.get(API);
+
+            const formattedData = res.data.map((item) => {
+                const today = new Date();
+                const endDate = new Date(item.endDate);
+
+                const daysRemaining = Math.ceil(
+                    (endDate - today) / (1000 * 60 * 60 * 24)
+                );
+
+                return {
+                    id: item.id,
+                    value: item.discountValue + " VND",
+                    displayValue: Math.round(item.discountValue / 1000) + "k",
+                    validFrom: item.startDate,
+                    validTo: item.endDate,
+                    daysRemaining: daysRemaining > 0 ? daysRemaining : 0,
+                    backgroundColor: '#f59e0b'
+                };
+            });
+
+            setCoupons(formattedData);
+        } catch (error) {
+            console.error("❌ Lỗi lấy promotions:", error);
         }
-    ];
+    };
 
     return (
         <>
