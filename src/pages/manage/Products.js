@@ -67,7 +67,7 @@ export default function BranchMenuManager() {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(
-                `${API_BASE_URL}/api/branch-products/branch/${currentBranch.id}/with-promotions`,
+                `${API_BASE_URL}/api/branch-foods/branch/${currentBranch.id}/with-promotions`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
@@ -96,13 +96,13 @@ export default function BranchMenuManager() {
         }
     }, [currentBranch]);
 
-    const toggleProductStatus = async (branchProductId, currentStatus) => {
+    const toggleProductStatus = async (branchFoodId, currentStatus) => {
         try {
             const token = localStorage.getItem('token');
             const updatedStatus = !currentStatus;
 
             const response = await fetch(
-                `${API_BASE_URL}/api/branch-products/${branchProductId}/toggle-status`,
+                `${API_BASE_URL}/api/branch-foods/${branchFoodId}/toggle-status`,
                 {
                     method: 'PUT',
                     headers: {

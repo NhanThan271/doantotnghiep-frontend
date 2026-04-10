@@ -89,7 +89,7 @@ export default function BranchReservationManager() {
         if (!currentBranch?.id) return;
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/customer/tables`, {
+            const response = await fetch(`${API_BASE_URL}/api/tables`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (!response.ok) throw new Error('Không thể tải danh sách bàn');

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// pages/login/LoginPage.js
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import "./LoginPage.css";
@@ -8,7 +9,21 @@ const LoginPage = () => {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false); // 🆕 State cho ghi nhớ
     const navigate = useNavigate();
+
+    // 🆕 Load thông tin đã lưu khi component mount
+    useEffect(() => {
+        const savedCredentials = localStorage.getItem("savedCredentials");
+        if (savedCredentials) {
+            const { username: savedUsername, password: savedPassword, remember } = JSON.parse(savedCredentials);
+            if (remember) {
+                setUsername(savedUsername);
+                setPassword(savedPassword);
+                setRememberMe(true);
+            }
+        }
+    }, []);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -20,7 +35,7 @@ const LoginPage = () => {
                 password,
             });
 
-            //  Lấy token
+            // Lấy token
             const token = res.data.token || res.data.accessToken;
             if (!token) {
                 alert("Không nhận được token từ server!");
@@ -28,13 +43,13 @@ const LoginPage = () => {
                 return;
             }
 
-            //  Lưu token vào localStorage
+            // Lưu token vào localStorage
             localStorage.setItem("token", token);
 
-            // Destructure response data để lấy branchId và branchName
+            // Destructure response data
             const { branchId, branchName, roles, id, username: userName, email } = res.data;
 
-            // Tạo object user với đầy đủ thông tin
+            // Tạo object user
             const user = {
                 id,
                 username: userName,
@@ -44,21 +59,32 @@ const LoginPage = () => {
                 branch: branchId ? { id: branchId, name: branchName } : null
             };
 
-            // Lưu thông tin user vào localStorage
+            // Lưu thông tin user
             localStorage.setItem("user", JSON.stringify(user));
 
-            //  Lấy role chuẩn từ mảng roles
+            // 🆕 Lưu credentials nếu chọn "Ghi nhớ"
+            if (rememberMe) {
+                localStorage.setItem("savedCredentials", JSON.stringify({
+                    username,
+                    password,
+                    remember: true
+                }));
+            } else {
+                localStorage.removeItem("savedCredentials");
+            }
+
+            // Lấy role
             const rolesArray = user.roles || [];
             const role = rolesArray[0]?.replace("ROLE_", "").toUpperCase() || "";
 
-            //  Điều hướng theo role
+            // Điều hướng theo role
             switch (role) {
                 case "ADMIN":
                     navigate("/admin", { replace: true });
                     break;
                 case "EMPLOYEE":
                     if (!branchId) {
-                        alert("Tài khoản của bạn chưa được gán chi nhánh. Vui lòng liên hệ quản trị viên.");
+                        alert("Tài khoản của bạn chưa được gán chi nhánh.");
                         localStorage.clear();
                         setIsLoading(false);
                         return;
@@ -66,9 +92,8 @@ const LoginPage = () => {
                     navigate("/employee", { replace: true });
                     break;
                 case "MANAGER":
-                    // Kiểm tra xem manager có branch không
                     if (!branchId) {
-                        alert("Tài khoản của bạn chưa được gán chi nhánh. Vui lòng liên hệ quản trị viên.");
+                        alert("Tài khoản của bạn chưa được gán chi nhánh.");
                         localStorage.clear();
                         setIsLoading(false);
                         return;
@@ -77,12 +102,15 @@ const LoginPage = () => {
                     break;
                 case "KITCHEN":
                     if (!branchId) {
-                        alert("Tài khoản của bạn chưa được gán chi nhánh. Vui lòng liên hệ quản trị viên.");
+                        alert("Tài khoản của bạn chưa được gán chi nhánh.");
                         localStorage.clear();
                         setIsLoading(false);
                         return;
                     }
                     navigate("/kitchen", { replace: true });
+                    break;
+                case "CUSTOMER":
+                    navigate("/", { replace: true });
                     break;
                 default:
                     navigate("/", { replace: true });
@@ -164,7 +192,11 @@ const LoginPage = () => {
 
                     <div className="form-options">
                         <label className="checkbox-label">
-                            <input type="checkbox" />
+                            <input
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
+                            />
                             <span>Ghi nhớ đăng nhập</span>
                         </label>
                         <a href="/forgot-password" className="forgot-link">Quên mật khẩu?</a>
