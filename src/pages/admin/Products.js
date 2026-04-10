@@ -109,7 +109,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                             WebkitTextFillColor: 'transparent',
                             letterSpacing: '-0.5px'
                         }}>
-                            Quản lý Sản phẩm
+                            Quản lý Món Ăn
                         </h2>
                         <p style={{
                             color: 'var(--color-text-secondary)',
@@ -119,7 +119,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                             gap: '8px'
                         }}>
                             <Package size={16} />
-                            Tổng số: {products.length} sản phẩm
+                            Tổng số: {products.length} món ăn
                         </p>
                     </div>
                     <button
@@ -149,7 +149,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                         }}
                     >
                         <Package size={18} />
-                        Thêm sản phẩm
+                        Thêm món ăn
                     </button>
                 </div>
 
@@ -373,7 +373,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                             <tr>
                                 <th style={{ width: '100px' }}>Hình ảnh</th>
                                 <th>Danh mục</th>
-                                <th>Tên sản phẩm</th>
+                                <th>Tên món ăn</th>
                                 <th style={{ width: '150px' }}>Giá</th>
                                 <th style={{ width: '120px' }}>Trạng thái</th>
                                 <th style={{ width: '150px' }}>Hành động</th>
@@ -491,7 +491,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                                     fontSize: '13px',
                                                     fontWeight: '700'
                                                 }}>
-                                                    {p.isActive ? 'Còn hàng' : 'Hết hàng'}
+                                                    {p.isActive ? 'Đang bán' : 'Hết bán'}
                                                 </span>
                                             </td>
                                             <td>
