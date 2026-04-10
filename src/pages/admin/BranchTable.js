@@ -52,7 +52,7 @@ export default function TableManagement() {
         try {
             setLoading(true);
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/customer/tables`, {
+            const response = await fetch(`${API_BASE_URL}/api/tables`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await response.json();
@@ -109,8 +109,8 @@ export default function TableManagement() {
             };
 
             const url = editingTable
-                ? `${API_BASE_URL}/api/customer/tables/${editingTable.id}`
-                : `${API_BASE_URL}/api/customer/tables`;
+                ? `${API_BASE_URL}/api/tables/${editingTable.id}`
+                : `${API_BASE_URL}/api/tables`;
 
             const method = editingTable ? 'PUT' : 'POST';
 
@@ -144,7 +144,7 @@ export default function TableManagement() {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/customer/tables/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/tables/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
             });

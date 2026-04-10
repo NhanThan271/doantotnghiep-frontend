@@ -55,7 +55,7 @@ export default function ManagerTableManagement() {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/customer/tables`, {
+            const response = await fetch(`${API_BASE_URL}/api/tables`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 

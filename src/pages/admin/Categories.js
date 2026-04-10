@@ -8,7 +8,7 @@ export default function Categories({ openAdd, openEdit, refreshTrigger }) {
 
     const fetchCategories = () => {
         const token = localStorage.getItem('token');
-        fetch(`${API_BASE_URL}/api/employee/categories`, {
+        fetch(`${API_BASE_URL}/api/categories`, {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => res.ok ? res.json() : Promise.reject('Unauthorized hoặc lỗi khác'))
@@ -33,7 +33,7 @@ export default function Categories({ openAdd, openEdit, refreshTrigger }) {
     const handleDelete = (id) => {
         const token = localStorage.getItem('token');
         if (window.confirm('Bạn có chắc muốn xóa danh mục này không?')) {
-            fetch(`${API_BASE_URL}/api/employee/categories/${id}`, {
+            fetch(`${API_BASE_URL}/api/categories/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
             })

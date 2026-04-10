@@ -1116,7 +1116,7 @@ export default function ManagerInventoryManagement() {
             )}
 
             {/* CSS Animations */}
-            <style jsx>{`
+            <style>{`
                 @keyframes pulse {
                     0%, 100% {
                         opacity: 1;

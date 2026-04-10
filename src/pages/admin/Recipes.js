@@ -78,7 +78,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
     // Filter logic
     const filteredRecipes = recipes.filter(item => {
 
-        const productName = item.product?.name || '';
+        const productName = item.food?.name || '';
         const ingredientName = item.ingredient?.name || '';
 
         const matchesSearch =
@@ -88,7 +88,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
         const matchesFilter =
             filterProduct === 'all'
                 ? true
-                : item.product?.id === parseInt(filterProduct);
+                : item.food?.id === parseInt(filterProduct);
 
         return matchesSearch && matchesFilter;
     });
@@ -96,11 +96,11 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
     const groupedRecipes = {};
 
     filteredRecipes.forEach(r => {
-        const productId = r.product?.id;
+        const productId = r.food?.id;
 
         if (!groupedRecipes[productId]) {
             groupedRecipes[productId] = {
-                product: r.product,
+                food: r.food,
                 ingredients: []
             };
         }
@@ -115,7 +115,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
 
     // Stats calculation
     const totalRecipes = recipes.length;
-    const uniqueProducts = new Set(recipes.map(r => r.product?.id)).size;
+    const uniqueProducts = new Set(recipes.map(r => r.food?.id)).size;
     const avgIngredientsPerProduct = uniqueProducts > 0 ? (totalRecipes / uniqueProducts).toFixed(1) : 0;
 
     return (
@@ -357,9 +357,9 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                             }}
                         >
                             <option value="all">Tất cả sản phẩm</option>
-                            {products.map(product => (
-                                <option key={product.id} value={product.id}>
-                                    {product.name}
+                            {products.map(food => (
+                                <option key={food.id} value={food.id}>
+                                    {food.name}
                                 </option>
                             ))}
                         </select>
@@ -436,11 +436,11 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                 </tr>
                             ) : (
                                 Object.values(groupedRecipes).map(group => (
-                                    <tr key={group.product.id}>
+                                    <tr key={group.food.id}>
 
                                         {/* PRODUCT */}
                                         <td>
-                                            <b>{group.product.name}</b>
+                                            <b>{group.food.name}</b>
                                         </td>
 
                                         {/* INGREDIENT LIST */}
@@ -563,7 +563,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                         fontSize: '24px',
                                         boxShadow: '0 8px 20px rgba(249, 115, 22, 0.3)'
                                     }}>
-                                        {item.product?.name?.charAt(0).toUpperCase() || 'P'}
+                                        {item.food?.name?.charAt(0).toUpperCase() || 'P'}
                                     </div>
                                 </div>
 
@@ -577,7 +577,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap'
                                 }}>
-                                    {item.product?.name || 'N/A'}
+                                    {item.food?.name || 'N/A'}
                                 </h3>
 
                                 {/* Ingredient */}
