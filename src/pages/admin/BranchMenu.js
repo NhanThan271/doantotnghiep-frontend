@@ -227,7 +227,7 @@ export default function BranchMenuDistribution() {
                     gap: '8px'
                 }}>
                     <Store size={16} />
-                    Quản lý sản phẩm theo từng chi nhánh
+                    Quản lý món ăn theo từng chi nhánh
                 </p>
             </div>
 
@@ -401,7 +401,17 @@ export default function BranchMenuDistribution() {
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className='search-input'
-                                        style={{ paddingLeft: '48px' }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px 16px 12px 48px',
+                                            background: 'var(--color-bg-dark)',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '12px',
+                                            color: 'var(--color-text-primary)',
+                                            fontSize: '14px',
+                                            outline: 'none',
+                                            transition: 'all 0.2s ease'
+                                        }}
                                     />
                                 </div>
 

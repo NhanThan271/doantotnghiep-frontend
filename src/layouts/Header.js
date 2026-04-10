@@ -118,7 +118,6 @@ const Header = () => {
                                 >
                                     <span>👤</span>
                                     <span>Xin chào, {user.username}</span>
-                                    <span>▼</span>
                                 </button>
 
                                 {isDropdownOpen && (
