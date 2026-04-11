@@ -2,298 +2,226 @@ import React, { useEffect, useState } from 'react';
 import { ChefHat, Clock, AlertCircle, CheckCircle, Play, Check, RefreshCw } from 'lucide-react';
 import styles from './KitchenDashboard.module.css';
 import KitchenLayout from '../../layouts/KitchenLayout';
-import io from 'socket.io-client';
 import ToastNotification from './ToastNotification';
 
-const socket = io('http://localhost:3001');
+// TẮT SOCKET.IO KHI DÙNG MOCK DATA
+// const socket = io('https://restaurant-management-backend.up.railway.app');
 
 export default function KitchenDashboard() {
     const [orderItems, setOrderItems] = useState([]);
     const [loading, setLoading] = useState(false);
     const [currentBranch, setCurrentBranch] = useState(null);
-    const [initialLoading, setInitialLoading] = useState(true);
+    const [initialLoading, setInitialLoading] = useState(false); // TẮT LOADING
     const [filterStatus, setFilterStatus] = useState('all');
     const [toasts, setToasts] = useState([]);
-    const API_BASE_URL = 'restaurant-management-backend.up.railway.app';
 
+    // ========== DỮ LIỆU MOCK (GIẢ LẬP) ==========
+    const mockBranch = {
+        id: 1,
+        name: "Chi nhánh Trung Tâm",
+        address: "123 Đường Lê Lợi, Quận 1, TP.HCM",
+        phone: "028 1234 5678"
+    };
+
+    const mockOrderItems = [
+        {
+            id: 1,
+            status: 'NEW',
+            quantity: 2,
+            createdAt: new Date(Date.now() - 5 * 60000).toISOString(), // 5 phút trước
+            notes: 'Không ớt',
+            product: {
+                id: 101,
+                name: 'Phở bò tái'
+            },
+            order: {
+                id: 1001,
+                tableNumber: 'Bàn 12',
+                createdAt: new Date(Date.now() - 5 * 60000).toISOString()
+            }
+        },
+        {
+            id: 2,
+            status: 'NEW',
+            quantity: 1,
+            createdAt: new Date(Date.now() - 3 * 60000).toISOString(), // 3 phút trước
+            notes: '',
+            product: {
+                id: 102,
+                name: 'Bún chả Hà Nội'
+            },
+            order: {
+                id: 1001,
+                tableNumber: 'Bàn 12',
+                createdAt: new Date(Date.now() - 5 * 60000).toISOString()
+            }
+        },
+        {
+            id: 3,
+            status: 'COOKING',
+            quantity: 3,
+            createdAt: new Date(Date.now() - 20 * 60000).toISOString(), // 20 phút trước - quá hạn
+            notes: 'Làm chín kỹ',
+            product: {
+                id: 103,
+                name: 'Cơm rang dưa bò'
+            },
+            order: {
+                id: 1002,
+                tableNumber: 'Bàn 8',
+                createdAt: new Date(Date.now() - 20 * 60000).toISOString()
+            }
+        },
+        {
+            id: 4,
+            status: 'COOKING',
+            quantity: 1,
+            createdAt: new Date(Date.now() - 10 * 60000).toISOString(), // 10 phút trước
+            notes: '',
+            product: {
+                id: 104,
+                name: 'Gà chiên nước mắm'
+            },
+            order: {
+                id: 1003,
+                tableNumber: 'Bàn 5',
+                createdAt: new Date(Date.now() - 10 * 60000).toISOString()
+            }
+        },
+        {
+            id: 5,
+            status: 'DONE',
+            quantity: 2,
+            createdAt: new Date(Date.now() - 30 * 60000).toISOString(), // 30 phút trước
+            notes: 'Thêm sa tế',
+            product: {
+                id: 105,
+                name: 'Mì xào hải sản'
+            },
+            order: {
+                id: 1004,
+                tableNumber: 'Bàn 3',
+                createdAt: new Date(Date.now() - 30 * 60000).toISOString()
+            }
+        },
+        {
+            id: 6,
+            status: 'DONE',
+            quantity: 1,
+            createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
+            notes: '',
+            product: {
+                id: 106,
+                name: 'Lẩu thái hải sản'
+            },
+            order: {
+                id: 1005,
+                tableNumber: 'Bàn 10',
+                createdAt: new Date(Date.now() - 25 * 60000).toISOString()
+            }
+        },
+        {
+            id: 7,
+            status: 'NEW',
+            quantity: 4,
+            createdAt: new Date(Date.now() - 2 * 60000).toISOString(), // 2 phút trước
+            notes: 'Rau sống nhiều',
+            product: {
+                id: 107,
+                name: 'Bánh xèo'
+            },
+            order: {
+                id: 1006,
+                tableNumber: 'Bàn 15',
+                createdAt: new Date(Date.now() - 2 * 60000).toISOString()
+            }
+        },
+        {
+            id: 8,
+            status: 'COOKING',
+            quantity: 1,
+            createdAt: new Date(Date.now() - 18 * 60000).toISOString(), // 18 phút trước - quá hạn
+            notes: 'Ít đường',
+            product: {
+                id: 108,
+                name: 'Chè Thái'
+            },
+            order: {
+                id: 1007,
+                tableNumber: 'Bàn 7',
+                createdAt: new Date(Date.now() - 18 * 60000).toISOString()
+            }
+        }
+    ];
+
+    // Hiển thị thông báo (Mock)
     const showToast = (message, type = 'info', duration = 5000) => {
         const id = Date.now();
         const newToast = { id, message, type, duration };
-
         setToasts(prev => [...prev, newToast]);
-
-        try {
-            const audio = new Audio('/notification-sound.mp3');
-            audio.volume = 0.5;
-            audio.play().catch(err => console.log('Cannot play sound:', err));
-        } catch (err) {
-            console.log('Audio not supported');
-        }
+        setTimeout(() => removeToast(id), duration);
     };
 
     const removeToast = (id) => {
         setToasts(prev => prev.filter(toast => toast.id !== id));
     };
 
-    // Fetch branch info
+    // Mock fetch branch
     const fetchCurrentBranch = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const userStr = localStorage.getItem('user');
-
-            console.log('🔍 Token:', token ? 'exists' : 'missing');
-            console.log('🔍 User:', userStr);
-
-            const user = userStr ? JSON.parse(userStr) : null;
-
-            let branchId = user?.branch?.id || user?.branchId;
-
-            if (!branchId) {
-                const userRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                if (userRes.ok) {
-                    const userData = await userRes.json();
-                    branchId = userData.branch?.id;
-
-                    if (branchId) {
-                        localStorage.setItem('user', JSON.stringify({
-                            ...user,
-                            branchId,
-                            branch: userData.branch
-                        }));
-                    }
-                }
-            }
-
-            if (!branchId) {
-                console.error('❌ Không tìm thấy branchId');
-                showToast('Tài khoản chưa được gán chi nhánh', 'warning', 6000);
-                setInitialLoading(false); // IMPORTANT: Stop loading even on error
-                return;
-            }
-
-            const branchRes = await fetch(`${API_BASE_URL}/api/branches/${branchId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (branchRes.ok) {
-                const branchData = await branchRes.json();
-                console.log('✅ Branch loaded:', branchData);
-                setCurrentBranch(branchData);
-            } else {
-                console.error('❌ Branch fetch failed:', branchRes.status);
-                showToast('Không thể tải thông tin chi nhánh', 'error', 5000);
-            }
-        } catch (error) {
-            console.error('❌ Lỗi khi lấy thông tin chi nhánh:', error);
-            showToast('Không thể lấy thông tin chi nhánh', 'error', 5000);
-        } finally {
-            setInitialLoading(false); // ALWAYS stop loading
-        }
+        // Giả lập độ trễ mạng
+        setTimeout(() => {
+            console.log('✅ Branch loaded (mock):', mockBranch);
+            setCurrentBranch(mockBranch);
+            setInitialLoading(false);
+        }, 500);
     };
 
-    // Fetch order items
+    // Mock fetch order items
     const fetchOrderItems = async () => {
-        if (!currentBranch?.id) {
-            console.log('⚠️ Không có branch ID, bỏ qua fetch items');
-            return;
-        }
-
         setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-            // THÊM LOG ĐỂ KIỂM TRA
-            console.log('🔍 User info:', user);
-            console.log('🔍 User roles:', user.roles);
-            console.log('🔍 Token:', token?.substring(0, 20) + '...');
-            const ordersRes = await fetch(`${API_BASE_URL}/api/customer/orders`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            console.log('📥 Orders response status:', ordersRes.status);
-
-            if (!ordersRes.ok) {
-                const errorText = await ordersRes.text();
-                console.error('❌ Orders API error:', errorText);
-                throw new Error('Không thể tải đơn hàng');
-            }
-
-            const orders = await ordersRes.json();
-            // Chỉ lấy đơn CONFIRMED của chi nhánh này
-            const confirmedOrders = orders.filter(order =>
-                order.status === 'CONFIRMED' &&
-                order.branch?.id === currentBranch.id
-            );
-
-            const itemsRes = await fetch(`${API_BASE_URL}/api/kitchen/order-items`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            console.log('📥 Items response status:', itemsRes.status);
-
-            if (!itemsRes.ok) {
-                const errorText = await itemsRes.text();
-                console.error('❌ Items API error:', errorText);
-                throw new Error('Không thể tải món');
-            }
-
-            const allItems = await itemsRes.json();
-
-            // Chỉ lấy món thuộc đơn CONFIRMED và chưa SERVED
-            const kitchenItems = allItems.filter(item => {
-                const belongsToConfirmedOrder = confirmedOrders.some(order => order.id === item.order?.id);
-                const notServed = item.status !== 'SERVED';
-                return belongsToConfirmedOrder && notServed;
-            });
-
-            // SẮP XẾP ƯU TIÊN: NEW → COOKING → DONE, sau đó theo thời gian và số lượng
-            kitchenItems.sort((a, b) => {
-                // Thứ tự ưu tiên trạng thái
+        // Giả lập độ trễ mạng
+        setTimeout(() => {
+            // Sắp xếp món theo ưu tiên
+            const sortedItems = [...mockOrderItems];
+            sortedItems.sort((a, b) => {
                 const statusPriority = { 'NEW': 1, 'COOKING': 2, 'DONE': 3 };
                 const priorityA = statusPriority[a.status] || 999;
                 const priorityB = statusPriority[b.status] || 999;
-
-                if (priorityA !== priorityB) {
-                    return priorityA - priorityB; // NEW trước, DONE sau
-                }
-
-                // Cùng trạng thái → sắp theo thời gian (cũ trước)
-                const timeA = new Date(a.order?.createdAt || 0);
-                const timeB = new Date(b.order?.createdAt || 0);
-                if (timeA - timeB !== 0) return timeA - timeB;
-
-                // Cùng thời gian → món nhiều trước
-                return (b.quantity || 0) - (a.quantity || 0);
+                if (priorityA !== priorityB) return priorityA - priorityB;
+                const timeA = new Date(a.createdAt || 0);
+                const timeB = new Date(b.createdAt || 0);
+                return timeA - timeB;
             });
-
-            console.log('✅ Loaded items:', kitchenItems.length);
-            setOrderItems(kitchenItems);
-        } catch (error) {
-            console.error('❌ Lỗi khi tải món:', error);
-            showToast('Không thể tải danh sách món', 'error', 5000);
-        } finally {
+            setOrderItems(sortedItems);
             setLoading(false);
-        }
+            console.log('✅ Mock items loaded:', sortedItems.length);
+        }, 500);
     };
 
-    // WebSocket & Initial Load
-    useEffect(() => {
-        console.log('🚀 Component mounted');
-        fetchCurrentBranch();
-
-        socket.emit("register-role", "kitchen");
-
-        socket.on("order-for-staff", (orderData) => {
-            console.log("📦 Bếp nhận đơn mới:", orderData);
-
-            if (orderData.status === 'CONFIRMED') {
-                showToast(
-                    `🍳 Đơn mới #${orderData.id}\nBàn ${orderData.table?.number || "?"}`,
-                    'success',
-                    6000
-                );
-                fetchOrderItems();
-            }
-        });
-
-        socket.on("update-order-status", (updatedOrder) => {
-            console.log("🔄 Cập nhật trạng thái đơn:", updatedOrder);
-
-            if (updatedOrder.status === 'CONFIRMED') {
-                showToast(
-                    `🔔 Đơn #${updatedOrder.id} đã được xác nhận`,
-                    'info',
-                    4000
-                );
-                fetchOrderItems();
-            }
-        });
-
-        // ✅ LISTEN: Khi bếp khác hoặc nhân viên cập nhật món
-        socket.on("order-item-updated", (itemData) => {
-            console.log("🔄 Món được cập nhật từ bếp khác:", itemData);
-
-            // Chỉ refresh nếu cùng chi nhánh
-            if (itemData.branchId === currentBranch?.id) {
-                fetchOrderItems();
-            }
-        });
-
-        // Auto-refresh mỗi 60 giây
-        const autoRefreshInterval = setInterval(() => {
-            console.log('🔄 Auto-refresh kitchen items');
-            fetchOrderItems();
-        }, 60000);
-
-        return () => {
-            socket.off("order-for-staff");
-            socket.off("update-order-status");
-            socket.off("order-item-updated");
-            clearInterval(autoRefreshInterval);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (currentBranch) {
-            console.log('🏢 Branch available, fetching items...');
-            fetchOrderItems();
-        }
-    }, [currentBranch]);
-
+    // Mock update item status
     const updateItemStatus = async (itemId, newStatus) => {
-        try {
-            const token = localStorage.getItem('token');
-            const item = orderItems.find(i => i.id === itemId);
+        const item = orderItems.find(i => i.id === itemId);
 
-            const response = await fetch(`${API_BASE_URL}/api/kitchen/order-items/${itemId}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    ...item,
-                    status: newStatus
-                })
-            });
+        // Cập nhật trạng thái trong mock data
+        const updatedItems = orderItems.map(i =>
+            i.id === itemId ? { ...i, status: newStatus } : i
+        );
+        setOrderItems(updatedItems);
 
-            if (!response.ok) throw new Error('Cập nhật thất bại');
+        const statusText = {
+            'COOKING': '👨‍🍳 Đang làm',
+            'DONE': '✅ Hoàn thành'
+        };
 
-            const updatedItem = await response.json();
-
-            // ✅ EMIT socket event để thông báo cho các bếp khác và nhân viên
-            socket.emit('update-order-item-status', {
-                id: itemId,
-                orderId: item.order?.id,
-                status: newStatus,
-                productName: item.product?.name,
-                tableNumber: item.order?.tableEntity?.tableNumber,
-                branchId: currentBranch.id
-            });
-
-            const statusText = {
-                'COOKING': '👨‍🍳 Đang làm',
-                'DONE': '✅ Hoàn thành'
-            };
-
-            showToast(
-                `${statusText[newStatus]}: ${item?.product?.name}`,
-                newStatus === 'DONE' ? 'success' : 'info',
-                3000
-            );
-
-            fetchOrderItems();
-        } catch (error) {
-            console.error('❌ Lỗi khi cập nhật:', error);
-            showToast('Không thể cập nhật trạng thái món', 'error', 5000);
-        }
+        showToast(
+            `${statusText[newStatus]}: ${item?.product?.name}`,
+            newStatus === 'DONE' ? 'success' : 'info',
+            3000
+        );
     };
 
     const getTimeAgo = (dateString) => {
+        if (!dateString) return 'N/A';
         const now = new Date();
         const past = new Date(dateString);
         const diffMs = now - past;
@@ -305,8 +233,8 @@ export default function KitchenDashboard() {
         return `${diffHours} giờ trước`;
     };
 
-    // Kiểm tra món có quá hạn không (> 15 phút)
     const isOverdue = (dateString) => {
+        if (!dateString) return false;
         const now = new Date();
         const past = new Date(dateString);
         const diffMins = Math.floor((now - past) / 60000);
@@ -331,39 +259,20 @@ export default function KitchenDashboard() {
     const cookingCount = orderItems.filter(i => i.status === 'COOKING').length;
     const doneCount = orderItems.filter(i => i.status === 'DONE').length;
 
-    // SHOW LOADING ONLY DURING INITIAL LOAD
+    // Khởi tạo dữ liệu mock
+    useEffect(() => {
+        console.log('🚀 Component mounted (mock mode)');
+        fetchCurrentBranch();
+        fetchOrderItems();
+    }, []);
+
+    // Nếu đang loading mock
     if (initialLoading) {
         return (
             <KitchenLayout>
                 <div className={styles.loadingContainer}>
                     <RefreshCw size={48} className={styles.spinIcon} />
-                    <p>Đang tải thông tin chi nhánh...</p>
-                </div>
-            </KitchenLayout>
-        );
-    }
-
-    // SHOW ERROR STATE IF NO BRANCH AFTER LOADING
-    if (!currentBranch) {
-        return (
-            <KitchenLayout>
-                <div className={styles.loadingContainer}>
-                    <AlertCircle size={48} style={{ color: '#f59e0b' }} />
-                    <p style={{ marginTop: '16px' }}>Không tìm thấy thông tin chi nhánh</p>
-                    <button
-                        onClick={fetchCurrentBranch}
-                        style={{
-                            marginTop: '16px',
-                            padding: '8px 16px',
-                            background: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '6px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Thử lại
-                    </button>
+                    <p>Đang tải dữ liệu mẫu...</p>
                 </div>
             </KitchenLayout>
         );
@@ -455,23 +364,23 @@ export default function KitchenDashboard() {
                         filteredItems.map((item) => (
                             <div
                                 key={item.id}
-                                className={`${styles.itemCard} ${isOverdue(item.order?.createdAt) && item.status !== 'DONE' ? styles.overdueCard : ''}`}
+                                className={`${styles.itemCard} ${isOverdue(item.createdAt || item.order?.createdAt) && item.status !== 'DONE' ? styles.overdueCard : ''}`}
                             >
                                 <div className={styles.itemHeader}>
                                     <div className={styles.tableInfo}>
-                                        Bàn {item.order?.tableEntity?.tableNumber || 'N/A'}
+                                        {item.order?.tableNumber || 'Bàn ' + (item.id + 10)}
                                     </div>
-                                    <div className={`${styles.timeInfo} ${isOverdue(item.order?.createdAt) && item.status !== 'DONE' ? styles.overdueTime : ''}`}>
+                                    <div className={`${styles.timeInfo} ${isOverdue(item.createdAt || item.order?.createdAt) && item.status !== 'DONE' ? styles.overdueTime : ''}`}>
                                         <Clock size={14} />
-                                        {getTimeAgo(item.order?.createdAt)}
-                                        {isOverdue(item.order?.createdAt) && item.status !== 'DONE' && (
+                                        {getTimeAgo(item.createdAt || item.order?.createdAt)}
+                                        {isOverdue(item.createdAt || item.order?.createdAt) && item.status !== 'DONE' && (
                                             <span className={styles.overdueLabel}>⚠️ QUÁ HẠN</span>
                                         )}
                                     </div>
                                 </div>
 
                                 <div className={styles.itemContent}>
-                                    <h3 className={styles.productName}>{item.product?.name || 'Món ăn'}</h3>
+                                    <h3 className={styles.productName}>{item.product?.name || item.food?.name || 'Món ăn'}</h3>
                                     <div className={styles.quantity}>
                                         Số lượng: <strong>{item.quantity}</strong>
                                     </div>
@@ -528,7 +437,7 @@ export default function KitchenDashboard() {
                     <div className={styles.loadingOverlay}>
                         <div className={styles.loadingModal}>
                             <RefreshCw size={48} className={styles.spinIcon} />
-                            <p>Đang tải menu...</p>
+                            <p>Đang tải dữ liệu...</p>
                         </div>
                     </div>
                 )}
