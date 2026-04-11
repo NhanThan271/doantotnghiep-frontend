@@ -35,78 +35,78 @@ const LoginPage = () => {
                 password,
             });
 
-            // Lấy token
             const token = res.data.token || res.data.accessToken;
-            if (!token) {
-                alert("Không nhận được token từ server!");
-                setIsLoading(false);
-                return;
-            }
-
-            // Lưu token vào localStorage
             localStorage.setItem("token", token);
 
-            // Destructure response data
-            const { branchId, branchName, roles, id, username: userName, email } = res.data;
+            // Destructure response data (THÊM position)
+            const {
+                branchId,
+                branchName,
+                roles,
+                id,
+                username: userName,
+                email,
+                position  // 🆕 Lấy position từ response
+            } = res.data;
 
-            // Tạo object user
+            // Tạo object user (THÊM position)
             const user = {
                 id,
                 username: userName,
                 email,
                 roles,
                 branchId,
+                position,  // 🆕 WAITER, CASHIER, CHEF, STOCK hoặc null
                 branch: branchId ? { id: branchId, name: branchName } : null
             };
 
-            // Lưu thông tin user
             localStorage.setItem("user", JSON.stringify(user));
-
-            // 🆕 Lưu credentials nếu chọn "Ghi nhớ"
-            if (rememberMe) {
-                localStorage.setItem("savedCredentials", JSON.stringify({
-                    username,
-                    password,
-                    remember: true
-                }));
-            } else {
-                localStorage.removeItem("savedCredentials");
-            }
 
             // Lấy role
             const rolesArray = user.roles || [];
             const role = rolesArray[0]?.replace("ROLE_", "").toUpperCase() || "";
 
-            // Điều hướng theo role
+            // 🆕 Xử lý điều hướng cho EMPLOYEE dựa trên position
+            if (role === "EMPLOYEE") {
+                if (!branchId) {
+                    alert("Tài khoản của bạn chưa được gán chi nhánh.");
+                    localStorage.clear();
+                    setIsLoading(false);
+                    return;
+                }
+
+                // Điều hướng theo position
+                switch (user.position) {
+                    case "CASHIER":
+                        navigate("/employee/cashier", { replace: true });
+                        break;
+                    case "WAITER":
+                        navigate("/employee/waiter", { replace: true });
+                        break;
+                    case "CHEF":
+                        navigate("/employee/chef", { replace: true });
+                        break;
+                    case "STOCK":
+                        navigate("/employee/stock", { replace: true });
+                        break;
+                    default:
+                        navigate("/", { replace: true });
+                }
+
+                alert("Đăng nhập thành công!");
+                setIsLoading(false);
+                return;
+            }
+
+            // Xử lý các role khác (ADMIN, MANAGER, CUSTOMER, KITCHEN)
             switch (role) {
                 case "ADMIN":
                     navigate("/admin", { replace: true });
                     break;
-                case "EMPLOYEE":
-                    if (!branchId) {
-                        alert("Tài khoản của bạn chưa được gán chi nhánh.");
-                        localStorage.clear();
-                        setIsLoading(false);
-                        return;
-                    }
-                    navigate("/employee", { replace: true });
-                    break;
                 case "MANAGER":
-                    if (!branchId) {
-                        alert("Tài khoản của bạn chưa được gán chi nhánh.");
-                        localStorage.clear();
-                        setIsLoading(false);
-                        return;
-                    }
                     navigate("/manager", { replace: true });
                     break;
                 case "KITCHEN":
-                    if (!branchId) {
-                        alert("Tài khoản của bạn chưa được gán chi nhánh.");
-                        localStorage.clear();
-                        setIsLoading(false);
-                        return;
-                    }
                     navigate("/kitchen", { replace: true });
                     break;
                 case "CUSTOMER":
@@ -114,13 +114,11 @@ const LoginPage = () => {
                     break;
                 default:
                     navigate("/", { replace: true });
-                    break;
             }
 
             alert("Đăng nhập thành công!");
 
         } catch (err) {
-            console.error("Lỗi đăng nhập:", err.response?.data || err.message);
             alert("Sai tên đăng nhập hoặc mật khẩu!");
         } finally {
             setIsLoading(false);
