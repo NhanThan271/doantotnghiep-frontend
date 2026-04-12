@@ -1,391 +1,241 @@
 // pages/employee/chef/ChefDashboard.js
 import React, { useState, useEffect } from 'react';
-import { ChefHat, Clock, AlertCircle, CheckCircle, Play, Check, RefreshCw } from 'lucide-react';
-import styles from './ChefDashboard.module.css';
-import ToastNotification from './ToastNotification';
+import { useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
+import { kitchenAPI } from '../../../services/api';
+
+const socket = io('http://localhost:3001', {
+    transports: ['websocket'],
+    reconnection: true
+});
 
 const ChefDashboard = () => {
-    const [orderItems, setOrderItems] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [initialLoading, setInitialLoading] = useState(false);
-    const [filterStatus, setFilterStatus] = useState('all');
-    const [toasts, setToasts] = useState([]);
-    const [currentBranch, setCurrentBranch] = useState(null);
+    const navigate = useNavigate();
+    const [pendingOrders, setPendingOrders] = useState([]);
+    const [cookingOrders, setCookingOrders] = useState([]);
+    const [socketConnected, setSocketConnected] = useState(false);
+    const [loading, setLoading] = useState(true);
 
-    // Dữ liệu mock
-    const mockBranch = {
-        id: 1,
-        name: "Chi nhánh Trung Tâm",
-        address: "123 Đường Lê Lợi, Quận 1, TP.HCM",
-        phone: "028 1234 5678"
-    };
-
-    const mockOrderItems = [
-        {
-            id: 1,
-            status: 'NEW',
-            quantity: 2,
-            createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-            notes: 'Không ớt',
-            product: { id: 101, name: 'Phở bò tái' },
-            order: { id: 1001, tableNumber: 'Bàn 12', createdAt: new Date(Date.now() - 5 * 60000).toISOString() }
-        },
-        {
-            id: 2,
-            status: 'NEW',
-            quantity: 1,
-            createdAt: new Date(Date.now() - 3 * 60000).toISOString(),
-            notes: '',
-            product: { id: 102, name: 'Bún chả Hà Nội' },
-            order: { id: 1001, tableNumber: 'Bàn 12', createdAt: new Date(Date.now() - 5 * 60000).toISOString() }
-        },
-        {
-            id: 3,
-            status: 'COOKING',
-            quantity: 3,
-            createdAt: new Date(Date.now() - 20 * 60000).toISOString(),
-            notes: 'Làm chín kỹ',
-            product: { id: 103, name: 'Cơm rang dưa bò' },
-            order: { id: 1002, tableNumber: 'Bàn 8', createdAt: new Date(Date.now() - 20 * 60000).toISOString() }
-        },
-        {
-            id: 4,
-            status: 'COOKING',
-            quantity: 1,
-            createdAt: new Date(Date.now() - 10 * 60000).toISOString(),
-            notes: '',
-            product: { id: 104, name: 'Gà chiên nước mắm' },
-            order: { id: 1003, tableNumber: 'Bàn 5', createdAt: new Date(Date.now() - 10 * 60000).toISOString() }
-        },
-        {
-            id: 5,
-            status: 'DONE',
-            quantity: 2,
-            createdAt: new Date(Date.now() - 30 * 60000).toISOString(),
-            notes: 'Thêm sa tế',
-            product: { id: 105, name: 'Mì xào hải sản' },
-            order: { id: 1004, tableNumber: 'Bàn 3', createdAt: new Date(Date.now() - 30 * 60000).toISOString() }
-        },
-        {
-            id: 6,
-            status: 'DONE',
-            quantity: 1,
-            createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
-            notes: '',
-            product: { id: 106, name: 'Lẩu thái hải sản' },
-            order: { id: 1005, tableNumber: 'Bàn 10', createdAt: new Date(Date.now() - 25 * 60000).toISOString() }
-        },
-        {
-            id: 7,
-            status: 'NEW',
-            quantity: 4,
-            createdAt: new Date(Date.now() - 2 * 60000).toISOString(),
-            notes: 'Rau sống nhiều',
-            product: { id: 107, name: 'Bánh xèo' },
-            order: { id: 1006, tableNumber: 'Bàn 15', createdAt: new Date(Date.now() - 2 * 60000).toISOString() }
-        },
-        {
-            id: 8,
-            status: 'COOKING',
-            quantity: 1,
-            createdAt: new Date(Date.now() - 18 * 60000).toISOString(),
-            notes: 'Ít đường',
-            product: { id: 108, name: 'Chè Thái' },
-            order: { id: 1007, tableNumber: 'Bàn 7', createdAt: new Date(Date.now() - 18 * 60000).toISOString() }
-        }
-    ];
-
-    const showToast = (message, type = 'info', duration = 5000) => {
-        const id = Date.now();
-        const newToast = { id, message, type, duration };
-        setToasts(prev => [...prev, newToast]);
-        setTimeout(() => removeToast(id), duration);
-    };
-
-    const removeToast = (id) => {
-        setToasts(prev => prev.filter(toast => toast.id !== id));
-    };
-
-    const fetchCurrentBranch = async () => {
-        setTimeout(() => {
-            console.log('✅ Branch loaded:', mockBranch);
-            setCurrentBranch(mockBranch);
-            setInitialLoading(false);
-        }, 500);
-    };
-
-    const fetchOrderItems = async () => {
+    // Lấy dữ liệu từ API
+    const fetchDashboardData = async () => {
         setLoading(true);
-        setTimeout(() => {
-            const sortedItems = [...mockOrderItems];
-            sortedItems.sort((a, b) => {
-                const statusPriority = { 'NEW': 1, 'COOKING': 2, 'DONE': 3 };
-                const priorityA = statusPriority[a.status] || 999;
-                const priorityB = statusPriority[b.status] || 999;
-                if (priorityA !== priorityB) return priorityA - priorityB;
-                const timeA = new Date(a.createdAt || 0);
-                const timeB = new Date(b.createdAt || 0);
-                return timeA - timeB;
-            });
-            setOrderItems(sortedItems);
+        try {
+            // Gọi API /api/kitchen/queue
+            const response = await kitchenAPI.getQueue();
+            console.log('📦 Queue data from API:', response.data);
+
+            const orderItems = response.data || [];
+
+            if (orderItems.length > 0) {
+                const pending = [];
+                const cooking = [];
+
+                orderItems.forEach(item => {
+                    // Lấy thông tin từ OrderItem
+                    const foodName = item.food?.name || 'Món ăn';
+                    const tableNumber = item.order?.table?.number || item.order?.tableNumber || '?';
+                    const kitchenStatus = item.kitchenStatus || item.status || 'WAITING';
+
+                    const orderData = {
+                        id: item.order?.id || item.id,
+                        table: `Bàn ${tableNumber}`,
+                        items: [{
+                            name: foodName,
+                            quantity: item.quantity || 1,
+                            note: item.note || ''
+                        }],
+                        time: new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+                        priority: item.priority === 1 ? 'high' : 'normal',
+                        itemId: item.id,
+                        kitchenStatus: kitchenStatus
+                    };
+
+                    if (kitchenStatus === 'WAITING' || kitchenStatus === 'NEW') {
+                        pending.push(orderData);
+                    } else if (kitchenStatus === 'COOKING' || kitchenStatus === 'PREPARING') {
+                        cooking.push(orderData);
+                    }
+                });
+
+                setPendingOrders(pending);
+                setCookingOrders(cooking);
+                console.log(`✅ Loaded: ${pending.length} pending, ${cooking.length} cooking`);
+            } else {
+                console.log('No orders in queue');
+                setPendingOrders([]);
+                setCookingOrders([]);
+            }
+        } catch (error) {
+            console.error('Error fetching queue:', error);
+            // Nếu lỗi, dùng mock data
+            loadMockData();
+        } finally {
             setLoading(false);
-            console.log('✅ Mock items loaded:', sortedItems.length);
-        }, 500);
-    };
-
-    const updateItemStatus = async (itemId, newStatus) => {
-        const item = orderItems.find(i => i.id === itemId);
-        const updatedItems = orderItems.map(i =>
-            i.id === itemId ? { ...i, status: newStatus } : i
-        );
-        setOrderItems(updatedItems);
-
-        const statusText = {
-            'COOKING': '👨‍🍳 Đang làm',
-            'DONE': '✅ Hoàn thành'
-        };
-
-        showToast(
-            `${statusText[newStatus]}: ${item?.product?.name}`,
-            newStatus === 'DONE' ? 'success' : 'info',
-            3000
-        );
-    };
-
-    const getTimeAgo = (dateString) => {
-        if (!dateString) return 'N/A';
-        const now = new Date();
-        const past = new Date(dateString);
-        const diffMins = Math.floor((now - past) / 60000);
-        if (diffMins < 1) return 'Vừa xong';
-        if (diffMins < 60) return `${diffMins} phút trước`;
-        const diffHours = Math.floor(diffMins / 60);
-        return `${diffHours} giờ trước`;
-    };
-
-    const isOverdue = (dateString) => {
-        if (!dateString) return false;
-        const now = new Date();
-        const past = new Date(dateString);
-        const diffMins = Math.floor((now - past) / 60000);
-        return diffMins > 15;
-    };
-
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'NEW': return styles.statusNew;
-            case 'COOKING': return styles.statusCooking;
-            case 'DONE': return styles.statusDone;
-            default: return '';
         }
     };
 
-    const filteredItems = orderItems.filter(item => {
-        if (filterStatus === 'all') return true;
-        return item.status === filterStatus;
-    });
+    // Mock data fallback
+    const loadMockData = () => {
+        setPendingOrders([
+            { id: 1, table: 'Bàn 5', items: [{ name: 'Phở bò', quantity: 2, note: 'không hành' }], time: '18:30', priority: 'normal', itemId: 1 },
+            { id: 2, table: 'Bàn 2', items: [{ name: 'Cơm rang', quantity: 1, note: '' }], time: '18:25', priority: 'high', itemId: 2 },
+        ]);
+        setCookingOrders([
+            { id: 3, table: 'Bàn 3', items: [{ name: 'Bún chả', quantity: 2, note: '' }], startedAt: '18:15', estimatedTime: '5 phút', itemId: 3 }
+        ]);
+    };
 
-    const newCount = orderItems.filter(i => i.status === 'NEW').length;
-    const cookingCount = orderItems.filter(i => i.status === 'COOKING').length;
-    const doneCount = orderItems.filter(i => i.status === 'DONE').length;
+    // Cập nhật trạng thái món
+    const updateItemStatus = async (itemId, newStatus) => {
+        try {
+            await kitchenAPI.updateItemStatus(itemId, newStatus);
+            console.log(`✅ Item ${itemId} status updated to ${newStatus}`);
+            fetchDashboardData(); // Refresh danh sách
+
+            // Gửi socket thông báo
+            socket.emit('update-order-item-status', {
+                itemId: itemId,
+                status: newStatus,
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error('Error updating status:', error);
+        }
+    };
+
+    const handleStartCooking = (order) => {
+        if (order.itemId) {
+            updateItemStatus(order.itemId, 'COOKING');
+        } else {
+            setPendingOrders(pendingOrders.filter(o => o.id !== order.id));
+            setCookingOrders([...cookingOrders, { ...order, startedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }), estimatedTime: '10 phút' }]);
+        }
+    };
+
+    const handleCompleteOrder = (order) => {
+        if (order.itemId) {
+            updateItemStatus(order.itemId, 'DONE');
+        } else {
+            setCookingOrders(cookingOrders.filter(o => o.id !== order.id));
+        }
+    };
 
     useEffect(() => {
-        console.log('🚀 ChefDashboard mounted');
-        fetchCurrentBranch();
-        fetchOrderItems();
+        // Socket events
+        socket.on('connect', () => {
+            console.log('✅ Chef connected to socket');
+            setSocketConnected(true);
+            socket.emit('register-role', 'kitchen');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('❌ Chef disconnected');
+            setSocketConnected(false);
+        });
+
+        socket.on('order-for-staff', (orderData) => {
+            console.log('🆕 New order received:', orderData);
+            fetchDashboardData(); // Refresh khi có đơn mới
+        });
+
+        socket.on('order-item-updated', (itemData) => {
+            console.log('🍳 Item updated:', itemData);
+            fetchDashboardData(); // Refresh khi có cập nhật
+        });
+
+        // Lấy dữ liệu ban đầu
+        fetchDashboardData();
+
+        // Refresh mỗi 10 giây
+        const interval = setInterval(fetchDashboardData, 10000);
+
+        return () => {
+            socket.off('connect');
+            socket.off('disconnect');
+            socket.off('order-for-staff');
+            socket.off('order-item-updated');
+            clearInterval(interval);
+        };
     }, []);
 
-    if (initialLoading) {
-        return (
-            <div className={styles.loadingContainer}>
-                <RefreshCw size={48} className={styles.spinIcon} />
-                <p>Đang tải dữ liệu...</p>
-            </div>
-        );
+    if (loading) {
+        return <div style={{ textAlign: 'center', padding: '50px' }}>Đang tải dữ liệu...</div>;
     }
 
     return (
-        <div className={styles.container}>
-            {/* Header */}
-            <div className={styles.header}>
-                <div className={styles.headerTop}>
-                    <h2 className={styles.title}>Danh sách món cần làm</h2>
-                    <button onClick={fetchOrderItems} disabled={loading} className={styles.refreshBtn}>
-                        <RefreshCw size={18} className={loading ? styles.spinIcon : ''} />
-                        Làm mới
-                    </button>
-                </div>
-
-                {/* Stats */}
-                <div className={styles.statsGrid}>
-                    <div className={styles.statCard}>
-                        <div className={styles.statIconNew}>
-                            <AlertCircle size={24} />
-                        </div>
-                        <div>
-                            <div className={styles.statValue}>{newCount}</div>
-                            <div className={styles.statLabel}>Món mới</div>
-                        </div>
-                    </div>
-
-                    <div className={styles.statCard}>
-                        <div className={styles.statIconCooking}>
-                            <ChefHat size={24} />
-                        </div>
-                        <div>
-                            <div className={styles.statValue}>{cookingCount}</div>
-                            <div className={styles.statLabel}>Đang làm</div>
-                        </div>
-                    </div>
-
-                    <div className={styles.statCard}>
-                        <div className={styles.statIconDone}>
-                            <CheckCircle size={24} />
-                        </div>
-                        <div>
-                            <div className={styles.statValue}>{doneCount}</div>
-                            <div className={styles.statLabel}>Hoàn thành</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Filter */}
-                <div className={styles.filterBar}>
-                    <button
-                        onClick={() => setFilterStatus('all')}
-                        className={filterStatus === 'all' ? styles.filterActive : styles.filterInactive}
-                    >
-                        Tất cả ({orderItems.length})
-                    </button>
-                    <button
-                        onClick={() => setFilterStatus('NEW')}
-                        className={filterStatus === 'NEW' ? styles.filterActive : styles.filterInactive}
-                    >
-                        Món mới ({newCount})
-                    </button>
-                    <button
-                        onClick={() => setFilterStatus('COOKING')}
-                        className={filterStatus === 'COOKING' ? styles.filterActive : styles.filterInactive}
-                    >
-                        Đang làm ({cookingCount})
-                    </button>
-                    <button
-                        onClick={() => setFilterStatus('DONE')}
-                        className={filterStatus === 'DONE' ? styles.filterActive : styles.filterInactive}
-                    >
-                        Hoàn thành ({doneCount})
-                    </button>
-                </div>
-            </div>
-
-            {/* Items Grid */}
-            <div className={styles.itemsGrid}>
-                {filteredItems.length === 0 ? (
-                    <div className={styles.emptyState}>
-                        <ChefHat size={64} className={styles.emptyIcon} />
-                        <p>Không có món nào cần làm</p>
-                    </div>
-                ) : (
-                    filteredItems.map((item) => (
-                        <div
-                            key={item.id}
-                            className={`${styles.itemCard} ${isOverdue(item.createdAt || item.order?.createdAt) && item.status !== 'DONE' ? styles.overdueCard : ''}`}
-                        >
-                            <div className={styles.itemHeader}>
-                                <div className={styles.tableInfo}>
-                                    {item.order?.tableNumber || `Bàn ${item.id + 10}`}
-                                </div>
-                                <div className={`${styles.timeInfo} ${isOverdue(item.createdAt || item.order?.createdAt) && item.status !== 'DONE' ? styles.overdueTime : ''}`}>
-                                    <Clock size={14} />
-                                    {getTimeAgo(item.createdAt || item.order?.createdAt)}
-                                    {isOverdue(item.createdAt || item.order?.createdAt) && item.status !== 'DONE' && (
-                                        <span className={styles.overdueLabel}>⚠️ QUÁ HẠN</span>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className={styles.itemContent}>
-                                <h3 className={styles.productName}>{item.product?.name || 'Món ăn'}</h3>
-                                <div className={styles.quantity}>
-                                    Số lượng: <strong>{item.quantity}</strong>
-                                </div>
-                                {item.notes && (
-                                    <div className={styles.notes}>
-                                        Ghi chú: {item.notes}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className={styles.itemFooter}>
-                                <span className={`${styles.statusBadge} ${getStatusColor(item.status)}`}>
-                                    {item.status === 'NEW' && 'Món mới'}
-                                    {item.status === 'COOKING' && 'Đang làm'}
-                                    {item.status === 'DONE' && 'Hoàn thành'}
-                                </span>
-
-                                <div className={styles.actions}>
-                                    {item.status === 'NEW' && (
-                                        <button
-                                            onClick={() => updateItemStatus(item.id, 'COOKING')}
-                                            className={styles.btnStart}
-                                        >
-                                            <Play size={16} />
-                                            Bắt đầu
-                                        </button>
-                                    )}
-                                    {item.status === 'COOKING' && (
-                                        <button
-                                            onClick={() => updateItemStatus(item.id, 'DONE')}
-                                            className={styles.btnDone}
-                                        >
-                                            <Check size={16} />
-                                            Hoàn thành
-                                        </button>
-                                    )}
-                                    {item.status === 'DONE' && (
-                                        <span className={styles.completedText}>✓ Chờ phục vụ</span>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-
-            {/* Loading Overlay */}
-            {loading && (
-                <div className={styles.loadingOverlay}>
-                    <div className={styles.loadingModal}>
-                        <RefreshCw size={48} className={styles.spinIcon} />
-                        <p>Đang tải dữ liệu...</p>
-                    </div>
-                </div>
-            )}
-
-            {/* Toast Notifications */}
+        <div>
+            {/* Socket Status */}
             <div style={{
-                position: 'fixed',
-                top: '80px',
-                right: '20px',
-                zIndex: 9999,
-                pointerEvents: 'none'
+                position: 'fixed', top: '20px', right: '20px', padding: '4px 12px', borderRadius: '20px',
+                fontSize: '12px', fontWeight: '500', zIndex: 1000,
+                background: socketConnected ? '#10b98120' : '#ef444420',
+                color: socketConnected ? '#10b981' : '#ef4444'
             }}>
-                {toasts.map((toast) => (
-                    <div
-                        key={toast.id}
-                        style={{
-                            marginTop: '8px',
-                            pointerEvents: 'auto'
-                        }}
-                    >
-                        <ToastNotification
-                            message={toast.message}
-                            type={toast.type}
-                            duration={toast.duration}
-                            onClose={() => removeToast(toast.id)}
-                        />
-                    </div>
-                ))}
+                {socketConnected ? '● Realtime' : '○ Offline'}
+            </div>
+
+            {/* Refresh button */}
+            <div style={{ marginBottom: '20px', textAlign: 'right' }}>
+                <button onClick={fetchDashboardData} style={{ padding: '8px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                    🔄 Làm mới
+                </button>
+            </div>
+
+            <div style={{ marginBottom: '30px' }}>
+                <h1 style={{ margin: 0, fontSize: '24px', color: '#1e293b' }}>Tổng quan bếp</h1>
+                <p style={{ margin: '5px 0 0', color: '#64748b' }}>Quản lý đơn hàng và nguyên liệu</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
+                {/* Pending Orders */}
+                <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                    <h3 style={{ margin: '0 0 15px 0' }}>🍳 Món chờ nấu ({pendingOrders.length})</h3>
+                    {pendingOrders.length === 0 ? (
+                        <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>🎉 Không có món chờ nấu</p>
+                    ) : (
+                        pendingOrders.map(order => (
+                            <div key={order.id} style={{ padding: '15px', borderBottom: '1px solid #f1f5f9', background: order.priority === 'high' ? '#fef2f2' : 'white', borderRadius: '8px', marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                    <strong>Đơn #{order.id}</strong>
+                                    <span>{order.table} - {order.time}</span>
+                                </div>
+                                {order.items.map((item, idx) => (
+                                    <div key={idx} style={{ fontSize: '13px', marginBottom: '4px' }}>
+                                        • {item.quantity}x {item.name}
+                                        {item.note && <span style={{ color: '#f59e0b' }}> ({item.note})</span>}
+                                    </div>
+                                ))}
+                                <button onClick={() => handleStartCooking(order)} style={{ width: '100%', padding: '8px', marginTop: '10px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                                    Bắt đầu nấu
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* Cooking Orders */}
+                <div style={{ background: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                    <h3 style={{ margin: '0 0 15px 0' }}>🔥 Đang nấu ({cookingOrders.length})</h3>
+                    {cookingOrders.length === 0 ? (
+                        <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>🍳 Không có món đang nấu</p>
+                    ) : (
+                        cookingOrders.map(order => (
+                            <div key={order.id} style={{ padding: '15px', background: '#fef3c7', borderRadius: '8px', marginBottom: '10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                    <strong>Đơn #{order.id}</strong>
+                                    <span>{order.table} - ⏱️ {order.estimatedTime || 'Đang nấu'}</span>
+                                </div>
+                                {order.items.map((item, idx) => (
+                                    <div key={idx} style={{ fontSize: '13px', marginBottom: '4px' }}>• {item.quantity}x {item.name}</div>
+                                ))}
+                                {order.startedAt && <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>Bắt đầu: {order.startedAt}</div>}
+                                <button onClick={() => handleCompleteOrder(order)} style={{ width: '100%', padding: '8px', marginTop: '10px', background: '#10b981', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                                    Hoàn thành
+                                </button>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
         </div>
     );
