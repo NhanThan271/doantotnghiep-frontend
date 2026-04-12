@@ -103,4 +103,15 @@ export const tableAPI = {
     occupy: (id) => api.put(`/tables/${id}/occupy`),
     free: (id) => api.put(`/tables/${id}/free`),
 };
+
+export const kitchenAPI = {
+    // ĐÚNG: backend có /api/kitchen/queue
+    getQueue: () => api.get('/kitchen/queue'),
+
+    // ĐÚNG: backend có /api/kitchen/order-items/{id}/status
+    updateItemStatus: (id, status) => api.put(`/kitchen/order-items/${id}/status?status=${status}`),
+
+    // THÊM: lấy danh sách order items (dùng queue thay vì order-items)
+    getOrderItems: () => api.get('/kitchen/queue'),  // Dùng queue endpoint
+};
 export default api;

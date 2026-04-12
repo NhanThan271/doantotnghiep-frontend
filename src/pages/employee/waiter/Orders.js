@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { branchFoodAPI, orderAPI, categoryAPI, foodAPI, roomAPI, tableAPI } from '../../../services/api';
+import { wsService } from '../../../services/websocket';
 
 const Orders = () => {
     const navigate = useNavigate();
@@ -12,10 +13,9 @@ const Orders = () => {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [tableInfo, setTableInfo] = useState(null);
-    const [selectedFloor, setSelectedFloor] = useState('');
-    const [selectedRoomType, setSelectedRoomType] = useState('normal');
-    const [selectedRoom, setSelectedRoom] = useState('');
-    const [selectedRoomId, setSelectedRoomId] = useState('');
+    const [selectedRoomType, setSelectedRoomType] = useState('normal'); // 'normal' hoặc 'vip'
+    const [selectedArea, setSelectedArea] = useState(''); // Khu vực cho phòng thường
+    const [selectedRoomId, setSelectedRoomId] = useState(''); // ID phòng VIP
     const [selectedTableNumber, setSelectedTableNumber] = useState('');
     const [selectedTableId, setSelectedTableId] = useState('');
     const [generalNote, setGeneralNote] = useState('');
@@ -25,15 +25,12 @@ const Orders = () => {
     const [currentBranch, setCurrentBranch] = useState(null);
 
     // Dữ liệu từ backend
-    const [rooms, setRooms] = useState([]);
-    const [areas, setAreas] = useState([]);
-    const [tables, setTables] = useState([]);
+    const [rooms, setRooms] = useState([]); // Danh sách phòng VIP
+    const [areas, setAreas] = useState([]); // Danh sách khu vực (cho bàn thường)
+    const [tables, setTables] = useState([]); // Danh sách bàn theo khu vực
     const [loadingRooms, setLoadingRooms] = useState(false);
     const [loadingTables, setLoadingTables] = useState(false);
 
-    const floors = [1, 2, 3, 4, 5];
-
-    // Lấy thông tin chi nhánh từ user đăng nhập
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         if (user.branch) {
@@ -42,10 +39,19 @@ const Orders = () => {
             fetchAreas(user.branch.id);
         }
         fetchMenu();
+        fetchCategories();
         fetchParams();
     }, []);
 
-    // Lấy danh sách phòng từ backend
+    const fetchCategories = async () => {
+        try {
+            const response = await categoryAPI.getAll();
+            setCategories(response.data || []);
+        } catch (error) {
+            console.error('Lỗi khi lấy danh mục:', error);
+        }
+    };
+
     const fetchRooms = async (branchId) => {
         setLoadingRooms(true);
         try {
@@ -58,7 +64,6 @@ const Orders = () => {
         }
     };
 
-    // Lấy danh sách khu vực từ backend
     const fetchAreas = async (branchId) => {
         try {
             const response = await tableAPI.getAreasByBranch(branchId);
@@ -68,25 +73,31 @@ const Orders = () => {
         }
     };
 
-    // Lấy danh sách bàn theo khu vực
     const fetchTablesByArea = async (branchId, area) => {
+        if (!area) {
+            setTables([]);
+            return;
+        }
         setLoadingTables(true);
         try {
             const response = await tableAPI.getByBranchAndArea(branchId, area);
             setTables(response.data || []);
         } catch (error) {
             console.error('Error fetching tables:', error);
+            setTables([]);
         } finally {
             setLoadingTables(false);
         }
     };
 
-    // Khi chọn khu vực, lấy danh sách bàn
+    // Khi chọn khu vực (phòng thường) -> fetch bàn
     useEffect(() => {
-        if (currentBranch?.id && selectedRoom && selectedRoomType === 'normal') {
-            fetchTablesByArea(currentBranch.id, selectedRoom);
+        if (currentBranch?.id && selectedRoomType === 'normal' && selectedArea) {
+            fetchTablesByArea(currentBranch.id, selectedArea);
+        } else {
+            setTables([]);
         }
-    }, [selectedRoom, selectedRoomType, currentBranch]);
+    }, [selectedArea, selectedRoomType, currentBranch]);
 
     const fetchParams = async () => {
         const params = new URLSearchParams(location.search);
@@ -101,32 +112,28 @@ const Orders = () => {
         }
     };
 
-    // Lấy đơn hàng cũ từ backend
     const fetchExistingOrder = async (orderId) => {
         setLoading(true);
         try {
             const response = await orderAPI.getById(orderId);
             const order = response.data;
 
-            setSelectedFloor(order.floor?.toString() || '');
             setSelectedRoomType(order.roomType || 'normal');
-            setSelectedRoom(order.room || '');
-            setSelectedRoomId(order.roomId || '');
-            setSelectedTableNumber(order.tableNumber?.toString() || '');
-            setSelectedTableId(order.tableId || '');
-            setGeneralNote(order.note || '');
 
-            // Nếu là phòng thường và có tableId, lấy thông tin bàn
-            if (order.roomType === 'normal' && order.tableId) {
-                try {
-                    const tableRes = await tableAPI.getById(order.tableId);
-                    setSelectedTableNumber(tableRes.data?.number?.toString() || '');
-                } catch (err) {
-                    console.error('Error fetching table:', err);
-                }
+            if (order.roomType === 'vip') {
+                setSelectedRoomId(order.roomId?.toString() || '');
+                setSelectedArea('');
+                setSelectedTableId('');
+                setSelectedTableNumber('');
+            } else {
+                setSelectedArea(order.areaName || order.room || '');
+                setSelectedTableId(order.tableId?.toString() || '');
+                setSelectedTableNumber(order.tableNumber?.toString() || '');
+                setSelectedRoomId('');
             }
 
-            // Chuyển đổi order items sang cart format
+            setGeneralNote(order.note || '');
+
             const existingCart = (order.items || []).map(item => ({
                 id: item.food?.id || item.branchFood?.food?.id,
                 name: item.food?.name || item.branchFood?.food?.name,
@@ -143,7 +150,6 @@ const Orders = () => {
         }
     };
 
-    // Lấy menu từ backend theo chi nhánh
     const fetchMenu = async () => {
         try {
             const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -154,23 +160,37 @@ const Orders = () => {
             if (branchId) {
                 const response = await branchFoodAPI.getWithPromotions(branchId);
                 foods = response.data || [];
+                console.log('Foods from API:', foods);
             } else {
                 const response = await foodAPI.getAll();
                 foods = response.data || [];
             }
-            console.log("MENU:", menu);
-            const menuData = foods.map(item => ({
-                id: item.id,
-                name: item.name,
-                category: item.categoryName?.toLowerCase() || 'main', // fix category
-                price: Number(item.branchPrice) || 0,                // ✅ FIX GIÁ
-                originalPrice: Number(item.branchPrice) || 0,
-                discount: 0,
-                image: item.imageUrl || item.image || null           // ✅ FIX ẢNH
-            }));
 
+            const menuData = foods.map(item => {
+                let imageUrl = null;
+                if (item.imageUrl) {
+                    if (item.imageUrl.startsWith('/uploads/')) {
+                        imageUrl = `http://localhost:8080${item.imageUrl}`;
+                    } else if (item.imageUrl.startsWith('http')) {
+                        imageUrl = item.imageUrl;
+                    } else {
+                        imageUrl = `http://localhost:8080/uploads/${item.imageUrl}`;
+                    }
+                }
+
+                return {
+                    id: item.id,
+                    name: item.name,
+                    category: item.categoryName?.toLowerCase() || 'main',
+                    price: Number(item.finalPrice) || Number(item.branchPrice) || 0,
+                    originalPrice: Number(item.originalPrice) || Number(item.branchPrice) || 0,
+                    discount: item.discountPercentage || 0,
+                    image: imageUrl
+                };
+            });
+
+            console.log('Menu data with images:', menuData);
             setMenu(menuData);
-
         } catch (error) {
             console.error('Error fetching menu:', error);
         }
@@ -212,48 +232,84 @@ const Orders = () => {
     };
 
     const calculateSubtotal = () => cart.reduce((sum, item) => sum + item.total, 0);
-    const calculateTotal = () => calculateSubtotal() * 1.2;
+    const calculateTotal = () => calculateSubtotal() * 1.1;
 
     const getLocationName = () => {
-        if (!selectedFloor) return 'Chưa chọn';
         if (selectedRoomType === 'vip') {
             const room = rooms.find(r => r.id === parseInt(selectedRoomId));
-            return `Tầng ${selectedFloor} - ${room?.area || selectedRoom}`;
+            return `Phòng VIP - ${room?.area || 'Không xác định'}`;
         } else {
-            return `Tầng ${selectedFloor} - Khu ${selectedRoom} - Bàn ${selectedTableNumber}`;
+            return `Khu ${selectedArea} - Bàn ${selectedTableNumber}`;
         }
     };
 
     const handleSubmitOrder = async () => {
-        if (cart.length === 0) { alert('Vui lòng chọn món!'); return; }
-        if (!tableInfo) { alert('Vui lòng chọn bàn!'); return; }
-        if (!selectedRoom) { alert('Vui lòng chọn phòng/khu vực!'); return; }
-        if (selectedRoomType === 'normal' && !selectedTableNumber) { alert('Vui lòng chọn số bàn!'); return; }
+        if (cart.length === 0) {
+            alert('Vui lòng chọn món!');
+            return;
+        }
+
+        // VALIDATION THEO ĐÚNG LOGIC
+        if (selectedRoomType === 'vip') {
+            // Phòng VIP: chỉ cần chọn phòng, không cần bàn
+            if (!selectedRoomId) {
+                alert('Vui lòng chọn phòng VIP!');
+                return;
+            }
+        } else {
+            // Phòng thường: cần chọn khu vực VÀ bàn
+            if (!selectedArea) {
+                alert('Vui lòng chọn khu vực!');
+                return;
+            }
+            if (!selectedTableId || !selectedTableNumber) {
+                alert('Vui lòng chọn bàn!');
+                return;
+            }
+        }
 
         setSubmitting(true);
         try {
             if (existingOrderId) {
+                // Thêm món vào đơn cũ
                 const itemsToAdd = cart.map(item => ({
                     foodId: item.id,
                     quantity: item.quantity,
                     note: item.note
                 }));
                 await orderAPI.addItems(existingOrderId, itemsToAdd);
+
+                if (wsService.connected) {
+                    wsService.emit('order-status-changed', {
+                        orderId: existingOrderId,
+                        tableNumber: selectedTableNumber,
+                        oldStatus: 'UPDATED',
+                        newStatus: 'PENDING',
+                        message: 'Thêm món mới'
+                    });
+                }
+
                 alert(`Đã thêm món mới vào đơn hàng ${existingOrderId}!`);
             } else {
+                // Tạo đơn mới
                 const orderData = {
-                    tableId: selectedRoomType === 'normal' ? parseInt(selectedTableId) : null,
-                    roomId: selectedRoomType === 'vip' ? parseInt(selectedRoomId) : null,
-                    tableName: tableInfo.name,
-                    floor: parseInt(selectedFloor),
+                    branch: { id: currentBranch?.id },
                     roomType: selectedRoomType,
-                    room: selectedRoom,
-                    tableNumber: selectedRoomType === 'normal' ? parseInt(selectedTableNumber) : null,
-                    location: getLocationName(),
-                    note: generalNote,
-                    branchId: currentBranch?.id,
+                    // Nếu là phòng VIP
+                    ...(selectedRoomType === 'vip' && selectedRoomId && {
+                        room: { id: parseInt(selectedRoomId) }
+                    }),
+                    // Nếu là phòng thường
+                    ...(selectedRoomType === 'normal' && {
+                        table: { id: parseInt(selectedTableId) },
+                        areaName: selectedArea,
+                        tableNumber: parseInt(selectedTableNumber)
+                    }),
+                    locationDetail: getLocationName(),
+                    notes: generalNote,
+                    customerName: "Khách lẻ",
                     items: cart.map(item => ({
-                        foodId: item.id,
+                        food: { id: item.id },
                         quantity: item.quantity,
                         price: item.price,
                         note: item.note
@@ -262,7 +318,45 @@ const Orders = () => {
                     status: 'PENDING'
                 };
 
+                console.log('📤 Sending order:', orderData);
+
                 const response = await orderAPI.create(orderData);
+                console.log('✅ Order created:', response.data);
+
+                // Gửi qua Socket
+                if (wsService.connected) {
+                    const socketOrderData = {
+                        id: response.data.id,
+                        roomType: selectedRoomType,
+                        ...(selectedRoomType === 'vip' && {
+                            room: rooms.find(r => r.id === parseInt(selectedRoomId))?.area,
+                            roomId: selectedRoomId
+                        }),
+                        ...(selectedRoomType === 'normal' && {
+                            tableNumber: selectedTableNumber,
+                            tableId: selectedTableId,
+                            area: selectedArea
+                        }),
+                        location: getLocationName(),
+                        items: cart.map(item => ({
+                            id: item.id,
+                            name: item.name,
+                            quantity: item.quantity,
+                            price: item.price,
+                            note: item.note
+                        })),
+                        totalAmount: calculateTotal(),
+                        customerName: "Khách lẻ",
+                        note: generalNote,
+                        createdAt: new Date().toISOString()
+                    };
+
+                    console.log('📡 Sending order via socket:', socketOrderData);
+                    wsService.emit('place-order', socketOrderData);
+                } else {
+                    console.warn('⚠️ Socket not connected, order saved but not sent realtime');
+                }
+
                 alert(`Đơn hàng #${response.data.id} đã được gửi đến bếp!`);
             }
             navigate('/employee/waiter');
@@ -277,6 +371,16 @@ const Orders = () => {
     const getCategoryIcon = (category) => {
         const icons = { soup: '🍜', appetizer: '🍢', rice: '🍚', main: '🍛', hotpot: '🍲', beverage: '🥤' };
         return icons[category] || '🍽️';
+    };
+
+    const handleRoomTypeChange = (type) => {
+        setSelectedRoomType(type);
+        // Reset các giá trị khi đổi loại phòng
+        setSelectedArea('');
+        setSelectedRoomId('');
+        setSelectedTableId('');
+        setSelectedTableNumber('');
+        setTables([]);
     };
 
     if (loading) {
@@ -310,7 +414,6 @@ const Orders = () => {
                         style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '8px', marginBottom: '15px' }}
                     />
 
-                    {/* Category Tabs */}
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px', overflowX: 'auto' }}>
                         <button
                             onClick={() => setSelectedCategory('all')}
@@ -351,7 +454,6 @@ const Orders = () => {
                     </div>
                 </div>
 
-                {/* Menu Items Grid */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '15px' }}>
                     {menu
                         .filter(item => {
@@ -372,8 +474,6 @@ const Orders = () => {
                                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                                     position: 'relative'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                             >
                                 {item.discount > 0 && (
                                     <div style={{
@@ -390,11 +490,42 @@ const Orders = () => {
                                         -{item.discount}%
                                     </div>
                                 )}
-                                <div style={{ fontSize: '40px', marginBottom: '10px' }}>
+
+                                {item.image ? (
+                                    <img
+                                        src={item.image}
+                                        alt={item.name}
+                                        style={{
+                                            width: '100%',
+                                            height: '120px',
+                                            objectFit: 'cover',
+                                            borderRadius: '8px',
+                                            marginBottom: '10px',
+                                            backgroundColor: '#f1f5f9'
+                                        }}
+                                        onError={(e) => {
+                                            console.log('Image failed to load:', item.image);
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                    />
+                                ) : null}
+
+                                <div style={{
+                                    fontSize: '40px',
+                                    marginBottom: '10px',
+                                    display: item.image ? 'none' : 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    height: '120px',
+                                    backgroundColor: '#f1f5f9',
+                                    borderRadius: '8px'
+                                }}>
                                     {getCategoryIcon(item.category)}
                                 </div>
-                                <h4 style={{ margin: '0 0 5px 0', fontSize: '14px' }}>{item.name}</h4>
-                                <div>
+
+                                <h4 style={{ margin: '0 0 5px 0', fontSize: '14px', textAlign: 'center' }}>{item.name}</h4>
+                                <div style={{ textAlign: 'center' }}>
                                     {item.discount > 0 ? (
                                         <>
                                             <span style={{ color: '#10b981', fontWeight: 'bold' }}>
@@ -426,19 +557,44 @@ const Orders = () => {
                     <h3 style={{ margin: '0 0 15px 0' }}>🛒 Giỏ hàng</h3>
 
                     <div style={{ marginBottom: '15px', padding: '10px', background: '#f1f5f9', borderRadius: '8px' }}>
-                        {tableInfo && <p style={{ margin: '0 0 10px 0' }}><strong>🪑 Mã bàn:</strong> {tableInfo.name}</p>}
-
-                        {/* Loại phòng */}
                         <div style={{ marginBottom: '10px' }}>
                             <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '500' }}>🏠 Loại phòng</label>
                             <div style={{ display: 'flex', gap: '10px' }}>
-                                <button type="button" onClick={() => { setSelectedRoomType('normal'); setSelectedRoom(''); setSelectedRoomId(''); setSelectedTableNumber(''); setSelectedTableId(''); }} style={{ flex: 1, padding: '8px', background: selectedRoomType === 'normal' ? '#3b82f6' : '#e2e8f0', color: selectedRoomType === 'normal' ? 'white' : '#1e293b', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>🪑 Phòng thường</button>
-                                <button type="button" onClick={() => { setSelectedRoomType('vip'); setSelectedRoom(''); setSelectedRoomId(''); setSelectedTableNumber(''); setSelectedTableId(''); }} style={{ flex: 1, padding: '8px', background: selectedRoomType === 'vip' ? '#8b5cf6' : '#e2e8f0', color: selectedRoomType === 'vip' ? 'white' : '#1e293b', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>👑 Phòng VIP</button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRoomTypeChange('normal')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '8px',
+                                        background: selectedRoomType === 'normal' ? '#3b82f6' : '#e2e8f0',
+                                        color: selectedRoomType === 'normal' ? 'white' : '#1e293b',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    🪑 Phòng thường
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRoomTypeChange('vip')}
+                                    style={{
+                                        flex: 1,
+                                        padding: '8px',
+                                        background: selectedRoomType === 'vip' ? '#8b5cf6' : '#e2e8f0',
+                                        color: selectedRoomType === 'vip' ? 'white' : '#1e293b',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    👑 Phòng VIP
+                                </button>
                             </div>
                         </div>
 
-                        {/* Chọn phòng/khu vực */}
                         {selectedRoomType === 'vip' ? (
+                            // PHÒNG VIP: chỉ chọn phòng, không cần bàn
                             <div style={{ marginBottom: '10px' }}>
                                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '500' }}>🏛️ Chọn phòng VIP</label>
                                 <select
@@ -447,7 +603,10 @@ const Orders = () => {
                                         const roomId = e.target.value;
                                         const room = rooms.find(r => r.id === parseInt(roomId));
                                         setSelectedRoomId(roomId);
-                                        setSelectedRoom(room?.area || '');
+                                        // Reset các giá trị bàn
+                                        setSelectedArea('');
+                                        setSelectedTableId('');
+                                        setSelectedTableNumber('');
                                     }}
                                     style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
                                     disabled={loadingRooms}
@@ -459,18 +618,18 @@ const Orders = () => {
                                         </option>
                                     ))}
                                 </select>
-                                {loadingRooms && <span style={{ fontSize: '12px', color: '#64748b' }}>Đang tải...</span>}
                             </div>
                         ) : (
+                            // PHÒNG THƯỜNG: cần chọn khu vực VÀ bàn
                             <>
                                 <div style={{ marginBottom: '10px' }}>
                                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '500' }}>🏘️ Chọn khu vực</label>
                                     <select
-                                        value={selectedRoom}
+                                        value={selectedArea}
                                         onChange={(e) => {
-                                            setSelectedRoom(e.target.value);
-                                            setSelectedTableNumber('');
+                                            setSelectedArea(e.target.value);
                                             setSelectedTableId('');
+                                            setSelectedTableNumber('');
                                         }}
                                         style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
                                     >
@@ -481,8 +640,7 @@ const Orders = () => {
                                     </select>
                                 </div>
 
-                                {/* Chọn bàn */}
-                                {selectedRoom && (
+                                {selectedArea && (
                                     <div style={{ marginBottom: '10px' }}>
                                         <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '500' }}>🪑 Chọn bàn</label>
                                         <select
@@ -499,25 +657,26 @@ const Orders = () => {
                                             <option value="">Chọn bàn</option>
                                             {tables.map(table => (
                                                 <option key={table.id} value={table.id}>
-                                                    Bàn {table.number} (Sức chứa: {table.capacity} người)
+                                                    Bàn {table.number} (Sức chứa: {table.capacity} người) - {table.status === 'OCCUPIED' ? '🔴 Đã có khách' : '🟢 Trống'}
                                                 </option>
                                             ))}
                                         </select>
-                                        {loadingTables && <span style={{ fontSize: '12px', color: '#64748b' }}>Đang tải...</span>}
                                     </div>
                                 )}
                             </>
                         )}
 
                         {/* Hiển thị vị trí đã chọn */}
-                        {selectedFloor && selectedRoom && (selectedRoomType === 'vip' ? selectedRoomId : selectedTableId) && (
-                            <div style={{ marginTop: '10px', padding: '8px', background: '#dbeafe', borderRadius: '6px' }}>
-                                <span style={{ fontSize: '12px', color: '#1e40af' }}>📍 Vị trí: {getLocationName()}</span>
-                            </div>
-                        )}
+                        {((selectedRoomType === 'vip' && selectedRoomId) ||
+                            (selectedRoomType === 'normal' && selectedArea && selectedTableId)) && (
+                                <div style={{ marginTop: '10px', padding: '8px', background: '#dbeafe', borderRadius: '6px' }}>
+                                    <span style={{ fontSize: '12px', color: '#1e40af' }}>
+                                        📍 Vị trí: {getLocationName()}
+                                    </span>
+                                </div>
+                            )}
                     </div>
 
-                    {/* Cart Items */}
                     <div style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '15px' }}>
                         {cart.length === 0 ? (
                             <p style={{ textAlign: 'center', color: '#64748b', padding: '40px' }}>Chưa có món nào</p>
@@ -535,21 +694,22 @@ const Orders = () => {
                                             <button onClick={() => updateQuantity(item.id, 1)} style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer' }}>+</button>
                                         </div>
                                     </div>
-                                    <input type="text" placeholder="📝 Ghi chú món..." value={item.note} onChange={(e) => updateItemNote(item.id, e.target.value)} style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '6px', marginTop: '8px', fontSize: '12px' }} />
+                                    <input
+                                        type="text"
+                                        placeholder="📝 Ghi chú món..."
+                                        value={item.note}
+                                        onChange={(e) => updateItemNote(item.id, e.target.value)}
+                                        style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '6px', marginTop: '8px', fontSize: '12px' }}
+                                    />
                                 </div>
                             ))
                         )}
                     </div>
 
-                    {/* Total */}
                     <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: '15px', marginBottom: '15px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontWeight: 'bold', fontSize: '16px' }}>Tạm tính:</span>
                             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#10b981' }}>{calculateSubtotal().toLocaleString('vi-VN')}đ</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b', marginTop: '5px' }}>
-                            <span>Phí phục vụ (10%)</span>
-                            <span>{(calculateSubtotal() * 0.1).toLocaleString('vi-VN')}đ</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b' }}>
                             <span>VAT (10%)</span>
@@ -557,7 +717,7 @@ const Orders = () => {
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
                             <span style={{ fontWeight: 'bold' }}>Tổng thanh toán:</span>
-                            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#10b981' }}>{(calculateSubtotal() * 1.2).toLocaleString('vi-VN')}đ</span>
+                            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#10b981' }}>{(calculateSubtotal() * 1.1).toLocaleString('vi-VN')}đ</span>
                         </div>
                     </div>
 
