@@ -24,7 +24,7 @@ const BookingDetail = () => {
         phone: "",
         email: "",
         note: "",
-        payment: "deposit",
+        payment: "deposit", // deposit hoặc full
         selectedFoods: []
     });
 
@@ -97,7 +97,63 @@ const BookingDetail = () => {
         return totalFoodAmount * 0.2; // Cọc 20%
     };
 
-    // Submit booking - Tích hợp backend
+    // Tạo payment link qua PayOS
+    const createPaymentLink = async (reservationId, orderCode) => {
+        try {
+            const payableAmount = getPayableAmount();
+
+            // Tạo danh sách items cho PayOS
+            const items = data.selectedFoods.map(food => ({
+                name: food.name,
+                quantity: food.quantity,
+                price: Math.floor(food.price)
+            }));
+
+            const paymentRequest = {
+                orderCode: orderCode,
+                amount: Math.floor(payableAmount),
+                description: `Thanh toán đặt bàn ${branch?.name} - ${data.date} ${data.time}`,
+                returnUrl: `${window.location.origin}/booking-success?reservationId=${reservationId}`,
+                cancelUrl: `${window.location.origin}/booking-cancel`,
+                items: items
+            };
+
+            console.log("💰 Creating payment link:", paymentRequest);
+
+            const response = await fetch(`${API}/api/payos/create`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(paymentRequest)
+            });
+
+            if (!response.ok) {
+                throw new Error("Không thể tạo link thanh toán");
+            }
+
+            const result = await response.json();
+            console.log("✅ Payment link created:", result);
+
+            // PayOS trả về checkoutUrl
+            if (result.data && result.data.checkoutUrl) {
+                window.open(result.data.checkoutUrl, "_blank");
+                return true;
+            } else if (result.checkoutUrl) {
+                window.open(result.checkoutUrl, "_blank");
+                return true;
+            } else {
+                throw new Error("Không nhận được link thanh toán");
+            }
+
+        } catch (error) {
+            console.error("❌ Error creating payment link:", error);
+            throw error;
+        }
+    };
+
+    // Submit booking - Thanh toán online qua PayOS
     const handleBooking = async () => {
         // Validate
         if (!data.table) {
@@ -128,6 +184,9 @@ const BookingDetail = () => {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
+            // Tạo orderCode duy nhất (timestamp + random)
+            const orderCode = Date.now();
+
             // Format dữ liệu theo API backend
             const requestData = {
                 branchId: branch?.id,
@@ -142,7 +201,9 @@ const BookingDetail = () => {
                 foods: data.selectedFoods.map(f => ({
                     foodId: f.id,
                     quantity: f.quantity
-                }))
+                })),
+                orderCode: orderCode,
+                amount: Math.floor(getPayableAmount())
             };
 
             console.log("📤 Sending booking request:", requestData);
@@ -162,11 +223,13 @@ const BookingDetail = () => {
             const result = await response.json();
             console.log("✅ Booking success:", result);
 
-            // Hiển thị thông báo thành công
-            alert(`🎉 Đặt bàn thành công!\n\nMã đặt bàn: ${result.id || result.code}\nTổng tiền: ${totalFoodAmount.toLocaleString()}đ\nĐã thanh toán: ${getPayableAmount().toLocaleString()}đ\n\nVui lòng kiểm tra email/SMS để xác nhận.`);
+            const reservationId = result.id || result.reservationId;
 
-            // Reset form hoặc chuyển hướng
-            // navigate("/booking-success", { state: { booking: result } });
+            // Tạo payment link qua PayOS
+            await createPaymentLink(reservationId, orderCode);
+
+            // Hiển thị thông báo
+            alert(`🎉 Đặt bàn thành công!\n\nMã đặt bàn: ${reservationId}\nSố tiền cần thanh toán: ${getPayableAmount().toLocaleString()}đ\n\nVui lòng thanh toán để hoàn tất đặt bàn.\nCửa sổ thanh toán đã được mở.`);
 
         } catch (err) {
             console.error("❌ Booking error:", err);
@@ -187,12 +250,10 @@ const BookingDetail = () => {
         const currentMinute = now.getMinutes();
         const selectedDate = data.date;
 
-        // Nếu chưa chọn ngày hoặc chọn ngày khác hôm nay, hiển thị tất cả giờ
         if (!selectedDate || selectedDate !== new Date().toISOString().split('T')[0]) {
             return allTimes;
         }
 
-        // Nếu chọn ngày hôm nay, chỉ hiển thị giờ trong tương lai
         return allTimes.filter(time => {
             const [hour, minute] = time.split(':').map(Number);
             if (hour > currentHour) return true;
@@ -229,41 +290,14 @@ const BookingDetail = () => {
                             disabled={!data.date}
                         >
                             <option value="">-- Chọn giờ --</option>
-                            {(() => {
-                                const allTimes = [
-                                    "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
-                                    "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30"
-                                ];
-
-                                const now = new Date();
-                                const currentHour = now.getHours();
-                                const currentMinute = now.getMinutes();
-                                const today = new Date().toISOString().split('T')[0];
-
-                                // Nếu chọn ngày khác hôm nay, hiển thị tất cả giờ
-                                if (data.date !== today) {
-                                    return allTimes.map(time => (
-                                        <option key={time} value={time}>{time}</option>
-                                    ));
-                                }
-
-                                // Nếu chọn hôm nay, chỉ hiển thị giờ trong tương lai
-                                return allTimes
-                                    .filter(time => {
-                                        const [hour, minute] = time.split(':').map(Number);
-                                        if (hour > currentHour) return true;
-                                        if (hour === currentHour && minute > currentMinute) return true;
-                                        return false;
-                                    })
-                                    .map(time => (
-                                        <option key={time} value={time}>{time}</option>
-                                    ));
-                            })()}
+                            {getAvailableTimes().map(time => (
+                                <option key={time} value={time}>{time}</option>
+                            ))}
                         </select>
 
                         {data.date === new Date().toISOString().split('T')[0] && (
                             <p style={{ fontSize: '12px', color: '#D4AF37', marginTop: '8px' }}>
-                                ⏰ Chỉ hiển thị giờ trong tương lai (sau {new Date().getHours()}:{String(new Date().getMinutes()).padStart(2, '0')})
+                                ⏰ Chỉ hiển thị giờ trong tương lai
                             </p>
                         )}
 
@@ -304,13 +338,11 @@ const BookingDetail = () => {
                             + Thêm món
                         </button>
 
-                        {/* Danh sách món đã chọn - CÓ ẢNH */}
                         {data.selectedFoods.length > 0 ? (
                             <div className="selected-foods">
                                 <h4>📋 Món đã chọn:</h4>
                                 {data.selectedFoods.map(food => (
                                     <div key={food.id} className="food-item">
-                                        {/* 🔥 THÊM ẢNH MÓN ĂN */}
                                         <img
                                             src={food.imageUrl?.startsWith("http") ? food.imageUrl : `${API}${food.imageUrl || ""}`}
                                             alt={food.name}
@@ -393,10 +425,10 @@ const BookingDetail = () => {
                     </div>
                 )}
 
-                {/* STEP 6: Thanh toán */}
+                {/* STEP 6: Thanh toán online */}
                 {step === 6 && (
                     <div className="card">
-                        <h3>💰 Thanh toán</h3>
+                        <h3>💰 Thanh toán online</h3>
 
                         <div className="payment-summary">
                             <div className="summary-row">
@@ -426,7 +458,7 @@ const BookingDetail = () => {
                                 />
                                 <div>
                                     <strong>💎 Đặt cọc 20%</strong>
-                                    <p>Thanh toán {getPayableAmount().toLocaleString()}đ hôm nay, còn lại khi đến nhà hàng</p>
+                                    <p>Thanh toán {Math.floor(totalFoodAmount * 0.2).toLocaleString()}đ hôm nay, còn lại khi đến nhà hàng</p>
                                 </div>
                             </label>
 
@@ -440,16 +472,34 @@ const BookingDetail = () => {
                                 />
                                 <div>
                                     <strong>💳 Thanh toán trước 100% <span className="discount-badge">GIẢM 10%</span></strong>
-                                    <p>Tiết kiệm {(totalFoodAmount * 0.1).toLocaleString()}đ, chỉ còn {getPayableAmount().toLocaleString()}đ</p>
+                                    <p>Tiết kiệm {(totalFoodAmount * 0.1).toLocaleString()}đ, chỉ còn {Math.floor(totalFoodAmount * 0.9).toLocaleString()}đ</p>
                                 </div>
                             </label>
                         </div>
 
-                        <div className="actions">
+                        <button
+                            onClick={handleBooking}
+                            disabled={loading}
+                            className="payos-btn"
+                            style={{
+                                width: "100%",
+                                padding: "14px",
+                                marginTop: "24px",
+                                background: "#D4AF37",
+                                border: "none",
+                                borderRadius: "8px",
+                                color: "#1f2937",
+                                cursor: "pointer",
+                                fontWeight: "bold",
+                                fontSize: "16px",
+                                transition: "all 0.3s ease"
+                            }}
+                        >
+                            {loading ? "🔄 Đang xử lý..." : "💳 Thanh toán qua PayOS"}
+                        </button>
+
+                        <div className="actions" style={{ marginTop: "16px" }}>
                             <button onClick={back} className="back-btn">← Quay lại</button>
-                            <button onClick={handleBooking} disabled={loading} className="confirm-btn">
-                                {loading ? "Đang xử lý..." : "✅ Xác nhận đặt bàn"}
-                            </button>
                         </div>
                     </div>
                 )}
