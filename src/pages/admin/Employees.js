@@ -1,13 +1,24 @@
 import React, { useEffect, useState } from 'react';
-import { Edit2, Trash2, Users, Mail, Phone, Briefcase, UserCheck, UserX, Building2, Filter } from 'lucide-react';
+import { Edit2, Trash2, Users, Mail, Phone, Briefcase, UserCheck, UserX, Building2, ChevronDown } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import StaffPositionForm from './forms/StaffPositionForm';
+
+const POSITION_MAP = {
+    WAITER: { label: 'Phục vụ', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' },
+    CHEF: { label: 'Đầu bếp', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
+    CASHIER: { label: 'Thu ngân', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
+    STOCK: { label: 'Kho', color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
+};
 
 export default function Employees({ openAdd, openEdit, refreshTrigger }) {
     const [employees, setEmployees] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [staffMap, setStaffMap] = useState({});
     const [filter, setFilter] = useState('all'); // all, active, inactive
     const [selectedBranch, setSelectedBranch] = useState('all'); // all hoặc branch ID
+    const [expandedEmpId, setExpandedEmpId] = useState(null);
+    const [positionForm, setPositionForm] = useState(null);
     const API_BASE_URL = 'http://localhost:8080';
 
     // Fetch chi nhánh
@@ -54,6 +65,7 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                     user.role === 'KITCHEN'
                 );
                 setEmployees(empList);
+                fetchStaffInfo(empList, token);
             })
             .catch(err => {
                 console.error('Lỗi:', err);
@@ -63,7 +75,26 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                 setLoading(false);
             });
     };
-
+    const fetchStaffInfo = (empList, token) => {
+        const uniqueBranchIds = [...new Set(empList.map(e => e.branch?.id).filter(Boolean))];
+        Promise.all(
+            uniqueBranchIds.map(bid =>
+                fetch(`${API_BASE_URL}/api/staff/branch/${bid}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                    .then(r => r.ok ? r.json() : [])
+                    .catch(() => [])
+            )
+        ).then(allStaffArrays => {
+            const map = {};
+            allStaffArrays.flat().forEach(staff => {
+                if (staff?.userId) {
+                    map[staff.userId] = { id: staff.id, position: staff.position };
+                }
+            });
+            setStaffMap(map);
+        });
+    };
     useEffect(() => {
         fetchBranches();
         fetchEmployees();
@@ -479,193 +510,284 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                                 </td>
                             </tr>
                         ) : (
-                            filteredEmployees.map(emp => (
-                                <tr key={emp.id}>
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            {emp.imageUrl ? (
-                                                <div
-                                                    style={{
-                                                        width: '44px',
-                                                        height: '44px',
-                                                        borderRadius: '12px',
-                                                        overflow: 'hidden',
-                                                        flexShrink: 0,
-                                                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center'
-                                                    }}
-                                                >
-                                                    <img
-                                                        src={getImageUrl(emp.imageUrl)}
-                                                        alt={emp.fullName || emp.username}
-                                                        style={{
-                                                            width: '100%',
-                                                            height: '100%',
-                                                            objectFit: 'cover'
-                                                        }}
-                                                        onError={(e) => {
-                                                            console.error('Image load error:', emp.imageUrl);
-                                                            const parent = e.target.parentElement;
-                                                            e.target.style.display = 'none';
-                                                            const span = document.createElement('span');
-                                                            span.style.fontWeight = '700';
-                                                            span.style.fontSize = '14px';
-                                                            span.style.color = '#000';
-                                                            span.textContent = getInitials(emp.fullName || emp.username);
-                                                            parent.appendChild(span);
-                                                        }}
-                                                    />
+                            filteredEmployees.map(emp => {
+                                const staffInfo = staffMap[emp.id] || null;
+                                const posInfo = POSITION_MAP[staffInfo?.position];
+                                return (
+                                    <React.Fragment key={emp.id}>
+                                        <tr>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    {emp.imageUrl ? (
+                                                        <div
+                                                            style={{
+                                                                width: '44px',
+                                                                height: '44px',
+                                                                borderRadius: '12px',
+                                                                overflow: 'hidden',
+                                                                flexShrink: 0,
+                                                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center'
+                                                            }}
+                                                        >
+                                                            <img
+                                                                src={getImageUrl(emp.imageUrl)}
+                                                                alt={emp.fullName || emp.username}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    height: '100%',
+                                                                    objectFit: 'cover'
+                                                                }}
+                                                                onError={(e) => {
+                                                                    console.error('Image load error:', emp.imageUrl);
+                                                                    const parent = e.target.parentElement;
+                                                                    e.target.style.display = 'none';
+                                                                    const span = document.createElement('span');
+                                                                    span.style.fontWeight = '700';
+                                                                    span.style.fontSize = '14px';
+                                                                    span.style.color = '#000';
+                                                                    span.textContent = getInitials(emp.fullName || emp.username);
+                                                                    parent.appendChild(span);
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <div
+                                                            style={{
+                                                                width: '44px',
+                                                                height: '44px',
+                                                                borderRadius: '12px',
+                                                                flexShrink: 0,
+                                                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center'
+                                                            }}
+                                                        >
+                                                            <span
+                                                                style={{
+                                                                    fontWeight: '700',
+                                                                    fontSize: '14px',
+                                                                    color: '#000'
+                                                                }}
+                                                            >
+                                                                {getInitials(emp.fullName || emp.username)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <div style={{ fontWeight: '600', marginBottom: '2px' }}>
+                                                            {emp.fullName || emp.username}
+                                                        </div>
+                                                        <div style={{
+                                                            fontSize: '12px',
+                                                            color: 'var(--color-text-secondary)'
+                                                        }}>
+                                                            ID: {emp.id}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <div
-                                                    style={{
-                                                        width: '44px',
-                                                        height: '44px',
-                                                        borderRadius: '12px',
-                                                        flexShrink: 0,
-                                                        background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center'
-                                                    }}
-                                                >
-                                                    <span
-                                                        style={{
-                                                            fontWeight: '700',
-                                                            fontSize: '14px',
-                                                            color: '#000'
-                                                        }}
-                                                    >
-                                                        {getInitials(emp.fullName || emp.username)}
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Mail size={16} style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }} />
+                                                    <span style={{
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {emp.email || '-'}
                                                     </span>
                                                 </div>
-                                            )}
-                                            <div>
-                                                <div style={{ fontWeight: '600', marginBottom: '2px' }}>
-                                                    {emp.fullName || emp.username}
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Phone size={16} style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }} />
+                                                    <span>{emp.phone || '-'}</span>
                                                 </div>
-                                                <div style={{
-                                                    fontSize: '12px',
-                                                    color: 'var(--color-text-secondary)'
-                                                }}>
-                                                    ID: {emp.id}
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Building2 size={16} style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }} />
+                                                    <span style={{
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {emp.branch?.name || 'Chưa phân công'}
+                                                    </span>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <Mail size={16} style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }} />
-                                            <span style={{
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                            }}>
-                                                {emp.email || '-'}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <Phone size={16} style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }} />
-                                            <span>{emp.phone || '-'}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <Building2 size={16} style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }} />
-                                            <span style={{
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap'
-                                            }}>
-                                                {emp.branch?.name || 'Chưa phân công'}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '6px',
-                                            padding: '6px 12px',
-                                            background: emp.role === 'MANAGER'
-                                                ? 'rgba(245, 158, 11, 0.1)'
-                                                : 'rgba(139, 92, 246, 0.1)',
-                                            color: emp.role === 'MANAGER' ? '#F59E0B' : '#8B5CF6',
-                                            borderRadius: '8px',
-                                            fontSize: '12px',
-                                            fontWeight: '600'
-                                        }}>
-                                            <Briefcase size={14} />
-                                            {emp.role}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span className={emp.isActive ? styles['badge-green'] : styles['badge-red']}>
-                                            {emp.isActive ? 'Hoạt động' : 'Ngưng'}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button
-                                                onClick={() => openEdit('Employee', emp, fetchEmployees)}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    background: 'rgba(59, 130, 246, 0.1)',
-                                                    color: '#3B82F6',
-                                                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                                                    borderRadius: '8px',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                                onMouseOver={(e) => {
-                                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
-                                                }}
-                                                onMouseOut={(e) => {
-                                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
-                                                }}
-                                                title="Sửa thông tin"
-                                            >
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(emp.id, emp.fullName || emp.username)}
-                                                style={{
-                                                    padding: '8px 12px',
-                                                    background: 'rgba(239, 68, 68, 0.1)',
-                                                    color: '#EF4444',
-                                                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                                                    borderRadius: '8px',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                                onMouseOver={(e) => {
-                                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                                                }}
-                                                onMouseOut={(e) => {
-                                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                                                }}
-                                                title="Xóa nhân viên"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
+                                            </td>
+                                            <td>
+                                                {emp.role === 'MANAGER' ? (
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', background: 'rgba(245,158,11,0.1)', color: '#F59E0B', borderRadius: '8px', fontSize: '12px', fontWeight: '600' }}>
+                                                        <Briefcase size={14} /> Quản lý
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={e => setExpandedEmpId(prev => prev === emp.id ? null : emp.id)}
+                                                        title="Click để xem / sửa chức vụ"
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                            padding: '6px 10px',
+                                                            background: posInfo ? posInfo.bg : 'rgba(107,114,128,0.1)',
+                                                            color: posInfo ? posInfo.color : '#6B7280',
+                                                            border: `1px solid ${posInfo ? posInfo.color + '40' : 'rgba(107,114,128,0.3)'}`,
+                                                            borderRadius: '8px', fontSize: '12px', fontWeight: '600',
+                                                            cursor: 'pointer', transition: 'all 0.2s'
+                                                        }}
+                                                        onMouseOver={e => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                                                        onMouseOut={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                                                    >
+                                                        <span>{posInfo ? posInfo.label : 'Chưa có'}</span>
+                                                        <ChevronDown size={12} />
+                                                    </button>
+                                                )}
+                                            </td>
+                                            <td>
+                                                <span className={emp.isActive ? styles['badge-green'] : styles['badge-red']}>
+                                                    {emp.isActive ? 'Hoạt động' : 'Ngưng'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button
+                                                        onClick={() => openEdit('Employee', emp, fetchEmployees)}
+                                                        style={{
+                                                            padding: '8px 12px',
+                                                            background: 'rgba(59, 130, 246, 0.1)',
+                                                            color: '#3B82F6',
+                                                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                                                            borderRadius: '8px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                        onMouseOver={(e) => {
+                                                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                                                        }}
+                                                        onMouseOut={(e) => {
+                                                            e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                                                        }}
+                                                        title="Sửa thông tin"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(emp.id, emp.fullName || emp.username)}
+                                                        style={{
+                                                            padding: '8px 12px',
+                                                            background: 'rgba(239, 68, 68, 0.1)',
+                                                            color: '#EF4444',
+                                                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                                                            borderRadius: '8px',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                        onMouseOver={(e) => {
+                                                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                                                        }}
+                                                        onMouseOut={(e) => {
+                                                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                                                        }}
+                                                        title="Xóa nhân viên"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {/* Row accordion chức vụ */}
+                                        {
+                                            expandedEmpId === emp.id && emp.role !== 'MANAGER' && (
+                                                <tr>
+                                                    <td colSpan="7" style={{ padding: 0, background: 'rgba(139,92,246,0.04)' }}>
+                                                        <div style={{
+                                                            padding: '16px 24px',
+                                                            borderTop: '1px solid rgba(139,92,246,0.2)',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '16px',
+                                                            animation: 'slideInUp 0.2s ease'
+                                                        }}>
+                                                            {/* Chức vụ hiện tại */}
+                                                            {posInfo ? (
+                                                                <div style={{
+                                                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                                                    padding: '10px 16px',
+                                                                    background: posInfo.bg,
+                                                                    border: `1px solid ${posInfo.color}40`,
+                                                                    borderRadius: '10px'
+                                                                }}>
+                                                                    <div style={{ fontWeight: '700', color: posInfo.color, fontSize: '14px' }}>
+                                                                        {posInfo.label}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                                                                        Chức vụ hiện tại
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div style={{
+                                                                    padding: '10px 16px',
+                                                                    background: 'rgba(107,114,128,0.1)',
+                                                                    borderRadius: '10px',
+                                                                    fontSize: '13px',
+                                                                    color: 'var(--color-text-secondary)'
+                                                                }}>
+                                                                    Chưa được gán chức vụ
+                                                                </div>
+                                                            )}
+
+                                                            {/* Nút sửa/gán */}
+                                                            <button
+                                                                onClick={() => {
+                                                                    setPositionForm({ emp, staffInfo: staffMap[emp.id] || null });
+                                                                    setExpandedEmpId(null);
+                                                                }}
+                                                                style={{
+                                                                    padding: '9px 18px', borderRadius: '10px',
+                                                                    background: 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
+                                                                    color: '#fff', border: 'none', fontWeight: '600',
+                                                                    fontSize: '13px', cursor: 'pointer',
+                                                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                                                    transition: 'transform 0.15s'
+                                                                }}
+                                                                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                                                                onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                                                            >
+                                                                <Edit2 size={14} />
+                                                                {staffMap[emp.id] ? 'Sửa chức vụ' : 'Gán chức vụ'}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        }
+                                    </React.Fragment>
+                                );
+
+                            })
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {/* Form sửa/gán chức vụ */}
+            {positionForm && (
+                <StaffPositionForm
+                    employee={positionForm.emp}
+                    staffInfo={positionForm.staffInfo}
+                    closeForm={() => setPositionForm(null)}
+                    onSave={() => { fetchEmployees(); setPositionForm(null); }}
+                />
+            )}
 
             <style>{`
                 @keyframes spin {
