@@ -10,9 +10,9 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
         startDate: '',
         endDate: '',
         isActive: true,
-        productIds: []
+        foodIds: []
     });
-    const [products, setProducts] = useState([]);
+    const [foods, setFoods] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [discountType, setDiscountType] = useState('percentage');
@@ -33,23 +33,23 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                 startDate: promotion.startDate || '',
                 endDate: promotion.endDate || '',
                 isActive: promotion.isActive !== undefined ? promotion.isActive : true,
-                productIds: promotion.productIds || []
+                foodIds: promotion.foodIds || []
             });
         }
-        fetchProducts();
+        fetchFoods();
     }, [promotion]);
 
-    const fetchProducts = async () => {
+    const fetchFoods = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/customer/products`, {
+            const response = await fetch(`${API_BASE_URL}/api/foods`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
             if (response.ok) {
                 const data = await response.json();
-                setProducts(data);
+                setFoods(data);
             }
         } catch (err) {
             console.error('Lỗi khi tải sản phẩm:', err);
@@ -61,12 +61,12 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
         setError('');
     };
 
-    const handleProductToggle = (productId) => {
+    const handleFoodToggle = (foodId) => {
         setFormData(prev => {
-            const productIds = prev.productIds.includes(productId)
-                ? prev.productIds.filter(id => id !== productId)
-                : [...prev.productIds, productId];
-            return { ...prev, productIds };
+            const foodIds = prev.foodIds.includes(foodId)
+                ? prev.foodIds.filter(id => id !== foodId)
+                : [...prev.foodIds, foodId];
+            return { ...prev, foodIds };
         });
     };
 
@@ -125,7 +125,7 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                 startDate: formData.startDate,
                 endDate: formData.endDate,
                 isActive: formData.isActive,
-                productIds: formData.productIds
+                foodIds: formData.foodIds
             };
 
             const response = await fetch(`${API_BASE_URL}/api/customer/promotions/${promotion.id}`, {
@@ -500,7 +500,7 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                         </label>
                     </div>
 
-                    {/* Product Selection */}
+                    {/* Food Selection */}
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{
                             display: 'block',
@@ -512,7 +512,7 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                             <Package size={16} style={{ display: 'inline', marginRight: '6px' }} />
                             Áp dụng cho sản phẩm
                             <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '400', marginLeft: '8px' }}>
-                                ({formData.productIds.length} đã chọn)
+                                ({formData.foodIds.length} đã chọn)
                             </span>
                         </label>
                         <div style={{
@@ -522,14 +522,14 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                             borderRadius: '10px',
                             padding: '12px'
                         }}>
-                            {products.length === 0 ? (
+                            {foods.length === 0 ? (
                                 <p style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '14px' }}>
                                     Không có sản phẩm nào
                                 </p>
                             ) : (
-                                products.map(product => (
+                                foods.map(food => (
                                     <label
-                                        key={product.id}
+                                        key={food.id}
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -538,35 +538,35 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                                             cursor: 'pointer',
                                             borderRadius: '8px',
                                             marginBottom: '8px',
-                                            background: formData.productIds.includes(product.id)
+                                            background: formData.foodIds.includes(food.id)
                                                 ? 'rgba(59, 130, 246, 0.05)'
                                                 : 'transparent',
-                                            border: `1px solid ${formData.productIds.includes(product.id)
+                                            border: `1px solid ${formData.foodIds.includes(food.id)
                                                 ? '#3B82F6'
                                                 : 'transparent'}`,
                                             transition: 'all 0.2s'
                                         }}
                                         onMouseOver={(e) => {
-                                            if (!formData.productIds.includes(product.id)) {
+                                            if (!formData.foodIds.includes(food.id)) {
                                                 e.currentTarget.style.background = 'var(--color-hover)';
                                             }
                                         }}
                                         onMouseOut={(e) => {
-                                            if (!formData.productIds.includes(product.id)) {
+                                            if (!formData.foodIds.includes(food.id)) {
                                                 e.currentTarget.style.background = 'transparent';
                                             }
                                         }}
                                     >
                                         <input
                                             type="checkbox"
-                                            checked={formData.productIds.includes(product.id)}
-                                            onChange={() => handleProductToggle(product.id)}
+                                            checked={formData.foodIds.includes(food.id)}
+                                            onChange={() => handleFoodToggle(food.id)}
                                             style={{ cursor: 'pointer' }}
                                         />
-                                        {product.imageUrl && (
+                                        {food.imageUrl && (
                                             <img
-                                                src={`${API_BASE_URL}/${product.imageUrl}`}
-                                                alt={product.name}
+                                                src={`${API_BASE_URL}/${food.imageUrl}`}
+                                                alt={food.name}
                                                 style={{
                                                     width: '40px',
                                                     height: '40px',
@@ -578,10 +578,10 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                                         )}
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontSize: '14px', fontWeight: '500', color: 'var(--color-text-primary)' }}>
-                                                {product.name}
+                                                {food.name}
                                             </div>
                                             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                                                {product.price?.toLocaleString('vi-VN')}₫
+                                                {food.price?.toLocaleString('vi-VN')}₫
                                             </div>
                                         </div>
                                     </label>

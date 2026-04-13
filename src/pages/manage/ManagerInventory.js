@@ -746,7 +746,7 @@ export default function ManagerInventoryManagement() {
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '8px',
-                                    padding: '10px 20px'
+                                    padding: '10px 10px'
                                 }}
                             >
                                 <Plus size={18} />

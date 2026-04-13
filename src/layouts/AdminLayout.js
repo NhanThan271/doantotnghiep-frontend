@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, Users, ShoppingBag, Tag, LogOut, Package, ChevronLeft, ChevronRight, FolderTree, MapPin, Table, MenuSquare, FileText, Receipt } from 'lucide-react';
+import { BarChart3, Users, ShoppingBag, Tag, LogOut, Package, ChevronLeft, DoorOpen, ChevronRight, FolderTree, MapPin, Table, MenuSquare, FileText, Receipt } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import styles from './AdminLayout.module.css';
 
@@ -34,6 +34,7 @@ import EditIngredientForm from '../pages/admin/forms/Editingredientform';
 import Recipes from '../pages/admin/Recipes';
 import AddRecipeForm from '../pages/admin/forms/Addrecipeform';
 import EditRecipeForm from '../pages/admin/forms/Editrecipeform';
+import RoomManagement from '../pages/admin/BranchRoom';
 
 export default function AdminLayout() {
     const navigate = useNavigate();
@@ -66,6 +67,7 @@ export default function AdminLayout() {
     const [branches, setBranches] = useState([]);
     const [branchmenu, setBranchmenu] = useState([]);
     const [branchtable, setBranchtable] = useState([]);
+    const [branchroom, setBranchroom] = useState([]);
     const [ingredients, setIngredients] = useState([]);
     const [recipes, setRecipes] = useState([])
 
@@ -82,6 +84,7 @@ export default function AdminLayout() {
         { id: 'products', label: 'Quản lý Sản phẩm', icon: ShoppingBag },
         { id: 'branchmenu', label: 'Phân menu cho chi nhánh', icon: MenuSquare },
         { id: 'branchtable', label: 'Quản lý Bàn', icon: Table },
+        { id: 'branchroom', label: 'Quản lý Phòng', icon: DoorOpen },
         { id: 'categories', label: 'Quản lý Danh mục', icon: FolderTree },
         { id: 'ingredients', label: 'Quản lý Nguyên liệu', icon: Package },
         { id: 'recipes', label: 'Quản lý công thức', icon: Receipt },
@@ -142,6 +145,10 @@ export default function AdminLayout() {
                 modalType.startsWith('add') ? setBranchtable([...branchtable, { ...item, id: Date.now() }])
                     : setBranchtable(branchtable.map(b => (b.id === item.id ? item : b)));
                 break;
+            case 'branchroom':
+                modalType.startsWith('add') ? setBranchroom([...branchroom, { ...item, id: Date.now() }])
+                    : setBranchroom(branchroom.map(b => (b.id === item.id ? item : b)));
+                break;
             case 'ingredients':
                 modalType.startsWith('add') ? setIngredients([...ingredients, { ...item, id: Date.now(), isActive: true }])
                     : setIngredients(ingredients.map(i => (i.id === item.id ? item : i)));
@@ -183,6 +190,13 @@ export default function AdminLayout() {
                 return <TableManagement
                     products={branchtable}
                     openAdd={() => openAddModal('Branchtable')}
+                    openEdit={openEditModal}
+                    refreshTrigger={refreshTrigger}
+                />;
+            case 'branchroom':
+                return <RoomManagement
+                    products={branchroom}
+                    openAdd={() => openAddModal('Branchroom')}
                     openEdit={openEditModal}
                     refreshTrigger={refreshTrigger}
                 />;

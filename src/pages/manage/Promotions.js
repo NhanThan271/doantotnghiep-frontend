@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Tag, Calendar, Percent, DollarSign, Eye, Package, ChevronDown, ChevronUp, Store, RefreshCw } from 'lucide-react';
+import { Tag, Calendar, Percent, DollarSign, Eye, Package, ChevronUp, Store, RefreshCw } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
 
 export default function ApplyPromotions() {
@@ -7,7 +7,7 @@ export default function ApplyPromotions() {
     const [currentBranch, setCurrentBranch] = useState(null);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(null);
-    const [products, setProducts] = useState({});
+    const [foods, setFoods] = useState({});
     const API_BASE_URL = 'http://localhost:8080';
 
     // Lấy thông tin chi nhánh hiện tại
@@ -68,7 +68,7 @@ export default function ApplyPromotions() {
         setLoading(true);
 
         try {
-            // Lấy tất cả promotions với DTO (có đầy đủ products)
+            // Lấy tất cả promotions với DTO (có đầy đủ foods)
             const response = await fetch(`${API_BASE_URL}/api/promotions/all-dto`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -90,13 +90,13 @@ export default function ApplyPromotions() {
 
             console.log('Branch promotions:', branchPromotions);
 
-            // Debug: Kiểm tra products trong từng promotion
+            // Debug: Kiểm tra foods trong từng promotion
             branchPromotions.forEach((promo, index) => {
                 console.log(`Promotion ${index} (${promo.name}):`, {
                     id: promo.id,
-                    productIds: promo.productIds,
-                    products: promo.products,
-                    productsLength: promo.products?.length
+                    foodIds: promo.foodIds,
+                    foods: promo.foods,
+                    foodsLength: promo.foods?.length
                 });
             });
 
@@ -132,7 +132,7 @@ export default function ApplyPromotions() {
             startDate: promotion.startDate,
             endDate: promotion.endDate,
             isActive: !promotion.isActive,
-            productIds: promotion.productIds || [],
+            foodIds: promotion.foodIds || [],
             branchIds: promotion.branchIds || []
         };
 
@@ -252,13 +252,13 @@ export default function ApplyPromotions() {
                                     {promotions.map(p => {
                                         const isValid = isPromotionValid(p);
                                         const isExpanded = expandedId === p.id;
-                                        const promotionProducts = p.products || [];
+                                        const promotionFoods = p.foods || [];
 
                                         return (
                                             <React.Fragment key={p.id}>
                                                 <tr>
                                                     <td>
-                                                        <div className={styles.productCell}>
+                                                        <div className={styles.foodCell}>
                                                             <div style={{
                                                                 width: '40px',
                                                                 height: '40px',
@@ -272,7 +272,7 @@ export default function ApplyPromotions() {
                                                                 <Tag size={20} color="var(--color-primary)" />
                                                             </div>
                                                             <div>
-                                                                <div className={styles.productName}>
+                                                                <div className={styles.foodName}>
                                                                     {p.name}
                                                                 </div>
                                                                 {p.description && (
@@ -423,9 +423,9 @@ export default function ApplyPromotions() {
                                                                 fontWeight: '600'
                                                             }}>
                                                                 <Package size={18} />
-                                                                <span>Sản phẩm được áp dụng ({p.products?.length || 0})</span>
+                                                                <span>Sản phẩm được áp dụng ({p.foods?.length || 0})</span>
                                                             </div>
-                                                            {(!p.products || p.products.length === 0) ? (
+                                                            {(!p.foods || p.foods.length === 0) ? (
                                                                 <p style={{
                                                                     color: '#6B7280',
                                                                     fontSize: '13px',
@@ -440,8 +440,8 @@ export default function ApplyPromotions() {
                                                                     gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
                                                                     gap: '12px'
                                                                 }}>
-                                                                    {p.products.map(product => (
-                                                                        <div key={product.id} style={{
+                                                                    {p.foods.map(food => (
+                                                                        <div key={food.id} style={{
                                                                             padding: '12px',
                                                                             background: '#fff',
                                                                             borderRadius: '8px',
@@ -450,10 +450,10 @@ export default function ApplyPromotions() {
                                                                             gap: '12px',
                                                                             alignItems: 'center'
                                                                         }}>
-                                                                            {product.imageUrl ? (
+                                                                            {food.imageUrl ? (
                                                                                 <img
-                                                                                    src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_BASE_URL}${product.imageUrl.startsWith('/') ? '' : '/'}${product.imageUrl}`}
-                                                                                    alt={product.name}
+                                                                                    src={food.imageUrl.startsWith('http') ? food.imageUrl : `${API_BASE_URL}${food.imageUrl.startsWith('/') ? '' : '/'}${food.imageUrl}`}
+                                                                                    alt={food.name}
                                                                                     style={{
                                                                                         width: '50px',
                                                                                         height: '50px',
@@ -486,7 +486,7 @@ export default function ApplyPromotions() {
                                                                                     textOverflow: 'ellipsis',
                                                                                     whiteSpace: 'nowrap'
                                                                                 }}>
-                                                                                    {product.name}
+                                                                                    {food.name}
                                                                                 </div>
                                                                                 <div style={{
                                                                                     fontSize: '12px',
@@ -496,10 +496,8 @@ export default function ApplyPromotions() {
                                                                                     alignItems: 'center'
                                                                                 }}>
                                                                                     <span style={{ color: 'var(--color-primary)', fontWeight: '600' }}>
-                                                                                        {product.price?.toLocaleString('vi-VN')}đ
+                                                                                        {food.price?.toLocaleString('vi-VN')}đ
                                                                                     </span>
-                                                                                    <span>•</span>
-                                                                                    <span>Tồn: {product.stockQuantity || 0}</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>

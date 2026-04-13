@@ -10,9 +10,9 @@ export default function AddPromotionForm({ closeForm, onSave }) {
         startDate: '',
         endDate: '',
         isActive: true,
-        productIds: []
+        foodIds: []
     });
-    const [products, setProducts] = useState([]);
+    const [foods, setFoods] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [discountType, setDiscountType] = useState('percentage'); // 'percentage' or 'amount'
@@ -21,20 +21,20 @@ export default function AddPromotionForm({ closeForm, onSave }) {
 
     // Load danh sách sản phẩm
     useEffect(() => {
-        fetchProducts();
+        fetchFoods();
     }, []);
 
-    const fetchProducts = async () => {
+    const fetchFoods = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/customer/products`, {
+            const response = await fetch(`${API_BASE_URL}/api/foods`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
             if (response.ok) {
                 const data = await response.json();
-                setProducts(data);
+                setFoods(data);
             }
         } catch (err) {
             console.error('Lỗi khi tải sản phẩm:', err);
@@ -46,12 +46,12 @@ export default function AddPromotionForm({ closeForm, onSave }) {
         setError('');
     };
 
-    const handleProductToggle = (productId) => {
+    const handleFoodToggle = (foodId) => {
         setFormData(prev => {
-            const productIds = prev.productIds.includes(productId)
-                ? prev.productIds.filter(id => id !== productId)
-                : [...prev.productIds, productId];
-            return { ...prev, productIds };
+            const foodIds = prev.foodIds.includes(foodId)
+                ? prev.foodIds.filter(id => id !== foodId)
+                : [...prev.foodIds, foodId];
+            return { ...prev, foodIds };
         });
     };
 
@@ -110,7 +110,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                 startDate: formData.startDate,
                 endDate: formData.endDate,
                 isActive: formData.isActive,
-                productIds: formData.productIds
+                foodIds: formData.foodIds
             };
 
             const response = await fetch(`${API_BASE_URL}/api/customer/promotions`, {
@@ -479,7 +479,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                         </label>
                     </div>
 
-                    {/* Product Selection */}
+                    {/* Food Selection */}
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{
                             display: 'block',
@@ -491,7 +491,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                             <Package size={16} style={{ display: 'inline', marginRight: '6px' }} />
                             Áp dụng cho sản phẩm
                             <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '400', marginLeft: '8px' }}>
-                                ({formData.productIds.length} đã chọn)
+                                ({formData.foodIds.length} đã chọn)
                             </span>
                         </label>
                         <div style={{
@@ -501,14 +501,14 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                             borderRadius: '10px',
                             padding: '12px'
                         }}>
-                            {products.length === 0 ? (
+                            {foods.length === 0 ? (
                                 <p style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '14px' }}>
                                     Không có sản phẩm nào
                                 </p>
                             ) : (
-                                products.map(product => (
+                                foods.map(food => (
                                     <label
-                                        key={product.id}
+                                        key={food.id}
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -517,35 +517,35 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                                             cursor: 'pointer',
                                             borderRadius: '8px',
                                             marginBottom: '8px',
-                                            background: formData.productIds.includes(product.id)
+                                            background: formData.foodIds.includes(food.id)
                                                 ? 'rgba(16, 185, 129, 0.05)'
                                                 : 'transparent',
-                                            border: `1px solid ${formData.productIds.includes(product.id)
+                                            border: `1px solid ${formData.foodIds.includes(food.id)
                                                 ? '#10B981'
                                                 : 'transparent'}`,
                                             transition: 'all 0.2s'
                                         }}
                                         onMouseOver={(e) => {
-                                            if (!formData.productIds.includes(product.id)) {
+                                            if (!formData.foodIds.includes(food.id)) {
                                                 e.currentTarget.style.background = 'var(--color-hover)';
                                             }
                                         }}
                                         onMouseOut={(e) => {
-                                            if (!formData.productIds.includes(product.id)) {
+                                            if (!formData.foodIds.includes(food.id)) {
                                                 e.currentTarget.style.background = 'transparent';
                                             }
                                         }}
                                     >
                                         <input
                                             type="checkbox"
-                                            checked={formData.productIds.includes(product.id)}
-                                            onChange={() => handleProductToggle(product.id)}
+                                            checked={formData.foodIds.includes(food.id)}
+                                            onChange={() => handleFoodToggle(food.id)}
                                             style={{ cursor: 'pointer' }}
                                         />
-                                        {product.imageUrl && (
+                                        {food.imageUrl && (
                                             <img
-                                                src={`${API_BASE_URL}${product.imageUrl}`}
-                                                alt={product.name}
+                                                src={`${API_BASE_URL}${food.imageUrl}`}
+                                                alt={food.name}
                                                 style={{
                                                     width: '40px',
                                                     height: '40px',
@@ -557,10 +557,10 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                                         )}
                                         <div style={{ flex: 1 }}>
                                             <div style={{ fontSize: '14px', fontWeight: '500', color: 'var(--color-text-primary)' }}>
-                                                {product.name}
+                                                {food.name}
                                             </div>
                                             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                                                {product.price?.toLocaleString('vi-VN')}₫
+                                                {food.price?.toLocaleString('vi-VN')}₫
                                             </div>
                                         </div>
                                     </label>
