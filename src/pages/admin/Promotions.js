@@ -15,7 +15,7 @@ import {
 
 export default function PromotionManagement() {
     const [promotions, setPromotions] = useState([]);
-    const [products, setProducts] = useState([]);
+    const [foods, setFoods] = useState([]);
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showModal, setShowModal] = useState(false);
@@ -31,7 +31,7 @@ export default function PromotionManagement() {
         startDate: '',
         endDate: '',
         isActive: true,
-        productIds: [],
+        foodIds: [],
         branchIds: []
     });
 
@@ -53,7 +53,7 @@ export default function PromotionManagement() {
             const data = await response.json();
             const processedData = data.map(promotion => ({
                 ...promotion,
-                productIds: promotion.productIds || (promotion.products?.map(p => p.id) || [])
+                foodIds: promotion.productIds || promotion.foodIds || []
             }));
             setPromotions(Array.isArray(processedData) ? processedData : []);
         } catch (error) {
@@ -71,9 +71,9 @@ export default function PromotionManagement() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await response.json();
-            setProducts(Array.isArray(data) ? data : []);
+            setFoods(Array.isArray(data) ? data : []);
         } catch (error) {
-            console.error('Error fetching products:', error);
+            console.error('Error fetching foods:', error);
         }
     };
 
@@ -100,7 +100,7 @@ export default function PromotionManagement() {
             startDate: '',
             endDate: '',
             isActive: true,
-            productIds: [],
+            foodIds: [],
             branchIds: []
         });
         setShowModal(true);
@@ -116,7 +116,7 @@ export default function PromotionManagement() {
             startDate: promotion.startDate || '',
             endDate: promotion.endDate || '',
             isActive: promotion.isActive ?? true,
-            productIds: promotion.productIds || [],
+            foodIds: promotion.productIds || promotion.foodIds || [],
             branchIds: promotion.branchIds || []
         });
         setShowModal(true);
@@ -157,7 +157,7 @@ export default function PromotionManagement() {
                 startDate: formData.startDate,
                 endDate: formData.endDate,
                 isActive: formData.isActive,
-                productIds: formData.productIds || [],
+                productIds: formData.foodIds || [],
                 branchIds: formData.branchIds || []
             };
 
@@ -245,12 +245,12 @@ export default function PromotionManagement() {
         return matchesSearch && matchesStatus;
     });
 
-    const toggleProductSelection = (productId) => {
+    const toggleProductSelection = (foodId) => {
         setFormData(prev => ({
             ...prev,
-            productIds: prev.productIds.includes(productId)
-                ? prev.productIds.filter(id => id !== productId)
-                : [...prev.productIds, productId]
+            foodIds: prev.foodIds.includes(foodId)
+                ? prev.foodIds.filter(id => id !== foodId)
+                : [...prev.foodIds, foodId]
         }));
     };
 
@@ -444,12 +444,12 @@ export default function PromotionManagement() {
                                                     </div>
                                                 </div>
 
-                                                {/* Product Count */}
+                                                {/* Food Count */}
                                                 <div>
-                                                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>Sản phẩm áp dụng</div>
+                                                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>Món ăn áp dụng</div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#e2e8f0' }}>
                                                         <Package size={16} color="#64748b" />
-                                                        <span>{promotion.productIds?.length || 0} sản phẩm</span>
+                                                        <span>{promotion.foodIds?.length || 0} món ăn</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -722,10 +722,10 @@ export default function PromotionManagement() {
                                     </div>
                                 </div>
 
-                                {/* Products Selection */}
+                                {/* Foods Selection */}
                                 <div>
                                     <label style={{ display: 'block', marginBottom: '12px', fontSize: '14px', fontWeight: '500', color: '#e2e8f0' }}>
-                                        Sản phẩm áp dụng ({formData.productIds.length} đã chọn)
+                                        Món ăn áp dụng ({formData.foodIds.length} đã chọn)
                                     </label>
                                     <div style={{
                                         background: '#0f172a',
@@ -735,14 +735,14 @@ export default function PromotionManagement() {
                                         overflow: 'auto',
                                         padding: '8px'
                                     }}>
-                                        {products.length === 0 ? (
+                                        {foods.length === 0 ? (
                                             <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
-                                                Không có sản phẩm nào
+                                                Không có món ăn nào
                                             </div>
                                         ) : (
-                                            products.map(product => (
+                                            foods.map(food => (
                                                 <label
-                                                    key={product.id}
+                                                    key={food.id}
                                                     style={{
                                                         display: 'flex',
                                                         alignItems: 'center',
@@ -752,23 +752,23 @@ export default function PromotionManagement() {
                                                         cursor: 'pointer',
                                                         transition: 'all 0.2s',
                                                         marginBottom: '4px',
-                                                        background: formData.productIds.includes(product.id) ? 'rgba(212, 175, 55, 0.1)' : 'transparent'
+                                                        background: formData.foodIds.includes(food.id) ? 'rgba(212, 175, 55, 0.1)' : 'transparent'
                                                     }}
                                                     onMouseOver={(e) => {
-                                                        if (!formData.productIds.includes(product.id)) {
+                                                        if (!formData.foodIds.includes(food.id)) {
                                                             e.currentTarget.style.background = '#1e293b';
                                                         }
                                                     }}
                                                     onMouseOut={(e) => {
-                                                        if (!formData.productIds.includes(product.id)) {
+                                                        if (!formData.foodIds.includes(food.id)) {
                                                             e.currentTarget.style.background = 'transparent';
                                                         }
                                                     }}
                                                 >
                                                     <input
                                                         type="checkbox"
-                                                        checked={formData.productIds.includes(product.id)}
-                                                        onChange={() => toggleProductSelection(product.id)}
+                                                        checked={formData.foodIds.includes(food.id)}
+                                                        onChange={() => toggleProductSelection(food.id)}
                                                         style={{
                                                             width: '18px',
                                                             height: '18px',
@@ -778,10 +778,10 @@ export default function PromotionManagement() {
                                                     />
                                                     <div style={{ flex: 1 }}>
                                                         <div style={{ fontSize: '14px', color: '#e2e8f0', fontWeight: '500' }}>
-                                                            {product.name}
+                                                            {food.name}
                                                         </div>
                                                         <div style={{ fontSize: '12px', color: '#64748b' }}>
-                                                            {parseFloat(product.price).toLocaleString('vi-VN')}đ
+                                                            {parseFloat(food.price).toLocaleString('vi-VN')}đ
                                                         </div>
                                                     </div>
                                                 </label>

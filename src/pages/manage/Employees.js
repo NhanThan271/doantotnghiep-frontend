@@ -2,6 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Users, Calendar, Clock, Search, CalendarPlus, AlertCircle, RefreshCw, Store, Edit2, Mail, Phone, UserCheck, ChevronDown, ChevronUp, X, Save, CheckCircle } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
 
+
+const POSITION_MAP = {
+    WAITER: { label: 'Phục vụ', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' },
+    CHEF: { label: 'Đầu bếp', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
+    CASHIER: { label: 'Thu ngân', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
+    STOCK: { label: 'Kho', color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
+};
 export default function BranchEmployeesManager() {
     const [employees, setEmployees] = useState([]);
     const [workShifts, setWorkShifts] = useState([]);
@@ -12,6 +19,7 @@ export default function BranchEmployeesManager() {
     const [filterStatus, setFilterStatus] = useState('all');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [expandedShift, setExpandedShift] = useState(null);
+    const [staffMap, setStaffMap] = useState({});
 
     // State cho modal phân ca
     const [showAssignModal, setShowAssignModal] = useState(false);
@@ -76,6 +84,26 @@ export default function BranchEmployeesManager() {
         }
     };
 
+    const fetchStaffInfo = async (empList) => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/staff/branch/${currentBranch.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+            const staffList = await res.json();
+            const map = {};
+            staffList.forEach(staff => {
+                if (staff?.userId) {
+                    map[staff.userId] = { id: staff.id, position: staff.position };
+                }
+            });
+            setStaffMap(map);
+        } catch (err) {
+            console.error('Lỗi lấy staff info:', err);
+        }
+    };
+
     const fetchBranchEmployees = async () => {
         if (!currentBranch?.id) return;
         setLoading(true);
@@ -91,6 +119,7 @@ export default function BranchEmployeesManager() {
                 user.branch?.id === currentBranch.id
             );
             setEmployees(branchEmployees);
+            await fetchStaffInfo(branchEmployees);
         } catch (error) {
             console.error('Lỗi:', error);
             alert('Không thể tải danh sách nhân viên.');
@@ -482,7 +511,36 @@ export default function BranchEmployeesManager() {
                                                     </div>
                                                 </td>
                                                 <td className={styles.textCenter}>
-                                                    <span className={styles.badgePrimary}>{emp.role}</span>
+                                                    {(() => {
+                                                        const staffInfo = staffMap[emp.id];
+                                                        const posInfo = staffInfo ? POSITION_MAP[staffInfo.position] : null;
+                                                        return posInfo ? (
+                                                            <span style={{
+                                                                display: 'inline-block',
+                                                                padding: '4px 12px',
+                                                                background: posInfo.bg,
+                                                                color: posInfo.color,
+                                                                borderRadius: '8px',
+                                                                fontSize: '12px',
+                                                                fontWeight: '600',
+                                                                border: `1px solid ${posInfo.color}40`
+                                                            }}>
+                                                                {posInfo.label}
+                                                            </span>
+                                                        ) : (
+                                                            <span style={{
+                                                                display: 'inline-block',
+                                                                padding: '4px 12px',
+                                                                background: 'rgba(107,114,128,0.1)',
+                                                                color: '#6B7280',
+                                                                borderRadius: '8px',
+                                                                fontSize: '12px',
+                                                                fontWeight: '600'
+                                                            }}>
+                                                                Chưa có
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className={styles.textCenter}>
                                                     <span className={emp.isActive ? styles.badgeSuccess : styles.badgeInactive}>
