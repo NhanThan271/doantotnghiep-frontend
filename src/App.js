@@ -24,7 +24,9 @@ import WaiterLayout from "./layouts/WaiterLayout";
 import ChefLayout from "./layouts/ChefLayout";
 import StockLayout from "./layouts/StockLayout";
 
-import CashierDashboard from "./pages/employee/cashier/CashierDashboard";
+import ShiftPage from "./pages/employee/cashier/ShiftPage";
+import TablesPage from "./pages/employee/cashier/TablesPage";
+import BookingPage from "./pages/employee/cashier/BookingPage";
 
 import Orders from "./pages/employee/waiter/Orders";
 import OrderDetail from "./pages/employee/waiter/OrderDetail";
@@ -65,20 +67,18 @@ function App() {
         <Route path="/payment-cancel" element={<PaymentCancel />} />
 
         {/* 🆕 Employee routes theo position */}
-        <Route path="/employee/cashier/*" element={<CashierLayout><CashierDashboard /></CashierLayout>} />
+        <Route path="/employee/cashier/*" element={<CashierLayout><ShiftPage /></CashierLayout>} />
         <Route path="/employee/waiter/*" element={<WaiterLayout>< Orders /></WaiterLayout>} />
         <Route path="/employee/chef/*" element={<ChefLayout><ChefDashboard /></ChefLayout>} />
         <Route path="/employee/stock/*" element={<StockLayout><StockDashboard /></StockLayout>} />
 
         {/* Cashier sub-routes */}
-        <Route path="/employee/cashier" element={<CashierLayout><CashierDashboard /></CashierLayout>} />
-        <Route path="/employee/cashier/invoices" element={<CashierLayout><div>Quản lý hóa đơn</div></CashierLayout>} />
-        <Route path="/employee/cashier/payment" element={<CashierLayout><div>Thanh toán</div></CashierLayout>} />
-        <Route path="/employee/cashier/payment/:orderId" element={<CashierLayout><div>Thanh toán đơn hàng</div></CashierLayout>} />
-        <Route path="/employee/cashier/transactions" element={<CashierLayout><div>Giao dịch</div></CashierLayout>} />
-        <Route path="/employee/cashier/history" element={<CashierLayout><div>Lịch sử thanh toán</div></CashierLayout>} />
-        <Route path="/employee/cashier/revenue" element={<CashierLayout><div>Báo cáo doanh thu</div></CashierLayout>} />
-
+        <Route path="/employee/cashier" element={<CashierLayout />}>
+          <Route index element={<ShiftPage />} /> {/* mặc định */}
+          <Route path="shift" element={<ShiftPage />} />
+          <Route path="tables" element={<TablesPage />} />
+          <Route path="booking" element={<BookingPage />} />
+        </Route>
         {/* Waiter Routes */}
         <Route path="/employee/waiter/orders" element={<WaiterLayout><Orders /></WaiterLayout>} />
         <Route path="/employee/waiter/orders/:id" element={<WaiterLayout><OrderDetail /></WaiterLayout>} />

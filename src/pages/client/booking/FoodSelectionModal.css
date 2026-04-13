@@ -235,3 +235,92 @@
     color: #121212;
     border-color: #D4AF37;
 }
+
+.price-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+
+.original-price {
+    font-size: 12px;
+    color: #9ca3af;
+    text-decoration: line-through;
+}
+
+.final-price {
+    font-size: 16px;
+    font-weight: bold;
+    color: #D4AF37;
+}
+
+.discount-badge {
+    background: #ef4444;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-weight: bold;
+}
+
+.promotion-name {
+    font-size: 10px;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 2px 6px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-bottom: 6px;
+}
+
+.stock-warning {
+    font-size: 10px;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    padding: 2px 6px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-bottom: 6px;
+}
+
+.stock-out {
+    font-size: 10px;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    padding: 2px 6px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-bottom: 6px;
+}
+
+.food-card.inactive {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.food-card.inactive .add-btn,
+.food-card .add-btn:disabled {
+    background: #6b7280;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.food-card .add-btn:disabled:hover {
+    transform: none;
+    background: #6b7280;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .price-container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .discount-badge {
+        align-self: flex-start;
+    }
+}
