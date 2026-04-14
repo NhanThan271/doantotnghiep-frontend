@@ -1,20 +1,24 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
     ChevronDown, Grid, List, Search, X,
-    Filter, ChevronUp, Star, TrendingUp,
-    DollarSign, Tag, ArrowUpDown,
-    Heart, ShoppingBag, Clock
+    Filter, ChevronUp, DollarSign, Tag, ArrowUpDown,
+    ShoppingBag, MapPin, Building2
 } from 'lucide-react';
 import PhoneFloatButton from './booking/PhoneFloatButton';
 import './Menu.css';
+
+const API_BASE_URL = 'http://localhost:8080';
 
 const Menu = () => {
     const [categories, setCategories] = useState([]);
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [selectedBranch, setSelectedBranch] = useState(null);
+    const [branches, setBranches] = useState([]);
     const [isCategoryOpen, setIsCategoryOpen] = useState(true);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [isBranchOpen, setIsBranchOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [viewMode, setViewMode] = useState('grid');
@@ -24,62 +28,139 @@ const Menu = () => {
     const [filters, setFilters] = useState({
         priceRange: { min: '', max: '' },
         sortBy: 'name_asc',
-        showPromotion: false,
-        minRating: 0,
         isAvailable: true
     });
 
     const [priceStats, setPriceStats] = useState({ min: 0, max: 0 });
 
-    const API_BASE_URL = 'http://localhost:8080';
-
     const allCategory = {
         id: 'all',
         name: 'Tất cả món ăn',
-        description: 'Khám phá toàn bộ thực đơn',
         icon: '🍽️'
+    };
+
+    const getAuthToken = () => localStorage.getItem('token');
+
+    // Fetch branches
+    const fetchBranches = async () => {
+        try {
+            const token = getAuthToken();
+            const response = await fetch(`${API_BASE_URL}/api/branches`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                }
+            });
+
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            setBranches(data);
+
+            const savedBranchId = localStorage.getItem('selectedBranchId');
+            if (savedBranchId && data.find(b => b.id === parseInt(savedBranchId))) {
+                setSelectedBranch(data.find(b => b.id === parseInt(savedBranchId)));
+            } else if (data.length > 0) {
+                setSelectedBranch(data[0]);
+                localStorage.setItem('selectedBranchId', data[0].id);
+            }
+        } catch (err) {
+            console.error('Lỗi khi lấy chi nhánh:', err);
+        }
     };
 
     // Fetch categories
     const fetchCategories = async () => {
         try {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
+            console.log("🔍 Fetching categories from /api/categories");
+
             const response = await fetch(`${API_BASE_URL}/api/categories`, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 }
             });
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-            setCategories(data);
-            if (!selectedCategory) setSelectedCategory(allCategory);
+
+            console.log("📂 Categories loaded:", data);
+
+            if (data && data.length > 0) {
+                setCategories(data);
+            } else {
+                console.warn("⚠️ No categories from API, using mock data");
+                const mockCategories = [
+                    { id: 1, name: "Món khai vị" },
+                    { id: 2, name: "Món chính" },
+                    { id: 3, name: "Đồ uống" },
+                    { id: 4, name: "Tráng miệng" }
+                ];
+                setCategories(mockCategories);
+            }
+
+            if (!selectedCategory || selectedCategory.id === 'all') {
+                setSelectedCategory(allCategory);
+            }
         } catch (err) {
-            console.error('Lỗi khi lấy danh mục:', err);
-            setError(`Không thể tải danh mục: ${err.message}`);
+            console.error('❌ Lỗi khi lấy danh mục:', err);
+            const mockCategories = [
+                { id: 1, name: "Món khai vị" },
+                { id: 2, name: "Món chính" },
+                { id: 3, name: "Đồ uống" },
+                { id: 4, name: "Tráng miệng" }
+            ];
+            setCategories(mockCategories);
+            setSelectedCategory(allCategory);
         }
     };
 
-    // Fetch products
-    const fetchProducts = async () => {
+    // Fetch products by branch with optional category filter
+    const fetchProductsByBranch = async (branchId, categoryId = null) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/foods`, {
+            setLoading(true);
+            setError(null);
+
+            const token = getAuthToken();
+
+            // Build URL with category filter if provided
+            let url = `${API_BASE_URL}/api/branch-foods/branch/${branchId}`;
+            if (categoryId) {
+                url += `?categoryId=${categoryId}`;
+            }
+
+            console.log(`🔍 Fetching products from: ${url}`);
+
+            const response = await fetch(url, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json',
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 }
             });
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
             const data = await response.json();
-            setProducts(data);
+            console.log("🍽️ Raw BranchFood data:", data);
+
+            // Transform dữ liệu - BỎ KHUYẾN MÃI
+            const transformedProducts = data.map(item => ({
+                id: item.id,
+                name: item.food?.name || item.name,
+                description: item.food?.description || '',
+                price: item.customPrice || item.food?.price || 0,
+                imageUrl: item.food?.imageUrl,
+                categoryId: item.food?.category?.id,
+                categoryName: item.food?.category?.name,
+                stockQuantity: item.stockQuantity,
+                isAvailable: item.isActive
+            }));
+
+            console.log("✅ Transformed products:", transformedProducts);
+            setProducts(transformedProducts);
 
             // Calculate price range
-            const prices = data.map(p => p.price).filter(p => p);
+            const prices = transformedProducts.map(p => p.price).filter(p => p && p > 0);
             if (prices.length > 0) {
                 setPriceStats({
                     min: Math.min(...prices),
@@ -89,9 +170,46 @@ const Menu = () => {
         } catch (err) {
             console.error('Lỗi khi lấy sản phẩm:', err);
             setError(`Không thể tải sản phẩm: ${err.message}`);
+            setProducts([]);
         } finally {
             setLoading(false);
         }
+    };
+
+    // Handle branch change
+    const handleBranchChange = async (branch) => {
+        setSelectedBranch(branch);
+        localStorage.setItem('selectedBranchId', branch.id);
+        setSelectedCategory(allCategory);
+        setSearchTerm('');
+        setFilters({
+            priceRange: { min: '', max: '' },
+            sortBy: 'name_asc',
+            isAvailable: true
+        });
+
+        await fetchProductsByBranch(branch.id);
+    };
+
+    // Handle category selection
+    const handleCategorySelect = async (category) => {
+        console.log(`📂 Selected category:`, category);
+        setSelectedCategory(category);
+
+        if (!selectedBranch) return;
+
+        if (category.id === 'all') {
+            await fetchProductsByBranch(selectedBranch.id);
+        } else {
+            await fetchProductsByBranch(selectedBranch.id, category.id);
+        }
+
+        setSearchTerm('');
+        setFilters({
+            priceRange: { min: '', max: '' },
+            sortBy: 'name_asc',
+            isAvailable: true
+        });
     };
 
     // Apply filters and search
@@ -101,14 +219,9 @@ const Menu = () => {
         // Search filter
         if (searchTerm) {
             result = result.filter(product =>
-                product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
             );
-        }
-
-        // Category filter
-        if (selectedCategory && selectedCategory.id !== 'all') {
-            result = result.filter(product => product.category?.id === selectedCategory.id);
         }
 
         // Price range filter
@@ -133,23 +246,35 @@ const Menu = () => {
                 result.sort((a, b) => b.price - a.price);
                 break;
             case 'name_asc':
-                result.sort((a, b) => a.name.localeCompare(b.name));
+                result.sort((a, b) => a.name?.localeCompare(b.name));
                 break;
             case 'name_desc':
-                result.sort((a, b) => b.name.localeCompare(a.name));
+                result.sort((a, b) => b.name?.localeCompare(a.name));
                 break;
             default:
                 break;
         }
 
         setFilteredProducts(result);
-    }, [products, searchTerm, selectedCategory, filters]);
+    }, [products, searchTerm, filters]);
 
+    // Initial load
     useEffect(() => {
+        fetchBranches();
         fetchCategories();
-        fetchProducts();
     }, []);
 
+    // Load products when branch changes
+    useEffect(() => {
+        if (selectedBranch?.id) {
+            const categoryId = (selectedCategory && selectedCategory.id !== 'all')
+                ? selectedCategory.id
+                : null;
+            fetchProductsByBranch(selectedBranch.id, categoryId);
+        }
+    }, [selectedBranch?.id]);
+
+    // Apply client-side filters
     useEffect(() => {
         applyFilters();
     }, [applyFilters]);
@@ -165,12 +290,9 @@ const Menu = () => {
         setFilters({
             priceRange: { min: '', max: '' },
             sortBy: 'name_asc',
-            showPromotion: false,
-            minRating: 0,
             isAvailable: true
         });
         setSearchTerm('');
-        setSelectedCategory(allCategory);
     };
 
     const handlePriceChange = (type, value) => {
@@ -180,7 +302,12 @@ const Menu = () => {
         }));
     };
 
-    if (loading) {
+    const formatPrice = (price) => {
+        if (!price) return '0đ';
+        return price.toLocaleString('vi-VN') + 'đ';
+    };
+
+    if (loading && products.length === 0) {
         return (
             <div className="menu-page">
                 <div className="loading-overlay">
@@ -191,7 +318,7 @@ const Menu = () => {
         );
     }
 
-    if (error) {
+    if (error && products.length === 0) {
         return (
             <div className="menu-page">
                 <div className="error-container">
@@ -214,6 +341,51 @@ const Menu = () => {
                         Những món ăn được chế biến từ nguyên liệu tươi ngon nhất,
                         mang đến trải nghiệm ẩm thực khó quên
                     </p>
+                </div>
+            </div>
+
+            {/* Branch Selector */}
+            <div className="branch-selector-section">
+                <div className="container">
+                    <div className="branch-selector-wrapper">
+                        <div className="branch-selector-label">
+                            <Building2 size={20} />
+                            <span>Chọn chi nhánh:</span>
+                        </div>
+                        <div className="branch-dropdown">
+                            <button
+                                className="branch-selector-btn"
+                                onClick={() => setIsBranchOpen(!isBranchOpen)}
+                            >
+                                <MapPin size={18} />
+                                <span>{selectedBranch?.name || 'Chọn chi nhánh'}</span>
+                                <ChevronDown className={`dropdown-icon ${isBranchOpen ? 'open' : ''}`} />
+                            </button>
+                            {isBranchOpen && (
+                                <div className="branch-dropdown-menu">
+                                    {branches.map(branch => (
+                                        <div
+                                            key={branch.id}
+                                            className={`branch-option ${selectedBranch?.id === branch.id ? 'active' : ''}`}
+                                            onClick={() => {
+                                                handleBranchChange(branch);
+                                                setIsBranchOpen(false);
+                                            }}
+                                        >
+                                            <MapPin size={16} />
+                                            <div className="branch-info">
+                                                <span className="branch-name">{branch.name}</span>
+                                                <span className="branch-address">{branch.address}</span>
+                                            </div>
+                                            {selectedBranch?.id === branch.id && (
+                                                <span className="branch-check">✓</span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -266,13 +438,12 @@ const Menu = () => {
                             </div>
 
                             <div className="filter-grid">
-                                {/* Price Range */}
                                 <div className="filter-group">
                                     <label><DollarSign size={16} /> Khoảng giá</label>
                                     <div className="price-inputs">
                                         <input
                                             type="number"
-                                            placeholder={`Từ ${priceStats.min.toLocaleString()}đ`}
+                                            placeholder={`Từ ${priceStats.min?.toLocaleString()}đ`}
                                             value={filters.priceRange.min}
                                             onChange={(e) => handlePriceChange('min', e.target.value)}
                                             className="price-input"
@@ -280,7 +451,7 @@ const Menu = () => {
                                         <span>-</span>
                                         <input
                                             type="number"
-                                            placeholder={`Đến ${priceStats.max.toLocaleString()}đ`}
+                                            placeholder={`Đến ${priceStats.max?.toLocaleString()}đ`}
                                             value={filters.priceRange.max}
                                             onChange={(e) => handlePriceChange('max', e.target.value)}
                                             className="price-input"
@@ -288,7 +459,6 @@ const Menu = () => {
                                     </div>
                                 </div>
 
-                                {/* Sort By */}
                                 <div className="filter-group">
                                     <label><ArrowUpDown size={16} /> Sắp xếp theo</label>
                                     <select
@@ -303,7 +473,6 @@ const Menu = () => {
                                     </select>
                                 </div>
 
-                                {/* Availability */}
                                 <div className="filter-group">
                                     <label><ShoppingBag size={16} /> Trạng thái</label>
                                     <label className="checkbox-label">
@@ -331,7 +500,7 @@ const Menu = () => {
                                 <ul className="category-list">
                                     <li
                                         className={`category-item ${selectedCategory?.id === 'all' ? 'active' : ''}`}
-                                        onClick={() => setSelectedCategory(allCategory)}
+                                        onClick={() => handleCategorySelect(allCategory)}
                                     >
                                         <span className="category-icon-emoji">{allCategory.icon}</span>
                                         <div className="category-info">
@@ -342,13 +511,13 @@ const Menu = () => {
 
                                     <li className="category-divider" />
 
-                                    {categories.map(category => {
-                                        const productCount = products.filter(p => p.category?.id === category.id).length;
+                                    {categories.map((category) => {
+                                        const productCount = products.filter(p => p.categoryId === category.id).length;
                                         return (
                                             <li
                                                 key={category.id}
                                                 className={`category-item ${selectedCategory?.id === category.id ? 'active' : ''}`}
-                                                onClick={() => setSelectedCategory(category)}
+                                                onClick={() => handleCategorySelect({ id: category.id, name: category.name })}
                                             >
                                                 <span className="category-icon-emoji">🍲</span>
                                                 <div className="category-info">
@@ -399,10 +568,6 @@ const Menu = () => {
                                 <div className="products-grid">
                                     {filteredProducts.map(product => (
                                         <div key={product.id} className="product-card">
-                                            <div className="product-badge">
-                                                {product.isPopular && <span className="badge popular">🔥 Phổ biến</span>}
-                                                {product.isNew && <span className="badge new">✨ Mới</span>}
-                                            </div>
                                             <div className="product-image-wrapper">
                                                 {getImageUrl(product.imageUrl) ? (
                                                     <img
@@ -410,15 +575,16 @@ const Menu = () => {
                                                         alt={product.name}
                                                         className="product-image"
                                                         loading="lazy"
+                                                        onError={(e) => {
+                                                            e.target.style.display = 'none';
+                                                            e.target.parentElement.innerHTML = '<div class="product-image-placeholder"><span>🍽️</span></div>';
+                                                        }}
                                                     />
                                                 ) : (
                                                     <div className="product-image-placeholder">
                                                         <span>🍽️</span>
                                                     </div>
                                                 )}
-                                                <button className="product-wishlist">
-                                                    <Heart size={20} />
-                                                </button>
                                             </div>
                                             <div className="product-details">
                                                 <h4 className="product-title">{product.name}</h4>
@@ -428,13 +594,8 @@ const Menu = () => {
                                                 <div className="product-footer">
                                                     <div className="product-price-wrapper">
                                                         <span className="product-price">
-                                                            {product.price.toLocaleString('vi-VN')}đ
+                                                            {formatPrice(product.price)}
                                                         </span>
-                                                        {product.oldPrice && (
-                                                            <span className="product-old-price">
-                                                                {product.oldPrice.toLocaleString('vi-VN')}đ
-                                                            </span>
-                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -455,16 +616,13 @@ const Menu = () => {
                                             <div className="product-list-details">
                                                 <div className="product-list-header">
                                                     <h4>{product.name}</h4>
-                                                    <button className="list-wishlist">
-                                                        <Heart size={18} />
-                                                    </button>
                                                 </div>
                                                 {product.description && (
                                                     <p className="product-list-description">{product.description}</p>
                                                 )}
                                                 <div className="product-list-footer">
                                                     <div className="product-list-price">
-                                                        <span className="current-price">{product.price.toLocaleString('vi-VN')}đ</span>
+                                                        <span className="current-price">{formatPrice(product.price)}</span>
                                                     </div>
                                                 </div>
                                             </div>
