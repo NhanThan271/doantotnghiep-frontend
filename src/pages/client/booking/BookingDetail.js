@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useLocation } from "react-router-dom";
 import TableSelectionModal from "../../customer/TableSelectionModal";
 import FoodSelectionModal from "./FoodSelectionModal";
-import "./BookingDetail.css";
+import styles from "./BookingDetail.module.css";
 
 const API = "http://localhost:8080";
 
@@ -14,6 +14,7 @@ const BookingDetail = () => {
     const [showModal, setShowModal] = useState(false);
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
 
     const [data, setData] = useState({
         date: "",
@@ -24,52 +25,107 @@ const BookingDetail = () => {
         phone: "",
         email: "",
         note: "",
-        payment: "deposit", // deposit hoặc full
+        payment: "deposit",
         selectedFoods: []
     });
 
-    const next = () => setStep(step + 1);
-    const back = () => setStep(step - 1);
-
-    // Nhận bàn từ Modal
-    const handleSelectTable = (table) => {
-        setData({
-            ...data,
-            table: table.id,
-            tableNumber: table.number
-        });
+    // Validate functions
+    const validateName = (name) => {
+        if (!name || name.trim() === "") return "Vui lòng nhập họ tên";
+        if (name.trim().length < 2) return "Họ tên phải có ít nhất 2 ký tự";
+        if (name.trim().length > 50) return "Họ tên không được quá 50 ký tự";
+        if (/[0-9]/.test(name)) return "Họ tên không được chứa số";
+        return "";
     };
 
-    // Thêm món vào danh sách
-    const handleAddFood = (food) => {
-        const existing = data.selectedFoods.find(f => f.id === food.id);
-        if (existing) {
-            setData({
-                ...data,
-                selectedFoods: data.selectedFoods.map(f =>
-                    f.id === food.id ? { ...f, quantity: f.quantity + 1 } : f
-                )
-            });
-        } else {
-            setData({
-                ...data,
-                selectedFoods: [...data.selectedFoods, {
-                    id: food.id,
-                    name: food.name,
-                    price: food.price,
-                    quantity: 1,
-                    imageUrl: food.imageUrl
-                }]
-            });
+    const validatePhone = (phone) => {
+        if (!phone || phone.trim() === "") return "Vui lòng nhập số điện thoại";
+        const cleanPhone = phone.replace(/\s/g, '');
+        const phoneRegex = /^(0|84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-9])[0-9]{7}$/;
+        if (!phoneRegex.test(cleanPhone)) return "Số điện thoại không hợp lệ (VD: 0912345678)";
+        return "";
+    };
+
+    const validateEmail = (email) => {
+        if (email && email.trim() !== "") {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) return "Email không hợp lệ (VD: example@email.com)";
         }
+        return "";
+    };
+
+    const validateCurrentStep = () => {
+        const newErrors = {};
+        if (step === 5) {
+            const nameError = validateName(data.customerName);
+            if (nameError) newErrors.customerName = nameError;
+            const phoneError = validatePhone(data.phone);
+            if (phoneError) newErrors.phone = phoneError;
+            const emailError = validateEmail(data.email);
+            if (emailError) newErrors.email = emailError;
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const next = () => {
+        if (step === 5) {
+            if (validateCurrentStep()) setStep(step + 1);
+        } else {
+            setStep(step + 1);
+        }
+    };
+
+    const back = () => setStep(step - 1);
+
+    const handleInputChange = (field, value) => {
+        setData({ ...data, [field]: value });
+        if (errors[field]) setErrors({ ...errors, [field]: "" });
+
+        if (field === 'customerName') {
+            const error = validateName(value);
+            setErrors(prev => ({ ...prev, customerName: error || "" }));
+        }
+        if (field === 'phone') {
+            const error = validatePhone(value);
+            setErrors(prev => ({ ...prev, phone: error || "" }));
+        }
+        if (field === 'email') {
+            const error = validateEmail(value);
+            setErrors(prev => ({ ...prev, email: error || "" }));
+        }
+    };
+
+    const handleSelectTable = (table) => {
+        setData({ ...data, table: table.id, tableNumber: table.number });
+    };
+
+    // 🔥 Cập nhật: Xử lý thêm nhiều món cùng lúc từ FoodSelectionModal
+    const handleAddMultipleFoods = (newFoods) => {
+        setData(prevData => {
+            const updatedFoods = [...prevData.selectedFoods];
+
+            // Nếu newFoods là mảng (nhiều món) hoặc object (1 món)
+            const foodsToAdd = Array.isArray(newFoods) ? newFoods : [newFoods];
+
+            foodsToAdd.forEach(newFood => {
+                const existingIndex = updatedFoods.findIndex(f => f.id === newFood.id);
+                if (existingIndex !== -1) {
+                    // Nếu món đã tồn tại, cộng dồn số lượng
+                    updatedFoods[existingIndex].quantity += newFood.quantity;
+                } else {
+                    // Nếu món chưa có, thêm mới
+                    updatedFoods.push(newFood);
+                }
+            });
+
+            return { ...prevData, selectedFoods: updatedFoods };
+        });
     };
 
     // Xóa món
     const handleRemoveFood = (foodId) => {
-        setData({
-            ...data,
-            selectedFoods: data.selectedFoods.filter(f => f.id !== foodId)
-        });
+        setData({ ...data, selectedFoods: data.selectedFoods.filter(f => f.id !== foodId) });
     };
 
     // Cập nhật số lượng
@@ -86,23 +142,14 @@ const BookingDetail = () => {
         }
     };
 
-    // Tính tổng tiền món
     const totalFoodAmount = data.selectedFoods.reduce((sum, f) => sum + (f.price * f.quantity), 0);
-
-    // Tính tiền thanh toán theo hình thức
     const getPayableAmount = () => {
-        if (data.payment === "full") {
-            return totalFoodAmount * 0.9; // Giảm 10%
-        }
-        return totalFoodAmount * 0.2; // Cọc 20%
+        return data.payment === "full" ? totalFoodAmount * 0.9 : totalFoodAmount * 0.2;
     };
 
-    // Tạo payment link qua PayOS
     const createPaymentLink = async (reservationId, orderCode) => {
         try {
             const payableAmount = getPayableAmount();
-
-            // Tạo danh sách items cho PayOS
             const items = data.selectedFoods.map(food => ({
                 name: food.name,
                 quantity: food.quantity,
@@ -118,8 +165,6 @@ const BookingDetail = () => {
                 items: items
             };
 
-            console.log("💰 Creating payment link:", paymentRequest);
-
             const response = await fetch(`${API}/api/payos/create`, {
                 method: "POST",
                 headers: {
@@ -129,45 +174,44 @@ const BookingDetail = () => {
                 body: JSON.stringify(paymentRequest)
             });
 
-            if (!response.ok) {
-                throw new Error("Không thể tạo link thanh toán");
-            }
-
+            if (!response.ok) throw new Error("Không thể tạo link thanh toán");
             const result = await response.json();
-            console.log("✅ Payment link created:", result);
 
-            // PayOS trả về checkoutUrl
-            if (result.data && result.data.checkoutUrl) {
-                window.open(result.data.checkoutUrl, "_blank");
+            if (result.data?.checkoutUrl || result.checkoutUrl) {
+                window.open(result.data?.checkoutUrl || result.checkoutUrl, "_blank");
                 return true;
-            } else if (result.checkoutUrl) {
-                window.open(result.checkoutUrl, "_blank");
-                return true;
-            } else {
-                throw new Error("Không nhận được link thanh toán");
             }
-
+            throw new Error("Không nhận được link thanh toán");
         } catch (error) {
             console.error("❌ Error creating payment link:", error);
             throw error;
         }
     };
 
-    // Submit booking - Thanh toán online qua PayOS
     const handleBooking = async () => {
-        // Validate
         if (!data.table) {
             alert("❌ Vui lòng chọn bàn");
             return;
         }
-        if (!data.customerName) {
-            alert("❌ Vui lòng nhập họ tên");
+
+        const nameError = validateName(data.customerName);
+        if (nameError) {
+            alert(`❌ ${nameError}`);
             return;
         }
-        if (!data.phone) {
-            alert("❌ Vui lòng nhập số điện thoại");
+
+        const phoneError = validatePhone(data.phone);
+        if (phoneError) {
+            alert(`❌ ${phoneError}`);
             return;
         }
+
+        const emailError = validateEmail(data.email);
+        if (emailError) {
+            alert(`❌ ${emailError}`);
+            return;
+        }
+
         if (data.selectedFoods.length === 0) {
             alert("❌ Vui lòng chọn món ăn");
             return;
@@ -177,38 +221,25 @@ const BookingDetail = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            // Tạo orderCode duy nhất (timestamp + random)
             const orderCode = Date.now();
-
-            // Format dữ liệu theo API backend
             const requestData = {
                 branchId: branch?.id,
                 bookingDate: data.date,
                 bookingTime: data.time,
                 tableIds: [data.table],
-                customerName: data.customerName,
-                phone: data.phone,
+                customerName: data.customerName.trim(),
+                phone: data.phone.replace(/\s/g, ''),
                 email: data.email || "",
                 note: data.note || "",
                 paymentType: data.payment === "full" ? "FULL_PREPAY" : "DEPOSIT",
-                foods: data.selectedFoods.map(f => ({
-                    foodId: f.id,
-                    quantity: f.quantity
-                })),
+                foods: data.selectedFoods.map(f => ({ foodId: f.id, quantity: f.quantity })),
                 orderCode: orderCode,
                 amount: Math.floor(getPayableAmount())
             };
 
-            console.log("📤 Sending booking request:", requestData);
-
-            // Gọi API tạo reservation
             const response = await fetch(`${API}/api/reservations/full`, {
                 method: "POST",
                 headers: headers,
@@ -221,16 +252,14 @@ const BookingDetail = () => {
             }
 
             const result = await response.json();
-            console.log("✅ Booking success:", result);
-
             const reservationId = result.id || result.reservationId;
-
-            // Tạo payment link qua PayOS
             await createPaymentLink(reservationId, orderCode);
 
-            // Hiển thị thông báo
-            alert(`🎉 Đặt bàn thành công!\n\nMã đặt bàn: ${reservationId}\nSố tiền cần thanh toán: ${getPayableAmount().toLocaleString()}đ\n\nVui lòng thanh toán để hoàn tất đặt bàn.\nCửa sổ thanh toán đã được mở.`);
+            alert(`🎉 Đặt bàn thành công!\n\nMã đặt bàn: ${reservationId}\nSố tiền cần thanh toán: ${getPayableAmount().toLocaleString()}đ\n\nVui lòng thanh toán để hoàn tất đặt bàn.`);
 
+            // Reset form sau khi đặt thành công
+            // Có thể chuyển hướng về trang chủ hoặc trang cảm ơn
+            // window.location.href = "/";
         } catch (err) {
             console.error("❌ Booking error:", err);
             alert(`❌ Đặt bàn thất bại!\n${err.message || "Vui lòng thử lại sau"}`);
@@ -240,11 +269,7 @@ const BookingDetail = () => {
     };
 
     const getAvailableTimes = () => {
-        const allTimes = [
-            "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
-            "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30"
-        ];
-
+        const allTimes = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30"];
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
@@ -263,30 +288,23 @@ const BookingDetail = () => {
     };
 
     return (
-        <div className="booking-wrapper">
-            {/* LEFT */}
-            <div className="booking-left">
+        <div className={styles.bookingWrapper}>
+            <div className={styles.bookingLeft}>
                 <h2>Đặt bàn - {branch?.name}</h2>
 
                 {/* STEP 2: Chọn ngày & giờ */}
                 {step === 2 && (
-                    <div className="card">
+                    <div className={styles.card}>
                         <h3>📅 Chọn ngày & giờ</h3>
-
                         <input
                             type="date"
                             min={new Date().toISOString().split('T')[0]}
                             max={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                            onChange={(e) => {
-                                setData({ ...data, date: e.target.value, time: "" });
-                            }}
-                            placeholder="Chọn ngày"
+                            onChange={(e) => setData({ ...data, date: e.target.value, time: "" })}
                         />
-
                         <select
                             value={data.time}
                             onChange={(e) => setData({ ...data, time: e.target.value })}
-                            style={{ padding: '10px', marginTop: '10px', width: '100%' }}
                             disabled={!data.date}
                         >
                             <option value="">-- Chọn giờ --</option>
@@ -294,161 +312,166 @@ const BookingDetail = () => {
                                 <option key={time} value={time}>{time}</option>
                             ))}
                         </select>
-
                         {data.date === new Date().toISOString().split('T')[0] && (
-                            <p style={{ fontSize: '12px', color: '#D4AF37', marginTop: '8px' }}>
-                                ⏰ Chỉ hiển thị giờ trong tương lai
-                            </p>
+                            <p className={styles.dateWarning}>⏰ Chỉ hiển thị giờ trong tương lai</p>
                         )}
-
-                        <button onClick={next} disabled={!data.date || !data.time}>
-                            Tiếp tục
+                        <button onClick={next} disabled={!data.date || !data.time} className={styles.nextBtn}>
+                            Tiếp tục →
                         </button>
                     </div>
                 )}
 
                 {/* STEP 3: Chọn bàn */}
                 {step === 3 && (
-                    <div className="card">
+                    <div className={styles.card}>
                         <h3>🪑 Chọn bàn</h3>
-
-                        <button onClick={() => setShowModal(true)} className="select-btn">
+                        <button onClick={() => setShowModal(true)} className={styles.selectBtn}>
                             {data.table ? `✅ Đã chọn bàn ${data.tableNumber}` : "🔍 Chọn bàn"}
                         </button>
-
                         {data.table && (
-                            <p className="selected-info">Bạn đã chọn bàn số {data.tableNumber}</p>
+                            <p className={styles.selectedInfo}>✅ Bạn đã chọn bàn số {data.tableNumber}</p>
                         )}
-
-                        <div className="actions">
-                            <button onClick={back} className="back-btn">← Quay lại</button>
-                            <button onClick={next} disabled={!data.table} className="next-btn">
-                                Tiếp tục →
-                            </button>
+                        <div className={styles.actions}>
+                            <button onClick={back} className={styles.backBtn}>← Quay lại</button>
+                            <button onClick={next} disabled={!data.table} className={styles.nextBtn}>Tiếp tục →</button>
                         </div>
                     </div>
                 )}
 
                 {/* STEP 4: Chọn món */}
                 {step === 4 && (
-                    <div className="card">
+                    <div className={styles.card}>
                         <h3>🍽️ Chọn món ăn</h3>
-
-                        <button onClick={() => setShowMenuModal(true)} className="add-food-btn">
+                        <button onClick={() => setShowMenuModal(true)} className={styles.addFoodBtn}>
                             + Thêm món
                         </button>
 
                         {data.selectedFoods.length > 0 ? (
-                            <div className="selected-foods">
+                            <div className={styles.selectedFoods}>
                                 <h4>📋 Món đã chọn:</h4>
                                 {data.selectedFoods.map(food => (
-                                    <div key={food.id} className="food-item">
+                                    <div key={food.id} className={styles.foodItem}>
                                         <img
                                             src={food.imageUrl?.startsWith("http") ? food.imageUrl : `${API}${food.imageUrl || ""}`}
                                             alt={food.name}
-                                            className="food-item-image"
-                                            onError={(e) => {
-                                                e.target.src = "/default-food.jpg";
-                                            }}
+                                            className={styles.foodItemImage}
+                                            onError={(e) => { e.target.src = "/default-food.jpg"; }}
                                         />
-                                        <div className="food-info">
-                                            <span className="food-name">{food.name}</span>
-                                            <span className="food-price">{food.price.toLocaleString()}đ</span>
+                                        <div className={styles.foodInfo}>
+                                            <span className={styles.foodName}>{food.name}</span>
+                                            <span className={styles.foodPrice}>{food.price.toLocaleString()}đ</span>
                                         </div>
-                                        <div className="food-controls">
+                                        <div className={styles.foodControls}>
                                             <button onClick={() => updateQuantity(food.id, food.quantity - 1)}>-</button>
-                                            <span className="quantity">{food.quantity}</span>
+                                            <span className={styles.quantity}>{food.quantity}</span>
                                             <button onClick={() => updateQuantity(food.id, food.quantity + 1)}>+</button>
-                                            <button onClick={() => handleRemoveFood(food.id)} className="remove-btn">🗑️</button>
+                                            <button onClick={() => handleRemoveFood(food.id)} className={styles.removeBtn}>🗑️</button>
                                         </div>
-                                        <div className="food-subtotal">
+                                        <div className={styles.foodSubtotal}>
                                             {(food.price * food.quantity).toLocaleString()}đ
                                         </div>
                                     </div>
                                 ))}
-                                <div className="food-total">
+                                <div className={styles.foodTotal}>
                                     <strong>Tổng cộng:</strong> {totalFoodAmount.toLocaleString()}đ
                                 </div>
                             </div>
                         ) : (
-                            <p className="empty-foods">Chưa có món nào. Vui lòng thêm món!</p>
+                            <p className={styles.emptyFoods}>Chưa có món nào. Vui lòng thêm món!</p>
                         )}
 
-                        <div className="actions">
-                            <button onClick={back} className="back-btn">← Quay lại</button>
-                            <button onClick={next} className="next-btn">
-                                Tiếp tục →
-                            </button>
+                        <div className={styles.actions}>
+                            <button onClick={back} className={styles.backBtn}>← Quay lại</button>
+                            <button onClick={next} className={styles.nextBtn}>Tiếp tục →</button>
                         </div>
                     </div>
                 )}
 
                 {/* STEP 5: Thông tin khách */}
                 {step === 5 && (
-                    <div className="card">
+                    <div className={styles.card}>
                         <h3>👤 Thông tin khách hàng</h3>
+                        <p className={styles.requiredLabel}>* Thông tin bắt buộc</p>
 
-                        <input
-                            type="text"
-                            placeholder="Họ tên *"
-                            value={data.customerName}
-                            onChange={(e) => setData({ ...data, customerName: e.target.value })}
-                        />
+                        <div className={`${styles.formGroup} ${errors.customerName ? styles.error : ''}`}>
+                            <input
+                                type="text"
+                                placeholder="Họ tên *"
+                                value={data.customerName}
+                                onChange={(e) => handleInputChange('customerName', e.target.value)}
+                                className={errors.customerName ? styles.errorInput : ''}
+                            />
+                            {errors.customerName && <span className={styles.errorMessage}>{errors.customerName}</span>}
+                        </div>
 
-                        <input
-                            type="tel"
-                            placeholder="Số điện thoại *"
-                            value={data.phone}
-                            onChange={(e) => setData({ ...data, phone: e.target.value })}
-                        />
+                        <div className={`${styles.formGroup} ${errors.phone ? styles.error : ''}`}>
+                            <input
+                                type="tel"
+                                placeholder="Số điện thoại * (VD: 0912345678)"
+                                value={data.phone}
+                                onChange={(e) => handleInputChange('phone', e.target.value)}
+                                className={errors.phone ? styles.errorInput : ''}
+                            />
+                            {errors.phone && <span className={styles.errorMessage}>{errors.phone}</span>}
+                        </div>
 
-                        <input
-                            type="email"
-                            placeholder="Email (nhận xác nhận)"
-                            value={data.email}
-                            onChange={(e) => setData({ ...data, email: e.target.value })}
-                        />
+                        <div className={`${styles.formGroup} ${errors.email ? styles.error : ''}`}>
+                            <input
+                                type="email"
+                                placeholder="Email (không bắt buộc)"
+                                value={data.email}
+                                onChange={(e) => handleInputChange('email', e.target.value)}
+                                className={errors.email ? styles.errorInput : ''}
+                            />
+                            {errors.email && <span className={styles.errorMessage}>{errors.email}</span>}
+                            <span className={styles.helperText}>💡 Không bắt buộc, nhập để nhận xác nhận qua email</span>
+                        </div>
 
                         <textarea
-                            placeholder="Ghi chú (yêu cầu đặc biệt, dị ứng thực phẩm...)"
+                            placeholder="Ghi chú (không bắt buộc)"
                             value={data.note}
                             onChange={(e) => setData({ ...data, note: e.target.value })}
                             rows="3"
                         />
+                        <span className={styles.helperText}>💡 Ví dụ: yêu cầu đặc biệt, dị ứng thực phẩm...</span>
 
-                        <div className="actions">
-                            <button onClick={back} className="back-btn">← Quay lại</button>
-                            <button onClick={next} disabled={!data.customerName || !data.phone} className="next-btn">
+                        <div className={styles.actions}>
+                            <button onClick={back} className={styles.backBtn}>← Quay lại</button>
+                            <button
+                                onClick={next}
+                                disabled={!!errors.customerName || !!errors.phone || !data.customerName || !data.phone}
+                                className={styles.nextBtn}
+                            >
                                 Tiếp tục →
                             </button>
                         </div>
                     </div>
                 )}
 
-                {/* STEP 6: Thanh toán online */}
+                {/* STEP 6: Thanh toán */}
                 {step === 6 && (
-                    <div className="card">
+                    <div className={styles.card}>
                         <h3>💰 Thanh toán online</h3>
 
-                        <div className="payment-summary">
-                            <div className="summary-row">
+                        <div className={styles.paymentSummary}>
+                            <div className={styles.summaryRow}>
                                 <span>Tổng tiền món:</span>
                                 <span>{totalFoodAmount.toLocaleString()}đ</span>
                             </div>
                             {data.payment === "full" && (
-                                <div className="summary-row discount">
+                                <div className={`${styles.summaryRow} ${styles.discount}`}>
                                     <span>Giảm giá (thanh toán trước):</span>
                                     <span>-{(totalFoodAmount * 0.1).toLocaleString()}đ</span>
                                 </div>
                             )}
-                            <div className="summary-row total">
+                            <div className={`${styles.summaryRow} ${styles.total}`}>
                                 <span>Phải thanh toán:</span>
                                 <span>{getPayableAmount().toLocaleString()}đ</span>
                             </div>
                         </div>
 
-                        <div className="payment-options">
-                            <label className={`payment-option ${data.payment === "deposit" ? "active" : ""}`}>
+                        <div className={styles.paymentOptions}>
+                            <label className={`${styles.paymentOption} ${data.payment === "deposit" ? styles.active : ""}`}>
                                 <input
                                     type="radio"
                                     name="payment"
@@ -462,7 +485,7 @@ const BookingDetail = () => {
                                 </div>
                             </label>
 
-                            <label className={`payment-option ${data.payment === "full" ? "active" : ""}`}>
+                            <label className={`${styles.paymentOption} ${data.payment === "full" ? styles.active : ""}`}>
                                 <input
                                     type="radio"
                                     name="payment"
@@ -471,79 +494,61 @@ const BookingDetail = () => {
                                     onChange={() => setData({ ...data, payment: "full" })}
                                 />
                                 <div>
-                                    <strong>💳 Thanh toán trước 100% <span className="discount-badge">GIẢM 10%</span></strong>
+                                    <strong>💳 Thanh toán trước 100% <span className={styles.discountBadge}>GIẢM 10%</span></strong>
                                     <p>Tiết kiệm {(totalFoodAmount * 0.1).toLocaleString()}đ, chỉ còn {Math.floor(totalFoodAmount * 0.9).toLocaleString()}đ</p>
                                 </div>
                             </label>
                         </div>
 
-                        <button
-                            onClick={handleBooking}
-                            disabled={loading}
-                            className="payos-btn"
-                            style={{
-                                width: "100%",
-                                padding: "14px",
-                                marginTop: "24px",
-                                background: "#D4AF37",
-                                border: "none",
-                                borderRadius: "8px",
-                                color: "#1f2937",
-                                cursor: "pointer",
-                                fontWeight: "bold",
-                                fontSize: "16px",
-                                transition: "all 0.3s ease"
-                            }}
-                        >
+                        <button onClick={handleBooking} disabled={loading} className={styles.payosBtn}>
                             {loading ? "🔄 Đang xử lý..." : "💳 Thanh toán qua PayOS"}
                         </button>
 
-                        <div className="actions" style={{ marginTop: "16px" }}>
-                            <button onClick={back} className="back-btn">← Quay lại</button>
+                        <div className={styles.actions} style={{ marginTop: "16px" }}>
+                            <button onClick={back} className={styles.backBtn}>← Quay lại</button>
                         </div>
                     </div>
                 )}
             </div>
 
             {/* RIGHT - Tóm tắt */}
-            <div className="booking-right">
+            <div className={styles.bookingRight}>
                 <h3>📋 Tóm tắt đặt bàn</h3>
-
-                <div className="summary-details">
-                    <div className="summary-item">
-                        <span className="summary-icon">📍</span>
+                <div className={styles.summaryDetails}>
+                    <div className={styles.summaryItem}>
+                        <span className={styles.summaryIcon}>📍</span>
                         <span>{branch?.name || "Chưa chọn"}</span>
                     </div>
-                    <div className="summary-item">
-                        <span className="summary-icon">📅</span>
+                    <div className={styles.summaryItem}>
+                        <span className={styles.summaryIcon}>📅</span>
                         <span>{data.date || "--"} - {data.time || "--"}</span>
                     </div>
-                    <div className="summary-item">
-                        <span className="summary-icon">🪑</span>
+                    <div className={styles.summaryItem}>
+                        <span className={styles.summaryIcon}>🪑</span>
                         <span>Bàn {data.tableNumber || "Chưa chọn"}</span>
                     </div>
 
                     {data.selectedFoods.length > 0 && (
                         <>
                             <hr />
-                            <div className="summary-foods">
+                            <div className={styles.summaryFoods}>
                                 <strong>🍜 Món đã chọn:</strong>
                                 {data.selectedFoods.map(f => (
-                                    <div key={f.id} className="summary-food">
+                                    <div key={f.id} className={styles.summaryFood}>
                                         {f.name} x{f.quantity}: {(f.price * f.quantity).toLocaleString()}đ
                                     </div>
                                 ))}
                             </div>
                             <hr />
-                            <div className="summary-total">
+                            <div className={styles.summaryTotal}>
                                 <strong>Tổng tiền món:</strong> {totalFoodAmount.toLocaleString()}đ
                             </div>
                             {data.payment === "full" && (
-                                <div className="summary-discount">
+                                <div className={styles.summaryDiscount}>
                                     Giảm 10%: -{(totalFoodAmount * 0.1).toLocaleString()}đ
                                 </div>
                             )}
-                            <div className="summary-payable">
+                            <div className={styles.summaryPayable}>
                                 <strong>Phải thanh toán:</strong> {getPayableAmount().toLocaleString()}đ
                             </div>
                         </>
@@ -551,7 +556,6 @@ const BookingDetail = () => {
                 </div>
             </div>
 
-            {/* MODALS */}
             <TableSelectionModal
                 show={showModal}
                 onClose={() => setShowModal(false)}
@@ -564,8 +568,9 @@ const BookingDetail = () => {
             <FoodSelectionModal
                 show={showMenuModal}
                 onClose={() => setShowMenuModal(false)}
-                onSelectFood={handleAddFood}
+                onSelectFood={handleAddMultipleFoods}
                 branchId={branch?.id}
+                selectedFoods={data.selectedFoods}
             />
         </div>
     );
