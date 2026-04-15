@@ -101,24 +101,29 @@ const BookingDetail = () => {
     };
 
     // 🔥 Cập nhật: Xử lý thêm nhiều món cùng lúc từ FoodSelectionModal
+    // BookingDetail.js - Cần sửa
     const handleAddMultipleFoods = (newFoods) => {
         setData(prevData => {
             const updatedFoods = [...prevData.selectedFoods];
-
-            // Nếu newFoods là mảng (nhiều món) hoặc object (1 món)
             const foodsToAdd = Array.isArray(newFoods) ? newFoods : [newFoods];
 
             foodsToAdd.forEach(newFood => {
-                const existingIndex = updatedFoods.findIndex(f => f.id === newFood.id);
+                // 🔥 SỬA: Dùng foodId để tìm kiếm
+                const existingIndex = updatedFoods.findIndex(f => f.foodId === newFood.foodId);
                 if (existingIndex !== -1) {
-                    // Nếu món đã tồn tại, cộng dồn số lượng
                     updatedFoods[existingIndex].quantity += newFood.quantity;
                 } else {
-                    // Nếu món chưa có, thêm mới
-                    updatedFoods.push(newFood);
+                    updatedFoods.push({
+                        id: newFood.foodId,  // Dùng foodId làm id
+                        foodId: newFood.foodId,
+                        name: newFood.name,
+                        price: newFood.price,
+                        quantity: newFood.quantity,
+                        imageUrl: newFood.imageUrl,
+                        branchFoodId: newFood.branchFoodId
+                    });
                 }
             });
-
             return { ...prevData, selectedFoods: updatedFoods };
         });
     };
@@ -174,8 +179,14 @@ const BookingDetail = () => {
                 body: JSON.stringify(paymentRequest)
             });
 
-            if (!response.ok) throw new Error("Không thể tạo link thanh toán");
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("PayOS error:", errorText);
+                throw new Error("Không thể tạo link thanh toán");
+            }
+
             const result = await response.json();
+            console.log("PayOS result:", result);
 
             if (result.data?.checkoutUrl || result.checkoutUrl) {
                 window.open(result.data?.checkoutUrl || result.checkoutUrl, "_blank");
@@ -184,7 +195,9 @@ const BookingDetail = () => {
             throw new Error("Không nhận được link thanh toán");
         } catch (error) {
             console.error("❌ Error creating payment link:", error);
-            throw error;
+            // Không throw lỗi để vẫn đặt bàn thành công dù thanh toán lỗi
+            alert("⚠️ Đặt bàn thành công nhưng tạo link thanh toán thất bại. Vui lòng liên hệ nhà hàng!");
+            return false;
         }
     };
 
@@ -221,24 +234,33 @@ const BookingDetail = () => {
 
         try {
             const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            const orderCode = Date.now();
+            const reservationDateTime = `${data.date} ${data.time}`;
+
+            // 🔥 Gửi foodId từ bảng foods
             const requestData = {
+                userId: user.id,
                 branchId: branch?.id,
-                bookingDate: data.date,
-                bookingTime: data.time,
-                tableIds: [data.table],
-                customerName: data.customerName.trim(),
-                phone: data.phone.replace(/\s/g, ''),
-                email: data.email || "",
-                note: data.note || "",
-                paymentType: data.payment === "full" ? "FULL_PREPAY" : "DEPOSIT",
-                foods: data.selectedFoods.map(f => ({ foodId: f.id, quantity: f.quantity })),
-                orderCode: orderCode,
-                amount: Math.floor(getPayableAmount())
+                tableId: data.table,
+                roomId: null,
+                reservationTime: reservationDateTime,
+                depositAmount: getPayableAmount(),
+                items: data.selectedFoods.map(f => ({
+                    foodId: f.foodId,  // 🔥 ĐÂY LÀ foods.id (1, 2, 3...)
+                    quantity: f.quantity
+                }))
             };
+
+            console.log("📤 Sending booking request:", JSON.stringify(requestData, null, 2));
+            console.log("Food IDs being sent:", data.selectedFoods.map(f => ({
+                foodId: f.foodId,
+                name: f.name,
+                branchFoodId: f.branchFoodId
+            })));
 
             const response = await fetch(`${API}/api/reservations/full`, {
                 method: "POST",
@@ -246,20 +268,43 @@ const BookingDetail = () => {
                 body: JSON.stringify(requestData)
             });
 
+
+            const responseText = await response.text();
+            console.log("📥 Response:", responseText);
+
             if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error || "Đặt bàn thất bại");
+                let errorMessage = "Đặt bàn thất bại";
+                try {
+                    const errorJson = JSON.parse(responseText);
+                    errorMessage = errorJson.message || errorJson.error || responseText;
+                } catch (e) {
+                    errorMessage = responseText || "Lỗi không xác định";
+                }
+                throw new Error(errorMessage);
             }
 
-            const result = await response.json();
-            const reservationId = result.id || result.reservationId;
-            await createPaymentLink(reservationId, orderCode);
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                result = { id: responseText };
+            }
 
-            alert(`🎉 Đặt bàn thành công!\n\nMã đặt bàn: ${reservationId}\nSố tiền cần thanh toán: ${getPayableAmount().toLocaleString()}đ\n\nVui lòng thanh toán để hoàn tất đặt bàn.`);
+            console.log("✅ Booking success:", result);
 
-            // Reset form sau khi đặt thành công
-            // Có thể chuyển hướng về trang chủ hoặc trang cảm ơn
-            // window.location.href = "/";
+            const reservationId = result.id;
+
+            // Nếu cần thanh toán qua PayOS
+            if (getPayableAmount() > 0) {
+                const orderCode = Date.now();
+                await createPaymentLink(reservationId, orderCode);
+            }
+
+            alert(`🎉 Đặt bàn thành công!\n\nMã đặt bàn: ${reservationId}\nSố tiền cần thanh toán: ${getPayableAmount().toLocaleString()}đ`);
+
+            // Reset form hoặc chuyển hướng
+            // window.location.href = "/booking-success";
+
         } catch (err) {
             console.error("❌ Booking error:", err);
             alert(`❌ Đặt bàn thất bại!\n${err.message || "Vui lòng thử lại sau"}`);
