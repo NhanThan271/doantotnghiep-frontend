@@ -27,19 +27,64 @@ const TableSelectionModal = ({
             setSelectedArea(null);
             setTables([]);
             setRooms([]);
+            setAreas([]);
         }
     }, [show]);
 
-    const fetchRooms = async () => {
+    // 🔥 Lấy danh sách khu vực cho phòng (dùng API /rooms/branch/{branchId}/areas)
+    const fetchRoomAreas = async () => {
+        setLoading(true);
+        try {
+            // Lấy tất cả phòng để lấy danh sách khu vực
+            const res = await fetch(`${API}/api/rooms/branch/${branchId}`);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+            const data = await res.json();
+            // Lấy unique areas từ danh sách phòng
+            const uniqueAreas = [...new Set(data.map(room => room.area).filter(area => area))];
+            console.log("📋 Room Areas loaded:", uniqueAreas);
+            setAreas(uniqueAreas);
+            setStep("roomAreas");
+        } catch (err) {
+            console.error("❌ Lỗi load khu vực phòng:", err);
+            alert("Không thể tải khu vực phòng!");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🔥 Lấy danh sách khu vực cho bàn
+    const fetchTableAreas = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+            const data = await res.json();
+            console.log("📋 Table Areas loaded:", data);
+            setAreas(data || []);
+            setStep("tableAreas");
+        } catch (err) {
+            console.error("❌ Lỗi load khu vực bàn:", err);
+            alert("Không thể tải khu vực bàn!");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🔥 Lấy danh sách phòng theo khu vực
+    const fetchRoomsByArea = async (area) => {
         setLoading(true);
         try {
             const res = await fetch(`${API}/api/rooms/branch/${branchId}`);
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
             const data = await res.json();
-            console.log("📋 Rooms loaded:", data);
+            // Lọc phòng theo khu vực
+            const filteredRooms = data.filter(room => room.area === area);
+            console.log("📋 Rooms loaded for area", area, ":", filteredRooms);
 
-            const mappedRooms = data.map(room => ({
+            const mappedRooms = filteredRooms.map(room => ({
                 id: room.id,
                 number: room.number,
                 capacity: room.capacity,
@@ -50,32 +95,15 @@ const TableSelectionModal = ({
             setRooms(mappedRooms);
             setStep("rooms");
         } catch (err) {
-            console.error("❌ Lỗi load phòng:", err);
+            console.error("❌ Lỗi load phòng theo khu vực:", err);
             alert("Không thể tải danh sách phòng!");
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchAreas = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-            const data = await res.json();
-            console.log("📋 Areas loaded:", data);
-            setAreas(data || []);
-            setStep("areas");
-        } catch (err) {
-            console.error("❌ Lỗi load khu vực:", err);
-            alert("Không thể tải khu vực!");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchTables = async (area) => {
+    // Lấy danh sách bàn theo khu vực
+    const fetchTablesByArea = async (area) => {
         setLoading(true);
         try {
             const res = await fetch(
@@ -104,18 +132,26 @@ const TableSelectionModal = ({
         }
     };
 
+    // Xử lý chọn loại hình (Phòng hoặc Bàn)
     const handleSelectType = (type) => {
         setBookingType(type);
         if (type === "room") {
-            fetchRooms();
+            fetchRoomAreas(); // 🔥 Đi đến chọn khu vực phòng
         } else {
-            fetchAreas();
+            fetchTableAreas(); // 🔥 Đi đến chọn khu vực bàn
         }
     };
 
-    const handleSelectArea = (area) => {
+    // Xử lý chọn khu vực phòng
+    const handleSelectRoomArea = (area) => {
         setSelectedArea(area);
-        fetchTables(area);
+        fetchRoomsByArea(area);
+    };
+
+    // Xử lý chọn khu vực bàn
+    const handleSelectTableArea = (area) => {
+        setSelectedArea(area);
+        fetchTablesByArea(area);
     };
 
     const handleSelectTable = (table) => {
@@ -130,7 +166,9 @@ const TableSelectionModal = ({
             number: table.number,
             branchId,
             area: selectedArea,
-            capacity: table.capacity
+            capacity: table.capacity,
+            tableId: table.id,   // 🔥 Thêm tableId
+            roomId: null         // 🔥 Thêm roomId = null
         });
 
         onClose();
@@ -147,8 +185,10 @@ const TableSelectionModal = ({
             id: room.id,
             number: room.number,
             branchId,
-            area: room.area,
-            capacity: room.capacity
+            area: selectedArea,
+            capacity: room.capacity,
+            roomId: room.id,     // 🔥 Thêm roomId
+            tableId: null        // 🔥 Thêm tableId = null
         });
 
         onClose();
@@ -156,17 +196,21 @@ const TableSelectionModal = ({
 
     const handleBack = () => {
         if (step === "tables") {
-            setStep("areas");
+            setStep("tableAreas");
             setTables([]);
             setSelectedArea(null);
-        } else if (step === "areas") {
+        } else if (step === "tableAreas") {
             setStep("type");
             setBookingType(null);
             setAreas([]);
         } else if (step === "rooms") {
+            setStep("roomAreas");
+            setRooms([]);
+            setSelectedArea(null);
+        } else if (step === "roomAreas") {
             setStep("type");
             setBookingType(null);
-            setRooms([]);
+            setAreas([]);
         }
     };
 
@@ -176,14 +220,16 @@ const TableSelectionModal = ({
         setSelectedArea(null);
         setTables([]);
         setRooms([]);
+        setAreas([]);
         onClose();
     };
 
     const getTitle = () => {
         if (step === "type") return "Chọn hình thức đặt chỗ";
-        if (step === "rooms") return "Danh sách phòng";
-        if (step === "areas") return "Chọn khu vực";
-        if (step === "tables") return `Chọn bàn tại ${selectedArea}`;
+        if (step === "roomAreas") return "📍 Chọn khu vực phòng";
+        if (step === "tableAreas") return "📍 Chọn khu vực bàn";
+        if (step === "rooms") return `🏠 Chọn phòng tại ${selectedArea}`;
+        if (step === "tables") return `🍽️ Chọn bàn tại ${selectedArea}`;
         return "";
     };
 
@@ -217,6 +263,7 @@ const TableSelectionModal = ({
                     </div>
                 ) : (
                     <>
+                        {/* Màn hình chọn loại hình: Phòng hoặc Bàn */}
                         {step === "type" && (
                             <div className={styles.typeGrid}>
                                 <div className={styles.typeCard} onClick={() => handleSelectType("room")}>
@@ -239,12 +286,63 @@ const TableSelectionModal = ({
                             </div>
                         )}
 
+                        {/* Màn hình chọn khu vực phòng */}
+                        {step === "roomAreas" && (
+                            <div className={styles.grid}>
+                                {areas.length === 0 ? (
+                                    <div className={styles.emptyState}>
+                                        <p>❌ Không có khu vực phòng nào</p>
+                                    </div>
+                                ) : (
+                                    areas.map((area) => (
+                                        <div
+                                            key={area}
+                                            className={styles.card}
+                                            onClick={() => handleSelectRoomArea(area)}
+                                        >
+                                            <div>📍</div>
+                                            <div>{area}</div>
+                                            <div style={{ fontSize: "12px", marginTop: "4px", color: "#9ca3af" }}>
+                                                Khu vực phòng
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+
+                        {/* Màn hình chọn khu vực bàn */}
+                        {step === "tableAreas" && (
+                            <div className={styles.grid}>
+                                {areas.length === 0 ? (
+                                    <div className={styles.emptyState}>
+                                        <p>❌ Không có khu vực bàn nào</p>
+                                    </div>
+                                ) : (
+                                    areas.map((area) => (
+                                        <div
+                                            key={area}
+                                            className={styles.card}
+                                            onClick={() => handleSelectTableArea(area)}
+                                        >
+                                            <div>📍</div>
+                                            <div>{area}</div>
+                                            <div style={{ fontSize: "12px", marginTop: "4px", color: "#9ca3af" }}>
+                                                Khu vực bàn
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+
+                        {/* Màn hình danh sách phòng theo khu vực */}
                         {step === "rooms" && (
                             <>
                                 <div className={styles.grid}>
                                     {rooms.length === 0 ? (
                                         <div className={styles.emptyState}>
-                                            <p>❌ Không có phòng trống</p>
+                                            <p>❌ Không có phòng trống trong khu vực {selectedArea}</p>
                                         </div>
                                     ) : (
                                         rooms.map((room) => (
@@ -259,11 +357,6 @@ const TableSelectionModal = ({
                                                     <Users size={14} style={{ display: "inline", marginRight: "4px" }} />
                                                     {room.capacity} người
                                                 </div>
-                                                {room.area && (
-                                                    <div style={{ fontSize: "12px", marginTop: "4px", color: "#9ca3af" }}>
-                                                        📍 {room.area}
-                                                    </div>
-                                                )}
                                                 <small style={{
                                                     display: "block",
                                                     marginTop: "8px",
@@ -289,36 +382,13 @@ const TableSelectionModal = ({
                             </>
                         )}
 
-                        {step === "areas" && (
-                            <div className={styles.grid}>
-                                {areas.length === 0 ? (
-                                    <div className={styles.emptyState}>
-                                        <p>Không có khu vực nào</p>
-                                    </div>
-                                ) : (
-                                    areas.map((area) => (
-                                        <div
-                                            key={area}
-                                            className={styles.card}
-                                            onClick={() => handleSelectArea(area)}
-                                        >
-                                            <div>📍</div>
-                                            <div>{area}</div>
-                                            <div style={{ fontSize: "12px", marginTop: "4px", color: "#9ca3af" }}>
-                                                Khu vực
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
-
+                        {/* Màn hình danh sách bàn theo khu vực */}
                         {step === "tables" && (
                             <>
                                 <div className={styles.grid}>
                                     {tables.length === 0 ? (
                                         <div className={styles.emptyState}>
-                                            <p>❌ Không có bàn trống trong khu vực này</p>
+                                            <p>❌ Không có bàn trống trong khu vực {selectedArea}</p>
                                         </div>
                                     ) : (
                                         tables.map((t) => (
