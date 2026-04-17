@@ -142,6 +142,13 @@ const LoginPage = () => {
 
     return (
         <div className="login-page">
+
+            <button
+                className="back-home-btn"
+                onClick={() => navigate("/")}
+            >
+                ← Trang chủ
+            </button>
             <div className="login-container">
                 <div className="login-header">
                     <h2>Chào mừng trở lại</h2>

@@ -7,6 +7,7 @@
 
 /* Login Page Layout1 */
 .login-page {
+    position: relative;
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -205,6 +206,27 @@
 .login-footer a:hover {
     color: #e5c04a;
     text-decoration: underline;
+}
+
+.back-home-btn {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #facc15;
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 14px;
+    backdrop-filter: blur(6px);
+    transition: all 0.2s ease;
+}
+
+.back-home-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #facc15;
+    transform: translateX(-2px);
 }
 
 /* Responsive Design */
