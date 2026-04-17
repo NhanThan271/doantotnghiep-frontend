@@ -38,7 +38,7 @@ const LoginPage = () => {
             const token = res.data.token || res.data.accessToken;
             localStorage.setItem("token", token);
 
-            // 🔥 LƯU THÔNG TIN ĐĂNG NHẬP NẾU CHỌN GHI NHỚ
+            // LƯU THÔNG TIN ĐĂNG NHẬP NẾU CHỌN GHI NHỚ
             if (rememberMe) {
                 localStorage.setItem("savedCredentials", JSON.stringify({
                     username: username,
@@ -142,7 +142,6 @@ const LoginPage = () => {
 
     return (
         <div className="login-page">
-
             <button
                 className="back-home-btn"
                 onClick={() => navigate("/")}
