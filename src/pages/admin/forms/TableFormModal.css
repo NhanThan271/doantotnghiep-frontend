@@ -18,6 +18,9 @@
     width: 100%;
     max-width: 500px;
     border: 1px solid #334155;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-header {
@@ -55,6 +58,21 @@
 
 .modal-form {
     padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-form::-webkit-scrollbar {
+    width: 4px;
+}
+
+.modal-form::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.modal-form::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
 }
 
 .form-grid {

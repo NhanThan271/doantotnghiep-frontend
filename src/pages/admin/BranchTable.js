@@ -52,7 +52,7 @@ export default function TableManagement() {
         try {
             setLoading(true);
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/customer/tables`, {
+            const response = await fetch(`${API_BASE_URL}/api/tables`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await response.json();
@@ -109,8 +109,8 @@ export default function TableManagement() {
             };
 
             const url = editingTable
-                ? `${API_BASE_URL}/api/customer/tables/${editingTable.id}`
-                : `${API_BASE_URL}/api/customer/tables`;
+                ? `${API_BASE_URL}/api/tables/${editingTable.id}`
+                : `${API_BASE_URL}/api/tables`;
 
             const method = editingTable ? 'PUT' : 'POST';
 
@@ -144,7 +144,7 @@ export default function TableManagement() {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/customer/tables/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/tables/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -284,7 +284,17 @@ export default function TableManagement() {
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="search-input"
-                                        style={{ paddingLeft: '48px' }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px 16px 12px 48px',
+                                            background: 'var(--color-bg-dark)',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '12px',
+                                            color: 'var(--color-text-primary)',
+                                            fontSize: '14px',
+                                            outline: 'none',
+                                            transition: 'all 0.2s ease'
+                                        }}
                                     />
                                 </div>
 

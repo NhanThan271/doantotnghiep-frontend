@@ -1,545 +1,427 @@
 import React, { useState, useEffect } from "react";
-import styles from "./CafeCusSystem.module.css";
-import { Grid3x3, ArrowLeft, MapPin, Building2 } from "lucide-react";
+import { ArrowLeft, Home, Table, Users, Calendar, X } from "lucide-react";
+import styles from "./TableSelectionModal.module.css";
 
 const TableSelectionModal = ({
-    show = true,
+    show = false,
+    onClose = () => { },
     selectTable = () => { },
-    onClose = () => { }
+    branchId,
+    date,
+    time
 }) => {
-    const [step, setStep] = useState("branches"); // "branches" → "areas" → "tables"
-    const [branches, setBranches] = useState([]);
-    const [selectedBranch, setSelectedBranch] = useState(null);
+    const [step, setStep] = useState("type");
     const [areas, setAreas] = useState([]);
+    const [rooms, setRooms] = useState([]);
     const [selectedArea, setSelectedArea] = useState(null);
     const [tables, setTables] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [bookingType, setBookingType] = useState(null);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API = "http://localhost:8080";
 
-    // ✅ Fetch branches khi mở modal
     useEffect(() => {
         if (show) {
-            fetchBranches();
+            setStep("type");
+            setBookingType(null);
+            setSelectedArea(null);
+            setTables([]);
+            setRooms([]);
+            setAreas([]);
         }
     }, [show]);
 
-    const fetchBranches = async () => {
+    // 🔥 Lấy danh sách khu vực cho phòng (dùng API /rooms/branch/{branchId}/areas)
+    const fetchRoomAreas = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-
-            if (!token) {
-                alert("Vui lòng đăng nhập để chọn bàn!");
-                onClose();
-                // Chuyển hướng về trang login
-                window.location.href = '/login';
-                return;
-            }
-
-            const res = await fetch(`${API_BASE_URL}/api/branches`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!res.ok) {
-                if (res.status === 401 || res.status === 403) {
-                    alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!");
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    window.location.href = '/login';
-                    return;
-                }
-                throw new Error('Không thể tải chi nhánh');
-            }
+            // Lấy tất cả phòng để lấy danh sách khu vực
+            const res = await fetch(`${API}/api/rooms/branch/${branchId}`);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
             const data = await res.json();
-            console.log("🏢 Branches:", data);
-            setBranches(data || []);
+            // Lấy unique areas từ danh sách phòng
+            const uniqueAreas = [...new Set(data.map(room => room.area).filter(area => area))];
+            console.log("📋 Room Areas loaded:", uniqueAreas);
+            setAreas(uniqueAreas);
+            setStep("roomAreas");
         } catch (err) {
-            console.error("❌ Lỗi khi lấy chi nhánh:", err);
-            alert("Không thể tải danh sách chi nhánh!");
+            console.error("❌ Lỗi load khu vực phòng:", err);
+            alert("Không thể tải khu vực phòng!");
         } finally {
             setLoading(false);
         }
     };
 
-    const fetchAreas = async (branchId) => {
+    // 🔥 Lấy danh sách khu vực cho bàn
+    const fetchTableAreas = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-            const res = await fetch(
-                `${API_BASE_URL}/api/customer/tables/branch/${branchId}/areas`,
-                { headers }
-            );
-
-            if (!res.ok) throw new Error('Không thể tải khu vực');
+            const res = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
             const data = await res.json();
-            console.log("📍 Areas:", data);
+            console.log("📋 Table Areas loaded:", data);
             setAreas(data || []);
-            setStep("areas");
+            setStep("tableAreas");
         } catch (err) {
-            console.error("❌ Lỗi khi lấy khu vực:", err);
-            alert("Không thể tải danh sách khu vực!");
+            console.error("❌ Lỗi load khu vực bàn:", err);
+            alert("Không thể tải khu vực bàn!");
         } finally {
             setLoading(false);
         }
     };
 
+    // 🔥 Lấy danh sách phòng theo khu vực
+    const fetchRoomsByArea = async (area) => {
+        setLoading(true);
+        try {
+            const res = await fetch(`${API}/api/rooms/branch/${branchId}`);
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+            const data = await res.json();
+            // Lọc phòng theo khu vực
+            const filteredRooms = data.filter(room => room.area === area);
+            console.log("📋 Rooms loaded for area", area, ":", filteredRooms);
+
+            const mappedRooms = filteredRooms.map(room => ({
+                id: room.id,
+                number: room.number,
+                capacity: room.capacity,
+                area: room.area,
+                status: room.status === "FREE" ? "available" : "occupied"
+            }));
+
+            setRooms(mappedRooms);
+            setStep("rooms");
+        } catch (err) {
+            console.error("❌ Lỗi load phòng theo khu vực:", err);
+            alert("Không thể tải danh sách phòng!");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Lấy danh sách bàn theo khu vực
     const fetchTablesByArea = async (area) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
             const res = await fetch(
-                `${API_BASE_URL}/api/customer/tables/branch/${selectedBranch.id}/area/${encodeURIComponent(area)}`,
-                { headers }
+                `${API}/api/tables/branch/${branchId}/area/${encodeURIComponent(area)}`
             );
 
-            if (!res.ok) throw new Error('Không thể tải bàn');
+            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
             const data = await res.json();
-            console.log("🏓 Tables:", data);
+            console.log("📋 Tables loaded:", data);
 
-            const mappedTables = data.map((t) => ({
+            const mapped = data.map(t => ({
                 id: t.id,
                 number: t.number,
                 status: t.status === "FREE" ? "available" : "occupied",
+                capacity: t.capacity
             }));
 
-            setTables(mappedTables);
+            setTables(mapped);
             setStep("tables");
         } catch (err) {
-            console.error("❌ Lỗi khi lấy bàn:", err);
-            alert("Không thể tải danh sách bàn!");
+            console.error("❌ Lỗi load bàn:", err);
+            alert("Không thể tải bàn!");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSelectBranch = (branch) => {
-        console.log("🏢 Selected branch:", branch);
-        setSelectedBranch(branch);
-        fetchAreas(branch.id);
+    // Xử lý chọn loại hình (Phòng hoặc Bàn)
+    const handleSelectType = (type) => {
+        setBookingType(type);
+        if (type === "room") {
+            fetchRoomAreas(); // 🔥 Đi đến chọn khu vực phòng
+        } else {
+            fetchTableAreas(); // 🔥 Đi đến chọn khu vực bàn
+        }
     };
 
-    const handleSelectArea = (area) => {
-        console.log("📍 Selected area:", area);
+    // Xử lý chọn khu vực phòng
+    const handleSelectRoomArea = (area) => {
+        setSelectedArea(area);
+        fetchRoomsByArea(area);
+    };
+
+    // Xử lý chọn khu vực bàn
+    const handleSelectTableArea = (area) => {
         setSelectedArea(area);
         fetchTablesByArea(area);
     };
 
     const handleSelectTable = (table) => {
-        console.log("🏓 Selected table:", table);
+        if (table.status !== "available") {
+            alert("❌ Bàn này không khả dụng!");
+            return;
+        }
+
         selectTable({
+            type: "table",
             id: table.id,
             number: table.number,
-            branchId: selectedBranch.id,
-            branchName: selectedBranch.name,
-            area: selectedArea
+            branchId,
+            area: selectedArea,
+            capacity: table.capacity,
+            tableId: table.id,   // 🔥 Thêm tableId
+            roomId: null         // 🔥 Thêm roomId = null
         });
+
+        onClose();
+    };
+
+    const handleSelectRoom = (room) => {
+        if (room.status !== "available") {
+            alert("❌ Phòng này đã có khách!");
+            return;
+        }
+
+        selectTable({
+            type: "room",
+            id: room.id,
+            number: room.number,
+            branchId,
+            area: selectedArea,
+            capacity: room.capacity,
+            roomId: room.id,     // 🔥 Thêm roomId
+            tableId: null        // 🔥 Thêm tableId = null
+        });
+
         onClose();
     };
 
     const handleBack = () => {
         if (step === "tables") {
-            setStep("areas");
-            setSelectedArea(null);
+            setStep("tableAreas");
             setTables([]);
-        } else if (step === "areas") {
-            setStep("branches");
-            setSelectedBranch(null);
+            setSelectedArea(null);
+        } else if (step === "tableAreas") {
+            setStep("type");
+            setBookingType(null);
+            setAreas([]);
+        } else if (step === "rooms") {
+            setStep("roomAreas");
+            setRooms([]);
+            setSelectedArea(null);
+        } else if (step === "roomAreas") {
+            setStep("type");
+            setBookingType(null);
             setAreas([]);
         }
+    };
+
+    const handleClose = () => {
+        setStep("type");
+        setBookingType(null);
+        setSelectedArea(null);
+        setTables([]);
+        setRooms([]);
+        setAreas([]);
+        onClose();
+    };
+
+    const getTitle = () => {
+        if (step === "type") return "Chọn hình thức đặt chỗ";
+        if (step === "roomAreas") return "📍 Chọn khu vực phòng";
+        if (step === "tableAreas") return "📍 Chọn khu vực bàn";
+        if (step === "rooms") return `🏠 Chọn phòng tại ${selectedArea}`;
+        if (step === "tables") return `🍽️ Chọn bàn tại ${selectedArea}`;
+        return "";
     };
 
     if (!show) return null;
 
     return (
-        <div className={styles.modalOverlay} onClick={onClose}>
-            <div
-                className={styles.modalBox}
-                onClick={(e) => e.stopPropagation()}
-                style={{ maxWidth: '900px', minHeight: '500px' }}
-            >
-                {/* HEADER */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    marginBottom: '24px'
-                }}>
-                    {step !== "branches" && (
-                        <button
-                            onClick={handleBack}
-                            style={{
-                                padding: '8px',
-                                background: 'rgba(212, 175, 55, 0.1)',
-                                border: '1px solid rgba(212, 175, 55, 0.3)',
-                                borderRadius: '8px',
-                                color: '#D4AF37',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.2)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
-                            }}
-                        >
-                            <ArrowLeft size={20} />
+        <div className={styles.modalOverlay} onClick={handleClose}>
+            <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalHeader}>
+                    {step !== "type" && (
+                        <button onClick={handleBack} className={styles.backButton}>
+                            <ArrowLeft size={24} color="#D4AF37" />
                         </button>
                     )}
-
-                    <h2 style={{
-                        margin: 0,
-                        fontSize: '24px',
-                        fontWeight: '700',
-                        color: '#e5e7eb',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px'
-                    }}>
-                        {step === "branches" && (
-                            <>
-                                <Building2 size={28} /> Chọn Chi Nhánh
-                            </>
-                        )}
-                        {step === "areas" && (
-                            <>
-                                <MapPin size={28} /> Chọn Khu Vực
-                                <span style={{ fontSize: '16px', color: '#9ca3af', fontWeight: '400' }}>
-                                    ({selectedBranch?.name})
-                                </span>
-                            </>
-                        )}
-                        {step === "tables" && (
-                            <>
-                                <Grid3x3 size={28} /> Chọn Bàn
-                                <span style={{ fontSize: '16px', color: '#9ca3af', fontWeight: '400' }}>
-                                    ({selectedArea})
-                                </span>
-                            </>
-                        )}
-                    </h2>
+                    <h2 className={styles.modalTitle}>{getTitle()}</h2>
                 </div>
 
-                {/* LOADING */}
-                {loading && (
-                    <div style={{
-                        textAlign: 'center',
-                        padding: '80px 20px',
-                        color: '#9ca3af'
-                    }}>
-                        <div style={{
-                            width: '56px',
-                            height: '56px',
-                            border: '5px solid rgba(212, 175, 55, 0.2)',
-                            borderTopColor: '#D4AF37',
-                            borderRadius: '50%',
-                            animation: 'spin 0.8s linear infinite',
-                            margin: '0 auto 20px'
-                        }}></div>
-                        <p style={{ fontSize: '16px', fontWeight: '500' }}>Đang tải...</p>
+                {date && time && (
+                    <div className={styles.dateInfo}>
+                        <Calendar size={16} />
+                        <span>
+                            Ngày đặt: {new Date(date).toLocaleDateString('vi-VN')} - {time}
+                        </span>
                     </div>
                 )}
 
-                {/* CONTENT */}
-                {!loading && (
+                {loading ? (
+                    <div className={styles.spinnerContainer}>
+                        <div className={styles.spinner}></div>
+                        <p>Đang tải...</p>
+                    </div>
+                ) : (
                     <>
-                        {/* BƯỚC 1: CHỌN CHI NHÁNH */}
-                        {step === "branches" && (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                                gap: '20px',
-                                padding: '10px 0'
-                            }}>
-                                {branches.length === 0 ? (
-                                    <div style={{
-                                        textAlign: 'center',
-                                        padding: '60px 20px',
-                                        gridColumn: '1 / -1',
-                                        color: '#9ca3af'
-                                    }}>
-                                        <Building2 size={64} style={{ margin: '0 auto 20px', opacity: 0.3 }} />
-                                        <p style={{ fontSize: '16px' }}>Không có chi nhánh nào</p>
+                        {/* Màn hình chọn loại hình: Phòng hoặc Bàn */}
+                        {step === "type" && (
+                            <div className={styles.typeGrid}>
+                                <div className={styles.typeCard} onClick={() => handleSelectType("room")}>
+                                    <div>🏠</div>
+                                    <h3>Đặt phòng</h3>
+                                    <p>Phòng riêng, không gian riêng tư</p>
+                                    <div style={{ marginTop: "12px", fontSize: "12px", color: "#D4AF37" }}>
+                                        Phù hợp cho nhóm từ 4-10 người
                                     </div>
-                                ) : (
-                                    branches.map((branch) => (
-                                        <div
-                                            key={branch.id}
-                                            onClick={() => handleSelectBranch(branch)}
-                                            style={{
-                                                padding: '28px',
-                                                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))',
-                                                border: '2px solid rgba(212, 175, 55, 0.3)',
-                                                borderRadius: '16px',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.3s ease',
-                                                position: 'relative',
-                                                overflow: 'hidden'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(-6px)';
-                                                e.currentTarget.style.boxShadow = '0 12px 32px rgba(212, 175, 55, 0.4)';
-                                                e.currentTarget.style.borderColor = '#D4AF37';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(0)';
-                                                e.currentTarget.style.boxShadow = 'none';
-                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
-                                            }}
-                                        >
-                                            <div style={{
-                                                width: '70px',
-                                                height: '70px',
-                                                background: 'linear-gradient(135deg, #D4AF37, #B8941E)',
-                                                borderRadius: '14px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                margin: '0 auto 20px',
-                                                boxShadow: '0 6px 16px rgba(212, 175, 55, 0.5)'
-                                            }}>
-                                                <Building2 size={36} color="#fff" strokeWidth={2.5} />
-                                            </div>
+                                </div>
 
-                                            <h3 style={{
-                                                fontSize: '20px',
-                                                fontWeight: '700',
-                                                color: '#e5e7eb',
-                                                marginBottom: '10px',
-                                                textAlign: 'center'
-                                            }}>
-                                                {branch.name}
-                                            </h3>
-
-                                            {branch.address && (
-                                                <p style={{
-                                                    fontSize: '14px',
-                                                    color: '#9ca3af',
-                                                    textAlign: 'center',
-                                                    margin: 0,
-                                                    lineHeight: '1.5'
-                                                }}>
-                                                    📍 {branch.address}
-                                                </p>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
+                                <div className={styles.typeCard} onClick={() => handleSelectType("table")}>
+                                    <div>🍽️</div>
+                                    <h3>Đặt bàn</h3>
+                                    <p>Bàn trong khu vực chung</p>
+                                    <div style={{ marginTop: "12px", fontSize: "12px", color: "#D4AF37" }}>
+                                        Phù hợp cho nhóm từ 2-6 người
+                                    </div>
+                                </div>
                             </div>
                         )}
 
-                        {/* BƯỚC 2: CHỌN KHU VỰC */}
-                        {step === "areas" && (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                                gap: '18px',
-                                padding: '10px 0'
-                            }}>
+                        {/* Màn hình chọn khu vực phòng */}
+                        {step === "roomAreas" && (
+                            <div className={styles.grid}>
                                 {areas.length === 0 ? (
-                                    <div style={{
-                                        textAlign: 'center',
-                                        padding: '60px 20px',
-                                        gridColumn: '1 / -1',
-                                        color: '#9ca3af'
-                                    }}>
-                                        <MapPin size={64} style={{ margin: '0 auto 20px', opacity: 0.3 }} />
-                                        <p style={{ fontSize: '16px' }}>Không có khu vực nào</p>
+                                    <div className={styles.emptyState}>
+                                        <p>❌ Không có khu vực phòng nào</p>
                                     </div>
                                 ) : (
                                     areas.map((area) => (
                                         <div
                                             key={area}
-                                            onClick={() => handleSelectArea(area)}
-                                            style={{
-                                                padding: '26px',
-                                                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.04))',
-                                                border: '2px solid rgba(212, 175, 55, 0.3)',
-                                                borderRadius: '14px',
-                                                cursor: 'pointer',
-                                                textAlign: 'center',
-                                                transition: 'all 0.3s ease'
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(-5px)';
-                                                e.currentTarget.style.boxShadow = '0 10px 28px rgba(212, 175, 55, 0.35)';
-                                                e.currentTarget.style.borderColor = '#D4AF37';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(0)';
-                                                e.currentTarget.style.boxShadow = 'none';
-                                                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
-                                            }}
+                                            className={styles.card}
+                                            onClick={() => handleSelectRoomArea(area)}
                                         >
-                                            <div style={{
-                                                width: '65px',
-                                                height: '65px',
-                                                background: 'linear-gradient(135deg, #D4AF37, #B8941E)',
-                                                borderRadius: '12px',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                margin: '0 auto 18px',
-                                                boxShadow: '0 5px 14px rgba(212, 175, 55, 0.45)'
-                                            }}>
-                                                <MapPin size={34} color="#fff" strokeWidth={2.5} />
+                                            <div>📍</div>
+                                            <div>{area}</div>
+                                            <div style={{ fontSize: "12px", marginTop: "4px", color: "#9ca3af" }}>
+                                                Khu vực phòng
                                             </div>
-
-                                            <h3 style={{
-                                                fontSize: '19px',
-                                                fontWeight: '700',
-                                                color: '#e5e7eb',
-                                                marginBottom: 0
-                                            }}>
-                                                {area}
-                                            </h3>
                                         </div>
                                     ))
                                 )}
                             </div>
                         )}
 
-                        {/* BƯỚC 3: CHỌN BÀN */}
-                        {step === "tables" && (
+                        {/* Màn hình chọn khu vực bàn */}
+                        {step === "tableAreas" && (
+                            <div className={styles.grid}>
+                                {areas.length === 0 ? (
+                                    <div className={styles.emptyState}>
+                                        <p>❌ Không có khu vực bàn nào</p>
+                                    </div>
+                                ) : (
+                                    areas.map((area) => (
+                                        <div
+                                            key={area}
+                                            className={styles.card}
+                                            onClick={() => handleSelectTableArea(area)}
+                                        >
+                                            <div>📍</div>
+                                            <div>{area}</div>
+                                            <div style={{ fontSize: "12px", marginTop: "4px", color: "#9ca3af" }}>
+                                                Khu vực bàn
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+
+                        {/* Màn hình danh sách phòng theo khu vực */}
+                        {step === "rooms" && (
                             <>
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                                    gap: '18px',
-                                    padding: '10px 0'
-                                }}>
-                                    {tables.length === 0 ? (
-                                        <div style={{
-                                            textAlign: 'center',
-                                            padding: '60px 20px',
-                                            gridColumn: '1 / -1',
-                                            color: '#9ca3af'
-                                        }}>
-                                            <Grid3x3 size={64} style={{ margin: '0 auto 20px', opacity: 0.3 }} />
-                                            <p style={{ fontSize: '16px' }}>Không có bàn nào trong khu vực này</p>
+                                <div className={styles.grid}>
+                                    {rooms.length === 0 ? (
+                                        <div className={styles.emptyState}>
+                                            <p>❌ Không có phòng trống trong khu vực {selectedArea}</p>
                                         </div>
                                     ) : (
-                                        tables.map((t) => (
+                                        rooms.map((room) => (
                                             <div
-                                                key={t.id}
-                                                onClick={() => t.status === "available" && handleSelectTable(t)}
-                                                style={{
-                                                    padding: '24px 16px',
-                                                    background: t.status === "available"
-                                                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.05))'
-                                                        : 'rgba(75, 85, 99, 0.15)',
-                                                    border: t.status === "available"
-                                                        ? '2px solid rgba(16, 185, 129, 0.4)'
-                                                        : '2px solid rgba(75, 85, 99, 0.3)',
-                                                    borderRadius: '14px',
-                                                    textAlign: 'center',
-                                                    cursor: t.status === "available" ? 'pointer' : 'not-allowed',
-                                                    opacity: t.status === "available" ? 1 : 0.5,
-                                                    transition: 'all 0.3s ease'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    if (t.status === "available") {
-                                                        e.currentTarget.style.transform = 'translateY(-5px)';
-                                                        e.currentTarget.style.boxShadow = '0 10px 28px rgba(16, 185, 129, 0.35)';
-                                                        e.currentTarget.style.borderColor = '#10b981';
-                                                    }
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    if (t.status === "available") {
-                                                        e.currentTarget.style.transform = 'translateY(0)';
-                                                        e.currentTarget.style.boxShadow = 'none';
-                                                        e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-                                                    }
-                                                }}
+                                                key={room.id}
+                                                className={`${styles.roomCard} ${room.status === "occupied" ? styles.disabled : ""}`}
+                                                onClick={() => handleSelectRoom(room)}
                                             >
-                                                <div style={{
-                                                    fontSize: '36px',
-                                                    marginBottom: '10px',
-                                                    color: t.status === "available" ? '#10b981' : '#6b7280'
-                                                }}>
-                                                    {t.status === "available" ? "✓" : "✗"}
+                                                <div>{room.status === "available" ? "🏠" : "🔒"}</div>
+                                                <div>Phòng {room.number}</div>
+                                                <div style={{ fontSize: "14px", marginTop: "8px" }}>
+                                                    <Users size={14} style={{ display: "inline", marginRight: "4px" }} />
+                                                    {room.capacity} người
                                                 </div>
-                                                <div style={{
-                                                    fontSize: '17px',
-                                                    fontWeight: '700',
-                                                    color: '#e5e7eb',
-                                                    marginBottom: '6px'
+                                                <small style={{
+                                                    display: "block",
+                                                    marginTop: "8px",
+                                                    color: room.status === "available" ? "#10b981" : "#ef4444"
                                                 }}>
-                                                    Bàn {t.number}
-                                                </div>
-                                                <div style={{
-                                                    fontSize: '13px',
-                                                    color: t.status === "available" ? '#10b981' : '#9ca3af',
-                                                    fontWeight: '500'
-                                                }}>
-                                                    {t.status === "available" ? "Trống" : "Đang phục vụ"}
-                                                </div>
+                                                    {room.status === "available" ? "🟢 Trống" : "🔴 Đã có khách"}
+                                                </small>
                                             </div>
                                         ))
                                     )}
                                 </div>
 
-                                {/* LEGEND */}
-                                <div style={{
-                                    display: 'flex',
-                                    gap: 24,
-                                    justifyContent: 'center',
-                                    marginTop: 28,
-                                    padding: '16px',
-                                    background: 'rgba(31, 41, 55, 0.5)',
-                                    borderRadius: '12px'
-                                }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <div style={{
-                                            width: '44px',
-                                            height: '44px',
-                                            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1))',
-                                            border: '2px solid #10b981',
-                                            borderRadius: '10px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '20px',
-                                            color: '#10b981'
-                                        }}>
-                                            ✓
-                                        </div>
-                                        <span style={{ fontSize: '14px', color: '#9ca3af', fontWeight: '500' }}>
-                                            Bàn trống
-                                        </span>
+                                <div className={styles.legend}>
+                                    <div className={styles.legendItem}>
+                                        <div className={`${styles.legendColor} ${styles.available}`}></div>
+                                        <span className={styles.legendText}>Phòng trống</span>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <div style={{
-                                            width: '44px',
-                                            height: '44px',
-                                            background: 'rgba(75, 85, 99, 0.2)',
-                                            border: '2px solid #6b7280',
-                                            borderRadius: '10px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '20px',
-                                            color: '#6b7280'
-                                        }}>
-                                            ✗
+                                    <div className={styles.legendItem}>
+                                        <div className={`${styles.legendColor} ${styles.occupied}`}></div>
+                                        <span className={styles.legendText}>Phòng đã đặt</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Màn hình danh sách bàn theo khu vực */}
+                        {step === "tables" && (
+                            <>
+                                <div className={styles.grid}>
+                                    {tables.length === 0 ? (
+                                        <div className={styles.emptyState}>
+                                            <p>❌ Không có bàn trống trong khu vực {selectedArea}</p>
                                         </div>
-                                        <span style={{ fontSize: '14px', color: '#9ca3af', fontWeight: '500' }}>
-                                            Đang phục vụ
-                                        </span>
+                                    ) : (
+                                        tables.map((t) => (
+                                            <div
+                                                key={t.id}
+                                                className={`${styles.table} ${t.status === "occupied" ? styles.disabled : ""}`}
+                                                onClick={() => handleSelectTable(t)}
+                                            >
+                                                <div>{t.status === "available" ? "🍽️" : "🔒"}</div>
+                                                <div>Bàn {t.number}</div>
+                                                <div style={{ fontSize: "12px", marginTop: "4px" }}>
+                                                    {t.capacity} người
+                                                </div>
+                                                <small style={{
+                                                    display: "block",
+                                                    marginTop: "8px",
+                                                    color: t.status === "available" ? "#10b981" : "#ef4444"
+                                                }}>
+                                                    {t.status === "available" ? "🟢 Trống" : "🔴 Đã có khách"}
+                                                </small>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div className={styles.legend}>
+                                    <div className={styles.legendItem}>
+                                        <div className={`${styles.legendColor} ${styles.available}`}></div>
+                                        <span className={styles.legendText}>Bàn trống</span>
+                                    </div>
+                                    <div className={styles.legendItem}>
+                                        <div className={`${styles.legendColor} ${styles.occupied}`}></div>
+                                        <span className={styles.legendText}>Bàn đã có khách</span>
                                     </div>
                                 </div>
                             </>
@@ -547,31 +429,7 @@ const TableSelectionModal = ({
                     </>
                 )}
 
-                {/* CLOSE BUTTON */}
-                <button
-                    onClick={onClose}
-                    style={{
-                        width: '100%',
-                        marginTop: 24,
-                        padding: '14px',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '2px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: '12px',
-                        color: '#ef4444',
-                        fontSize: '15px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                        e.currentTarget.style.borderColor = '#ef4444';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                        e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-                    }}
-                >
+                <button onClick={handleClose} className={styles.closeBtn}>
                     Đóng
                 </button>
             </div>

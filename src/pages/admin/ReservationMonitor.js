@@ -29,7 +29,7 @@ export default function ReservationMonitor() {
             const [resRes, branchRes, tableRes] = await Promise.all([
                 axios.get(`${API_BASE_URL}/api/reservations/pending`, { headers }),
                 axios.get(`${API_BASE_URL}/api/branches`, { headers }),
-                axios.get(`${API_BASE_URL}/api/customer/tables`, { headers })
+                axios.get(`${API_BASE_URL}/api/tables`, { headers })
             ]);
 
             setReservations(resRes.data);

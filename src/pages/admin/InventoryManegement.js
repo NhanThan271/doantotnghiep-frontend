@@ -680,7 +680,17 @@ export default function InventoryManagement() {
                                 placeholder="Tìm kiếm yêu cầu..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="search-input"
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 16px 12px 48px',
+                                    background: 'var(--color-bg-dark)',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: '12px',
+                                    color: 'var(--color-text-primary)',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    transition: 'all 0.2s ease'
+                                }}
                             />
                         </div>
 
@@ -1175,7 +1185,7 @@ export default function InventoryManagement() {
             )}
 
             {/* CSS Animations */}
-            <style jsx>{`
+            <style>{`
                 @keyframes pulse {
                     0%, 100% {
                         opacity: 1;

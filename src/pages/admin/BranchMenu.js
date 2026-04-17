@@ -29,12 +29,12 @@ export default function BranchMenuDistribution() {
         try {
             const token = localStorage.getItem('token');
             const response = await axios.get(
-                `${API_BASE_URL}/api/branch-products/branch/${branchId}/with-promotions`,
+                `${API_BASE_URL}/api/branch-foods/branch/${branchId}/with-promotions`,
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
             );
-            console.log('Products with promotions:', response.data);
+            console.log('foods with promotions:', response.data);
             setProducts(response.data);
         } catch (error) {
             console.error('Lỗi khi lấy sản phẩm có khuyến mãi:', error);
@@ -60,7 +60,7 @@ export default function BranchMenuDistribution() {
         try {
             const token = localStorage.getItem('token');
             const response = await axios.get(
-                `${API_BASE_URL}/api/branch-products/branch/${branchId}`,
+                `${API_BASE_URL}/api/branch-foods/branch/${branchId}`,
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
@@ -71,16 +71,16 @@ export default function BranchMenuDistribution() {
         }
     };
 
-    const getBranchProduct = (productId) => {
+    const getBranchProduct = (foodId) => {
         return branchProducts.find(bp => {
-            const bpProductId = bp.product?.id;
-            return Number(bpProductId) === Number(productId);
+            const bpProductId = bp.food?.id;
+            return Number(bpProductId) === Number(foodId);
         });
     };
 
-    const toggleProductStatus = async (product) => {
+    const toggleProductStatus = async (food) => {
         const token = localStorage.getItem('token');
-        const branchProduct = getBranchProduct(product.id);
+        const branchProduct = getBranchProduct(food.id);
 
         setLoading(true);
 
@@ -93,7 +93,7 @@ export default function BranchMenuDistribution() {
                     isActive: !branchProduct.isActive
                 };
 
-                await axios.post(`${API_BASE_URL}/api/branch-products`, updatedBP, {
+                await axios.post(`${API_BASE_URL}/api/branch-foods`, updatedBP, {
                     headers: {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`
@@ -102,12 +102,12 @@ export default function BranchMenuDistribution() {
             } else {
                 updatedBP = {
                     branch: { id: selectedBranch.id },
-                    product: { id: product.id },
+                    food: { id: food.id },
                     customPrice: null,
                     isActive: true
                 };
 
-                await axios.post(`${API_BASE_URL}/api/branch-products`, updatedBP, {
+                await axios.post(`${API_BASE_URL}/api/branch-foods`, updatedBP, {
                     headers: {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`
@@ -126,9 +126,9 @@ export default function BranchMenuDistribution() {
         }
     };
 
-    const updateCustomPrice = async (product, customPrice) => {
+    const updateCustomPrice = async (food, customPrice) => {
         const token = localStorage.getItem('token');
-        const branchProduct = getBranchProduct(product.id);
+        const branchProduct = getBranchProduct(food.id);
 
         setLoading(true);
 
@@ -140,7 +140,7 @@ export default function BranchMenuDistribution() {
                     ...branchProduct,
                     customPrice: price
                 };
-                await axios.post(`${API_BASE_URL}/api/branch-products`, updatedBP, {
+                await axios.post(`${API_BASE_URL}/api/branch-foods`, updatedBP, {
                     headers: {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`
@@ -149,11 +149,11 @@ export default function BranchMenuDistribution() {
             } else {
                 const newBP = {
                     branch: { id: selectedBranch.id },
-                    product: { id: product.id },
+                    product: { id: food.id },
                     customPrice: price,
                     isActive: true
                 };
-                await axios.post(`${API_BASE_URL}/api/branch-products`, newBP, {
+                await axios.post(`${API_BASE_URL}/api/branch-foods`, newBP, {
                     headers: {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${token}`
@@ -227,7 +227,7 @@ export default function BranchMenuDistribution() {
                     gap: '8px'
                 }}>
                     <Store size={16} />
-                    Quản lý sản phẩm theo từng chi nhánh
+                    Quản lý món ăn theo từng chi nhánh
                 </p>
             </div>
 
@@ -401,7 +401,17 @@ export default function BranchMenuDistribution() {
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className='search-input'
-                                        style={{ paddingLeft: '48px' }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px 16px 12px 48px',
+                                            background: 'var(--color-bg-dark)',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '12px',
+                                            color: 'var(--color-text-primary)',
+                                            fontSize: '14px',
+                                            outline: 'none',
+                                            transition: 'all 0.2s ease'
+                                        }}
                                     />
                                 </div>
 

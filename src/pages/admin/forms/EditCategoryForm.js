@@ -112,7 +112,7 @@ export default function EditCategory({ category, onClose, onSuccess, refreshCall
                 formDataToSend.append('imageUrl', formData.imageUrl.trim());
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/employee/categories/${formData.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/categories/${formData.id}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`

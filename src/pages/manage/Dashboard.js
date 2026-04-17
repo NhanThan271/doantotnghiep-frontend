@@ -114,13 +114,13 @@ export default function BranchDashboard() {
     };
 
     const fetchTables = async (headers) => {
-        const res = await fetch(`${API_BASE}/api/customer/tables`, { headers });
+        const res = await fetch(`${API_BASE}/api/tables`, { headers });
         if (!res.ok) throw new Error('Không thể tải danh sách bàn');
         return res.json();
     };
 
     const fetchShifts = async (branchId, headers) => {
-        const res = await fetch(`${API_BASE}/api/work-shifts/branch/${branchId}`, { headers });
+        const res = await fetch(`${API_BASE}/api/shifts`, { headers });
         if (!res.ok) throw new Error('Không thể tải ca làm việc');
         return res.json();
     };
