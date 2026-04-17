@@ -126,12 +126,21 @@ export default function ManagerOrderManagement() {
         setFilteredOrders(filtered);
     }, [orders, filterStatus, searchTerm]);
 
+    const statusApiMap = {
+        CONFIRMED: 'confirm',
+        CANCELED: 'cancel',
+        COMPLETED: 'complete',
+        PREPARING: 'prepare',
+        PAID: 'pay'
+    };
+
     // Update order status
     const updateOrderStatus = async (orderId, newStatus) => {
         try {
             const token = localStorage.getItem('token');
+            const apiStatus = statusApiMap[newStatus];
             const response = await fetch(
-                `${API_BASE_URL}/api/customer/orders/${orderId}/${newStatus.toLowerCase()}`,
+                `${API_BASE_URL}/api/customer/orders/${orderId}/${apiStatus}`,
                 {
                     method: 'PUT',
                     headers: {
@@ -191,18 +200,6 @@ export default function ManagerOrderManagement() {
             'CANCELED': 'Đã hủy'
         };
         return statusMap[status] || status;
-    };
-
-    const getStatusStyle = (status) => {
-        const styles = {
-            'PENDING': 'bg-yellow-100 text-yellow-800 border-yellow-300',
-            'CONFIRMED': 'bg-blue-100 text-blue-800 border-blue-300',
-            'PREPARING': 'bg-purple-100 text-purple-800 border-purple-300',
-            'COMPLETED': 'bg-green-100 text-green-800 border-green-300',
-            'PAID': 'bg-emerald-100 text-emerald-800 border-emerald-300',
-            'CANCELED': 'bg-red-100 text-red-800 border-red-300'
-        };
-        return styles[status] || 'bg-gray-100 text-gray-800 border-gray-300';
     };
 
     const getStatusBadgeClass = (status) => {

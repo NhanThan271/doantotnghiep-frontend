@@ -35,10 +35,13 @@ export default function TableManagement() {
     const fetchBranches = async () => {
         try {
             const token = localStorage.getItem('token');
+            console.log('Token:', token);
             const response = await fetch(`${API_BASE_URL}/api/branches`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            console.log('Status:', response.status);
             const data = await response.json();
+            console.log('Branches:', data);
             setBranches(data);
             if (data.length > 0 && !selectedBranch) {
                 setSelectedBranch(data[0]);

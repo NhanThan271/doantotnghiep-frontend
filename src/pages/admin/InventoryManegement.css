@@ -73,32 +73,36 @@
     margin-bottom: 32px;
 }
 
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
 .stat-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     padding: 24px;
     transition: all 0.3s ease;
 }
 
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-}
-
 .stat-card.pending {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%) !important;
     border-color: rgba(245, 158, 11, 0.3);
 }
 
 .stat-card.approved {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%) !important;
     border-color: rgba(16, 185, 129, 0.3);
 }
 
 .stat-card.rejected {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%) !important;
     border-color: rgba(239, 68, 68, 0.3);
 }
 
 .stat-card.total {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%) !important;
     border-color: rgba(59, 130, 246, 0.3);
 }
 
@@ -174,6 +178,9 @@
     font-weight: 600;
     margin-bottom: 20px;
     color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .branch-buttons {
@@ -184,6 +191,9 @@
 }
 
 .branch-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 10px 20px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -259,6 +269,7 @@
     color: #fff;
     font-size: 14px;
     transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
 .search-input:focus {
@@ -281,6 +292,7 @@
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
 .search-input1:focus {
@@ -319,7 +331,6 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 16px;
 }
 
 .request-content {
@@ -332,6 +343,7 @@
     margin-bottom: 12px;
 }
 
+/* Badges */
 .badge {
     display: inline-flex;
     align-items: center;
@@ -396,6 +408,8 @@
 .request-actions {
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
+    margin-left: 16px;
 }
 
 .btn-approve,
@@ -410,6 +424,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    white-space: nowrap;
 }
 
 .btn-approve {
@@ -435,23 +450,6 @@
 
 .btn-reject:hover {
     background: rgba(239, 68, 68, 0.25);
-}
-
-.request-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    margin-top: 16px;
-}
-
-.request-footer-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 13px;
 }
 
 /* History */
@@ -495,6 +493,8 @@
     text-align: right;
     color: rgba(255, 255, 255, 0.5);
     font-size: 13px;
+    flex-shrink: 0;
+    margin-left: 16px;
 }
 
 .history-time div:first-child {
@@ -513,7 +513,7 @@
     font-size: 16px;
 }
 
-/* Modal */
+/* Modal Overlay */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -567,11 +567,17 @@
     cursor: pointer;
     color: rgba(255, 255, 255, 0.6);
     transition: all 0.3s ease;
+    flex-shrink: 0;
 }
 
 .modal-close:hover {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
+}
+
+.modal-close:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 .modal-badges {
@@ -588,14 +594,8 @@
     margin-bottom: 20px;
 }
 
-.modal-field.rejection {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 12px;
-    padding: 16px;
-}
-
 .modal-field-label {
+    display: block;
     font-size: 13px;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.5);
@@ -613,21 +613,10 @@
     color: #fff;
 }
 
-.modal-field-value.large {
-    font-size: 32px;
-    font-weight: 700;
-    color: #667eea;
-}
-
 .modal-field-value.branch {
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-.modal-field-value.reason {
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.8);
 }
 
 .modal-timeline {
@@ -671,6 +660,7 @@
     font-size: 14px;
     color: #fff;
     text-align: right;
+    max-width: 260px;
 }
 
 .modal-timeline-divider {
@@ -793,16 +783,20 @@
     color: #667eea;
 }
 
-.low-stock {
+.quantity-value.low-stock {
     color: #F59E0B;
 }
 
-.out-of-stock {
+.quantity-value.out-of-stock {
     color: #EF4444;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
+    .inventory-container {
+        padding: 16px;
+    }
+
     .filters-container {
         grid-template-columns: 1fr;
     }
@@ -818,11 +812,13 @@
 
     .request-actions {
         width: 100%;
+        margin-left: 0;
     }
 
     .btn-approve,
     .btn-reject {
         flex: 1;
+        justify-content: center;
     }
 
     .modal-actions {
@@ -836,5 +832,25 @@
     .inventory-table th,
     .inventory-table td {
         padding: 12px 8px;
+    }
+
+    .history-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .history-time {
+        text-align: left;
+        margin-left: 0;
+    }
+
+    .inventory-tabs {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .inventory-tab {
+        padding: 8px 14px;
+        font-size: 13px;
     }
 }

@@ -5,7 +5,7 @@ import styles from '../../layouts/AdminLayout.module.css';
 
 const POSITION_MAP = {
     WAITER: { label: 'Phục vụ', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' },
-    CHEF: { label: 'Đầu bếp', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
+    CHEF: { label: 'Bếp', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
     CASHIER: { label: 'Thu ngân', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
     STOCK: { label: 'Kho', color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
 };

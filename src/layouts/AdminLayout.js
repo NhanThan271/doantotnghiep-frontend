@@ -81,7 +81,7 @@ export default function AdminLayout() {
 
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-        { id: 'products', label: 'Quản lý Sản phẩm', icon: ShoppingBag },
+        { id: 'products', label: 'Quản lý Món ăn', icon: ShoppingBag },
         { id: 'branchmenu', label: 'Phân menu cho chi nhánh', icon: MenuSquare },
         { id: 'branchtable', label: 'Quản lý Bàn', icon: Table },
         { id: 'branchroom', label: 'Quản lý Phòng', icon: DoorOpen },
@@ -89,7 +89,7 @@ export default function AdminLayout() {
         { id: 'ingredients', label: 'Quản lý Nguyên liệu', icon: Package },
         { id: 'recipes', label: 'Quản lý công thức', icon: Receipt },
         { id: 'inventory', label: 'Quản lý Tồn kho', icon: ShoppingBag },
-        { id: 'reservations', label: 'Giám sát Đặt bàn', icon: Users },
+        { id: 'reservations', label: 'Giám sát Đặt bàn/ Phòng', icon: Users },
         { id: 'promotions', label: 'Quản lý Khuyến mãi', icon: Tag },
         { id: 'branches', label: 'Quản lý Chi nhánh', icon: MapPin },
         { id: 'employees', label: 'Quản lý Nhân viên', icon: Users },

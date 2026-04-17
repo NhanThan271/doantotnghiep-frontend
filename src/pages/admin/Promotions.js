@@ -157,7 +157,7 @@ export default function PromotionManagement() {
                 startDate: formData.startDate,
                 endDate: formData.endDate,
                 isActive: formData.isActive,
-                productIds: formData.foodIds || [],
+                foodIds: formData.foodIds || [],
                 branchIds: formData.branchIds || []
             };
 
