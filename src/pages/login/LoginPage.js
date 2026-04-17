@@ -36,6 +36,7 @@ const LoginPage = () => {
             const token = res.data.token || res.data.accessToken;
             localStorage.setItem("token", token);
 
+            // LƯU THÔNG TIN ĐĂNG NHẬP NẾU CHỌN GHI NHỚ
             if (rememberMe) {
                 localStorage.setItem("savedCredentials", JSON.stringify({
                     username,
@@ -56,14 +57,12 @@ const LoginPage = () => {
 
     return (
         <div className="login-page">
-
-            {/* 🔙 Back Home */}
+            {/* Back Home Button */}
             <button className="back-home-btn" onClick={() => navigate("/")}>
-                ←
+                ← Trang chủ
             </button>
 
             <div className="login-container">
-
                 {/* HEADER */}
                 <div className="login-header">
                     <h2>Chào mừng trở lại</h2>
@@ -72,7 +71,6 @@ const LoginPage = () => {
 
                 {/* FORM */}
                 <form onSubmit={handleLogin} className="login-form">
-
                     {/* USERNAME */}
                     <div className="form-group">
                         <label>Tên đăng nhập</label>
@@ -129,7 +127,6 @@ const LoginPage = () => {
                     <button className="login-button" disabled={isLoading}>
                         {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
                     </button>
-
                 </form>
 
                 {/* FOOTER */}
@@ -139,7 +136,6 @@ const LoginPage = () => {
                         Đăng ký ngay
                     </span>
                 </div>
-
             </div>
         </div>
     );

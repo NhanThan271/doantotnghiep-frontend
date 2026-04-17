@@ -243,6 +243,14 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                         }}>
                             <AlertCircle size={24} />
                         </div>
+                        <div>
+                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#EF4444' }}>
+                                {products.filter(p => !p.isActive).length}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                                Ngừng bán
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -368,7 +376,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                     borderRadius: '16px',
                     overflow: 'hidden'
                 }}>
-                    <table>
+                    <table className={styles.dataTable}>
                         <thead>
                             <tr>
                                 <th style={{ width: '100px' }}>Hình ảnh</th>
@@ -724,9 +732,6 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                                 }}>
                                                     {p.price ? Number(p.price).toLocaleString('vi-VN') + 'đ' : '0đ'}
                                                 </div>
-                                            </div>
-                                            <div style={{ textAlign: 'right' }}>
-
                                             </div>
                                         </div>
 

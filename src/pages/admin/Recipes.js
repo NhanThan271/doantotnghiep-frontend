@@ -106,7 +106,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
 
     return (
         <div>
-            {/* Header - giữ nguyên style cũ */}
+            {/* Header */}
             <div style={{
                 padding: '32px 24px 24px',
                 background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, rgba(26, 26, 26, 0.8) 100%)',
@@ -177,7 +177,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                     </button>
                 </div>
 
-                {/* Stats Cards - giữ nguyên */}
+                {/* Stats Cards */}
                 <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -345,8 +345,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                 transition: 'all 0.25s ease',
                                 boxShadow: isOpen ? '0 8px 32px rgba(249, 115, 22, 0.12)' : 'none'
                             }}>
-
-                                {/* Accordion Header — click để mở/đóng */}
+                                {/* Accordion Header */}
                                 <div
                                     onClick={() => toggleExpand(group.food.id)}
                                     style={{
@@ -362,7 +361,6 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                     onMouseOut={(e) => { if (!isOpen) e.currentTarget.style.background = 'transparent'; }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                                        {/* Avatar chữ cái đầu */}
                                         <div style={{
                                             width: '48px', height: '48px', flexShrink: 0,
                                             background: isOpen
@@ -401,7 +399,6 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                     </div>
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        {/* Buttons — stopPropagation để không toggle accordion */}
                                         <div style={{ display: 'flex', gap: '8px' }} onClick={e => e.stopPropagation()}>
                                             <button
                                                 onClick={() => openEdit('Recipe', group, fetchRecipes)}
@@ -460,7 +457,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                     </div>
                                 </div>
 
-                                {/* Accordion Body — dùng table-wrapper class như cũ */}
+                                {/* Accordion Body */}
                                 <div style={{
                                     maxHeight: isOpen ? '800px' : '0',
                                     overflow: 'hidden',
@@ -470,7 +467,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                         className={styles['table-wrapper']}
                                         style={{ borderTop: '1px solid var(--color-border)', borderRadius: '0', margin: '0' }}
                                     >
-                                        <table>
+                                        <table className={styles.dataTable}>
                                             <thead>
                                                 <tr>
                                                     <th style={{ width: '50px' }}>#</th>
@@ -507,7 +504,6 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                         </table>
                                     </div>
                                 </div>
-
                             </div>
                         );
                     })
