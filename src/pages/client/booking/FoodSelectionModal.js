@@ -95,14 +95,13 @@ const FoodSelectionModal = ({ show, onClose, onSelectFood, branchId, selectedFoo
             const data = await response.json();
             console.log("🍽️ BranchFood data:", data);
 
-            // 🔥 LẤY ĐÚNG foodId từ food.id
             const formattedFoods = data.map(item => ({
-                id: item.id,  // branch_food.id (dùng để quản lý, không gửi lên backend)
-                foodId: item.food?.id,  // 🔥 foods.id - CÁI BACKEND CẦN
+                id: item.id,  // branchFoodId
+                foodId: item.food?.id,
                 name: item.food?.name,
                 description: item.food?.description || '',
-                originalPrice: item.food?.price,  // giá gốc từ foods
-                price: item.customPrice || item.food?.price,  // giá bán thực tế
+                originalPrice: item.food?.price,
+                price: item.customPrice || item.food?.price,
                 imageUrl: item.food?.imageUrl,
                 categoryId: item.food?.category?.id,
                 categoryName: item.food?.category?.name,
@@ -110,7 +109,7 @@ const FoodSelectionModal = ({ show, onClose, onSelectFood, branchId, selectedFoo
                 isAvailable: item.isActive
             }));
 
-            console.log("✅ Transformed foods with foodId:", formattedFoods);
+            console.log("✅ Transformed foods:", formattedFoods);
             setFoods(formattedFoods);
         } catch (err) {
             console.error("❌ Lỗi tải món ăn:", err);
@@ -133,34 +132,33 @@ const FoodSelectionModal = ({ show, onClose, onSelectFood, branchId, selectedFoo
         setSearchTerm('');
     };
 
-    // Kiểm tra món đã được chọn chưa
-    const isFoodSelected = (foodId) => {
-        return tempSelectedFoods.some(f => f.foodId === foodId);
+    // 🔥 SỬA: Dùng branchFoodId để kiểm tra
+    const isFoodSelected = (branchFoodId) => {
+        return tempSelectedFoods.some(f => f.branchFoodId === branchFoodId);
     };
 
-    // Lấy số lượng của món đã chọn
-    const getSelectedQuantity = (foodId) => {
-        const selected = tempSelectedFoods.find(f => f.foodId === foodId);
+    // 🔥 SỬA: Dùng branchFoodId để lấy số lượng
+    const getSelectedQuantity = (branchFoodId) => {
+        const selected = tempSelectedFoods.find(f => f.branchFoodId === branchFoodId);
         return selected ? selected.quantity : 0;
     };
 
-    // Thêm món vào danh sách tạm
+    // 🔥 SỬA: Dùng branchFoodId để thêm món
     const handleAddFood = (food) => {
         if (food.isAvailable === false || food.stockQuantity === 0) {
             alert("❌ Món này không khả dụng!");
             return;
         }
 
-        // Kiểm tra xem món đã có trong giỏ chưa (dùng foodId)
-        const existing = tempSelectedFoods.find(f => f.foodId === food.foodId);
+        const existing = tempSelectedFoods.find(f => f.branchFoodId === food.id);
 
         if (existing) {
             setTempSelectedFoods(tempSelectedFoods.map(f =>
-                f.foodId === food.foodId ? { ...f, quantity: f.quantity + 1 } : f
+                f.branchFoodId === food.id ? { ...f, quantity: f.quantity + 1 } : f
             ));
         } else {
             setTempSelectedFoods([...tempSelectedFoods, {
-                id: food.foodId,  // Thêm id cho object
+                id: food.id,
                 branchFoodId: food.id,
                 foodId: food.foodId,
                 name: food.name,
@@ -171,28 +169,25 @@ const FoodSelectionModal = ({ show, onClose, onSelectFood, branchId, selectedFoo
         }
     };
 
-    // Giảm số lượng hoặc xóa món
-    const handleRemoveFood = (foodId) => {
-        const existing = tempSelectedFoods.find(f => f.foodId === foodId);
+    // 🔥 SỬA: Dùng branchFoodId để xóa món
+    const handleRemoveFood = (branchFoodId) => {
+        const existing = tempSelectedFoods.find(f => f.branchFoodId === branchFoodId);
         if (existing && existing.quantity > 1) {
             setTempSelectedFoods(tempSelectedFoods.map(f =>
-                f.foodId === foodId ? { ...f, quantity: f.quantity - 1 } : f
+                f.branchFoodId === branchFoodId ? { ...f, quantity: f.quantity - 1 } : f
             ));
         } else {
-            setTempSelectedFoods(tempSelectedFoods.filter(f => f.foodId !== foodId));
+            setTempSelectedFoods(tempSelectedFoods.filter(f => f.branchFoodId !== branchFoodId));
         }
     };
 
-    // Xác nhận chọn món
     const handleConfirmSelection = () => {
-        // Gọi onSelectFood cho từng món hoặc gộp lại
         tempSelectedFoods.forEach(food => {
             onSelectFood(food);
         });
         onClose();
     };
 
-    // Hủy và đóng modal
     const handleCancel = () => {
         setTempSelectedFoods([]);
         onClose();
@@ -213,8 +208,12 @@ const FoodSelectionModal = ({ show, onClose, onSelectFood, branchId, selectedFoo
 
     const getImageUrl = (imageUrl) => {
         if (!imageUrl) return null;
-        if (imageUrl.startsWith('http')) return imageUrl;
-        if (imageUrl.startsWith('/uploads/')) return `${API}${imageUrl}`;
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl;
+        }
+        if (imageUrl.startsWith('/uploads/')) {
+            return `${API}${imageUrl}`;
+        }
         return `${API}/uploads/${imageUrl}`;
     };
 
@@ -309,37 +308,83 @@ const FoodSelectionModal = ({ show, onClose, onSelectFood, branchId, selectedFoo
                                 </div>
                             ) : (
                                 filteredFoods.map(food => {
-                                    const isSelected = isFoodSelected(food.foodId);  // 🔥 Dùng foodId
-                                    const quantity = getSelectedQuantity(food.foodId);  // 🔥 Dùng foodId
+                                    // 🔥 SỬA: Dùng food.id (branchFoodId)
+                                    const isSelected = isFoodSelected(food.id);
+                                    const quantity = getSelectedQuantity(food.id);
+                                    const imageUrl = getImageUrl(food.imageUrl);
 
                                     return (
                                         <div
-                                            key={food.id}  // Dùng branchFoodId làm key
+                                            key={food.id}
                                             className={`${styles.foodCard} ${!food.isAvailable ? styles.inactive : ''} ${isSelected ? styles.selected : ''}`}
                                         >
-                                            {/* ... */}
-                                            <div className={styles.foodActions}>
+                                            {/* Hình ảnh */}
+                                            <div className={styles.imageWrapper}>
+                                                {imageUrl ? (
+                                                    <img
+                                                        src={imageUrl}
+                                                        alt={food.name}
+                                                        className={styles.foodImage}
+                                                        onError={(e) => {
+                                                            console.error("Image load error:", food.name, food.imageUrl);
+                                                            e.target.onerror = null;
+                                                            e.target.src = "https://via.placeholder.com/300x200?text=No+Image";
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div className={styles.imagePlaceholder}>
+                                                        <span>🍽️</span>
+                                                    </div>
+                                                )}
                                                 {isSelected && (
+                                                    <div className={styles.selectedBadge}>
+                                                        <Check size={16} />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Thông tin món ăn */}
+                                            <div className={styles.foodInfo}>
+                                                <h4 className={styles.foodName}>{food.name}</h4>
+                                                {food.description && (
+                                                    <p className={styles.foodDescription}>
+                                                        {food.description.substring(0, 60)}
+                                                    </p>
+                                                )}
+                                                <div className={styles.foodPrice}>
+                                                    {formatPrice(food.price)}
+                                                </div>
+                                                <div className={styles.foodStatus}>
+                                                    {food.stockQuantity !== undefined && food.stockQuantity <= 10 && food.stockQuantity > 0 && (
+                                                        <span className={styles.stockWarning}>⚠️ Còn {food.stockQuantity}</span>
+                                                    )}
+                                                    {food.stockQuantity === 0 && (
+                                                        <span className={styles.stockOut}>🔥 Hết hàng</span>
+                                                    )}
+                                                </div>
+                                                <div className={styles.foodActions}>
+                                                    {isSelected && (
+                                                        <button
+                                                            className={styles.removeBtn}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRemoveFood(food.id);
+                                                            }}
+                                                        >
+                                                            -
+                                                        </button>
+                                                    )}
                                                     <button
-                                                        className={styles.removeBtn}
+                                                        className={styles.addBtn}
+                                                        disabled={!food.isAvailable || food.stockQuantity === 0}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            handleRemoveFood(food.foodId);  // 🔥 Dùng foodId
+                                                            handleAddFood(food);
                                                         }}
                                                     >
-                                                        -
+                                                        {isSelected ? `+ Thêm (${quantity})` : "+ Thêm vào đơn"}
                                                     </button>
-                                                )}
-                                                <button
-                                                    className={styles.addBtn}
-                                                    disabled={!food.isAvailable || food.stockQuantity === 0}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleAddFood(food);
-                                                    }}
-                                                >
-                                                    {isSelected ? `+ Thêm (${quantity})` : "+ Thêm vào đơn"}
-                                                </button>
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -349,7 +394,7 @@ const FoodSelectionModal = ({ show, onClose, onSelectFood, branchId, selectedFoo
                     </div>
                 )}
 
-                {/* Footer với nút xác nhận */}
+                {/* Footer */}
                 {tempSelectedFoods.length > 0 && (
                     <div className={styles.footer}>
                         <div className={styles.totalInfo}>

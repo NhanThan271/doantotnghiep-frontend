@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import TableSelectionModal from "../../customer/TableSelectionModal";
 import FoodSelectionModal from "./FoodSelectionModal";
@@ -15,6 +15,7 @@ const BookingDetail = () => {
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    const [user, setUser] = useState({}); // 🔥 Thêm state user
 
     const [data, setData] = useState({
         date: "",
@@ -28,6 +29,22 @@ const BookingDetail = () => {
         payment: "deposit",
         selectedFoods: []
     });
+
+    // 🔥 Lấy thông tin user từ localStorage khi component mount
+    useEffect(() => {
+        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        setUser(userData);
+
+        // 🔥 Tự động điền tên và số điện thoại nếu có
+        if (userData.fullName) {
+            setData(prev => ({
+                ...prev,
+                customerName: userData.fullName,
+                phone: userData.phone || "",
+                email: userData.email || ""
+            }));
+        }
+    }, []);
 
     // Validate functions
     const validateName = (name) => {
@@ -96,31 +113,35 @@ const BookingDetail = () => {
         }
     };
 
-    const handleSelectTable = (table) => {
-        setData({ ...data, table: table.id, tableNumber: table.number });
+    const handleSelectTable = (selectedItem) => {
+        setData({
+            ...data,
+            table: selectedItem.id,
+            tableNumber: selectedItem.number,
+            selectedType: selectedItem.type,
+            selectedTableId: selectedItem.tableId,
+            selectedRoomId: selectedItem.roomId
+        });
     };
 
-    // 🔥 Cập nhật: Xử lý thêm nhiều món cùng lúc từ FoodSelectionModal
-    // BookingDetail.js - Cần sửa
     const handleAddMultipleFoods = (newFoods) => {
         setData(prevData => {
             const updatedFoods = [...prevData.selectedFoods];
             const foodsToAdd = Array.isArray(newFoods) ? newFoods : [newFoods];
 
             foodsToAdd.forEach(newFood => {
-                // 🔥 SỬA: Dùng foodId để tìm kiếm
-                const existingIndex = updatedFoods.findIndex(f => f.foodId === newFood.foodId);
+                const existingIndex = updatedFoods.findIndex(f => f.branchFoodId === newFood.branchFoodId);
                 if (existingIndex !== -1) {
                     updatedFoods[existingIndex].quantity += newFood.quantity;
                 } else {
                     updatedFoods.push({
-                        id: newFood.foodId,  // Dùng foodId làm id
+                        id: newFood.branchFoodId,
+                        branchFoodId: newFood.branchFoodId,
                         foodId: newFood.foodId,
                         name: newFood.name,
                         price: newFood.price,
                         quantity: newFood.quantity,
-                        imageUrl: newFood.imageUrl,
-                        branchFoodId: newFood.branchFoodId
+                        imageUrl: newFood.imageUrl
                     });
                 }
             });
@@ -128,25 +149,26 @@ const BookingDetail = () => {
         });
     };
 
-    // Xóa món
-    const handleRemoveFood = (foodId) => {
-        setData({ ...data, selectedFoods: data.selectedFoods.filter(f => f.id !== foodId) });
+    const handleRemoveFood = (branchFoodId) => {
+        setData({
+            ...data,
+            selectedFoods: data.selectedFoods.filter(f => f.branchFoodId !== branchFoodId)
+        });
     };
 
-    // Cập nhật số lượng
-    const updateQuantity = (foodId, quantity) => {
+    const updateQuantity = (branchFoodId, quantity) => {
         if (quantity <= 0) {
-            handleRemoveFood(foodId);
+            handleRemoveFood(branchFoodId);
         } else {
             setData({
                 ...data,
                 selectedFoods: data.selectedFoods.map(f =>
-                    f.id === foodId ? { ...f, quantity } : f
+                    f.branchFoodId === branchFoodId ? { ...f, quantity } : f
                 )
             });
         }
     };
-
+    console.log(JSON.parse(localStorage.getItem('user') || '{}'));
     const totalFoodAmount = data.selectedFoods.reduce((sum, f) => sum + (f.price * f.quantity), 0);
     const getPayableAmount = () => {
         return data.payment === "full" ? totalFoodAmount * 0.9 : totalFoodAmount * 0.2;
@@ -161,14 +183,30 @@ const BookingDetail = () => {
                 price: Math.floor(food.price)
             }));
 
+            const safeOrderCode = reservationId;
+
+            // 🔥 SỬA: Rút gọn description dưới 25 ký tự
+            // Cách 1: Chỉ lấy tên chi nhánh + mã đặt
+            const shortDescription = `Dat ban ${branch?.name?.substring(0, 10) || ''}`.substring(0, 25);
+
+            // Cách 2: Hoặc dùng format đơn giản
+            // const shortDescription = `Dat ban #${reservationId}`;
+
+            // Cách 3: Hoặc chỉ ghi đơn giản
+            // const shortDescription = `Thanh toan dat ban`;
+
+            console.log("Description length:", shortDescription.length, shortDescription);
+
             const paymentRequest = {
-                orderCode: orderCode,
+                orderCode: safeOrderCode,
                 amount: Math.floor(payableAmount),
-                description: `Thanh toán đặt bàn ${branch?.name} - ${data.date} ${data.time}`,
+                description: shortDescription,  // 🔥 Dùng description ngắn
                 returnUrl: `${window.location.origin}/booking-success?reservationId=${reservationId}`,
                 cancelUrl: `${window.location.origin}/booking-cancel`,
                 items: items
             };
+
+            console.log("📤 Payment request:", paymentRequest);
 
             const response = await fetch(`${API}/api/payos/create`, {
                 method: "POST",
@@ -179,24 +217,29 @@ const BookingDetail = () => {
                 body: JSON.stringify(paymentRequest)
             });
 
+            const responseText = await response.text();
+            console.log("📥 Raw PayOS response:", responseText);
+
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error("PayOS error:", errorText);
-                throw new Error("Không thể tạo link thanh toán");
+                throw new Error(`PayOS error: ${responseText}`);
             }
 
-            const result = await response.json();
-            console.log("PayOS result:", result);
+            const result = JSON.parse(responseText);
+            console.log("✅ PayOS result:", result);
 
-            if (result.data?.checkoutUrl || result.checkoutUrl) {
-                window.open(result.data?.checkoutUrl || result.checkoutUrl, "_blank");
+            if (result.code === "00" && result.data?.checkoutUrl) {
+                window.open(result.data.checkoutUrl, "_blank");
                 return true;
+            } else if (result.checkoutUrl) {
+                window.open(result.checkoutUrl, "_blank");
+                return true;
+            } else {
+                console.error("Unexpected response:", result);
+                throw new Error(result.desc || "Không nhận được link thanh toán");
             }
-            throw new Error("Không nhận được link thanh toán");
         } catch (error) {
             console.error("❌ Error creating payment link:", error);
-            // Không throw lỗi để vẫn đặt bàn thành công dù thanh toán lỗi
-            alert("⚠️ Đặt bàn thành công nhưng tạo link thanh toán thất bại. Vui lòng liên hệ nhà hàng!");
+            alert(`⚠️ Đặt bàn thành công nhưng tạo link thanh toán thất bại!\nLỗi: ${error.message}`);
             return false;
         }
     };
@@ -234,80 +277,89 @@ const BookingDetail = () => {
 
         try {
             const token = localStorage.getItem('token');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const userData = JSON.parse(localStorage.getItem('user') || '{}');
 
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
             const reservationDateTime = `${data.date} ${data.time}`;
 
-            // 🔥 Gửi foodId từ bảng foods
+            // 🔥 Tạo requestData (chưa gửi lên backend)
             const requestData = {
-                userId: user.id,
+                userId: userData.id,
                 branchId: branch?.id,
-                tableId: data.table,
-                roomId: null,
+                tableId: data.selectedType === "table" ? data.selectedTableId : null,
+                roomId: data.selectedType === "room" ? data.selectedRoomId : null,
                 reservationTime: reservationDateTime,
                 depositAmount: getPayableAmount(),
+                customerName: data.customerName.trim(),
+                customerPhone: data.phone.replace(/\s/g, ''),
+                customerEmail: data.email || "",
+                note: data.note || "",
                 items: data.selectedFoods.map(f => ({
-                    foodId: f.foodId,  // 🔥 ĐÂY LÀ foods.id (1, 2, 3...)
+                    branchFoodId: f.branchFoodId,
                     quantity: f.quantity
                 }))
             };
 
-            console.log("📤 Sending booking request:", JSON.stringify(requestData, null, 2));
-            console.log("Food IDs being sent:", data.selectedFoods.map(f => ({
-                foodId: f.foodId,
-                name: f.name,
-                branchFoodId: f.branchFoodId
-            })));
+            console.log("📝 Booking data to save:", requestData);
 
-            const response = await fetch(`${API}/api/reservations/full`, {
+            // 🔥 Bước 1: Tạo payment link trước
+            const payableAmount = getPayableAmount();
+            const items = data.selectedFoods.map(food => ({
+                name: food.name,
+                quantity: food.quantity,
+                price: Math.floor(food.price)
+            }));
+
+            const tempOrderCode = Date.now() % 2147483647;
+            const shortDescription = `Dat ban ${branch?.name?.substring(0, 10) || ''}`.substring(0, 25);
+
+            const paymentRequest = {
+                orderCode: tempOrderCode,
+                amount: Math.floor(payableAmount),
+                description: shortDescription,
+                returnUrl: `${window.location.origin}/payment-success`,
+                cancelUrl: `${window.location.origin}/payment-cancel`,
+                items: items
+            };
+
+            console.log("📤 Creating payment link...");
+
+            const paymentResponse = await fetch(`${API}/api/payos/create`, {
                 method: "POST",
-                headers: headers,
-                body: JSON.stringify(requestData)
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(paymentRequest)
             });
 
+            const paymentResult = await paymentResponse.json();
+            console.log("PayOS response:", paymentResult);
 
-            const responseText = await response.text();
-            console.log("📥 Response:", responseText);
-
-            if (!response.ok) {
-                let errorMessage = "Đặt bàn thất bại";
-                try {
-                    const errorJson = JSON.parse(responseText);
-                    errorMessage = errorJson.message || errorJson.error || responseText;
-                } catch (e) {
-                    errorMessage = responseText || "Lỗi không xác định";
-                }
-                throw new Error(errorMessage);
+            if (paymentResult.code !== "00" || !paymentResult.data?.checkoutUrl) {
+                throw new Error(paymentResult.desc || "Không thể tạo link thanh toán");
             }
 
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch (e) {
-                result = { id: responseText };
-            }
+            // 🔥 Bước 2: Lưu dữ liệu đặt bàn vào sessionStorage (chưa tạo reservation)
+            const tempBookingData = {
+                ...requestData,
+                orderCode: tempOrderCode
+            };
+            sessionStorage.setItem('tempBooking', JSON.stringify(tempBookingData));
+            console.log("💾 Saved temp booking data to sessionStorage");
 
-            console.log("✅ Booking success:", result);
+            // 🔥 Bước 3: Mở cửa sổ thanh toán
+            window.open(paymentResult.data.checkoutUrl, "_blank");
 
-            const reservationId = result.id;
+            alert("Vui lòng thanh toán để hoàn tất đặt bàn!");
 
-            // Nếu cần thanh toán qua PayOS
-            if (getPayableAmount() > 0) {
-                const orderCode = Date.now();
-                await createPaymentLink(reservationId, orderCode);
-            }
-
-            alert(`🎉 Đặt bàn thành công!\n\nMã đặt bàn: ${reservationId}\nSố tiền cần thanh toán: ${getPayableAmount().toLocaleString()}đ`);
-
-            // Reset form hoặc chuyển hướng
-            // window.location.href = "/booking-success";
+            // 🔥 Không tạo reservation ở đây nữa
 
         } catch (err) {
             console.error("❌ Booking error:", err);
-            alert(`❌ Đặt bàn thất bại!\n${err.message || "Vui lòng thử lại sau"}`);
+            alert(`❌ ${err.message || "Vui lòng thử lại sau"}`);
         } finally {
             setLoading(false);
         }
@@ -395,7 +447,7 @@ const BookingDetail = () => {
                             <div className={styles.selectedFoods}>
                                 <h4>📋 Món đã chọn:</h4>
                                 {data.selectedFoods.map(food => (
-                                    <div key={food.id} className={styles.foodItem}>
+                                    <div key={food.branchFoodId} className={styles.foodItem}>
                                         <img
                                             src={food.imageUrl?.startsWith("http") ? food.imageUrl : `${API}${food.imageUrl || ""}`}
                                             alt={food.name}
@@ -407,10 +459,10 @@ const BookingDetail = () => {
                                             <span className={styles.foodPrice}>{food.price.toLocaleString()}đ</span>
                                         </div>
                                         <div className={styles.foodControls}>
-                                            <button onClick={() => updateQuantity(food.id, food.quantity - 1)}>-</button>
+                                            <button onClick={() => updateQuantity(food.branchFoodId, food.quantity - 1)}>-</button>
                                             <span className={styles.quantity}>{food.quantity}</span>
-                                            <button onClick={() => updateQuantity(food.id, food.quantity + 1)}>+</button>
-                                            <button onClick={() => handleRemoveFood(food.id)} className={styles.removeBtn}>🗑️</button>
+                                            <button onClick={() => updateQuantity(food.branchFoodId, food.quantity + 1)}>+</button>
+                                            <button onClick={() => handleRemoveFood(food.branchFoodId)} className={styles.removeBtn}>🗑️</button>
                                         </div>
                                         <div className={styles.foodSubtotal}>
                                             {(food.price * food.quantity).toLocaleString()}đ
@@ -432,7 +484,7 @@ const BookingDetail = () => {
                     </div>
                 )}
 
-                {/* STEP 5: Thông tin khách */}
+                {/* STEP 5: Thông tin khách - ĐÃ TỰ ĐỘNG ĐIỀN */}
                 {step === 5 && (
                     <div className={styles.card}>
                         <h3>👤 Thông tin khách hàng</h3>
@@ -579,7 +631,7 @@ const BookingDetail = () => {
                             <div className={styles.summaryFoods}>
                                 <strong>🍜 Món đã chọn:</strong>
                                 {data.selectedFoods.map(f => (
-                                    <div key={f.id} className={styles.summaryFood}>
+                                    <div key={f.branchFoodId} className={styles.summaryFood}>
                                         {f.name} x{f.quantity}: {(f.price * f.quantity).toLocaleString()}đ
                                     </div>
                                 ))}
