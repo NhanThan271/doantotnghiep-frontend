@@ -4,7 +4,7 @@ import styles from '../../../layouts/AdminLayout.module.css';
 
 const POSITIONS = [
     { value: 'WAITER', label: 'Phục vụ' },
-    { value: 'CHEF', label: 'Đầu bếp' },
+    { value: 'CHEF', label: 'Bếp' },
     { value: 'CASHIER', label: 'Thu ngân' },
     { value: 'STOCK', label: 'Kho' },
 ];

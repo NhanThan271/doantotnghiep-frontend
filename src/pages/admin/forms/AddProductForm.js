@@ -23,7 +23,7 @@ export default function AddProductForm({ closeForm, onSave }) {
     const fetchCategories = async () => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/employee/categories`, {
+            const response = await fetch(`${API_BASE_URL}/api/categories`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

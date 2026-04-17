@@ -74,7 +74,7 @@ export default function AddCategory({ onClose, onSuccess }) {
                 formDataToSend.append('imageUrl', formData.imageUrl.trim());
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/employee/categories`, {
+            const response = await fetch(`${API_BASE_URL}/api/categories`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`

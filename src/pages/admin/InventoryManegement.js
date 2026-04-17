@@ -1,1101 +1,905 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
-    Package,
-    Clock,
-    CheckCircle,
-    XCircle,
-    Search,
-    Check,
-    X,
-    MapPin,
-    Calendar,
-    User,
-    FileText,
-    ArrowUpCircle,
-    ArrowDownCircle,
-    History,
-    TrendingUp,
-    AlertTriangle,
-    ChevronRight
+    Clock, CheckCircle, XCircle, Check, X,
+    MapPin, Calendar, User, FileText, ArrowUpCircle, ArrowDownCircle,
+    History, Warehouse, PlusCircle, Download, BarChart2, Store
 } from 'lucide-react';
 import './InventoryManegement.css';
 import io from 'socket.io-client';
 
 const socket = io('http://localhost:3001');
+const API_BASE_URL = 'http://localhost:8080';
 
+const token = () => localStorage.getItem('token');
+const apiFetch = (url, opts = {}) =>
+    fetch(`${API_BASE_URL}${url}`, {
+        ...opts,
+        headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json', ...opts.headers }
+    });
+
+const fmtDate = d => new Date(d).toLocaleString('vi-VN');
+
+const StatusBadge = ({ status }) => {
+    const map = {
+        PENDING: { cls: 'badge status-pending', icon: <Clock size={12} />, label: 'Chờ duyệt' },
+        APPROVED: { cls: 'badge status-approved', icon: <CheckCircle size={12} />, label: 'Đã duyệt' },
+        REJECTED: { cls: 'badge status-rejected', icon: <XCircle size={12} />, label: 'Từ chối' },
+    };
+    const s = map[status] || map.PENDING;
+    return <span className={s.cls}>{s.icon} {s.label}</span>;
+};
+
+const TypeBadge = ({ type }) => {
+    const isImport = type === 'IMPORT';
+    return (
+        <span className={`badge ${isImport ? 'type-import' : 'type-export'}`}>
+            {isImport ? <ArrowDownCircle size={12} /> : <ArrowUpCircle size={12} />}
+            {isImport ? 'Nhập kho' : 'Xuất kho'}
+        </span>
+    );
+};
+
+const StockBadge = ({ qty }) => {
+    if (qty === 0) return <span className="badge status-rejected">Hết hàng</span>;
+    if (qty < 10) return <span className="badge status-pending">Sắp hết</span>;
+    return <span className="badge status-approved">Đủ hàng</span>;
+};
+
+const colorMap = { success: '#10b981', warning: '#f59e0b', error: '#ef4444', info: '#6366f1' };
+
+function ToastContainer({ items, remove }) {
+    return (
+        <div style={{
+            position: 'fixed', top: 20, right: 20, zIndex: 9999,
+            display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 360
+        }}>
+            {items.map(n => (
+                <div
+                    key={n.id}
+                    onClick={() => { n.onClick?.(); remove(n.id); }}
+                    style={{
+                        background: colorMap[n.type] || '#6366f1', color: '#fff',
+                        padding: '14px 16px', borderRadius: 10,
+                        boxShadow: '0 4px 12px rgba(0,0,0,.25)',
+                        cursor: n.onClick ? 'pointer' : 'default',
+                        display: 'flex', gap: 10, alignItems: 'flex-start'
+                    }}
+                >
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{n.title}</div>
+                        <div style={{ fontSize: 13, opacity: .9 }}>{n.message}</div>
+                    </div>
+                    <button
+                        onClick={e => { e.stopPropagation(); remove(n.id); }}
+                        style={{
+                            background: 'rgba(255,255,255,.2)', border: 'none', color: '#fff',
+                            borderRadius: '50%', width: 22, height: 22, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                        }}
+                    >
+                        <X size={13} />
+                    </button>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/* Main Component */
 export default function InventoryManagement() {
-    const [activeTab, setActiveTab] = useState('overview');
-    const [branches, setBranches] = useState([]);
-    const [products, setProducts] = useState([]);
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    const [toasts, setToasts] = useState([]);
+    const addToast = useCallback((t) => {
+        const id = Date.now() + Math.random();
+        setToasts(p => [...p, { ...t, id }]);
+        setTimeout(() => setToasts(p => p.filter(x => x.id !== id)), 8000);
+    }, []);
+    const removeToast = id => setToasts(p => p.filter(x => x.id !== id));
+
+    const [tab, setTab] = useState('warehouse');
+
+    /* Warehouses */
+    const [warehouses, setWarehouses] = useState([]);
+    const [whName, setWhName] = useState('');
+    const [whLoading, setWhLoading] = useState(false);
+
+    const fetchWarehouses = useCallback(async () => {
+        const r = await apiFetch('/api/warehouses');
+        if (r.ok) setWarehouses(await r.json());
+    }, []);
+
+    const createWarehouse = async () => {
+        if (!whName.trim()) return;
+        setWhLoading(true);
+        const r = await apiFetch('/api/warehouses', { method: 'POST', body: JSON.stringify({ name: whName }) });
+        if (r.ok) {
+            setWhName('');
+            fetchWarehouses();
+            addToast({ type: 'success', title: 'Tạo kho thành công', message: whName });
+        }
+        setWhLoading(false);
+    };
+
+    /* Import */
     const [ingredients, setIngredients] = useState([]);
-    const [branchIngredients, setBranchIngredients] = useState([]);
-    const [inventoryRequests, setInventoryRequests] = useState([]);
-    const [requestItems, setRequestItems] = useState({});
+    const [importForm, setImportForm] = useState({
+        warehouseId: '',
+        items: [{ ingredientId: '', quantity: '', expiryDate: '' }]
+    });
+    const [importLoading, setImportLoading] = useState(false);
+
+    const fetchIngredients = useCallback(async () => {
+        const r = await apiFetch('/api/ingredients');
+        if (r.ok) setIngredients(await r.json());
+    }, []);
+
+    const addImportRow = () => setImportForm(f => ({ ...f, items: [...f.items, { ingredientId: '', quantity: '', expiryDate: '' }] }));
+    const removeImportRow = i => setImportForm(f => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }));
+    const updateImportRow = (i, field, val) =>
+        setImportForm(f => ({ ...f, items: f.items.map((r, idx) => idx === i ? { ...r, [field]: val } : r) }));
+
+    const submitImport = async () => {
+        if (!importForm.warehouseId) { addToast({ type: 'warning', title: 'Chưa chọn kho', message: '' }); return; }
+        const valid = importForm.items.every(it => it.ingredientId && it.quantity > 0 && it.expiryDate);
+        if (!valid) { addToast({ type: 'warning', title: 'Vui lòng điền đầy đủ thông tin', message: '' }); return; }
+        setImportLoading(true);
+        const r = await apiFetch('/api/warehouses/import', {
+            method: 'POST',
+            body: JSON.stringify({
+                warehouseId: Number(importForm.warehouseId),
+                items: importForm.items.map(it => ({
+                    ingredientId: Number(it.ingredientId),
+                    quantity: Number(it.quantity),
+                    expiryDate: it.expiryDate
+                }))
+            })
+        });
+        if (r.ok) {
+            addToast({ type: 'success', title: 'Nhập kho thành công', message: `${importForm.items.length} nguyên liệu` });
+            setImportForm({ warehouseId: '', items: [{ ingredientId: '', quantity: '', expiryDate: '' }] });
+            fetchWarehouseInventory(importForm.warehouseId);
+        } else {
+            addToast({ type: 'error', title: 'Nhập kho thất bại', message: '' });
+        }
+        setImportLoading(false);
+    };
+
+    /* Warehouse Inventory */
+    const [whInventory, setWhInventory] = useState([]);
+    const [selectedWh, setSelectedWh] = useState('');
+
+    const fetchWarehouseInventory = useCallback(async (wid) => {
+        if (!wid) return;
+        const r = await apiFetch(`/api/warehouse-inventory?warehouseId=${wid}`);
+        if (r.ok) setWhInventory(await r.json());
+    }, []);
+
+    /* Branches */
+    const [branches, setBranches] = useState([]);
     const [selectedBranch, setSelectedBranch] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [branchIngredients, setBranchIngredients] = useState([]);
+
+    const fetchBranches = useCallback(async () => {
+        const r = await apiFetch('/api/branches');
+        if (r.ok) {
+            const d = await r.json();
+            setBranches(d);
+            if (d.length > 0) setSelectedBranch(d[0]);
+        }
+    }, []);
+
+    const fetchBranchIngredients = useCallback(async (bid) => {
+        const r = await apiFetch(`/api/branch-ingredients/branch/${bid}`);
+        if (r.ok) setBranchIngredients(await r.json());
+        else setBranchIngredients([]);
+    }, []);
+
+    /* Requests */
+    const [requests, setRequests] = useState([]);
+    const [requestItems, setRequestItems] = useState({});
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterType, setFilterType] = useState('all');
-    const [selectedRequest, setSelectedRequest] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [rejectionNote, setRejectionNote] = useState('');
-    const [showRejectModal, setShowRejectModal] = useState(null);
-    const [notifications, setNotifications] = useState([]);
+    const [search, setSearch] = useState('');
+    const [selectedReq, setSelectedReq] = useState(null);
+    const [rejectModal, setRejectModal] = useState(null);
+    const [rejectNote, setRejectNote] = useState('');
+    const [reqLoading, setReqLoading] = useState(false);
+    const processed = useRef(new Set());
 
-    const API_BASE_URL = 'http://localhost:8080';
-    const user = JSON.parse(localStorage.getItem('user'));
+    /* History */
+    const [exportHistory, setExportHistory] = useState([]);
+    const [importHistory, setImportHistory] = useState([]);
+    const [selectedExport, setSelectedExport] = useState(null);
+    const [exportDetail, setExportDetail] = useState(null);
+    const [historyTab, setHistoryTab] = useState('export'); // 'export' | 'import'
 
-    const processedRequests = useRef(new Set());
+    const fetchRequests = useCallback(async () => {
+        const r = await apiFetch('/api/inventory-requests');
+        if (!r.ok) return;
+        const data = await r.json();
+        setRequests(data);
+        const map = {};
+        await Promise.all(data.map(async req => {
+            const ir = await apiFetch(`/api/inventory-request-items/request/${req.id}`);
+            map[req.id] = ir.ok ? await ir.json() : [];
+        }));
+        setRequestItems(map);
+    }, []);
 
-    // Socket connection
+    const fetchExportHistory = useCallback(async () => {
+        const r = await apiFetch('/api/warehouse-exports');
+        if (r.ok) setExportHistory(await r.json());
+    }, []);
+
+    const fetchImportHistory = useCallback(async () => {
+        const r = await apiFetch('/api/warehouses/inventory-history');
+        if (r.ok) setImportHistory(await r.json());
+    }, []);
+
+    const fetchExportDetail = useCallback(async (id) => {
+        const r = await apiFetch(`/api/warehouse-exports/${id}`);
+        if (r.ok) {
+            const d = await r.json();
+            setExportDetail(d);
+        }
+    }, []);
+
+    const getItems = id => requestItems[id] || [];
+    const getFirst = id => getItems(id)[0] || null;
+
+    const approveReq = async (id) => {
+        setReqLoading(true);
+        const req = requests.find(r => r.id === id);
+        await apiFetch(`/api/inventory-requests/${id}/approve`, { method: 'PUT' });
+        socket.emit('inventory-request-approved', { requestId: id, branchId: req?.branch?.id, approvedBy: user.fullName });
+        addToast({ type: 'success', title: `Đã duyệt #${id}`, message: req?.branch?.name });
+        await fetchRequests();
+        setSelectedReq(null);
+        setReqLoading(false);
+    };
+
+    const rejectReq = async (id, note) => {
+        setReqLoading(true);
+        const req = requests.find(r => r.id === id);
+        await apiFetch(`/api/inventory-requests/${id}/reject`, { method: 'PUT', body: JSON.stringify(note) });
+        socket.emit('inventory-request-rejected', { requestId: id, branchId: req?.branch?.id, note });
+        addToast({ type: 'warning', title: `Đã từ chối #${id}`, message: req?.branch?.name });
+        await fetchRequests();
+        setSelectedReq(null);
+        setRejectModal(null);
+        setRejectNote('');
+        setReqLoading(false);
+    };
+
+    /* Socket & lifecycle */
     useEffect(() => {
-        console.log('🔌 Admin connecting to socket server...');
-
-        // ĐĂNG KÝ ROLE ADMIN
-        socket.emit('register-role', {
-            role: 'admin',
-            userId: user?.id
-        });
-
-        // ===== LẮNG NGHE YÊU CẦU MỚI TỪ MANAGER =====
+        socket.emit('register-role', { role: 'admin', userId: user?.id });
         socket.on('new-inventory-request', (data) => {
-            const requestKey = `${data.requestId}-${data.branchId}`;
-
-            // Kiểm tra đã xử lý chưa
-            if (processedRequests.current.has(requestKey)) {
-                console.log('⏭️ Bỏ qua yêu cầu đã xử lý:', requestKey);
-                return;
-            }
-
-            // Đánh dấu đã xử lý
-            processedRequests.current.add(requestKey);
-            addNotification({
+            const key = `${data.requestId}-${data.branchId}`;
+            if (processed.current.has(key)) return;
+            processed.current.add(key);
+            addToast({
                 type: 'info',
-                title: `📦 Đã nhận được yêu cầu nhập kho mới!`,
-                message: `Chi nhánh ${data.branchName} yêu cầu nhập ${data.ingredientName} - Số lượng: ${data.quantity} ${data.unit}`,
-                onClick: () => {
-                    setActiveTab('requests');
-                    setFilterStatus('PENDING');
-                }
+                title: 'Yêu cầu nhập kho mới',
+                message: `${data.branchName} — ${data.ingredientName}`,
+                onClick: () => setTab('requests')
             });
-
-            fetchInventoryRequests();
+            fetchRequests();
         });
-
-        socket.on('inventory-updated', (data) => {
-            fetchInventoryRequests();
-            if (selectedBranch) {
-                fetchBranchIngredients(selectedBranch.id);
-            }
+        socket.on('inventory-updated', () => {
+            fetchRequests();
+            if (selectedBranch) fetchBranchIngredients(selectedBranch.id);
         });
-
         return () => {
             socket.off('new-inventory-request');
             socket.off('inventory-updated');
         };
     }, [selectedBranch, user?.id]);
 
-    // Notification system
-    const addNotification = (notification) => {
-        const id = Date.now() + Math.random();
-        setNotifications(prev => [...prev, { ...notification, id }]);
-
-        // Auto remove after 8 seconds
-        setTimeout(() => {
-            removeNotification(id);
-        }, 8000);
-    };
-
-    const removeNotification = (id) => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-    };
-
-    const POLLING_INTERVAL = 10000;
-
     useEffect(() => {
-        fetchBranches();
-        fetchProducts();
+        fetchWarehouses();
         fetchIngredients();
-        fetchInventoryRequests();
+        fetchBranches();
+        fetchRequests();
+        fetchExportHistory();
+        fetchImportHistory();
     }, []);
-
+    useEffect(() => { if (selectedBranch) fetchBranchIngredients(selectedBranch.id); }, [selectedBranch]);
+    useEffect(() => { if (selectedWh) fetchWarehouseInventory(selectedWh); }, [selectedWh]);
     useEffect(() => {
-        if (selectedBranch) {
-            fetchBranchIngredients(selectedBranch.id);
-        }
-    }, [selectedBranch]);
-
-    useEffect(() => {
-        const intervalId = setInterval(() => {
-            if (!selectedRequest && !showRejectModal) {
-                fetchInventoryRequests();
-                if (selectedBranch) {
-                    fetchBranchIngredients(selectedBranch.id);
-                }
+        const id = setInterval(() => {
+            if (!selectedReq && !rejectModal) {
+                fetchRequests();
+                if (selectedBranch) fetchBranchIngredients(selectedBranch.id);
             }
-        }, POLLING_INTERVAL);
+        }, 10000);
+        return () => clearInterval(id);
+    }, [selectedBranch, selectedReq, rejectModal]);
 
-        return () => clearInterval(intervalId);
-    }, [selectedBranch, selectedRequest, showRejectModal]);
+    const pendingCount = requests.filter(r => r.status === 'PENDING').length;
 
-    const fetchBranches = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/branches`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await response.json();
-            setBranches(data);
-            if (data.length > 0) setSelectedBranch(data[0]);
-        } catch (error) {
-            console.error('Error fetching branches:', error);
-        }
-    };
-
-    const fetchProducts = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/foods`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await response.json();
-            setProducts(data);
-        } catch (error) {
-            console.error('Error fetching products:', error);
-        }
-    };
-
-    const fetchIngredients = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/ingredients`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await response.json();
-            setIngredients(data);
-        } catch (error) {
-            console.error('Error fetching ingredients:', error);
-        }
-    };
-
-    const fetchBranchIngredients = async (branchId) => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/branch-ingredients/branch/${branchId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            const data = await response.json();
-            setBranchIngredients(data);
-        } catch (error) {
-            console.error('Error fetching branch ingredients:', error);
-            setBranchIngredients([]);
-        }
-    };
-
-    const fetchInventoryRequests = useCallback(async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/inventory-requests`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch inventory requests');
-            }
-
-            const data = await response.json();
-            setInventoryRequests(data);
-
-            const itemsMap = {};
-            for (const request of data) {
-                try {
-                    const itemsResponse = await fetch(
-                        `${API_BASE_URL}/api/inventory-request-items/request/${request.id}`,
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    );
-                    if (itemsResponse.ok) {
-                        const items = await itemsResponse.json();
-                        itemsMap[request.id] = items;
-                    }
-                } catch (error) {
-                    console.error(`Error fetching items for request ${request.id}:`, error);
-                    itemsMap[request.id] = [];
-                }
-            }
-            setRequestItems(itemsMap);
-        } catch (error) {
-            console.error('Error fetching inventory requests:', error);
-            setInventoryRequests([]);
-        }
-    }, []);
-
-    const approveRequest = async (requestId) => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const request = inventoryRequests.find(r => r.id === requestId);
-            const items = getRequestItems(requestId);
-
-            await fetch(`${API_BASE_URL}/api/inventory-requests/${requestId}/approve`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                }
-            });
-
-            // ===== GỬI THÔNG BÁO SOCKET ĐẾN MANAGER =====
-            socket.emit('inventory-request-approved', {
-                requestId,
-                branchId: request?.branch?.id,
-                branchName: request?.branch?.name,
-                items: items.map(item => ({
-                    ingredientId: item.ingredient?.id,
-                    ingredientName: item.ingredient?.name,
-                    quantity: item.quantity,
-                    unit: item.ingredient?.unit
-                })),
-                approvedBy: user?.fullName || user?.username
-            });
-
-            // Thông báo thành công
-            addNotification({
-                type: 'success',
-                title: `Đã duyệt yêu cầu #${requestId}`,
-                message: `Chi nhánh: ${request?.branch?.name} - ${items.length} nguyên liệu`
-            });
-
-            await fetchInventoryRequests();
-            if (selectedBranch) {
-                await fetchBranchIngredients(selectedBranch.id);
-            }
-            setSelectedRequest(null);
-        } catch (error) {
-            console.error('Error approving request:', error);
-            addNotification({
-                type: 'error',
-                title: 'Lỗi',
-                message: 'Không thể duyệt yêu cầu'
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const rejectRequest = async (requestId, note) => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const request = inventoryRequests.find(r => r.id === requestId);
-
-            await fetch(`${API_BASE_URL}/api/inventory-requests/${requestId}/reject`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(note)
-            });
-
-            // ===== GỬI THÔNG BÁO SOCKET ĐẾN MANAGER =====
-            socket.emit('inventory-request-rejected', {
-                requestId,
-                branchId: request?.branch?.id,
-                branchName: request?.branch?.name,
-                note,
-                rejectedBy: user?.fullName || user?.username
-            });
-
-            // Thông báo thành công
-            addNotification({
-                type: 'warning',
-                title: `Đã từ chối yêu cầu #${requestId}`,
-                message: `Chi nhánh: ${request?.branch?.name}`
-            });
-
-            await fetchInventoryRequests();
-            setSelectedRequest(null);
-            setShowRejectModal(null);
-            setRejectionNote('');
-        } catch (error) {
-            console.error('Error rejecting request:', error);
-            addNotification({
-                type: 'error',
-                title: 'Lỗi',
-                message: 'Không thể từ chối yêu cầu'
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getStatusBadge = (status) => {
-        const config = {
-            PENDING: { class: 'status-pending', icon: Clock, text: 'Chờ duyệt' },
-            APPROVED: { class: 'status-approved', icon: CheckCircle, text: 'Đã duyệt' },
-            REJECTED: { class: 'status-rejected', icon: XCircle, text: 'Từ chối' }
-        };
-        const { class: className, icon: Icon, text } = config[status];
-
+    const filteredReqs = requests.filter(req => {
+        const items = getItems(req.id);
+        const names = items.map(i => i.ingredient?.name?.toLowerCase() || '').join(' ');
+        const branch = req.branch?.name?.toLowerCase() || '';
+        const kw = search.toLowerCase();
         return (
-            <div className={`badge ${className}`}>
-                <Icon size={16} />
-                {text}
-            </div>
+            (names.includes(kw) || branch.includes(kw)) &&
+            (filterStatus === 'all' || req.status === filterStatus) &&
+            (filterType === 'all' || req.type === filterType)
         );
-    };
-
-    const getTypeBadge = (type) => {
-        const isImport = type === 'IMPORT';
-        return (
-            <div className={`badge ${isImport ? 'type-import' : 'type-export'}`}>
-                {isImport ? <ArrowDownCircle size={16} /> : <ArrowUpCircle size={16} />}
-                {isImport ? 'Nhập kho' : 'Xuất kho'}
-            </div>
-        );
-    };
-
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleString('vi-VN');
-    };
-
-    const getStockStatus = (quantity) => {
-        if (quantity === 0) return 'out-of-stock';
-        if (quantity < 10) return 'low-stock';
-        return '';
-    };
-
-    const getRequestItems = (requestId) => {
-        return requestItems[requestId] || [];
-    };
-
-    const getRequestFirstIngredient = (requestId) => {
-        const items = getRequestItems(requestId);
-        return items.length > 0 ? items[0] : null;
-    };
-
-    const filteredRequests = inventoryRequests.filter(req => {
-        const items = getRequestItems(req.id);
-        const ingredientNames = items.map(item => item.ingredient?.name?.toLowerCase() || '').join(' ');
-        const branchName = req.branch?.name?.toLowerCase() || '';
-        const keyword = searchTerm.toLowerCase();
-
-        const matchesSearch =
-            ingredientNames.includes(keyword) ||
-            branchName.includes(keyword);
-
-        const matchesStatus =
-            filterStatus === 'all' || req.status === filterStatus;
-
-        const matchesType =
-            filterType === 'all' || req.type === filterType;
-
-        return matchesSearch && matchesStatus && matchesType;
     });
 
-    const stats = {
-        pending: inventoryRequests.filter(r => r.status === 'PENDING').length,
-        approved: inventoryRequests.filter(r => r.status === 'APPROVED').length,
-        rejected: inventoryRequests.filter(r => r.status === 'REJECTED').length,
-        total: inventoryRequests.length
+    /* Stats */
+    const stats = [
+        { key: 'total', label: 'Tổng yêu cầu', count: requests.length, icon: <FileText size={24} color="#3B82F6" /> },
+        { key: 'pending', label: 'Chờ duyệt', count: requests.filter(r => r.status === 'PENDING').length, icon: <Clock size={24} color="#F59E0B" /> },
+        { key: 'approved', label: 'Đã duyệt', count: requests.filter(r => r.status === 'APPROVED').length, icon: <CheckCircle size={24} color="#10B981" /> },
+        { key: 'rejected', label: 'Từ chối', count: requests.filter(r => r.status === 'REJECTED').length, icon: <XCircle size={24} color="#EF4444" /> },
+    ];
+
+    const TABS = [
+        { id: 'warehouse', label: 'Kho tổng', icon: Warehouse },
+        { id: 'import', label: 'Nhập kho', icon: Download },
+        { id: 'wh-stock', label: 'Tồn kho tổng', icon: BarChart2 },
+        { id: 'branch-stock', label: 'Tồn kho chi nhánh', icon: Store },
+        { id: 'requests', label: 'Yêu cầu', icon: FileText, badge: pendingCount },
+        { id: 'history', label: 'Lịch sử', icon: History },
+    ];
+
+    /* quantity className */
+    const qtyClass = (qty) => {
+        if (qty === 0) return 'quantity-value out-of-stock';
+        if (qty < 10) return 'quantity-value low-stock';
+        return 'quantity-value';
     };
 
     return (
         <div className="inventory-container">
-            {/* Notification Toast Container */}
-            <div style={{
-                position: 'fixed',
-                top: '20px',
-                right: '20px',
-                zIndex: 9999,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                maxWidth: '400px'
-            }}>
-                {notifications.map((notif) => (
-                    <div
-                        key={notif.id}
-                        onClick={() => {
-                            if (notif.onClick) notif.onClick();
-                            removeNotification(notif.id);
-                        }}
-                        style={{
-                            background: notif.type === 'success'
-                                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                                : notif.type === 'warning'
-                                    ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                                    : notif.type === 'error'
-                                        ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-                                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            color: 'white',
-                            padding: '16px',
-                            borderRadius: '12px',
-                            boxShadow: '0 8px 16px rgba(0,0,0,0.3)',
-                            cursor: notif.onClick ? 'pointer' : 'default',
-                            animation: 'slideInRight 0.3s ease-out',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px'
-                        }}
-                    >
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'flex-start',
-                            gap: '12px'
-                        }}>
-                            <div style={{ flex: 1 }}>
-                                <strong style={{ fontSize: '15px', display: 'block', marginBottom: '4px' }}>
-                                    {notif.title}
-                                </strong>
-                                <span style={{ fontSize: '13px', opacity: 0.9 }}>
-                                    {notif.message}
-                                </span>
-                                {notif.onClick && (
-                                    <span style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px', display: 'block' }}>
-                                        👉 Click để xem chi tiết
-                                    </span>
-                                )}
+            <ToastContainer items={toasts} remove={removeToast} />
+
+            {/* Header */}
+            <div className="inventory-header">
+                <h1>Quản lý kho</h1>
+                <p><Warehouse size={16} /> Theo dõi kho tổng, chi nhánh và yêu cầu nhập xuất</p>
+            </div>
+
+            {/* Stats */}
+            <div className="stats-grid">
+                {stats.map(s => (
+                    <div key={s.key} className={`stat-card ${s.key}`}>
+                        <div className="stat-card-content">
+                            <div className={`stat-icon ${s.key}`}>{s.icon}</div>
+                            <div>
+                                <div className={`stat-number ${s.key}`}>{s.count}</div>
+                                <div className="stat-label">{s.label}</div>
                             </div>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeNotification(notif.id);
-                                }}
-                                style={{
-                                    background: 'rgba(255,255,255,0.2)',
-                                    border: 'none',
-                                    color: 'white',
-                                    borderRadius: '50%',
-                                    width: '24px',
-                                    height: '24px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    flexShrink: 0
-                                }}
-                            >
-                                <X size={14} />
-                            </button>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Header */}
-            <div className="inventory-header">
-                <h1>Quản Lý Kho Toàn Hệ Thống</h1>
-                <p>
-                    <Package size={16} />
-                    Theo dõi và quản lý tồn kho, duyệt yêu cầu nhập xuất
-                    <span style={{
-                        marginLeft: '12px',
-                        fontSize: '12px',
-                        color: '#10B981',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                    }}>
-                    </span>
-                </p>
-            </div>
-
             {/* Tabs */}
             <div className="inventory-tabs">
-                {[
-                    { id: 'overview', label: 'Tổng quan', icon: Package },
-                    { id: 'requests', label: 'Yêu cầu nhập kho', icon: FileText, badge: stats.pending },
-                    { id: 'inventory', label: 'Tồn kho chi nhánh', icon: TrendingUp },
-                    { id: 'history', label: 'Lịch sử giao dịch', icon: History }
-                ].map(tab => {
-                    const Icon = tab.icon;
+                {TABS.map(t => {
+                    const Icon = t.icon;
                     return (
                         <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`inventory-tab ${activeTab === tab.id ? 'active' : ''}`}
+                            key={t.id}
+                            onClick={() => setTab(t.id)}
+                            className={`inventory-tab${tab === t.id ? ' active' : ''}`}
                         >
-                            <Icon size={18} />
-                            {tab.label}
-                            {tab.badge > 0 && (
-                                <span className="tab-badge">{tab.badge}</span>
+                            <Icon size={15} /> {t.label}
+                            {t.badge > 0 && (
+                                <span style={{
+                                    background: '#ef4444', color: '#fff',
+                                    borderRadius: 10, padding: '1px 7px',
+                                    fontSize: 11, fontWeight: 700, marginLeft: 4
+                                }}>
+                                    {t.badge}
+                                </span>
                             )}
                         </button>
                     );
                 })}
             </div>
 
-            {/* REST OF THE CODE - Overview Tab */}
-            {activeTab === 'overview' && (
-                <div>
-                    <div className="stats-grid">
-                        <div className="stat-card pending">
-                            <div className="stat-card-content">
-                                <div className="stat-icon pending">
-                                    <Clock size={24} color="#F59E0B" />
-                                </div>
-                                <div>
-                                    <div className="stat-number pending">{stats.pending}</div>
-                                    <div className="stat-label">Chờ duyệt</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="stat-card approved">
-                            <div className="stat-card-content">
-                                <div className="stat-icon approved">
-                                    <CheckCircle size={24} color="#10B981" />
-                                </div>
-                                <div>
-                                    <div className="stat-number approved">{stats.approved}</div>
-                                    <div className="stat-label">Đã duyệt</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="stat-card rejected">
-                            <div className="stat-card-content">
-                                <div className="stat-icon rejected">
-                                    <XCircle size={24} color="#EF4444" />
-                                </div>
-                                <div>
-                                    <div className="stat-number rejected">{stats.rejected}</div>
-                                    <div className="stat-label">Từ chối</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="stat-card total">
-                            <div className="stat-card-content">
-                                <div className="stat-icon total">
-                                    <Package size={24} color="#3B82F6" />
-                                </div>
-                                <div>
-                                    <div className="stat-number total">{stats.total}</div>
-                                    <div className="stat-label">Tổng yêu cầu</div>
-                                </div>
-                            </div>
+            {/* Kho tổng */}
+            {tab === 'warehouse' && (
+                <div style={{ display: 'grid', gap: 20 }}>
+                    {/* Create warehouse */}
+                    <div className="branch-inventory-section">
+                        <h3><PlusCircle size={16} /> Tạo kho mới</h3>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <input
+                                className="search-input"
+                                style={{ paddingLeft: 16 }}
+                                placeholder="Tên kho..."
+                                value={whName}
+                                onChange={e => setWhName(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && createWarehouse()}
+                            />
+                            <button
+                                className="btn-modal-approve"
+                                onClick={createWarehouse}
+                                disabled={whLoading || !whName.trim()}
+                                style={{ whiteSpace: 'nowrap', padding: '10px 20px' }}
+                            >
+                                <Check size={15} /> Tạo
+                            </button>
                         </div>
                     </div>
 
+                    {/* Warehouse list */}
                     <div className="branch-inventory-section">
-                        <h3>
-                            <AlertTriangle size={20} style={{ display: 'inline', marginRight: '8px', color: '#F59E0B' }} />
-                            Yêu cầu cần xử lý ({stats.pending})
-                        </h3>
-
-                        {inventoryRequests.filter(r => r.status === 'PENDING').length === 0 ? (
-                            <div className="empty-state">
-                                <CheckCircle size={64} style={{ margin: '0 auto', opacity: 0.2, color: '#10B981' }} />
-                                <p>Không có yêu cầu nào đang chờ duyệt</p>
-                            </div>
+                        <h3><Warehouse size={16} /> Danh sách kho ({warehouses.length})</h3>
+                        {warehouses.length === 0 ? (
+                            <div className="empty-state"><Warehouse size={40} /><p>Chưa có kho nào</p></div>
                         ) : (
-                            <div style={{ display: 'grid', gap: '16px' }}>
-                                {inventoryRequests
-                                    .filter(r => r.status === 'PENDING')
-                                    .slice(0, 5)
-                                    .map(request => (
-                                        <div
-                                            key={request.id}
-                                            className="request-card"
-                                            onClick={() => setSelectedRequest(request)}
-                                        >
-                                            <div className="request-header">
-                                                <div className="request-content">
-                                                    <div className="request-badges">
-                                                        {getTypeBadge(request.type)}
-                                                        {getStatusBadge(request.status)}
-                                                    </div>
-                                                    <h3 className="request-title">
-                                                        {(() => {
-                                                            const firstItem = getRequestFirstIngredient(request.id);
-                                                            const items = getRequestItems(request.id);
-                                                            if (!firstItem) return 'Không có nguyên liệu';
-                                                            if (items.length === 1) return firstItem.ingredient?.name || 'N/A';
-                                                            return `${firstItem.ingredient?.name || 'N/A'} (+${items.length - 1} NL khác)`;
-                                                        })()}
-                                                    </h3>
-                                                    <div className="request-details">
-                                                        <span className="request-detail-item">
-                                                            <MapPin size={14} />
-                                                            {request.branch?.name || 'N/A'}
-                                                        </span>
-                                                        <span className="request-detail-item">
-                                                            <Package size={14} />
-                                                            {(() => {
-                                                                const items = getRequestItems(request.id);
-                                                                return items.length === 1
-                                                                    ? `${items[0]?.quantity || 0} ${items[0]?.ingredient?.unit || ''}`
-                                                                    : `${items.length} nguyên liệu`;
-                                                            })()}
-                                                        </span>
-                                                        <span className="request-detail-item">
-                                                            <Calendar size={14} />
-                                                            {formatDate(request.requestedAt)}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <ChevronRight size={20} color="rgba(255,255,255,0.3)" />
-                                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                                {warehouses.map(w => (
+                                    <div key={w.id} className="branch-button" style={{ cursor: 'default' }}>
+                                        <Warehouse size={18} color="#667eea" />
+                                        <div>
+                                            <div style={{ fontWeight: 600, fontSize: 14 }}>{w.name}</div>
+                                            <div style={{ fontSize: 12, opacity: .6 }}>ID: {w.id}</div>
                                         </div>
-                                    ))}
+                                    </div>
+                                ))}
                             </div>
                         )}
-                    </div>
-
-                    <div className="branch-inventory-section">
-                        <h3>Tình trạng kho theo chi nhánh</h3>
-                        <div className="branch-buttons">
-                            {branches.map(branch => (
-                                <button
-                                    key={branch.id}
-                                    onClick={() => {
-                                        setSelectedBranch(branch);
-                                        setActiveTab('inventory');
-                                    }}
-                                    className="branch-button"
-                                >
-                                    <MapPin size={14} style={{ marginRight: '6px' }} />
-                                    {branch.name}
-                                </button>
-                            ))}
-                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Requests Tab */}
-            {activeTab === 'requests' && (
-                <div>
-                    <div className="filters-container">
-                        <div className="search-wrapper">
-                            <Search size={20} className="search-icon" />
-                            <input
-                                type="text"
-                                placeholder="Tìm kiếm yêu cầu..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px 16px 12px 48px',
-                                    background: 'var(--color-bg-dark)',
-                                    border: '1px solid var(--color-border)',
-                                    borderRadius: '12px',
-                                    color: 'var(--color-text-primary)',
-                                    fontSize: '14px',
-                                    outline: 'none',
-                                    transition: 'all 0.2s ease'
-                                }}
-                            />
+            {/* Nhập kho */}
+            {tab === 'import' && (
+                <div className="branch-inventory-section">
+                    <h3><Download size={16} /> Nhập nguyên liệu vào kho</h3>
+
+                    <div style={{ marginBottom: 16 }}>
+                        <label className="modal-field-label">Chọn kho *</label>
+                        <select
+                            className="search-input1"
+                            value={importForm.warehouseId}
+                            onChange={e => setImportForm(f => ({ ...f, warehouseId: e.target.value }))}
+                        >
+                            <option value="">-- Chọn kho --</option>
+                            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                        </select>
+                    </div>
+
+                    <div style={{ marginBottom: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                            <label className="modal-field-label">Danh sách nguyên liệu *</label>
+                            <button className="btn-reject" onClick={addImportRow} style={{ padding: '6px 14px', fontSize: 13 }}>
+                                <PlusCircle size={13} /> Thêm dòng
+                            </button>
                         </div>
 
+                        <div style={{ display: 'grid', gap: 8 }}>
+                            <div style={{
+                                display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto',
+                                gap: 8, fontSize: 12, color: 'rgba(255,255,255,.5)', padding: '0 4px'
+                            }}>
+                                <span>Nguyên liệu</span><span>Số lượng</span><span>Hạn sử dụng</span><span></span>
+                            </div>
+                            {importForm.items.map((row, i) => (
+                                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, alignItems: 'center' }}>
+                                    <select
+                                        className="search-input1"
+                                        value={row.ingredientId}
+                                        onChange={e => updateImportRow(i, 'ingredientId', e.target.value)}
+                                    >
+                                        <option value="">-- Chọn --</option>
+                                        {ingredients.map(ing => (
+                                            <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        className="search-input"
+                                        style={{ paddingLeft: 16 }}
+                                        type="number" min="0" placeholder="0"
+                                        value={row.quantity}
+                                        onChange={e => updateImportRow(i, 'quantity', e.target.value)}
+                                    />
+                                    <input
+                                        className="search-input"
+                                        style={{ paddingLeft: 16 }}
+                                        type="date"
+                                        value={row.expiryDate}
+                                        onChange={e => updateImportRow(i, 'expiryDate', e.target.value)}
+                                    />
+                                    <button
+                                        className="modal-close"
+                                        onClick={() => removeImportRow(i)}
+                                        disabled={importForm.items.length === 1}
+                                    >
+                                        <X size={13} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <button
+                        className="btn-modal-approve"
+                        onClick={submitImport}
+                        disabled={importLoading}
+                        style={{ width: '100%', justifyContent: 'center', padding: '13px 0' }}
+                    >
+                        {importLoading ? 'Đang xử lý...' : <><Download size={15} /> Xác nhận nhập kho</>}
+                    </button>
+                </div>
+            )}
+
+            {/* Tồn kho tổng */}
+            {tab === 'wh-stock' && (
+                <div style={{ display: 'grid', gap: 20 }}>
+                    <div className="branch-inventory-section">
+                        <label className="modal-field-label" style={{ display: 'block', marginBottom: 8 }}>
+                            Chọn kho để xem tồn kho
+                        </label>
                         <select
-                            value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value)}
                             className="search-input1"
+                            style={{ maxWidth: 320 }}
+                            value={selectedWh}
+                            onChange={e => setSelectedWh(e.target.value)}
                         >
+                            <option value="">-- Chọn kho --</option>
+                            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                        </select>
+                    </div>
+
+                    {selectedWh && (
+                        <div className="branch-inventory-section">
+                            <h3>
+                                {warehouses.find(w => String(w.id) === String(selectedWh))?.name}
+                                {' '}— Tồn kho ({whInventory.length} nguyên liệu)
+                            </h3>
+                            {whInventory.length === 0 ? (
+                                <div className="empty-state"><BarChart2 size={40} /><p>Kho trống</p></div>
+                            ) : (
+                                <div className="inventory-table-container">
+                                    <table className="inventory-table">
+                                        <thead>
+                                            <tr>
+                                                {['Nguyên liệu', 'Đơn vị', 'Số lượng', 'Trạng thái'].map(h => (
+                                                    <th key={h}>{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {whInventory.map(item => (
+                                                <tr key={item.id}>
+                                                    <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
+                                                    <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
+                                                    <td className={qtyClass(item.quantity ?? 0)}>{item.quantity ?? 0}</td>
+                                                    <td><StockBadge qty={item.quantity ?? 0} /></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Tồn kho chi nhánh */}
+            {tab === 'branch-stock' && (
+                <div style={{ display: 'grid', gap: 20 }}>
+                    <div className="branch-inventory-section">
+                        <h3>Chọn chi nhánh</h3>
+                        <div className="branch-buttons">
+                            {branches.map(b => (
+                                <button
+                                    key={b.id}
+                                    onClick={() => setSelectedBranch(b)}
+                                    className={`branch-button${selectedBranch?.id === b.id ? ' active' : ''}`}
+                                >
+                                    <MapPin size={13} /> {b.name}
+                                </button>
+                            ))}
+                        </div>
+
+                        {selectedBranch && (
+                            <div className="branch-info">
+                                <div className="branch-info-name"><MapPin size={16} /> {selectedBranch.name}</div>
+                                <p className="branch-info-address">{selectedBranch.address}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {selectedBranch && (
+                        <div className="branch-inventory-section">
+                            <h3>Tồn kho — {selectedBranch.name}</h3>
+                            {branchIngredients.length === 0 ? (
+                                <div className="empty-state"><Store size={40} /><p>Chưa có nguyên liệu</p></div>
+                            ) : (
+                                <div className="inventory-table-container">
+                                    <table className="inventory-table">
+                                        <thead>
+                                            <tr>
+                                                {['Nguyên liệu', 'Đơn vị', 'Tồn kho', 'Trạng thái'].map(h => (
+                                                    <th key={h}>{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {branchIngredients.map(item => (
+                                                <tr key={item.id}>
+                                                    <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
+                                                    <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
+                                                    <td className={qtyClass(item.quantity ?? 0)}>{item.quantity ?? 0}</td>
+                                                    <td><StockBadge qty={item.quantity ?? 0} /></td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Yêu cầu */}
+            {tab === 'requests' && (
+                <div style={{ display: 'grid', gap: 20 }}>
+                    {/* Filters */}
+                    <div className="filters-container">
+                        <div className="search-wrapper">
+                            <input
+                                className="search-input"
+                                placeholder="Tìm kiếm..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <select className="search-input1" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                             <option value="all">Tất cả trạng thái</option>
                             <option value="PENDING">Chờ duyệt</option>
                             <option value="APPROVED">Đã duyệt</option>
                             <option value="REJECTED">Từ chối</option>
                         </select>
-
-                        <select
-                            value={filterType}
-                            onChange={(e) => setFilterType(e.target.value)}
-                            className="search-input1"
-                        >
+                        <select className="search-input1" value={filterType} onChange={e => setFilterType(e.target.value)}>
                             <option value="all">Tất cả loại</option>
                             <option value="IMPORT">Nhập kho</option>
                             <option value="EXPORT">Xuất kho</option>
                         </select>
                     </div>
 
-                    <div className="requests-list">
-                        {filteredRequests.length === 0 ? (
-                            <div className="empty-state">
-                                <Package size={64} style={{ margin: '0 auto', opacity: 0.2 }} />
-                                <p>Không tìm thấy yêu cầu nào</p>
-                            </div>
-                        ) : (
-                            filteredRequests.map(request => (
-                                <div
-                                    key={request.id}
-                                    className="request-card"
-                                    onClick={() => setSelectedRequest(request)}
-                                >
-                                    <div className="request-header">
-                                        <div className="request-content">
-                                            <div className="request-badges">
-                                                {getTypeBadge(request.type)}
-                                                {getStatusBadge(request.status)}
+                    {filteredReqs.length === 0 ? (
+                        <div className="empty-state"><FileText size={40} /><p>Không tìm thấy yêu cầu nào</p></div>
+                    ) : (
+                        <div className="requests-list">
+                            {filteredReqs.map(req => {
+                                const items = getItems(req.id);
+                                const first = getFirst(req.id);
+                                const title = !first
+                                    ? 'Không có nguyên liệu'
+                                    : items.length === 1
+                                        ? first.ingredient?.name
+                                        : `${first.ingredient?.name} (+${items.length - 1} NL)`;
+                                return (
+                                    <div key={req.id} className="request-card" onClick={() => setSelectedReq(req)}>
+                                        <div className="request-header">
+                                            <div className="request-content">
+                                                <div className="request-badges">
+                                                    <TypeBadge type={req.type} />
+                                                    <StatusBadge status={req.status} />
+                                                </div>
+                                                <div className="request-title">{title}</div>
+                                                <div className="request-details">
+                                                    <span className="request-detail-item"><MapPin size={12} />{req.branch?.name}</span>
+                                                    <span className="request-detail-item"><User size={12} />{req.requestedBy?.fullName}</span>
+                                                    <span className="request-detail-item"><Calendar size={12} />{fmtDate(req.requestedAt)}</span>
+                                                </div>
                                             </div>
-                                            <h3 className="request-title">
-                                                {(() => {
-                                                    const firstItem = getRequestFirstIngredient(request.id);
-                                                    const items = getRequestItems(request.id);
-                                                    if (!firstItem) return 'Không có nguyên liệu';
-                                                    if (items.length === 1) return firstItem.ingredient?.name || 'N/A';
-                                                    return `${firstItem.ingredient?.name || 'N/A'} (+${items.length - 1} NL khác)`;
-                                                })()}
-                                            </h3>
-                                            <div className="request-details">
-                                                <span className="request-detail-item">
-                                                    <MapPin size={14} />
-                                                    {request.branch?.name || 'N/A'}
-                                                </span>
-                                                <span className="request-detail-item">
-                                                    <Package size={14} />
-                                                    {(() => {
-                                                        const items = getRequestItems(request.id);
-                                                        return items.length === 1
-                                                            ? `${items[0]?.quantity || 0} ${items[0]?.ingredient?.unit || ''}`
-                                                            : `${items.length} nguyên liệu`;
-                                                    })()}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {request.status === 'PENDING' && (
-                                            <div className="request-actions">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        approveRequest(request.id);
-                                                    }}
-                                                    disabled={loading}
-                                                    className="btn-approve"
-                                                >
-                                                    <Check size={16} />
-                                                    Duyệt
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setShowRejectModal(request);
-                                                    }}
-                                                    className="btn-reject"
-                                                >
-                                                    <X size={16} />
-                                                    Từ chối
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="request-footer">
-                                        <div className="request-footer-item">
-                                            <User size={14} />
-                                            Người yêu cầu: {request.requestedBy?.fullName || 'N/A'}
-                                        </div>
-                                        <div className="request-footer-item">
-                                            <Calendar size={14} />
-                                            {formatDate(request.requestedAt)}
+                                            {req.status === 'PENDING' && (
+                                                <div className="request-actions">
+                                                    <button
+                                                        className="btn-approve"
+                                                        onClick={e => { e.stopPropagation(); approveReq(req.id); }}
+                                                        disabled={reqLoading}
+                                                    >
+                                                        <Check size={13} /> Duyệt
+                                                    </button>
+                                                    <button
+                                                        className="btn-reject"
+                                                        onClick={e => { e.stopPropagation(); setRejectModal(req); }}
+                                                    >
+                                                        <X size={13} /> Từ chối
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* Inventory Tab */}
-            {activeTab === 'inventory' && (
-                <div>
-                    <div className="branch-inventory-section">
-                        <h3>Chọn chi nhánh để xem tồn kho</h3>
-                        <div className="branch-buttons">
-                            {branches.map(branch => (
-                                <button
-                                    key={branch.id}
-                                    onClick={() => setSelectedBranch(branch)}
-                                    className={`branch-button ${selectedBranch?.id === branch.id ? 'active' : ''}`}
-                                >
-                                    {branch.name}
-                                </button>
-                            ))}
-                        </div>
+            {/* Lịch sử */}
+            {tab === 'history' && (
+                <div style={{ display: 'grid', gap: 20 }}>
+                    {/* Sub-tabs */}
+                    <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 0 }}>
+                        {[
+                            { id: 'export', label: '📤 Lịch sử xuất kho' },
+                            { id: 'import', label: '📥 Lịch sử nhập kho' },
+                        ].map(t => (
+                            <button
+                                key={t.id}
+                                onClick={() => setHistoryTab(t.id)}
+                                className={`inventory-tab${historyTab === t.id ? ' active' : ''}`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
 
-                        {selectedBranch && (
-                            <>
-                                <div className="branch-info">
-                                    <div className="branch-info-name">
-                                        <MapPin size={18} color="#3B82F6" />
-                                        {selectedBranch.name}
-                                    </div>
-                                    <p className="branch-info-address">{selectedBranch.address}</p>
-                                </div>
-
+                    {/* Xuất kho */}
+                    {historyTab === 'export' && (
+                        <div className="branch-inventory-section">
+                            <h3><ArrowUpCircle size={16} /> Lịch sử xuất kho ({exportHistory.length})</h3>
+                            {exportHistory.length === 0 ? (
+                                <div className="empty-state"><ArrowUpCircle size={40} /><p>Chưa có dữ liệu</p></div>
+                            ) : (
                                 <div className="inventory-table-container">
                                     <table className="inventory-table">
                                         <thead>
                                             <tr>
-                                                <th>Nguyên liệu</th>
-                                                <th>Đơn vị</th>
-                                                <th>Tồn kho</th>
-                                                <th>Trạng thái</th>
+                                                {['Ngày', 'Kho', 'Chi nhánh', 'Người duyệt', ''].map(h => (
+                                                    <th key={h}>{h}</th>
+                                                ))}
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {branchIngredients.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="4" style={{ textAlign: 'center', padding: '32px', color: 'rgba(255,255,255,0.4)' }}>
-                                                        Chưa có nguyên liệu nào trong kho
+                                            {exportHistory.map(ex => (
+                                                <tr key={ex.id} style={{ cursor: 'pointer' }}
+                                                    onClick={async () => {
+                                                        setSelectedExport(ex);
+                                                        await fetchExportDetail(ex.id);
+                                                    }}
+                                                >
+                                                    <td>{fmtDate(ex.createdAt)}</td>
+                                                    <td className="ingredient-name">{ex.warehouse?.name || '—'}</td>
+                                                    <td>{ex.branch?.name || '—'}</td>
+                                                    <td>{ex.createdBy?.fullName || '—'}</td>
+                                                    <td>
+                                                        <span style={{
+                                                            fontSize: 12, color: '#667eea',
+                                                            border: '1px solid #667eea',
+                                                            borderRadius: 6, padding: '3px 10px'
+                                                        }}>
+                                                            Chi tiết
+                                                        </span>
                                                     </td>
                                                 </tr>
-                                            ) : (
-                                                branchIngredients.map(item => (
-                                                    <tr key={item.id}>
-                                                        <td>
-                                                            <div className="ingredient-name">
-                                                                {item.ingredient?.name || 'N/A'}
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <div className="ingredient-unit">
-                                                                {item.ingredient?.unit || 'N/A'}
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            <div className={`quantity-value ${getStockStatus(item.quantity)}`}>
-                                                                {item.quantity || 0}
-                                                            </div>
-                                                        </td>
-                                                        <td>
-                                                            {item.quantity === 0 ? (
-                                                                <div className="badge status-rejected">
-                                                                    <XCircle size={14} />
-                                                                    Hết hàng
-                                                                </div>
-                                                            ) : item.quantity < 10 ? (
-                                                                <div className="badge status-pending">
-                                                                    <AlertTriangle size={14} />
-                                                                    Sắp hết
-                                                                </div>
-                                                            ) : (
-                                                                <div className="badge status-approved">
-                                                                    <CheckCircle size={14} />
-                                                                    Đủ hàng
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
+                                            ))}
                                         </tbody>
                                     </table>
                                 </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* History Tab */}
-            {activeTab === 'history' && (
-                <div className="branch-inventory-section">
-                    <h3>Lịch sử giao dịch kho</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        {inventoryRequests
-                            .filter(r => r.status !== 'PENDING')
-                            .sort((a, b) => new Date(b.approvedAt) - new Date(a.approvedAt))
-                            .map(request => (
-                                <div key={request.id} className="history-item">
-                                    <div className="history-header">
-                                        <div>
-                                            <div className="history-badges">
-                                                {getTypeBadge(request.type)}
-                                                {getStatusBadge(request.status)}
-                                            </div>
-                                            <h4 className="history-title">
-                                                {(() => {
-                                                    const firstItem = getRequestFirstIngredient(request.id);
-                                                    const items = getRequestItems(request.id);
-                                                    if (!firstItem) return 'Không có nguyên liệu';
-                                                    if (items.length === 1) return firstItem.ingredient?.name || 'N/A';
-                                                    return `${firstItem.ingredient?.name || 'N/A'} (+${items.length - 1} NL khác)`;
-                                                })()}
-                                            </h4>
-                                            <div className="history-details">
-                                                <MapPin size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                                                {request.branch?.name || 'N/A'} •{' '}
-                                                {(() => {
-                                                    const items = getRequestItems(request.id);
-                                                    return items.length === 1
-                                                        ? `${items[0]?.quantity || 0} ${items[0]?.ingredient?.unit || ''}`
-                                                        : `${items.length} nguyên liệu`;
-                                                })()}
-                                            </div>
-                                        </div>
-                                        <div className="history-time">
-                                            <div>
-                                                <User size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                                                Yêu cầu: {request.requestedBy?.fullName || 'N/A'}
-                                            </div>
-                                            <div>{formatDate(request.requestedAt)}</div>
-                                            {request.approvedAt && (
-                                                <>
-                                                    <div style={{ marginTop: '8px' }}>
-                                                        <User size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                                                        {request.status === 'APPROVED' ? 'Duyệt' : 'Từ chối'}: {request.approvedBy?.fullName || 'N/A'}
-                                                    </div>
-                                                    <div>{formatDate(request.approvedAt)}</div>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {request.note && (
-                                        <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', fontSize: '14px', color: 'rgba(255,255,255,0.8)' }}>
-                                            <strong style={{ color: '#EF4444' }}>Lý do từ chối:</strong> {request.note}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Request Detail Modal */}
-            {selectedRequest && (
-                <div className="modal-overlay" onClick={() => setSelectedRequest(null)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2 className="modal-title">Chi tiết yêu cầu</h2>
-                            <button onClick={() => setSelectedRequest(null)} className="modal-close">
-                                <X size={20} />
-                            </button>
+                            )}
                         </div>
+                    )}
 
-                        <div className="modal-badges">
-                            {getTypeBadge(selectedRequest.type)}
-                            {getStatusBadge(selectedRequest.status)}
-                        </div>
-
-                        <div className="modal-body">
-                            <div className="modal-field">
-                                <div className="modal-field-label">Danh sách nguyên liệu</div>
-                                {(() => {
-                                    const items = getRequestItems(selectedRequest.id);
-                                    if (items.length === 0) {
-                                        return <div className="modal-field-value">Không có nguyên liệu</div>;
-                                    }
-                                    return (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-                                            {items.map((item, index) => (
-                                                <div
-                                                    key={index}
-                                                    style={{
-                                                        background: 'rgba(255,255,255,0.05)',
-                                                        border: '1px solid rgba(255,255,255,0.1)',
-                                                        borderRadius: '8px',
-                                                        padding: '12px',
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center'
-                                                    }}
-                                                >
-                                                    <div>
-                                                        <div style={{ fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
-                                                            {item.ingredient?.name || 'N/A'}
-                                                        </div>
-                                                        <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)' }}>
-                                                            Đơn vị: {item.ingredient?.unit || 'N/A'}
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ fontSize: '18px', fontWeight: '700', color: '#667eea' }}>
-                                                        Số lượng: {item.quantity}
-                                                    </div>
-                                                </div>
+                    {/* Nhập kho */}
+                    {historyTab === 'import' && (
+                        <div className="branch-inventory-section">
+                            <h3><ArrowDownCircle size={16} /> Lịch sử nhập kho (tồn kho hiện tại)</h3>
+                            {importHistory.length === 0 ? (
+                                <div className="empty-state"><ArrowDownCircle size={40} /><p>Chưa có dữ liệu</p></div>
+                            ) : (
+                                <div className="inventory-table-container">
+                                    <table className="inventory-table">
+                                        <thead>
+                                            <tr>
+                                                {['Kho', 'Nguyên liệu', 'Đơn vị', 'Tồn kho', 'Trạng thái'].map(h => (
+                                                    <th key={h}>{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {importHistory.map(item => (
+                                                <tr key={item.id}>
+                                                    <td className="ingredient-name">{item.warehouse?.name || '—'}</td>
+                                                    <td>{item.ingredient?.name || '—'}</td>
+                                                    <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
+                                                    <td className={qtyClass(item.quantity ?? 0)}>{item.quantity ?? 0}</td>
+                                                    <td><StockBadge qty={item.quantity ?? 0} /></td>
+                                                </tr>
                                             ))}
-                                        </div>
-                                    );
-                                })()}
-                            </div>
-
-                            <div className="modal-field">
-                                <div className="modal-field-label">Chi nhánh</div>
-                                <div className="modal-field-value branch">
-                                    <MapPin size={18} color="#3B82F6" />
-                                    {selectedRequest.branch?.name || 'N/A'}
-                                </div>
-                            </div>
-
-                            <div className="modal-field">
-                                <div className="modal-field-label">Lý do</div>
-                                <div className="modal-field-value reason">{selectedRequest.reason || 'Không có lý do'}</div>
-                            </div>
-
-                            {selectedRequest.note && (
-                                <div className="modal-field rejection">
-                                    <div className="modal-field-label rejection">Lý do từ chối</div>
-                                    <div className="modal-field-value reason">{selectedRequest.note}</div>
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
+                        </div>
+                    )}
+                </div>
+            )}
 
+            {/* Chi tiết yêu cầu */}
+            {selectedReq && (
+                <div className="modal-overlay" onClick={() => setSelectedReq(null)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">Chi tiết yêu cầu #{selectedReq.id}</h2>
+                            <button className="modal-close" onClick={() => setSelectedReq(null)}>
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="modal-badges">
+                            <TypeBadge type={selectedReq.type} />
+                            <StatusBadge status={selectedReq.status} />
+                        </div>
+                        <div className="modal-body">
+                            {/* Items */}
+                            <div className="modal-field">
+                                <div className="modal-field-label">Nguyên liệu</div>
+                                {getItems(selectedReq.id).map((item, i) => (
+                                    <div key={i} style={{
+                                        display: 'flex', justifyContent: 'space-between',
+                                        padding: '10px 14px', background: 'rgba(255,255,255,.05)',
+                                        borderRadius: 8, marginBottom: 6, fontSize: 14
+                                    }}>
+                                        <span style={{ fontWeight: 500 }}>{item.ingredient?.name}</span>
+                                        <span style={{ opacity: .6 }}>{item.quantity} {item.ingredient?.unit}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Timeline */}
                             <div className="modal-timeline">
-                                <div className="modal-timeline-title">Thời gian</div>
+                                <div className="modal-timeline-title">Thông tin</div>
                                 <div className="modal-timeline-items">
                                     <div className="modal-timeline-item">
-                                        <div className="modal-timeline-item-label">
-                                            <Calendar size={16} color="rgba(255,255,255,0.5)" />
-                                            Thời gian yêu cầu
-                                        </div>
-                                        <div className="modal-timeline-item-value">
-                                            {formatDate(selectedRequest.requestedAt)}
-                                        </div>
+                                        <span className="modal-timeline-item-label"><MapPin size={13} /> Chi nhánh</span>
+                                        <span className="modal-timeline-item-value">{selectedReq.branch?.name}</span>
                                     </div>
-                                    {selectedRequest.approvedAt && (
+                                    <div className="modal-timeline-divider" />
+                                    <div className="modal-timeline-item">
+                                        <span className="modal-timeline-item-label"><User size={13} /> Người yêu cầu</span>
+                                        <span className="modal-timeline-item-value">{selectedReq.requestedBy?.fullName}</span>
+                                    </div>
+                                    <div className="modal-timeline-divider" />
+                                    <div className="modal-timeline-item">
+                                        <span className="modal-timeline-item-label"><Calendar size={13} /> Thời gian</span>
+                                        <span className="modal-timeline-item-value">{fmtDate(selectedReq.requestedAt)}</span>
+                                    </div>
+                                    {selectedReq.reason && (
                                         <>
                                             <div className="modal-timeline-divider" />
                                             <div className="modal-timeline-item">
-                                                <div className="modal-timeline-item-label">
-                                                    <User size={16} color="rgba(255,255,255,0.5)" />
-                                                    Người {selectedRequest.status === 'APPROVED' ? 'duyệt' : 'từ chối'}
-                                                </div>
-                                                <div className="modal-timeline-item-value">
-                                                    {selectedRequest.approvedBy?.fullName}
-                                                </div>
-                                            </div>
-                                            <div className="modal-timeline-item">
-                                                <div className="modal-timeline-item-label">
-                                                    <Calendar size={16} color="rgba(255,255,255,0.5)" />
-                                                    Thời gian {selectedRequest.status === 'APPROVED' ? 'duyệt' : 'từ chối'}
-                                                </div>
-                                                <div className="modal-timeline-item-value">
-                                                    {formatDate(selectedRequest.approvedAt)}
-                                                </div>
+                                                <span className="modal-timeline-item-label"><FileText size={13} /> Lý do</span>
+                                                <span className="modal-timeline-item-value">{selectedReq.reason}</span>
                                             </div>
                                         </>
                                     )}
                                 </div>
                             </div>
 
-                            {selectedRequest.status === 'PENDING' && (
+                            {selectedReq.status === 'PENDING' && (
                                 <div className="modal-actions">
                                     <button
-                                        onClick={() => approveRequest(selectedRequest.id)}
-                                        disabled={loading}
                                         className="btn-modal-approve"
+                                        onClick={() => approveReq(selectedReq.id)}
+                                        disabled={reqLoading}
                                     >
-                                        <CheckCircle size={20} />
-                                        Duyệt yêu cầu
+                                        <CheckCircle size={15} /> Duyệt
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            setShowRejectModal(selectedRequest);
-                                            setSelectedRequest(null);
-                                        }}
-                                        disabled={loading}
                                         className="btn-modal-reject"
+                                        onClick={() => { setRejectModal(selectedReq); setSelectedReq(null); }}
+                                        disabled={reqLoading}
                                     >
-                                        <XCircle size={20} />
-                                        Từ chối
+                                        <XCircle size={15} /> Từ chối
                                     </button>
                                 </div>
                             )}
@@ -1104,126 +908,134 @@ export default function InventoryManagement() {
                 </div>
             )}
 
-            {/* Reject Modal */}
-            {showRejectModal && (
-                <div className="modal-overlay" onClick={() => setShowRejectModal(null)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            {/* Chi tiết xuất kho */}
+            {selectedExport && exportDetail && (
+                <div className="modal-overlay" onClick={() => { setSelectedExport(null); setExportDetail(null); }}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2 className="modal-title">Từ chối yêu cầu</h2>
-                            <button onClick={() => setShowRejectModal(null)} className="modal-close">
-                                <X size={20} />
+                            <h2 className="modal-title">
+                                Chi tiết xuất kho #{selectedExport.id}
+                            </h2>
+                            <button className="modal-close" onClick={() => { setSelectedExport(null); setExportDetail(null); }}>
+                                <X size={16} />
                             </button>
                         </div>
-
                         <div className="modal-body">
-                            <div className="modal-field">
-                                <div className="modal-field-label">Nguyên liệu</div>
-                                <div className="modal-field-value">
-                                    {(() => {
-                                        const items = getRequestItems(showRejectModal.id);
-                                        if (items.length === 0) return 'Không có nguyên liệu';
-                                        return items.map(item => item.ingredient?.name).join(', ');
-                                    })()}
+                            {/* Thông tin chung */}
+                            <div className="modal-timeline" style={{ marginBottom: 20 }}>
+                                <div className="modal-timeline-title">Thông tin phiếu xuất</div>
+                                <div className="modal-timeline-items">
+                                    <div className="modal-timeline-item">
+                                        <span className="modal-timeline-item-label"><Warehouse size={13} /> Kho</span>
+                                        <span className="modal-timeline-item-value">{exportDetail.export?.warehouse?.name || '—'}</span>
+                                    </div>
+                                    <div className="modal-timeline-divider" />
+                                    <div className="modal-timeline-item">
+                                        <span className="modal-timeline-item-label"><MapPin size={13} /> Chi nhánh</span>
+                                        <span className="modal-timeline-item-value">{exportDetail.export?.branch?.name || '—'}</span>
+                                    </div>
+                                    <div className="modal-timeline-divider" />
+                                    <div className="modal-timeline-item">
+                                        <span className="modal-timeline-item-label"><User size={13} /> Người duyệt</span>
+                                        <span className="modal-timeline-item-value">{exportDetail.export?.createdBy?.fullName || '—'}</span>
+                                    </div>
+                                    <div className="modal-timeline-divider" />
+                                    <div className="modal-timeline-item">
+                                        <span className="modal-timeline-item-label"><Calendar size={13} /> Ngày xuất</span>
+                                        <span className="modal-timeline-item-value">{fmtDate(exportDetail.export?.createdAt)}</span>
+                                    </div>
                                 </div>
                             </div>
 
+                            {/* Danh sách nguyên liệu */}
+                            <div className="modal-field-label" style={{ marginBottom: 8 }}>Nguyên liệu xuất</div>
+                            {(exportDetail.items || []).length === 0 ? (
+                                <div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: 24 }}>
+                                    Không có nguyên liệu
+                                </div>
+                            ) : (
+                                <div className="inventory-table-container">
+                                    <table className="inventory-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Nguyên liệu</th>
+                                                <th>Đơn vị</th>
+                                                <th>Số lượng</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(exportDetail.items || []).map((item, i) => (
+                                                <tr key={i}>
+                                                    <td className="ingredient-name">{item.ingredient?.name || '—'}</td>
+                                                    <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
+                                                    <td className="quantity-value">{item.quantity}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Từ chối */}
+            {rejectModal && (
+                <div className="modal-overlay" onClick={() => setRejectModal(null)}>
+                    <div className="modal-content" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">Từ chối yêu cầu</h2>
+                            <button className="modal-close" onClick={() => setRejectModal(null)}>
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
                             <div className="modal-field">
                                 <div className="modal-field-label">Chi nhánh</div>
-                                <div className="modal-field-value">{showRejectModal.branch?.name || 'N/A'}</div>
+                                <div className="modal-field-value branch">
+                                    <MapPin size={16} color="#667eea" />
+                                    <strong>{rejectModal.branch?.name}</strong>
+                                </div>
                             </div>
-
                             <div className="modal-field">
-                                <div className="modal-field-label">Lý do từ chối *</div>
+                                <label className="modal-field-label rejection">Lý do từ chối *</label>
                                 <textarea
-                                    value={rejectionNote}
-                                    onChange={(e) => setRejectionNote(e.target.value)}
-                                    placeholder="Nhập lý do từ chối yêu cầu này..."
-                                    style={{
-                                        width: '100%',
-                                        minHeight: '100px',
-                                        padding: '12px',
-                                        background: 'rgba(255,255,255,0.05)',
-                                        border: '1px solid rgba(255,255,255,0.1)',
-                                        borderRadius: '8px',
-                                        color: '#fff',
-                                        fontSize: '14px',
-                                        resize: 'vertical'
-                                    }}
+                                    className="search-input"
+                                    rows={4}
+                                    placeholder="Nhập lý do..."
+                                    value={rejectNote}
+                                    onChange={e => setRejectNote(e.target.value)}
+                                    style={{ paddingLeft: 16, resize: 'vertical', minHeight: 100 }}
                                 />
                             </div>
-
-                            <div className="modal-actions">
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                                 <button
-                                    onClick={() => setShowRejectModal(null)}
-                                    className="btn-modal-reject"
-                                    style={{ background: 'rgba(255,255,255,0.05)' }}
+                                    className="modal-close"
+                                    style={{ width: 'auto', padding: '8px 16px', borderRadius: 8 }}
+                                    onClick={() => setRejectModal(null)}
                                 >
                                     Hủy
                                 </button>
                                 <button
+                                    className="btn-modal-reject"
+                                    style={{ padding: '10px 20px', border: 'none', background: 'rgba(239,68,68,.9)', color: '#fff' }}
+                                    disabled={reqLoading || !rejectNote.trim()}
                                     onClick={() => {
-                                        if (!rejectionNote.trim()) {
-                                            addNotification({
-                                                type: 'warning',
-                                                title: '⚠️ Chú ý',
-                                                message: 'Vui lòng nhập lý do từ chối'
-                                            });
+                                        if (!rejectNote.trim()) {
+                                            addToast({ type: 'warning', title: 'Vui lòng nhập lý do', message: '' });
                                             return;
                                         }
-                                        rejectRequest(showRejectModal.id, rejectionNote);
+                                        rejectReq(rejectModal.id, rejectNote);
                                     }}
-                                    disabled={loading || !rejectionNote.trim()}
-                                    className="btn-modal-reject"
                                 >
-                                    <XCircle size={20} />
-                                    Xác nhận từ chối
+                                    <XCircle size={15} /> Xác nhận từ chối
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
-
-            {/* CSS Animations */}
-            <style>{`
-                @keyframes pulse {
-                    0%, 100% {
-                        opacity: 1;
-                    }
-                    50% {
-                        opacity: 0.5;
-                    }
-                }
-                
-                @keyframes slideInRight {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                }
-                
-                .pulse-dot {
-                    width: 6px;
-                    height: 6px;
-                    border-radius: 50%;
-                    background-color: #10B981;
-                    animation: pulse 2s infinite;
-                }
-                
-                .tab-badge {
-                    background: #ef4444;
-                    color: white;
-                    border-radius: 12px;
-                    padding: 2px 8px;
-                    font-size: 11px;
-                    font-weight: 700;
-                    margin-left: 6px;
-                }
-            `}</style>
         </div>
     );
 }
