@@ -36,6 +36,7 @@ import ChefDashboard from "./pages/employee/chef/ChefDashboard";
 import StockDashboard from "./pages/employee/stock/StockDashboard";
 import PaymentSuccess from "./pages/client/booking/PaymentSuccess";
 import PaymentCancel from "./pages/client/booking/PaymentCancel";
+
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (
   <>
@@ -80,8 +81,7 @@ function App() {
           <Route path="booking" element={<BookingPage />} />
         </Route>
         <Route path="/employee/cashier/tables/:id" element={<TableDetail />} />
-        <Route path="/payment-success" element={<PublicLayout><PaymentSuccess /></PublicLayout>} />
-        <Route path="/payment-cancel" element={<PublicLayout><PaymentCancel /></PublicLayout>} />
+
         {/* Waiter Routes */}
         <Route path="/employee/waiter/orders" element={<WaiterLayout><Orders /></WaiterLayout>} />
         <Route path="/employee/waiter/orders/:id" element={<WaiterLayout><OrderDetail /></WaiterLayout>} />
@@ -89,7 +89,6 @@ function App() {
 
         {/* Chef sub-routes */}
         <Route path="/employee/chef" element={<ChefLayout><ChefDashboard /></ChefLayout>} />
-
 
         {/* Stock sub-routes */}
         <Route path="/employee/stock" element={<StockLayout><StockDashboard /></StockLayout>} />

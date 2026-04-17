@@ -129,6 +129,7 @@ export default function AddRecipeForm({ closeForm, onSave }) {
 
             alert('Thêm công thức thành công!');
             if (onSave) onSave(newRecipes);
+
             closeForm();
 
         } catch (err) {

@@ -101,7 +101,7 @@ const Header = () => {
 
                     <div className="d-flex align-items-center">
                         {user && isCustomer ? (
-                            // 🆕 Hiển thị khi customer đã đăng nhập
+                            // Hiển thị khi customer đã đăng nhập
                             <div className="dropdown" style={{ position: 'relative' }}>
                                 <button
                                     className="btn btn-user dropdown-toggle"
@@ -117,7 +117,8 @@ const Header = () => {
                                     }}
                                 >
                                     <span>👤</span>
-                                    <span>Xin chào, {user.username}</span>
+                                    <span>Xin chào, {user.fullName || user.username}</span>
+                                    <span>▼</span>
                                 </button>
 
                                 {isDropdownOpen && (
