@@ -145,7 +145,7 @@ const LoginPage = () => {
         <div className="login-page">
             {/* Back Home Button */}
             <button className="back-home-btn" onClick={() => navigate("/")}>
-                ← Trang chủ
+                ←
             </button>
 
             <div className="login-container">
