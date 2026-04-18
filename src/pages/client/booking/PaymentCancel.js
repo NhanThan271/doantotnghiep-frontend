@@ -13,12 +13,15 @@ const PaymentCancel = () => {
             console.log("🗑️ Đã xóa dữ liệu đặt bàn tạm thời");
         }
 
+        // 🔥 Đánh dấu thanh toán đã bị hủy
+        sessionStorage.setItem('paymentCancelled', 'true');
+
         // Hiển thị thông báo
         alert("Thanh toán đã bị hủy! Vui lòng thử lại.");
 
         // 🔥 Chuyển về trang đặt bàn chi tiết sau 1.5 giây
         setTimeout(() => {
-            navigate("/dat-ban-chi-tiet");
+            navigate("/dat-ban-chi-tiet", { replace: true });
         }, 1500);
     }, [navigate]);
 
@@ -62,7 +65,7 @@ const PaymentCancel = () => {
                     Đang chuyển về trang đặt bàn...
                 </p>
                 <button
-                    onClick={() => navigate("/dat-ban-chi-tiet")}
+                    onClick={() => navigate("/dat-ban-chi-tiet", { replace: true })}
                     style={{
                         marginTop: "20px",
                         padding: "10px 24px",

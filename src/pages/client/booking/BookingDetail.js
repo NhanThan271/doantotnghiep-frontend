@@ -15,7 +15,7 @@ const BookingDetail = () => {
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
-    const [user, setUser] = useState({}); // 🔥 Thêm state user
+    const [user, setUser] = useState({});
 
     const [data, setData] = useState({
         date: "",
@@ -27,12 +27,16 @@ const BookingDetail = () => {
         email: "",
         note: "",
         payment: "deposit",
-        selectedFoods: []
+        selectedFoods: [],
+        selectedType: null,
+        selectedTableId: null,
+        selectedRoomId: null
     });
 
     // 🔥 Lấy thông tin user từ localStorage khi component mount
     useEffect(() => {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
+        console.log("User data loaded:", userData);
         setUser(userData);
 
         // 🔥 Tự động điền tên và số điện thoại nếu có
@@ -43,8 +47,40 @@ const BookingDetail = () => {
                 phone: userData.phone || "",
                 email: userData.email || ""
             }));
+        } else if (userData.username) {
+            setData(prev => ({
+                ...prev,
+                customerName: userData.username,
+                phone: userData.phone || "",
+                email: userData.email || ""
+            }));
         }
     }, []);
+
+    // 🔥 Kiểm tra nếu đến từ trang hủy thanh toán
+    useEffect(() => {
+        const fromCancel = sessionStorage.getItem('paymentCancelled');
+        if (fromCancel) {
+            // Reset toàn bộ dữ liệu đặt bàn nhưng giữ lại thông tin user
+            setData(prev => ({
+                date: "",
+                time: "",
+                table: null,
+                tableNumber: "",
+                customerName: user.fullName || user.username || prev.customerName || "",
+                phone: user.phone || prev.phone || "",
+                email: user.email || prev.email || "",
+                note: "",
+                payment: "deposit",
+                selectedFoods: [],
+                selectedType: null,
+                selectedTableId: null,
+                selectedRoomId: null
+            }));
+            setStep(2);
+            sessionStorage.removeItem('paymentCancelled');
+        }
+    }, [user]);
 
     // Validate functions
     const validateName = (name) => {
@@ -168,7 +204,7 @@ const BookingDetail = () => {
             });
         }
     };
-    console.log(JSON.parse(localStorage.getItem('user') || '{}'));
+
     const totalFoodAmount = data.selectedFoods.reduce((sum, f) => sum + (f.price * f.quantity), 0);
     const getPayableAmount = () => {
         return data.payment === "full" ? totalFoodAmount * 0.9 : totalFoodAmount * 0.2;
@@ -184,25 +220,14 @@ const BookingDetail = () => {
             }));
 
             const safeOrderCode = reservationId;
-
-            // 🔥 SỬA: Rút gọn description dưới 25 ký tự
-            // Cách 1: Chỉ lấy tên chi nhánh + mã đặt
             const shortDescription = `Dat ban ${branch?.name?.substring(0, 10) || ''}`.substring(0, 25);
-
-            // Cách 2: Hoặc dùng format đơn giản
-            // const shortDescription = `Dat ban #${reservationId}`;
-
-            // Cách 3: Hoặc chỉ ghi đơn giản
-            // const shortDescription = `Thanh toan dat ban`;
-
-            console.log("Description length:", shortDescription.length, shortDescription);
 
             const paymentRequest = {
                 orderCode: safeOrderCode,
                 amount: Math.floor(payableAmount),
-                description: shortDescription,  // 🔥 Dùng description ngắn
-                returnUrl: `${window.location.origin}/booking-success?reservationId=${reservationId}`,
-                cancelUrl: `${window.location.origin}/booking-cancel`,
+                description: shortDescription,
+                returnUrl: `${window.location.origin}/payment-success?reservationId=${reservationId}`,
+                cancelUrl: `${window.location.origin}/payment-cancel`,
                 items: items
             };
 
@@ -284,7 +309,6 @@ const BookingDetail = () => {
 
             const reservationDateTime = `${data.date} ${data.time}`;
 
-            // 🔥 Tạo requestData (chưa gửi lên backend)
             const requestData = {
                 userId: userData.id,
                 branchId: branch?.id,
@@ -302,9 +326,6 @@ const BookingDetail = () => {
                 }))
             };
 
-            console.log("📝 Booking data to save:", requestData);
-
-            // 🔥 Bước 1: Tạo payment link trước
             const payableAmount = getPayableAmount();
             const items = data.selectedFoods.map(food => ({
                 name: food.name,
@@ -324,8 +345,6 @@ const BookingDetail = () => {
                 items: items
             };
 
-            console.log("📤 Creating payment link...");
-
             const paymentResponse = await fetch(`${API}/api/payos/create`, {
                 method: "POST",
                 headers: {
@@ -342,7 +361,6 @@ const BookingDetail = () => {
                 throw new Error(paymentResult.desc || "Không thể tạo link thanh toán");
             }
 
-            // 🔥 Bước 2: Lưu dữ liệu đặt bàn vào sessionStorage (chưa tạo reservation)
             const tempBookingData = {
                 ...requestData,
                 orderCode: tempOrderCode
@@ -350,12 +368,8 @@ const BookingDetail = () => {
             sessionStorage.setItem('tempBooking', JSON.stringify(tempBookingData));
             console.log("💾 Saved temp booking data to sessionStorage");
 
-            // 🔥 Bước 3: Mở cửa sổ thanh toán
             window.open(paymentResult.data.checkoutUrl, "_blank");
-
             alert("Vui lòng thanh toán để hoàn tất đặt bàn!");
-
-            // 🔥 Không tạo reservation ở đây nữa
 
         } catch (err) {
             console.error("❌ Booking error:", err);

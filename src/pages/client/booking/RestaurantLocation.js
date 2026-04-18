@@ -35,9 +35,17 @@ const RestaurantLocation = () => {
 
     const handleBooking = (restaurant, e) => {
         e.stopPropagation();
+        // 🔥 Đảm bảo truyền đúng object với id
         navigate('/dat-ban-chi-tiet', {
             state: {
-                branch: restaurant   // ✅ truyền đúng object
+                branch: {
+                    id: restaurant.id,
+                    name: restaurant.name,
+                    address: restaurant.address,
+                    phone: restaurant.phone,
+                    lat: restaurant.lat,
+                    lng: restaurant.lng
+                }
             }
         });
     };
