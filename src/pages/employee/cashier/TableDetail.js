@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, Users, Clock, CheckCircle, XCircle, Plus, Minus, Trash2, Printer, Tag, X, Percent, DollarSign } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Users, Plus, Minus, Trash2, Printer, Tag, X, Percent, DollarSign } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
 import PaymentMethodModal from "./PaymentMethodModal";
 import TransferPaymentPayOs from "./TransferPaymentPayOs";
 import ToastNotification from "./ToastNotification";
 import styles from "./TableDetail.module.css";
-
+import CashPaymentModal from "./CashPaymentModal";
 const socket = io('http://localhost:3001');
 
 const TableDetail = () => {
@@ -24,7 +24,7 @@ const TableDetail = () => {
     const [cart, setCart] = useState([]);
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [activeTab, setActiveTab] = useState("Tất cả sản phẩm");
+    const [activeTab, setActiveTab] = useState("Tất cả");
     const [searchTerm, setSearchTerm] = useState("");
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -35,11 +35,13 @@ const TableDetail = () => {
     const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
     const [showPayOSModal, setShowPayOSModal] = useState(false);
     const [toasts, setToasts] = useState([]);
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [isConfirming, setIsConfirming] = useState(false);
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
     const API_BASE_URL = 'http://localhost:8080';
+    const [showCashModal, setShowCashModal] = useState(false);
 
-    // Helper functions for toasts
     const showToast = (message, type = 'info', duration = 5000) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, message, type, duration }]);
@@ -49,21 +51,22 @@ const TableDetail = () => {
         setToasts(prev => prev.filter(toast => toast.id !== id));
     };
 
-    // Fetch products with promotions
     const fetchProducts = async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(
-                `${API_BASE_URL}/api/branch-products/branch/${branchId}/with-promotions`,
+                `${API_BASE_URL}/api/branch-foods/branch/${branchId}/with-promotions`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
             if (res.ok) {
                 const data = await res.json();
-                const activeProducts = data.filter(p => p.isActive);
+                console.log("📦 Dữ liệu sản phẩm từ API:", data);
+
+                const activeProducts = data.filter(p => p.isActive !== false);
                 setProducts(activeProducts);
 
-                const cats = ["Tất cả sản phẩm", ...new Set(activeProducts.map(p => p.categoryName).filter(Boolean))];
+                const cats = ["Tất cả", ...new Set(activeProducts.map(p => p.categoryName).filter(Boolean))];
                 setCategories(cats);
             }
         } catch (err) {
@@ -73,43 +76,44 @@ const TableDetail = () => {
         }
     };
 
-    const fetchPromotions = async () => {
+    const fetchPromotions = useCallback(async () => {
         try {
             const res = await axiosClient.get("/promotions");
-            const validPromos = (res.data || []).filter(p => {
-                const today = new Date();
-                const endDate = p.endDate ? new Date(p.endDate) : null;
-                const isActive = p.isActive === 1 || p.isActive === true;
-                return isActive && (!endDate || endDate >= today);
-            });
-            setPromotions(validPromos);
+            setPromotions(res.data || []);
         } catch (err) {
             console.error("Lỗi tải khuyến mãi:", err);
         }
-    };
+    }, []);
 
     const checkExistingOrder = async () => {
         try {
             const res = await axiosClient.get("/customer/orders");
             const existingOrder = res.data.find(o => {
                 if (isRoom) {
-                    return o.room?.id === entity.id && o.status !== "PAID";
+                    return o.room?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED";
                 }
-                return o.table?.id === entity.id && o.status !== "PAID";
+                return o.table?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED";
             });
 
             if (existingOrder) {
                 setOrder(existingOrder);
                 setCustomerName(existingOrder.customerName || "");
 
-                const items = existingOrder.items.map(item => ({
-                    id: item.product?.id,
-                    name: item.product?.name,
-                    price: item.price,
-                    quantity: item.quantity,
-                    image: item.product?.imageUrl
-                }));
+                let items = [];
+                if (existingOrder.items && existingOrder.items.length > 0) {
+                    items = existingOrder.items.map(item => ({
+                        id: item.foodId,
+                        name: item.foodName,        // QUAN TRỌNG: lưu tên món
+                        price: item.price || 0,
+                        quantity: item.quantity || 0,
+                        image: item.foodImageUrl
+                    }));
+                }
                 setCart(items);
+
+                if (existingOrder.promotion) {
+                    setSelectedPromotion(existingOrder.promotion);
+                }
             }
         } catch (err) {
             console.error("Lỗi kiểm tra đơn hàng:", err);
@@ -118,7 +122,7 @@ const TableDetail = () => {
 
     const addToCart = (product) => {
         const existing = cart.find(item => item.id === product.id);
-        const price = product.finalPrice || product.basePrice;
+        const price = product.finalPrice || product.branchPrice || product.originalPrice || 0;
 
         if (existing) {
             setCart(cart.map(item =>
@@ -127,6 +131,7 @@ const TableDetail = () => {
         } else {
             setCart([...cart, {
                 id: product.id,
+                branchFoodId: product.branchFoodId,
                 name: product.name,
                 price: price,
                 quantity: 1,
@@ -145,6 +150,7 @@ const TableDetail = () => {
         }).filter(Boolean));
     };
 
+    // Sửa lại removeFromCart - CHỈ CẬP NHẬT LOCAL STATE
     const removeFromCart = (id) => {
         setCart(cart.filter(item => item.id !== id));
     };
@@ -152,7 +158,6 @@ const TableDetail = () => {
     const originalTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-    // Calculate discount
     const discount = selectedPromotion?.discountPercentage
         ? (originalTotal * selectedPromotion.discountPercentage) / 100
         : selectedPromotion?.discountAmount || 0;
@@ -161,60 +166,191 @@ const TableDetail = () => {
 
     const handleConfirmOrder = async () => {
         if (cart.length === 0) {
-            alert("Vui lòng chọn món!");
+            showToast("Vui lòng chọn món!", "warning", 2000);
             return;
         }
+
+        setIsConfirming(true);
 
         try {
             const orderData = {
                 customerName: customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`,
-                ...(isRoom ? { room: { id: entity.id } } : { table: { id: entity.id } }),
-                branch: { id: branchId },
-                items: cart.map(item => ({
-                    product: { id: item.id },
-                    quantity: item.quantity,
-                    price: item.price
-                })),
                 status: "PENDING",
-                ...(selectedPromotion && { promotion: { id: selectedPromotion.id } })
+                branch: { id: branchId },
+                ...(isRoom ? { room: { id: entity.id } } : { table: { id: entity.id } })
             };
+
+            if (selectedPromotion && selectedPromotion.id) {
+                orderData.promotion = { id: selectedPromotion.id };
+            }
+
+            console.log("📤 Tạo đơn hàng:", JSON.stringify(orderData, null, 2));
 
             const res = await axiosClient.post("/customer/orders", orderData);
             const newOrder = res.data;
 
-            setOrder(newOrder);
-            socket.emit("new-order", newOrder);
+            console.log("✅ Đã tạo đơn, Order ID:", newOrder.id);
+
+            const itemsToAdd = cart.map(item => ({
+                foodId: item.id,
+                quantity: item.quantity
+            }));
+
+            console.log("📤 Thêm món vào đơn:", itemsToAdd);
+
+            if (itemsToAdd.length > 0) {
+                await axiosClient.post(`/customer/orders/${newOrder.id}/add-items`, itemsToAdd);
+            }
+
+            const finalRes = await axiosClient.get(`/customer/orders/${newOrder.id}`);
+            const finalOrder = finalRes.data;
+
+            console.log("✅ Đơn hàng hoàn chỉnh:", finalOrder);
+
+            setOrder(finalOrder);
+
+            // Cập nhật lại cart - GIỮ LẠI thông tin từ cart cũ
+            const updatedCart = (finalOrder.items || []).map(item => {
+                const existingCartItem = cart.find(c => c.id === item.foodId);
+                return {
+                    id: item.foodId,
+                    name: existingCartItem?.name || item.foodName,
+                    price: item.price || existingCartItem?.price || 0,
+                    quantity: item.quantity || 0,
+                    image: existingCartItem?.image || item.foodImageUrl
+                };
+            });
+            setCart(updatedCart);
+
             socket.emit("update-tables");
+            socket.emit("new-order", finalOrder);
 
             showToast(`Đơn hàng đã được gửi đến bếp!`, 'success', 4000);
 
         } catch (err) {
-            console.error("Lỗi tạo đơn:", err);
-            alert("Không thể tạo đơn hàng!");
+            console.error("❌ Lỗi tạo đơn:", err);
+            console.error("Response:", err.response?.data);
+            alert(`Lỗi: ${err.response?.data?.message || "Không thể tạo đơn hàng!"}`);
+        } finally {
+            setIsConfirming(false);
+        }
+    };
+
+    const handleUpdateOrder = async () => {
+        if (cart.length === 0) {
+            showToast("Vui lòng chọn món!", "warning", 2000);
+            return;
+        }
+
+        setIsUpdating(true);
+
+        try {
+            const existingItems = order.items || [];
+
+            const itemsToAdd = [];
+            for (const cartItem of cart) {
+                const existingItem = existingItems.find(item => item.foodId === cartItem.id);
+                let quantityToAdd = cartItem.quantity;
+
+                if (existingItem) {
+                    quantityToAdd = cartItem.quantity - existingItem.quantity;
+                }
+
+                if (quantityToAdd > 0) {
+                    itemsToAdd.push({
+                        foodId: cartItem.id,
+                        quantity: quantityToAdd
+                    });
+                }
+            }
+
+            if (itemsToAdd.length === 0) {
+                showToast("Không có món mới để thêm!", "info", 2000);
+                setIsUpdating(false);
+                return;
+            }
+
+            console.log(`📤 Thêm ${itemsToAdd.length} món vào đơn #${order.id}:`, itemsToAdd);
+
+            const res = await axiosClient.post(`/customer/orders/${order.id}/add-items`, itemsToAdd);
+            const updatedOrder = res.data;
+
+            console.log("📦 Dữ liệu updatedOrder:", updatedOrder);
+            console.log("📦 updatedOrder.items:", updatedOrder.items);
+
+            setOrder(updatedOrder);
+
+            // Cập nhật lại cart - LẤY TÊN TỪ CART CŨ
+            const updatedCart = (updatedOrder.items || []).map(item => {
+                // Tìm thông tin món từ cart cũ (giữ nguyên tên)
+                const existingCartItem = cart.find(c => c.id === item.foodId);
+
+                console.log("Item từ API:", item);
+                console.log("existingCartItem:", existingCartItem);
+
+                return {
+                    id: item.foodId,
+                    name: existingCartItem?.name || item.foodName || item.food?.name || `Sản phẩm #${item.foodId}`,
+                    price: item.price || existingCartItem?.price || 0,
+                    quantity: item.quantity || 0,
+                    image: existingCartItem?.image || item.foodImageUrl || item.food?.imageUrl
+                };
+            });
+
+            console.log("📦 updatedCart sau khi map:", updatedCart);
+            setCart(updatedCart);
+
+            socket.emit("update-tables");
+            socket.emit("update-order", updatedOrder);
+
+            showToast(`Đã cập nhật thêm món cho đơn hàng!`, 'success', 3000);
+
+        } catch (err) {
+            console.error("❌ Lỗi cập nhật đơn:", err);
+            console.error("Response:", err.response?.data);
+            alert(`Lỗi: ${err.response?.data?.message || "Không thể cập nhật đơn hàng!"}`);
+        } finally {
+            setIsUpdating(false);
         }
     };
 
     const handleCompletePayment = async (orderId, method) => {
         try {
-            const backendMethod = method === 'cash' ? 'CASH' : 'MOBILE';
+            let backendMethod = 'CASH';
+            if (method === 'cash') {
+                backendMethod = 'CASH';
+            } else if (method === 'card') {
+                backendMethod = 'CARD';
+            } else {
+                backendMethod = 'MOBILE';
+            }
 
-            await axiosClient.put(
+            console.log(`💳 Thanh toán đơn #${orderId} với phương thức: ${backendMethod}`);
+
+            const response = await axiosClient.put(
                 `/customer/orders/${orderId}/pay?paymentMethod=${backendMethod}`
             );
 
-            setOrder(prev => prev ? { ...prev, status: "PAID" } : null);
-            setCart([]);
+            console.log("✅ Kết quả thanh toán:", response.data);
 
-            socket.emit("update-tables");
+            if (response.data?.success) {
+                setOrder(null);
+                setCart([]);
+                setSelectedPromotion(null);
 
-            showToast(`Thanh toán thành công!`, 'success', 4000);
+                socket.emit("update-tables");
+                showToast(`Thanh toán thành công!`, 'success', 4000);
 
-            setTimeout(() => {
-                navigate(-1);
-            }, 2000);
+                setTimeout(() => {
+                    navigate(-1);
+                }, 2000);
+            } else {
+                throw new Error(response.data?.message || "Thanh toán thất bại");
+            }
         } catch (err) {
-            console.error("Lỗi thanh toán:", err);
-            alert("Không thể thanh toán!");
+            console.error("❌ Lỗi thanh toán:", err);
+            console.error("Response:", err.response?.data);
+            alert(`Lỗi thanh toán: ${err.response?.data?.message || "Không thể thanh toán!"}`);
         }
     };
 
@@ -290,38 +426,61 @@ const TableDetail = () => {
 
     const filteredProducts = useMemo(() => {
         return products
-            .filter(p => activeTab === "Tất cả sản phẩm" ? true : p.categoryName === activeTab)
-            .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+            .filter(p => activeTab === "Tất cả" ? true : p.categoryName === activeTab)
+            .filter(p => p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [products, activeTab, searchTerm]);
 
-    useEffect(() => {
-        if (entity) {
-            fetchProducts();
-            fetchPromotions();
-            checkExistingOrder();
-        }
-    }, [entity]);
+    const existingOrderFromState = state?.existingOrder;
 
-    // Auto-apply promotion based on quantity
     useEffect(() => {
-        if (totalItems >= 6) {
-            const autoPromo = promotions.find(p => p.discountPercentage >= 25);
-            if (autoPromo && !selectedPromotion) {
-                setSelectedPromotion(autoPromo);
-                showToast(`Đã tự động áp dụng khuyến mãi ${autoPromo.name} (${autoPromo.discountPercentage}%)`, 'info', 3000);
+        const initialize = async () => {
+            await fetchProducts();
+            await fetchPromotions();
+
+            if (existingOrderFromState) {
+                console.log("📋 Đang khôi phục đơn hàng từ state:", existingOrderFromState);
+                console.log("📋 existingOrderFromState.items:", existingOrderFromState.items);
+
+                setOrder(existingOrderFromState);
+                setCustomerName(existingOrderFromState.customerName || "");
+
+                let items = [];
+                if (existingOrderFromState.items && existingOrderFromState.items.length > 0) {
+                    items = existingOrderFromState.items.map(item => {
+                        console.log("Item trong state:", item);
+                        return {
+                            id: item.foodId,
+                            name: item.foodName || item.food?.name || `Sản phẩm #${item.foodId}`,
+                            price: item.price || 0,
+                            quantity: item.quantity || 0,
+                            image: item.foodImageUrl || item.food?.imageUrl
+                        };
+                    });
+                }
+                setCart(items);
+
+                if (existingOrderFromState.promotion) {
+                    setSelectedPromotion(existingOrderFromState.promotion);
+                }
+
+                showToast(`Đã tải đơn hàng #${existingOrderFromState.id}`, 'info', 3000);
+            } else if (entity) {
+                await checkExistingOrder();
             }
-        } else if (totalItems >= 3) {
-            const autoPromo = promotions.find(p => p.discountPercentage >= 20);
-            if (autoPromo && !selectedPromotion) {
-                setSelectedPromotion(autoPromo);
-                showToast(`Đã tự động áp dụng khuyến mãi ${autoPromo.name} (${autoPromo.discountPercentage}%)`, 'info', 3000);
-            }
+        };
+
+        if (entity) {
+            initialize();
         }
-    }, [totalItems, promotions]);
+    }, [entity, existingOrderFromState]);
+
+    const canPay = order?.status === "COMPLETED";
+    const canPrint = order?.status === "COMPLETED" || order?.status === "PAID";
+    const canEdit = order && (order.status === "PENDING" || order.status === "PREPARING" || order.status === "COMPLETED");
+    const isNewOrder = !order;
 
     return (
         <div className={styles.container}>
-            {/* Header */}
             <div className={styles.header}>
                 <button className={styles.backBtn} onClick={() => navigate(-1)}>
                     <ArrowLeft size={24} />
@@ -331,6 +490,21 @@ const TableDetail = () => {
                     <div className={`${entity?.status === "FREE" ? styles.available : styles.occupied}`}>
                         {entity?.status === "FREE" ? "🟢 Trống" : "🔴 Đã có khách"}
                     </div>
+                    {order?.status === "PENDING" && (
+                        <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>
+                            ⏳ Đang chờ bếp
+                        </div>
+                    )}
+                    {order?.status === "PREPARING" && (
+                        <div className={styles.statusBadge} style={{ background: "#f59e0b" }}>
+                            🔪 Đang chuẩn bị
+                        </div>
+                    )}
+                    {order?.status === "COMPLETED" && (
+                        <div className={styles.statusBadge} style={{ background: "#10b981" }}>
+                            ✅ Đã hoàn thành
+                        </div>
+                    )}
                 </div>
                 <div className={styles.stats}>
                     <div className={styles.statItem}>
@@ -344,7 +518,6 @@ const TableDetail = () => {
                 </div>
             </div>
 
-            {/* Customer Name Input */}
             <div className={styles.customerSection}>
                 <input
                     type="text"
@@ -355,120 +528,107 @@ const TableDetail = () => {
                 />
             </div>
 
-            {/* Promotion Selector */}
-            <div className={styles.promotionSection}>
-                <div className={styles.formGroup}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Tag size={16} />
-                        Mã khuyến mãi
-                        {totalItems < 3 && (
-                            <span style={{ color: '#ef4444', fontSize: '12px' }}>
-                                (Cần tối thiểu 3 sản phẩm)
-                            </span>
-                        )}
-                    </label>
-
-                    <div
-                        className={styles.promotionSelect}
-                        onClick={() => {
-                            if (totalItems >= 3) {
-                                setShowPromotionModal(true);
-                            } else {
-                                alert("⚠️ Bạn cần có ít nhất 3 sản phẩm để sử dụng mã khuyến mãi!");
-                            }
-                        }}
-                        style={{
-                            cursor: totalItems >= 3 ? 'pointer' : 'not-allowed',
-                            opacity: totalItems >= 3 ? 1 : 0.5
-                        }}
-                    >
-                        {selectedPromotion ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Tag size={16} color="#10b981" />
-                                <span>{selectedPromotion.name}</span>
-                                {selectedPromotion.discountPercentage && (
-                                    <span style={{ color: '#10b981', fontWeight: '600' }}>
-                                        -{selectedPromotion.discountPercentage}%
-                                    </span>
-                                )}
-                                {selectedPromotion.discountAmount && (
-                                    <span style={{ color: '#10b981', fontWeight: '600' }}>
-                                        -{selectedPromotion.discountAmount.toLocaleString('vi-VN')}đ
-                                    </span>
-                                )}
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedPromotion(null);
-                                    }}
-                                    style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: '#9ca3af',
-                                        cursor: 'pointer',
-                                        marginLeft: 'auto'
-                                    }}
-                                >
-                                    <X size={16} />
-                                </button>
-                            </div>
-                        ) : (
-                            <span style={{ color: '#9ca3af' }}>Chọn mã giảm giá...</span>
-                        )}
+            {order?.status !== "PAID" && (
+                <div className={styles.promotionSection}>
+                    <div className={styles.formGroup}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Tag size={16} />
+                            Mã khuyến mãi
+                        </label>
+                        <div
+                            className={styles.promotionSelect}
+                            onClick={() => setShowPromotionModal(true)}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            {selectedPromotion ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                    <Tag size={16} color="#10b981" />
+                                    <span>{selectedPromotion.name}</span>
+                                    {selectedPromotion.discountPercentage && (
+                                        <span style={{ color: '#10b981', fontWeight: '600' }}>
+                                            -{selectedPromotion.discountPercentage}%
+                                        </span>
+                                    )}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedPromotion(null);
+                                        }}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: '#9ca3af',
+                                            cursor: 'pointer',
+                                            marginLeft: 'auto'
+                                        }}
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <span style={{ color: '#9ca3af' }}>Chọn mã giảm giá...</span>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* Search & Categories */}
-            <div className={styles.searchSection}>
-                <input
-                    type="text"
-                    className={styles.searchInput}
-                    placeholder="Tìm kiếm món..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
+            {order?.status !== "PAID" && (
+                <>
+                    <div className={styles.searchSection}>
+                        <input
+                            type="text"
+                            className={styles.searchInput}
+                            placeholder="Tìm kiếm món..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className={styles.categoryTabs}>
+                        {categories.map(cat => (
+                            <button
+                                key={cat}
+                                className={`${styles.categoryBtn} ${activeTab === cat ? styles.active : ""}`}
+                                onClick={() => setActiveTab(cat)}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
 
-            <div className={styles.categoryTabs}>
-                {categories.map(cat => (
-                    <button
-                        key={cat}
-                        className={`${styles.categoryBtn} ${activeTab === cat ? styles.active : ""}`}
-                        onClick={() => setActiveTab(cat)}
-                    >
-                        {cat}
-                    </button>
-                ))}
-            </div>
-
-            {/* Products Grid & Cart */}
             <div className={styles.content}>
-                <div className={styles.productsGrid}>
-                    {loading ? (
-                        <div className={styles.loading}>Đang tải...</div>
-                    ) : (
-                        filteredProducts.map(product => (
-                            <div key={product.id} className={styles.productCard} onClick={() => addToCart(product)}>
-                                <img
-                                    src={product.imageUrl?.startsWith("http") ? product.imageUrl : `${API_BASE_URL}/${product.imageUrl}`}
-                                    alt={product.name}
-                                    className={styles.productImage}
-                                    onError={(e) => { e.target.src = "/default-food.jpg"; }}
-                                />
-                                <div className={styles.productInfo}>
-                                    <h4>{product.name}</h4>
-                                    <p className={styles.productPrice}>
-                                        {(product.finalPrice || product.basePrice || 0).toLocaleString('vi-VN')}đ
-                                    </p>
+                {order?.status !== "PAID" && (
+                    <div className={styles.productsGrid}>
+                        {loading ? (
+                            <div className={styles.loading}>Đang tải...</div>
+                        ) : (
+                            filteredProducts.map(product => (
+                                <div key={product.id} className={styles.productCard} onClick={() => addToCart(product)}>
+                                    <img
+                                        src={product.imageUrl?.startsWith("http") ? product.imageUrl : `${API_BASE_URL}/${product.imageUrl}`}
+                                        alt={product.name}
+                                        className={styles.productImage}
+                                        onError={(e) => { e.target.src = "/default-food.jpg"; }}
+                                    />
+                                    <div className={styles.productInfo}>
+                                        <h4>{product.name}</h4>
+                                        <p className={styles.productPrice}>
+                                            {(product.finalPrice || product.branchPrice || product.originalPrice || 0).toLocaleString('vi-VN')}đ
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        ))
-                    )}
-                </div>
+                            ))
+                        )}
+                    </div>
+                )}
 
-                {/* Cart Sidebar */}
-                <div className={styles.cartSidebar}>
+                <div className={styles.cartSidebar} style={{
+                    width: order?.status !== "PAID" ? '380px' : '100%',
+                    maxWidth: order?.status !== "PAID" ? '380px' : '600px',
+                    margin: '0 auto'
+                }}>
                     <h3>🛒 Đơn hàng</h3>
                     {cart.length === 0 ? (
                         <p className={styles.emptyCart}>Chưa có món nào</p>
@@ -483,18 +643,25 @@ const TableDetail = () => {
                                                 {(item.price * item.quantity).toLocaleString('vi-VN')}đ
                                             </span>
                                         </div>
-                                        <div className={styles.cartItemControls}>
-                                            <button onClick={() => updateQuantity(item.id, -1)} className={styles.qtyBtn}>
-                                                <Minus size={14} />
-                                            </button>
-                                            <span className={styles.qty}>{item.quantity}</span>
-                                            <button onClick={() => updateQuantity(item.id, 1)} className={styles.qtyBtn}>
-                                                <Plus size={14} />
-                                            </button>
-                                            <button onClick={() => removeFromCart(item.id)} className={styles.removeBtn}>
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
+                                        {order?.status !== "PAID" && (
+                                            <div className={styles.cartItemControls}>
+                                                <button onClick={() => updateQuantity(item.id, -1)} className={styles.qtyBtn}>
+                                                    <Minus size={14} />
+                                                </button>
+                                                <span className={styles.qty}>{item.quantity}</span>
+                                                <button onClick={() => updateQuantity(item.id, 1)} className={styles.qtyBtn}>
+                                                    <Plus size={14} />
+                                                </button>
+                                                <button onClick={() => removeFromCart(item.id)} className={styles.removeBtn}>
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        )}
+                                        {order?.status === "PAID" && (
+                                            <div className={styles.cartItemControls}>
+                                                <span className={styles.qty}>x{item.quantity}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -516,19 +683,33 @@ const TableDetail = () => {
                                     <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
                                 </div>
 
-                                {order?.status !== "PAID" && (
-                                    <button className={styles.orderBtn} onClick={handleConfirmOrder}>
-                                        Xác nhận đơn
+                                {canEdit && cart.length > 0 && (
+                                    <button
+                                        className={styles.updateBtn}
+                                        onClick={handleUpdateOrder}
+                                        disabled={isUpdating}
+                                    >
+                                        {isUpdating ? "Đang cập nhật..." : "Cập nhật thêm món"}
                                     </button>
                                 )}
 
-                                {(order?.status === "COMPLETED" || order?.status === "PAID") && (
+                                {(isNewOrder || (order && order.status === "COMPLETED")) && cart.length > 0 && (
+                                    <button
+                                        className={styles.orderBtn}
+                                        onClick={handleConfirmOrder}
+                                        disabled={isConfirming}
+                                    >
+                                        {isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}
+                                    </button>
+                                )}
+
+                                {canPrint && (
                                     <button className={styles.printBtn} onClick={printBill}>
                                         <Printer size={18} /> In hóa đơn
                                     </button>
                                 )}
 
-                                {order?.status === "COMPLETED" && order?.status !== "PAID" && (
+                                {canPay && (
                                     <button
                                         className={styles.payBtn}
                                         onClick={() => setShowPaymentMethodModal(true)}
@@ -542,7 +723,6 @@ const TableDetail = () => {
                 </div>
             </div>
 
-            {/* Promotion Modal */}
             {showPromotionModal && (
                 <div className={styles.modalOverlay} onClick={() => setShowPromotionModal(false)}>
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -599,7 +779,6 @@ const TableDetail = () => {
                 </div>
             )}
 
-            {/* Payment Method Modal */}
             <PaymentMethodModal
                 show={showPaymentMethodModal}
                 onClose={() => setShowPaymentMethodModal(false)}
@@ -608,12 +787,13 @@ const TableDetail = () => {
                     if (method === "transfer" || method === "momo") {
                         setShowPayOSModal(true);
                     } else if (method === "cash") {
-                        handleCompletePayment(order?.id, "cash");
+                        setShowCashModal(true);
+                    } else if (method === "card") {
+                        handleCompletePayment(order?.id, "card");
                     }
                 }}
             />
 
-            {/* PayOS Payment Modal */}
             <TransferPaymentPayOs
                 show={showPayOSModal}
                 onClose={(paid) => {
@@ -626,7 +806,6 @@ const TableDetail = () => {
                 orderId={order?.id || ""}
             />
 
-            {/* Toast Notifications */}
             <div className={styles.toastContainer}>
                 {toasts.map((toast) => (
                     <ToastNotification
@@ -638,6 +817,15 @@ const TableDetail = () => {
                     />
                 ))}
             </div>
+
+            <CashPaymentModal
+                show={showCashModal}
+                onClose={() => setShowCashModal(false)}
+                onConfirm={() => {
+                    handleCompletePayment(order?.id, "cash");
+                }}
+                totalAmount={finalTotal}
+            />
         </div>
     );
 };
