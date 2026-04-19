@@ -630,8 +630,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                             >
                                 <option value="EMPLOYEE">Nhân viên</option>
                                 <option value="MANAGER">Quản lý</option>
-                                <option value="KITCHEN">Nhân viên bếp</option>
-                                <option value="ADMIN">Quản trị viên</option>
                             </select>
                         </div>
                     </div>

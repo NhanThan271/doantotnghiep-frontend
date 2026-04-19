@@ -6,7 +6,6 @@ const POSITIONS = [
     { value: 'WAITER', label: 'Phục vụ' },
     { value: 'CHEF', label: 'Bếp' },
     { value: 'CASHIER', label: 'Thu ngân' },
-    { value: 'STOCK', label: 'Kho' },
 ];
 
 export default function StaffPositionForm({ employee, staffInfo, closeForm, onSave }) {
