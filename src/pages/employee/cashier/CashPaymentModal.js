@@ -11,9 +11,10 @@ const CashPaymentModal = ({ show, onClose, onConfirm, totalAmount }) => {
     const change = received - total;
     const isValid = received >= total;
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         if (isValid) {
-            onConfirm();
+            await onConfirm();
+            setCashReceived(""); // Reset state
             onClose();
         }
     };
@@ -44,12 +45,14 @@ const CashPaymentModal = ({ show, onClose, onConfirm, totalAmount }) => {
                         onChange={(e) => setCashReceived(e.target.value)}
                         placeholder="Nhập số tiền khách đưa"
                         style={{ fontSize: "16px", marginBottom: "10px" }}
+                        autoFocus
                     />
 
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "10px" }}>
                         {[20000, 50000, 100000, 200000, 500000].map(amount => (
                             <button
                                 key={amount}
+                                type="button"
                                 onClick={() => setCashReceived(amount.toString())}
                                 style={{
                                     padding: "8px 12px",
@@ -63,6 +66,7 @@ const CashPaymentModal = ({ show, onClose, onConfirm, totalAmount }) => {
                             </button>
                         ))}
                         <button
+                            type="button"
                             onClick={() => setCashReceived(total.toString())}
                             style={{
                                 padding: "8px 12px",
@@ -95,14 +99,21 @@ const CashPaymentModal = ({ show, onClose, onConfirm, totalAmount }) => {
                 </div>
 
                 <div style={{ display: "flex", gap: "12px" }}>
-                    <button onClick={onClose} className={styles.printBtn} style={{ flex: 1, background: "#6c757d" }}>
+                    <button
+                        onClick={() => {
+                            setCashReceived("");
+                            onClose();
+                        }}
+                        className={styles.printBtn}
+                        style={{ flex: 1, background: "#6c757d" }}
+                    >
                         Hủy
                     </button>
                     <button
                         onClick={handleConfirm}
                         disabled={!isValid}
                         className={styles.orderBtn}
-                        style={{ flex: 1, background: "#10b981", opacity: isValid ? 1 : 0.5 }}
+                        style={{ flex: 1, background: "#10b981", opacity: isValid ? 1 : 0.5, cursor: isValid ? "pointer" : "not-allowed" }}
                     >
                         Xác nhận thanh toán
                     </button>
