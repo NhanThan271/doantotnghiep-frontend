@@ -52,9 +52,7 @@ function App() {
       <Routes>
         {/* Trang đăng nhập */}
         <Route path="/login" element={<LoginPage />} />
-        {/* Trang đăng ký */}
         <Route path="/register" element={<RegisterPage />} />
-        {/* Trang Quên mật khẩu */}
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* Layout riêng cho admin, nhân viên, khách */}
@@ -67,36 +65,39 @@ function App() {
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route path="/payment-cancel" element={<PaymentCancel />} />
 
-        {/* 🆕 Employee routes theo position */}
-        <Route path="/employee/cashier/*" element={<CashierLayout><ShiftPage /></CashierLayout>} />
-        <Route path="/employee/waiter/*" element={<WaiterLayout>< Orders /></WaiterLayout>} />
-        <Route path="/employee/chef/*" element={<ChefLayout><ChefDashboard /></ChefLayout>} />
-        <Route path="/employee/stock/*" element={<StockLayout><StockDashboard /></StockLayout>} />
-
-        {/* Cashier sub-routes */}
+        {/* Cashier routes - SẮP XẾP LẠI */}
         <Route path="/employee/cashier" element={<CashierLayout />}>
-          <Route index element={<ShiftPage />} /> {/* mặc định */}
+          <Route index element={<ShiftPage />} />
           <Route path="shift" element={<ShiftPage />} />
           <Route path="tables" element={<TablesPage />} />
           <Route path="booking" element={<BookingPage />} />
         </Route>
+
+        {/* Route cho TableDetail - ĐẶT NGOÀI CashierLayout để tránh layout lồng */}
         <Route path="/employee/cashier/tables/:id" element={<TableDetail />} />
+        <Route path="/employee/cashier/rooms/:id" element={<TableDetail />} />
 
         {/* Waiter Routes */}
-        <Route path="/employee/waiter/orders" element={<WaiterLayout><Orders /></WaiterLayout>} />
-        <Route path="/employee/waiter/orders/:id" element={<WaiterLayout><OrderDetail /></WaiterLayout>} />
-        <Route path="/employee/waiter/payment-requests" element={<WaiterLayout><WaiterPaymentRequests /></WaiterLayout>} />
+        <Route path="/employee/waiter" element={<WaiterLayout />}>
+          <Route path="orders" element={<Orders />} />
+          <Route path="orders/:id" element={<OrderDetail />} />
+          <Route path="payment-requests" element={<WaiterPaymentRequests />} />
+        </Route>
 
-        {/* Chef sub-routes */}
-        <Route path="/employee/chef" element={<ChefLayout><ChefDashboard /></ChefLayout>} />
+        {/* Chef routes */}
+        <Route path="/employee/chef" element={<ChefLayout />}>
+          <Route index element={<ChefDashboard />} />
+        </Route>
 
-        {/* Stock sub-routes */}
-        <Route path="/employee/stock" element={<StockLayout><StockDashboard /></StockLayout>} />
-        <Route path="/employee/stock/inventory" element={<StockLayout><div>Quản lý kho</div></StockLayout>} />
-        <Route path="/employee/stock/import" element={<StockLayout><div>Nhập hàng</div></StockLayout>} />
-        <Route path="/employee/stock/export" element={<StockLayout><div>Xuất hàng</div></StockLayout>} />
-        <Route path="/employee/stock/check" element={<StockLayout><div>Kiểm kho</div></StockLayout>} />
-        <Route path="/employee/stock/low-stock" element={<StockLayout><div>Hàng sắp hết</div></StockLayout>} />
+        {/* Stock routes */}
+        <Route path="/employee/stock" element={<StockLayout />}>
+          <Route index element={<StockDashboard />} />
+          <Route path="inventory" element={<div>Quản lý kho</div>} />
+          <Route path="import" element={<div>Nhập hàng</div>} />
+          <Route path="export" element={<div>Xuất hàng</div>} />
+          <Route path="check" element={<div>Kiểm kho</div>} />
+          <Route path="low-stock" element={<div>Hàng sắp hết</div>} />
+        </Route>
 
         {/* Trang công khai với Header + Footer */}
         <Route path="/" element={<PublicLayout><Main /></PublicLayout>} />
