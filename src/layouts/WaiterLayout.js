@@ -1,8 +1,8 @@
 // layouts/WaiterLayout.js
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Outlet } from "react-router-dom";
 
-const WaiterLayout = ({ children }) => {
+const WaiterLayout = () => {
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -93,7 +93,7 @@ const WaiterLayout = ({ children }) => {
 
             {/* Nội dung */}
             <div style={{ padding: 24 }}>
-                {children}
+                <Outlet />
             </div>
         </div>
     );
