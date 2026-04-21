@@ -29,8 +29,6 @@ import BookingPage from "./pages/employee/cashier/BookingPage";
 import TableDetail from "./pages/employee/cashier/TableDetail";
 
 import Orders from "./pages/employee/waiter/Orders";
-import OrderDetail from "./pages/employee/waiter/OrderDetail";
-import WaiterPaymentRequests from "./pages/employee/waiter/WaiterPaymentRequests";
 
 import ChefDashboard from "./pages/employee/chef/ChefDashboard";
 import StockDashboard from "./pages/employee/stock/StockDashboard";
@@ -80,8 +78,6 @@ function App() {
         {/* Waiter Routes */}
         <Route path="/employee/waiter" element={<WaiterLayout />}>
           <Route path="orders" element={<Orders />} />
-          <Route path="orders/:id" element={<OrderDetail />} />
-          <Route path="payment-requests" element={<WaiterPaymentRequests />} />
         </Route>
 
         {/* Chef routes */}
