@@ -94,19 +94,19 @@ const LoginPage = () => {
                 // Điều hướng theo position
                 switch (user.position) {
                     case "CASHIER":
-                        navigate("/employee/cashier", { replace: true });
+                        navigate("/cashier/shift", { replace: true });
                         break;
                     case "WAITER":
-                        navigate("/employee/waiter", { replace: true });
+                        navigate("/waiter/orders", { replace: true });
                         break;
                     case "CHEF":
-                        navigate("/employee/chef", { replace: true });
+                        navigate("/chef/", { replace: true });
                         break;
                     case "STOCK":
-                        navigate("/employee/stock", { replace: true });
+                        navigate("/stock", { replace: true });
                         break;
                     default:
-                        navigate("/employee", { replace: true });
+                        navigate("/", { replace: true });
                 }
                 alert("Đăng nhập thành công!");
                 setIsLoading(false);

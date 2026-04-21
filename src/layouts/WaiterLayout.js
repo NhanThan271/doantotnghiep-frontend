@@ -1,8 +1,8 @@
 // layouts/WaiterLayout.js
 import React from "react";
-import { useNavigate, Outlet } from "react-router-dom";
+import { useNavigate } from "react-router-dom"; // Bỏ Outlet
 
-const WaiterLayout = () => {
+const WaiterLayout = ({ children }) => { // Giữ children
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -13,8 +13,8 @@ const WaiterLayout = () => {
     };
 
     const menuItems = [
-        { label: "🍽️ Gọi món", path: "/employee/waiter/orders" },
-        { label: "📋 Yêu cầu thanh toán", path: "/employee/waiter/payment-requests" },
+        { label: "🍽️ Gọi món", path: "/waiter/orders" },
+        { label: "📋 Yêu cầu thanh toán", path: "/waiter/payment-requests" },
     ];
 
     return (
@@ -93,7 +93,7 @@ const WaiterLayout = () => {
 
             {/* Nội dung */}
             <div style={{ padding: 24 }}>
-                <Outlet />
+                {children}
             </div>
         </div>
     );

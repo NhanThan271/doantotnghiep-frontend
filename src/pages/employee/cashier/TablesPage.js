@@ -138,7 +138,7 @@ const TablesPage = () => {
         console.log(`🖱️ Click bàn ${table.number}, table.id=${table.id}, existingOrder:`, existingOrder);
 
         // Truyền existingOrder nếu có, nếu không thì truyền null
-        navigate(`/employee/cashier/tables/${table.id}`, {
+        navigate(`/cashier/tables/${table.id}`, {
             state: {
                 table: table,
                 existingOrder: existingOrder || null
@@ -151,7 +151,7 @@ const TablesPage = () => {
 
         console.log(`🖱️ Click phòng ${room.number}, order:`, existingOrder);
 
-        navigate(`/employee/cashier/rooms/${room.id}`, {
+        navigate(`/cashier/rooms/${room.id}`, {
             state: {
                 room: room,
                 existingOrder: existingOrder || null

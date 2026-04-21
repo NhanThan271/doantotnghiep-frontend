@@ -13,12 +13,12 @@ const StockLayout = ({ children }) => {
     };
 
     const menuItems = [
-        { label: "🏠 Tổng quan", path: "/employee/stock" },
-        { label: "📦 Quản lý kho", path: "/employee/stock/inventory" },
-        { label: "📥 Nhập hàng", path: "/employee/stock/import" },
-        { label: "📤 Xuất hàng", path: "/employee/stock/export" },
-        { label: "✅ Kiểm kho", path: "/employee/stock/check" },
-        { label: "⚠️ Hàng sắp hết", path: "/employee/stock/low-stock" },
+        { label: "🏠 Tổng quan", path: "/stock" },
+        { label: "📦 Quản lý kho", path: "/stock/inventory" },
+        { label: "📥 Nhập hàng", path: "/stock/import" },
+        { label: "📤 Xuất hàng", path: "/stock/export" },
+        { label: "✅ Kiểm kho", path: "/stock/check" },
+        { label: "⚠️ Hàng sắp hết", path: "/stock/low-stock" },
     ];
 
     return (
