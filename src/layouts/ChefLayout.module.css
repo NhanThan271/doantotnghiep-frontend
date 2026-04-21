@@ -1,49 +1,61 @@
-/* layouts/ChefLayout.module.css */
+/* ChefLayout.module.css */
+
 .wrapper {
-    min-height: 100vh;
-    background: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    /* full viewport height */
+    width: 100vw;
+    /* full viewport width  */
+    overflow: hidden;
+    background: #111214;
 }
 
+/* Header stays fixed height */
 .header {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    color: white;
-    padding: 0 32px;
-    height: 70px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 0 24px;
+    height: 60px;
+    min-height: 60px;
+    background: #0d0f11;
+    border-bottom: 1px solid #2a2d32;
+    flex-shrink: 0;
+    z-index: 10;
 }
 
 .headerLeft {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
 }
 
 .logo {
-    color: #e94560;
+    color: #f97316;
 }
 
 .title {
-    font-size: 20px;
-    font-weight: 600;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #e8e9eb;
     margin: 0;
+    line-height: 1;
 }
 
 .subtitle {
-    font-size: 12px;
-    color: #a0aec0;
-    margin: 2px 0 0 0;
+    font-size: 0.72rem;
+    color: #6b7280;
+    margin: 3px 0 0;
 }
 
 .headerRight {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
 }
 
 .userInfo {
@@ -52,38 +64,56 @@
 
 .userName {
     display: block;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #e8e9eb;
 }
 
 .userRole {
-    display: block;
-    font-size: 11px;
-    color: #a0aec0;
+    font-size: 0.72rem;
+    color: #6b7280;
 }
 
 .logoutBtn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.5);
-    color: #f87171;
-    padding: 8px 16px;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid #3a3d42;
+    color: #9ca3af;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 7px 14px;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 
 .logoutBtn:hover {
-    background: rgba(239, 68, 68, 0.3);
     border-color: #ef4444;
-    color: #fecaca;
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.08);
 }
 
+/* Content fills the rest */
 .content {
-    padding: 24px;
-    max-width: 1400px;
-    margin: 0 auto;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Custom scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: #2a2d32 transparent;
+}
+
+.content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.content::-webkit-scrollbar-thumb {
+    background: #2a2d32;
+    border-radius: 3px;
 }

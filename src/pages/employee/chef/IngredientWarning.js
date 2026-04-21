@@ -1,7 +1,7 @@
-// components/kitchen/IngredientWarning.js
+// pages/employee/chef/IngredientWarning.js
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Package, TrendingDown, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { kitchenAPI } from '../../services/api';
+import { kitchenAPI } from '../../../services/api';
 
 const IngredientWarning = ({ branchId, onClose, autoRefresh = true }) => {
     const [warnings, setWarnings] = useState([]);
@@ -13,7 +13,7 @@ const IngredientWarning = ({ branchId, onClose, autoRefresh = true }) => {
         fetchWarnings();
 
         if (autoRefresh) {
-            const interval = setInterval(fetchWarnings, 30000); // Refresh mỗi 30 giây
+            const interval = setInterval(fetchWarnings, 30000);
             setRefreshInterval(interval);
         }
 
@@ -38,9 +38,12 @@ const IngredientWarning = ({ branchId, onClose, autoRefresh = true }) => {
 
     const getWarningColor = (status) => {
         switch (status) {
-            case 'critical': return { bg: '#fee2e2', border: '#ef4444', text: '#dc2626', icon: '#ef4444' };
-            case 'warning': return { bg: '#fef3c7', border: '#f59e0b', text: '#d97706', icon: '#f59e0b' };
-            default: return { bg: '#f1f5f9', border: '#64748b', text: '#475569', icon: '#64748b' };
+            case 'critical':
+                return { bg: '#fee2e2', border: '#ef4444', text: '#dc2626', icon: '#ef4444' };
+            case 'warning':
+                return { bg: '#fef3c7', border: '#f59e0b', text: '#d97706', icon: '#f59e0b' };
+            default:
+                return { bg: '#f1f5f9', border: '#64748b', text: '#475569', icon: '#64748b' };
         }
     };
 

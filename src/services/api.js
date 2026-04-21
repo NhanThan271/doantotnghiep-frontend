@@ -130,7 +130,10 @@ export const ingredientAPI = {
 export const kitchenAPI = {
     getQueue: () => api.get('/kitchen/queue'),
     updateItemStatus: (id, status) => api.put(`/kitchen/order-items/${id}/status?status=${status}`),
+    getByStatus: (status) => api.get(`/kitchen/order-items/status?status=${status}`),
 
+    // Lấy tất cả món (kể cả READY)
+    getAllItems: () => api.get('/kitchen/order-items'),
     // Kiểm tra nguyên liệu cho món ăn (cần backend implement)
     checkIngredients: async (branchId, foodId, quantity) => {
         try {
