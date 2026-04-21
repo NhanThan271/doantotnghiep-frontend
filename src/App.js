@@ -3,7 +3,6 @@ import Header from "./layouts/Header";
 import Footer from "./layouts/Footer";
 import "./assets/scss/style.scss";
 import Main from "./layouts/Main";
-import CafeStaffSystem from "./pages/employee/CafeStaffSystem";
 import AdminLayout from './layouts/AdminLayout';
 import LoginPage from './pages/login/LoginPage';
 import RegisterPage from './pages/login/RegisterPage';
@@ -16,7 +15,6 @@ import Menu from "./pages/client/Menu";
 import BookingDetail from "./pages/client/booking/BookingDetail";
 import RestaurantLocation from "./pages/client/booking/RestaurantLocation";
 import ManagerLayout from "./layouts/ManagerLayout";
-import KitchenDashboard from "./pages/kitchen/KitchenDashboard";
 
 import CashierLayout from "./layouts/CashierLayout";
 import WaiterLayout from "./layouts/WaiterLayout";
@@ -59,7 +57,6 @@ function App() {
         <Route path="/admin/*" element={<AdminLayout />} />
         <Route path="/manager/*" element={<ManagerLayout />} />
 
-        <Route path="/kitchen/*" element={<KitchenDashboard />} />
         <Route path="/menu/*" element={<CafeCusSystem />} />
         <Route path="/momo-return" element={<MomoReturn />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
