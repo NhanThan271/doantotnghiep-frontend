@@ -20,24 +20,21 @@ export default function BranchEmployeesManager() {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [expandedShift, setExpandedShift] = useState(null);
     const [staffMap, setStaffMap] = useState({});
+    const [shiftTemplates, setShiftTemplates] = useState([]);
+    const [staffList, setStaffList] = useState([]);
 
     // State cho modal phân ca
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [assignForm, setAssignForm] = useState({
-        userId: '',
-        shiftDate: new Date().toISOString().split('T')[0],
-        startTime: '08:00',
-        endTime: '17:00',
-        role: 'EMPLOYEE'
+        staffId: '',
+        shiftId: '',
+        workDay: new Date().toISOString().split('T')[0],
     });
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingShift, setEditingShift] = useState(null);
     const [editForm, setEditForm] = useState({
-        shiftDate: '',
-        startTime: '',
-        endTime: '',
-        role: '',
-        userId: ''
+        shiftId: '',
+        workDay: '',
     });
 
     const API_BASE_URL = 'http://localhost:8080';
@@ -104,6 +101,27 @@ export default function BranchEmployeesManager() {
         }
     };
 
+    const fetchStaffList = async () => {
+        if (!currentBranch?.id) return;
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/staff/branch/${currentBranch.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            setStaffList(data);
+
+            const map = {};
+            data.forEach(s => {
+                if (s?.userId) map[s.userId] = { id: s.id, position: s.position };
+            });
+            setStaffMap(map);
+        } catch (err) {
+            console.error('Lỗi lấy staff list:', err);
+        }
+    };
+
     const fetchBranchEmployees = async () => {
         if (!currentBranch?.id) return;
         setLoading(true);
@@ -133,13 +151,23 @@ export default function BranchEmployeesManager() {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(
-                `${API_BASE_URL}/api/work-shifts/branch/${currentBranch.id}`,
+            const staffRes = await fetch(
+                `${API_BASE_URL}/api/staff/branch/${currentBranch.id}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            if (!response.ok) throw new Error('Không thể tải ca làm việc');
-            const data = await response.json();
-            setWorkShifts(data);
+
+            const staffList = await staffRes.json();
+
+            const shiftRes = await fetch(
+                `${API_BASE_URL}/api/staff-shifts/date?date=${selectedDate}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            const allShifts = await shiftRes.json();
+
+            const staffIds = new Set(staffList.map(s => s.id));
+            const branchShifts = allShifts.filter(ss => staffIds.has(ss.staff?.id));
+
+            setWorkShifts(branchShifts);
         } catch (error) {
             console.error('Lỗi:', error);
             alert('Không thể tải ca làm việc.');
@@ -148,100 +176,88 @@ export default function BranchEmployeesManager() {
         }
     };
 
+    const fetchShiftTemplates = async () => {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/api/shifts`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        setShiftTemplates(data);
+    };
+
     // Xử lý phân ca
     const handleAssignShift = async (e) => {
         e.preventDefault();
-        if (!assignForm.userId || !currentBranch?.id) {
-            alert('Vui lòng chọn nhân viên!');
+        if (!assignForm.staffId || !assignForm.shiftId) {
+            alert('Vui lòng chọn nhân viên và ca làm việc!');
             return;
         }
-
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/work-shifts`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    user: { id: parseInt(assignForm.userId) },
-                    branch: { id: currentBranch.id },
-                    shiftDate: assignForm.shiftDate,
-                    startTime: assignForm.startTime,
-                    endTime: assignForm.endTime,
-                    role: assignForm.role
-                })
+            const params = new URLSearchParams({
+                staffId: assignForm.staffId,
+                shiftId: assignForm.shiftId,
+                workDay: assignForm.workDay,
             });
-
-            if (!response.ok) throw new Error('Phân ca thất bại');
-
+            const response = await fetch(
+                `${API_BASE_URL}/api/staff-shifts?${params}`,
+                {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+            if (!response.ok) {
+                const msg = await response.text();
+                throw new Error(msg || 'Phân ca thất bại');
+            }
             alert('Phân ca thành công!');
             setShowAssignModal(false);
-            setAssignForm({
-                userId: '',
-                shiftDate: new Date().toISOString().split('T')[0],
-                startTime: '08:00',
-                endTime: '17:00',
-                role: 'EMPLOYEE'
-            });
             fetchWorkShifts();
         } catch (error) {
-            console.error('Lỗi:', error);
-            alert('Không thể phân ca. Vui lòng thử lại.');
+            alert(error.message);
         } finally {
             setLoading(false);
         }
     };
-
     const handleOpenEditModal = (shift) => {
         setEditingShift(shift);
         setEditForm({
-            shiftDate: shift.shiftDate,
-            startTime: shift.startTime,
-            endTime: shift.endTime,
-            role: shift.role,
-            userId: shift.user?.id || ''
+            shiftId: shift.shift?.id || '',
+            workDay: shift.workDay || selectedDate,
         });
         setShowEditModal(true);
     };
 
     const handleUpdateShift = async (e) => {
         e.preventDefault();
-        if (!editingShift) return;
-
+        if (!editForm.shiftId || !editForm.workDay) {
+            alert('Vui lòng chọn ca làm việc và ngày!');
+            return;
+        }
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/work-shifts/${editingShift.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    shiftDate: editForm.shiftDate,
-                    startTime: editForm.startTime,
-                    endTime: editForm.endTime,
-                    role: editForm.role,
-                    user: { id: parseInt(editForm.userId) },
-                    branch: { id: currentBranch.id }
-                })
+            const params = new URLSearchParams({
+                shiftId: editForm.shiftId,
+                workDay: editForm.workDay,
             });
-
+            const response = await fetch(
+                `${API_BASE_URL}/api/staff-shifts/${editingShift.id}?${params}`,
+                {
+                    method: 'PUT',
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
             if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error || 'Cập nhật ca thất bại');
+                const msg = await response.text();
+                throw new Error(msg || 'Cập nhật thất bại');
             }
-
-            alert('Cập nhật ca làm việc thành công!');
+            alert('Cập nhật ca thành công!');
             setShowEditModal(false);
-            setEditingShift(null);
             fetchWorkShifts();
         } catch (error) {
-            console.error('Lỗi:', error);
-            alert(error.message || 'Không thể cập nhật ca làm việc. Vui lòng thử lại.');
+            alert(error.message);
         } finally {
             setLoading(false);
         }
@@ -252,14 +268,20 @@ export default function BranchEmployeesManager() {
     }, []);
 
     useEffect(() => {
-        if (currentBranch) {
-            if (activeTab === 'employees') {
-                fetchBranchEmployees();
-            } else {
-                fetchWorkShifts();
-            }
+        if (!currentBranch) return;
+        fetchShiftTemplates();
+        fetchStaffList();
+        if (activeTab === 'employees') {
+            fetchBranchEmployees();
+        } else {
+            fetchWorkShifts();
         }
     }, [currentBranch, activeTab]);
+
+    useEffect(() => {
+        if (!currentBranch || activeTab !== 'shifts') return;
+        fetchWorkShifts();
+    }, [selectedDate]);
 
     const getImageUrl = (imageUrl) => {
         if (!imageUrl) return null;
@@ -282,12 +304,12 @@ export default function BranchEmployeesManager() {
         return matchesSearch && matchesFilter;
     });
 
-    const filteredShifts = workShifts.filter(shift => shift.shiftDate === selectedDate);
+    const filteredShifts = workShifts.filter(shift => shift.workDay === selectedDate);
 
-    const groupedShifts = filteredShifts.reduce((acc, shift) => {
-        const timeKey = `${shift.startTime}-${shift.endTime}`;
-        if (!acc[timeKey]) acc[timeKey] = [];
-        acc[timeKey].push(shift);
+    const groupedShifts = filteredShifts.reduce((acc, ss) => {
+        const key = ss.shift?.id;
+        if (!acc[key]) acc[key] = { shift: ss.shift, items: [] };
+        acc[key].items.push(ss);
         return acc;
     }, {});
 
@@ -583,14 +605,13 @@ export default function BranchEmployeesManager() {
                             </div>
                         ) : (
                             <div style={{ padding: '20px' }}>
-                                {Object.entries(groupedShifts).map(([timeKey, shifts]) => {
-                                    const [startTime, endTime] = timeKey.split('-');
-                                    const isExpanded = expandedShift === timeKey;
+                                {Object.entries(groupedShifts).map(([shiftId, { shift, items }]) => {
+                                    const isExpanded = expandedShift === shiftId;
                                     return (
-                                        <div key={timeKey} className={styles.shiftCard}>
+                                        <div key={shiftId} className={styles.shiftCard}>
                                             <div
                                                 className={styles.shiftHeader}
-                                                onClick={() => setExpandedShift(isExpanded ? null : timeKey)}
+                                                onClick={() => setExpandedShift(isExpanded ? null : shiftId)}
                                                 style={{ cursor: 'pointer' }}
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -599,10 +620,10 @@ export default function BranchEmployeesManager() {
                                                     </div>
                                                     <div>
                                                         <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>
-                                                            {startTime} - {endTime}
+                                                            {shift?.name} — {shift?.startTime} - {shift?.endTime}
                                                         </h3>
                                                         <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
-                                                            {shifts.length} nhân viên
+                                                            {items.length} nhân viên
                                                         </p>
                                                     </div>
                                                 </div>
@@ -611,45 +632,41 @@ export default function BranchEmployeesManager() {
 
                                             {isExpanded && (
                                                 <div className={styles.shiftContent}>
-                                                    {shifts.map((shift) => (
-                                                        <div key={shift.id} className={styles.shiftItem}>
+                                                    {items.map(ss => (
+                                                        <div key={ss.id} className={styles.shiftItem}>
                                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                                    {shift.user?.imageUrl ? (
+                                                                    {ss.staff?.user?.imageUrl ? (
                                                                         <img
-                                                                            src={getImageUrl(shift.user.imageUrl)}
-                                                                            alt={shift.user.fullName}
+                                                                            src={getImageUrl(ss.staff.user.imageUrl)}
+                                                                            alt={ss.staff.user.fullName}
                                                                             className={styles.productImage}
                                                                             style={{ width: '40px', height: '40px' }}
                                                                         />
                                                                     ) : (
                                                                         <div className={styles.productImagePlaceholder} style={{ width: '40px', height: '40px' }}>
                                                                             <span style={{ fontWeight: '700', fontSize: '12px' }}>
-                                                                                {getInitials(shift.user?.fullName || 'U')}
+                                                                                {getInitials(ss.staff?.user?.fullName || 'U')}
                                                                             </span>
                                                                         </div>
                                                                     )}
                                                                     <div>
                                                                         <div style={{ fontWeight: '600' }}>
-                                                                            {shift.user?.fullName || shift.user?.username || 'N/A'}
+                                                                            {ss.staff?.user?.fullName || ss.staff?.user?.username || 'N/A'}
                                                                         </div>
                                                                         <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                                                                            {shift.role}
+                                                                            {ss.staff?.position
+                                                                                ? (POSITION_MAP[ss.staff.position]?.label || ss.staff.position)
+                                                                                : '—'}
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                                 <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleOpenEditModal(shift);
-                                                                    }}
+                                                                    onClick={(e) => { e.stopPropagation(); handleOpenEditModal(ss); }}
                                                                     className={styles.primaryButton}
-                                                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary)'}
-                                                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-light)'}
                                                                     title="Sửa ca làm việc"
                                                                 >
-                                                                    <Edit2 size={18} />
-                                                                    Sửa ca làm việc
+                                                                    <Edit2 size={18} /> Sửa ca
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -768,66 +785,50 @@ export default function BranchEmployeesManager() {
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>Nhân viên *</label>
                                 <select
-                                    value={assignForm.userId}
-                                    onChange={(e) => setAssignForm({ ...assignForm, userId: e.target.value })}
+                                    value={assignForm.staffId}
+                                    onChange={(e) => setAssignForm({ ...assignForm, staffId: e.target.value })}
                                     className={styles.formInput}
                                     required
                                 >
                                     <option value="">-- Chọn nhân viên --</option>
-                                    {employees.filter(e => e.isActive).map(emp => (
-                                        <option key={emp.id} value={emp.id}>
-                                            {emp.fullName || emp.username} ({emp.role})
+                                    {staffList
+                                        .filter(s => s.status !== 'INACTIVE')
+                                        .map(s => (
+                                            <option key={s.id} value={s.id}>
+                                                {s.fullName || s.username} — {POSITION_MAP[s.position]?.label || s.position}
+                                            </option>
+                                        ))}
+                                </select>
+                            </div>
+
+                            {/* Chọn ca (template) */}
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Ca làm việc *</label>
+                                <select
+                                    value={assignForm.shiftId}
+                                    onChange={(e) => setAssignForm({ ...assignForm, shiftId: e.target.value })}
+                                    className={styles.formInput}
+                                    required
+                                >
+                                    <option value="">-- Chọn ca --</option>
+                                    {shiftTemplates.map(sh => (
+                                        <option key={sh.id} value={sh.id}>
+                                            {sh.name} ({sh.startTime} - {sh.endTime})
                                         </option>
                                     ))}
                                 </select>
                             </div>
 
+                            {/* Ngày làm */}
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>Ngày làm việc *</label>
                                 <input
                                     type="date"
-                                    value={assignForm.shiftDate}
-                                    onChange={(e) => setAssignForm({ ...assignForm, shiftDate: e.target.value })}
+                                    value={assignForm.workDay}
+                                    onChange={(e) => setAssignForm({ ...assignForm, workDay: e.target.value })}
                                     className={styles.formInput}
                                     required
                                 />
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Giờ bắt đầu *</label>
-                                    <input
-                                        type="time"
-                                        value={assignForm.startTime}
-                                        onChange={(e) => setAssignForm({ ...assignForm, startTime: e.target.value })}
-                                        className={styles.formInput}
-                                        required
-                                    />
-                                </div>
-
-                                <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Giờ kết thúc *</label>
-                                    <input
-                                        type="time"
-                                        value={assignForm.endTime}
-                                        onChange={(e) => setAssignForm({ ...assignForm, endTime: e.target.value })}
-                                        className={styles.formInput}
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Vị trí *</label>
-                                <select
-                                    value={assignForm.role}
-                                    onChange={(e) => setAssignForm({ ...assignForm, role: e.target.value })}
-                                    className={styles.formInput}
-                                    required
-                                >
-                                    <option value="EMPLOYEE">Nhân viên phục vụ</option>
-                                    <option value="KITCHEN">Nhân viên bếp</option>
-                                </select>
                             </div>
                         </div>
 
@@ -857,119 +858,71 @@ export default function BranchEmployeesManager() {
                 <div className={styles.modalOverlay} onClick={() => setShowEditModal(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
-                            <h3 className={styles.modalTitle}>
-                                <Edit2 size={24} />
-                                Chỉnh sửa ca làm việc
-                            </h3>
-                            <button
-                                onClick={() => setShowEditModal(false)}
-                                className={styles.modalClose}
-                            >
+                            <h3 className={styles.modalTitle}><Edit2 size={24} /> Chỉnh sửa ca làm việc</h3>
+                            <button onClick={() => setShowEditModal(false)} className={styles.modalClose}>
                                 <X size={20} />
                             </button>
                         </div>
 
                         <div className={styles.modalBody}>
+                            {/* Hiển thị tên nhân viên (readonly) */}
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Nhân viên *</label>
+                                <label className={styles.formLabel}>Nhân viên</label>
+                                <input
+                                    type="text"
+                                    value={editingShift.staff?.user?.fullName || editingShift.staff?.user?.username || ''}
+                                    className={styles.formInput}
+                                    disabled
+                                />
+                            </div>
+
+                            {/* Đổi ca */}
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Ca làm việc *</label>
                                 <select
-                                    value={editForm.userId}
-                                    onChange={(e) => setEditForm({ ...editForm, userId: e.target.value })}
+                                    value={editForm.shiftId}
+                                    onChange={(e) => setEditForm({ ...editForm, shiftId: e.target.value })}
                                     className={styles.formInput}
                                     required
-                                    disabled={editingShift.status !== 'SCHEDULED'}
                                 >
-                                    <option value="">-- Chọn nhân viên --</option>
-                                    {employees.filter(e => e.isActive).map(emp => (
-                                        <option key={emp.id} value={emp.id}>
-                                            {emp.fullName || emp.username} ({emp.role})
+                                    <option value="">-- Chọn ca --</option>
+                                    {shiftTemplates.map(sh => (
+                                        <option key={sh.id} value={sh.id}>
+                                            {sh.name} ({sh.startTime} - {sh.endTime})
                                         </option>
                                     ))}
                                 </select>
-                                {editingShift.status !== 'SCHEDULED' && (
-                                    <small style={{ color: 'var(--color-warning)', fontSize: '12px', marginTop: '4px' }}>
-                                        * Chỉ có thể đổi nhân viên khi ca chưa bắt đầu
-                                    </small>
-                                )}
                             </div>
 
+                            {/* Đổi ngày */}
                             <div className={styles.formGroup}>
                                 <label className={styles.formLabel}>Ngày làm việc *</label>
                                 <input
                                     type="date"
-                                    value={editForm.shiftDate}
-                                    onChange={(e) => setEditForm({ ...editForm, shiftDate: e.target.value })}
+                                    value={editForm.workDay}
+                                    onChange={(e) => setEditForm({ ...editForm, workDay: e.target.value })}
                                     className={styles.formInput}
                                     required
                                 />
                             </div>
 
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Giờ bắt đầu *</label>
-                                    <input
-                                        type="time"
-                                        value={editForm.startTime}
-                                        onChange={(e) => setEditForm({ ...editForm, startTime: e.target.value })}
-                                        className={styles.formInput}
-                                        required
-                                    />
-                                </div>
-
-                                <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Giờ kết thúc *</label>
-                                    <input
-                                        type="time"
-                                        value={editForm.endTime}
-                                        onChange={(e) => setEditForm({ ...editForm, endTime: e.target.value })}
-                                        className={styles.formInput}
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Vị trí *</label>
-                                <select
-                                    value={editForm.role}
-                                    onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                                    className={styles.formInput}
-                                    required
-                                >
-                                    <option value="EMPLOYEE">Nhân viên phục vụ</option>
-                                    <option value="KITCHEN">Nhân viên bếp</option>
-                                </select>
-                            </div>
-
                             <div style={{
-                                padding: '12px',
-                                backgroundColor: 'var(--color-warning-light)',
-                                borderRadius: '8px',
-                                marginTop: '16px'
+                                padding: '12px', backgroundColor: 'var(--color-warning-light)',
+                                borderRadius: '8px', marginTop: '16px'
                             }}>
                                 <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-warning-dark)' }}>
                                     <AlertCircle size={16} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-                                    Lưu ý: Không thể sửa ca đã hoàn thành
+                                    Lưu ý: Chỉ có thể đổi ca hoặc ngày, không thể đổi nhân viên ở đây
                                 </p>
                             </div>
                         </div>
 
                         <div className={styles.modalFooter}>
-                            <button
-                                type="button"
-                                onClick={() => setShowEditModal(false)}
-                                className={styles.secondaryButton}
-                            >
+                            <button type="button" onClick={() => setShowEditModal(false)} className={styles.secondaryButton}>
                                 Hủy
                             </button>
-                            <button
-                                type="submit"
-                                onClick={handleUpdateShift}
-                                className={styles.primaryButton}
-                                disabled={loading}
-                            >
-                                <Save size={18} />
-                                {loading ? 'Đang lưu...' : 'Cập nhật'}
+                            <button type="button" onClick={handleUpdateShift} className={styles.primaryButton} disabled={loading}>
+                                <Save size={18} /> {loading ? 'Đang lưu...' : 'Cập nhật'}
                             </button>
                         </div>
                     </div>

@@ -106,7 +106,7 @@ export default function ManagerInventoryManagement() {
             });
             if (!response.ok) throw new Error();
             const data = await response.json();
-            setAllIngredients(data);
+            setAllIngredients(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Lỗi khi tải danh sách nguyên liệu:', error);
         }
@@ -150,6 +150,8 @@ export default function ManagerInventoryManagement() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.ok) setWarehouses(await res.json());
+            const data = await res.json();
+            setWarehouses(Array.isArray(data) ? data : []);
         } catch (e) { console.error('Lỗi khi tải kho tổng:', e); }
     };
 
@@ -163,8 +165,8 @@ export default function ManagerInventoryManagement() {
             );
             if (!response.ok) throw new Error();
             const data = await response.json();
-            setBranchIngredients(data);
-            setFilteredIngredients(data);
+            setBranchIngredients(Array.isArray(data) ? data : []);
+            setFilteredIngredients(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Lỗi khi tải nguyên liệu:', error);
         }
@@ -180,8 +182,7 @@ export default function ManagerInventoryManagement() {
             );
             if (!response.ok) throw new Error();
             const data = await response.json();
-            setInventoryRequests(data);
-
+            setInventoryRequests(Array.isArray(data) ? data : []);
             const itemsMap = {};
             for (const request of data) {
                 try {
@@ -213,7 +214,7 @@ export default function ManagerInventoryManagement() {
             );
             if (!response.ok) throw new Error();
             const data = await response.json();
-            setInventoryHistory(data);
+            setInventoryHistory(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Lỗi khi tải lịch sử kho:', error);
         } finally {
@@ -295,6 +296,27 @@ export default function ManagerInventoryManagement() {
         } catch { }
     };
 
+    const confirmReceived = async (requestId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${API_BASE_URL}/api/inventory-requests/${requestId}/confirm-received`,
+                { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!response.ok) throw new Error();
+
+            addNotification({
+                type: 'success',
+                title: 'Xác nhận thành công',
+                message: 'Đã xác nhận nhận hàng. Kho chi nhánh đã được cập nhật.'
+            });
+            fetchInventoryRequests();
+            fetchBranchIngredients();
+        } catch {
+            addNotification({ type: 'error', title: 'Lỗi', message: 'Không thể xác nhận. Vui lòng thử lại.' });
+        }
+    };
+
     const createInventoryRequest = async () => {
         if (!requestForm.warehouseId)
             return addNotification({ type: 'warning', title: ' Chú ý', message: 'Vui lòng chọn kho tổng' });
@@ -371,7 +393,8 @@ export default function ManagerInventoryManagement() {
     const getRequestStatusBadge = (status) => {
         const statusMap = {
             'PENDING': { text: 'Chờ duyệt', class: styles.badgeWarning, icon: Clock },
-            'APPROVED': { text: 'Đã duyệt', class: styles.badgeSuccess, icon: CheckCircle },
+            'APPROVED': { text: 'Đã duyệt, chờ nhận hàng', class: styles.badgeSuccess, icon: CheckCircle },
+            'RECEIVED': { text: 'Đã nhận hàng', class: styles.badgeSuccess, icon: CheckCircle },
             'REJECTED': { text: 'Từ chối', class: styles.badgeDanger, icon: X }
         };
         return statusMap[status] || { text: status, class: styles.badgeInactive, icon: AlertCircle };
@@ -711,8 +734,33 @@ export default function ManagerInventoryManagement() {
                                             {request.approvedBy && (
                                                 <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <CheckCircle size={14} color="#10B981" />
-                                                    {request.status === 'APPROVED' ? 'Duyệt' : 'Từ chối'} bởi: <strong>{request.approvedBy.fullName || request.approvedBy.username}</strong>
+                                                    {request.status === 'REJECTED' ? 'Từ chối' : 'Duyệt'} bởi:{' '}
+                                                    <strong>{request.approvedBy.fullName || request.approvedBy.username}</strong>
                                                     {request.approvedAt && ` • ${formatDate(request.approvedAt)}`}
+                                                </div>
+                                            )}
+                                            {/* Nút xác nhận nhận hàng */}
+                                            {request.status === 'APPROVED' && (
+                                                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    <div style={{
+                                                        padding: '12px', marginBottom: '12px',
+                                                        background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+                                                        borderRadius: '8px', fontSize: '13px', color: '#F59E0B'
+                                                    }}>
+                                                        Admin đã duyệt và xuất hàng từ kho tổng. Vui lòng xác nhận đã nhận hàng để cập nhật tồn kho chi nhánh.
+                                                    </div>
+                                                    <button
+                                                        onClick={() => confirmReceived(request.id)}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: '8px',
+                                                            padding: '10px 20px', background: '#10B981', color: 'white',
+                                                            border: 'none', borderRadius: '8px', cursor: 'pointer',
+                                                            fontSize: '14px', fontWeight: '600'
+                                                        }}
+                                                    >
+                                                        <CheckCircle size={18} />
+                                                        Xác nhận đã nhận hàng
+                                                    </button>
                                                 </div>
                                             )}
                                         </div>
@@ -868,7 +916,10 @@ export default function ManagerInventoryManagement() {
                                 <h2 className={styles.modalTitle}>Tạo yêu cầu nhập kho</h2>
                                 <p className={styles.modalSubtitle}>Chọn nguyên liệu cần nhập từ kho tổng</p>
                             </div>
-                            <button onClick={() => { setShowRequestModal(false); setRequestForm({ ingredientId: '', quantity: '', reason: '' }); }} className={styles.modalCloseButton}>
+                            <button onClick={() => {
+                                setShowRequestModal(false);
+                                setRequestForm({ warehouseId: '', reason: '', type: 'IMPORT', items: [{ ingredientId: '', quantity: '' }] });
+                            }} className={styles.modalCloseButton}>
                                 <X size={24} />
                             </button>
                         </div>
