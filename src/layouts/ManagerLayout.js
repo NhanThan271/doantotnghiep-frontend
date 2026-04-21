@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, Users, ShoppingBag, Tag, LogOut, ChevronLeft, ChevronRight, Table } from 'lucide-react';
+import { BarChart3, Users, ShoppingBag, Tag, LogOut, ChevronLeft, ChevronRight, Table, DoorOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import styles from './AdminLayout.module.css';
 
@@ -23,6 +23,7 @@ import EditCategoryForm from '../pages/manage/forms/EditCategoryForm';
 import ManagerTableManagement from '../pages/manage/ManagerTable';
 import ManagerInventoryManagement from '../pages/manage/ManagerInventory';
 import BranchReservationManager from '../pages/manage/BranchReservation';
+import ManagerRoomManagement from '../pages/manage/Managerroom';
 
 export default function ManagerLayout() {
     const navigate = useNavigate();
@@ -66,6 +67,7 @@ export default function ManagerLayout() {
         { id: 'products', label: 'Quản lý Sản phẩm', icon: ShoppingBag },
         { id: 'manageroders', label: 'Quản lý Đơn hàng', icon: ShoppingBag },
         { id: 'managerables', label: 'Quản lý Bàn', icon: Table },
+        { id: 'ManagerRoom', label: 'Quản lý Phòng', icon: DoorOpen },
         { id: 'ManagerInventory', label: 'Quản lý Kho', icon: ShoppingBag },
         { id: 'promotions', label: 'Quản lý Khuyến mãi', icon: Tag },
         { id: 'employees', label: 'Quản lý Nhân viên', icon: Users },
@@ -133,6 +135,9 @@ export default function ManagerLayout() {
 
             case 'managerables':
                 return <ManagerTableManagement />;
+
+            case 'ManagerRoom':
+                return <ManagerRoomManagement />;
 
             case 'ManagerInventory':
                 return <ManagerInventoryManagement

@@ -23,9 +23,10 @@ const StatusBadge = ({ status }) => {
     const map = {
         PENDING: { cls: 'badge status-pending', icon: <Clock size={12} />, label: 'Chờ duyệt' },
         APPROVED: { cls: 'badge status-approved', icon: <CheckCircle size={12} />, label: 'Đã duyệt' },
+        RECEIVED: { cls: 'badge status-approved', icon: <Check size={12} />, label: 'Đã nhận hàng' },
         REJECTED: { cls: 'badge status-rejected', icon: <XCircle size={12} />, label: 'Từ chối' },
     };
-    const s = map[status] || map.PENDING;
+    const s = map[status] || { cls: 'badge status-pending', icon: <Clock size={12} />, label: status };
     return <span className={s.cls}>{s.icon} {s.label}</span>;
 };
 
@@ -317,9 +318,10 @@ export default function InventoryManagement() {
         return () => clearInterval(id);
     }, [selectedBranch, selectedReq, rejectModal]);
 
-    const pendingCount = requests.filter(r => r.status === 'PENDING').length;
+    const pendingCount = requests.filter(r => r?.status === 'PENDING').length;
 
     const filteredReqs = requests.filter(req => {
+        if (!req) return false;
         const items = getItems(req.id);
         const names = items.map(i => i.ingredient?.name?.toLowerCase() || '').join(' ');
         const branch = req.branch?.name?.toLowerCase() || '';
@@ -334,9 +336,10 @@ export default function InventoryManagement() {
     /* Stats */
     const stats = [
         { key: 'total', label: 'Tổng yêu cầu', count: requests.length, icon: <FileText size={24} color="#3B82F6" /> },
-        { key: 'pending', label: 'Chờ duyệt', count: requests.filter(r => r.status === 'PENDING').length, icon: <Clock size={24} color="#F59E0B" /> },
-        { key: 'approved', label: 'Đã duyệt', count: requests.filter(r => r.status === 'APPROVED').length, icon: <CheckCircle size={24} color="#10B981" /> },
-        { key: 'rejected', label: 'Từ chối', count: requests.filter(r => r.status === 'REJECTED').length, icon: <XCircle size={24} color="#EF4444" /> },
+        { key: 'pending', label: 'Chờ duyệt', count: requests.filter(r => r?.status === 'PENDING').length, icon: <Clock size={24} color="#F59E0B" /> },
+        { key: 'approved', label: 'Đã duyệt, chờ nhận hàng', count: requests.filter(r => r?.status === 'APPROVED').length, icon: <CheckCircle size={24} color="#10B981" /> },
+        { key: 'received', label: 'Đã nhận hàng', count: requests.filter(r => r?.status === 'RECEIVED').length, icon: <Check size={24} color="#6366f1" /> },
+        { key: 'rejected', label: 'Từ chối', count: requests.filter(r => r?.status === 'REJECTED').length, icon: <XCircle size={24} color="#EF4444" /> },
     ];
 
     const TABS = [
@@ -662,7 +665,8 @@ export default function InventoryManagement() {
                         <select className="search-input1" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                             <option value="all">Tất cả trạng thái</option>
                             <option value="PENDING">Chờ duyệt</option>
-                            <option value="APPROVED">Đã duyệt</option>
+                            <option value="APPROVED">Đã duyệt, chờ nhận hàng</option>
+                            <option value="RECEIVED">Đã nhận hàng</option>
                             <option value="REJECTED">Từ chối</option>
                         </select>
                         <select className="search-input1" value={filterType} onChange={e => setFilterType(e.target.value)}>
@@ -771,7 +775,7 @@ export default function InventoryManagement() {
                                                     <td>{fmtDate(ex.createdAt)}</td>
                                                     <td className="ingredient-name">{ex.warehouse?.name || '—'}</td>
                                                     <td>{ex.branch?.name || '—'}</td>
-                                                    <td>{ex.createdBy?.fullName || '—'}</td>
+                                                    <td>{ex.createdBy?.fullName || ex.createdBy?.username || '—'}</td>
                                                     <td>
                                                         <span style={{
                                                             fontSize: 12, color: '#667eea',
@@ -866,7 +870,9 @@ export default function InventoryManagement() {
                                     <div className="modal-timeline-divider" />
                                     <div className="modal-timeline-item">
                                         <span className="modal-timeline-item-label"><User size={13} /> Người yêu cầu</span>
-                                        <span className="modal-timeline-item-value">{selectedReq.requestedBy?.fullName}</span>
+                                        <span className="modal-timeline-item-value">
+                                            {selectedReq.requestedBy?.fullName || selectedReq.requestedBy?.username || 'N/A'}
+                                        </span>
                                     </div>
                                     <div className="modal-timeline-divider" />
                                     <div className="modal-timeline-item">
@@ -935,10 +941,24 @@ export default function InventoryManagement() {
                                         <span className="modal-timeline-item-value">{exportDetail.export?.branch?.name || '—'}</span>
                                     </div>
                                     <div className="modal-timeline-divider" />
-                                    <div className="modal-timeline-item">
-                                        <span className="modal-timeline-item-label"><User size={13} /> Người duyệt</span>
-                                        <span className="modal-timeline-item-value">{exportDetail.export?.createdBy?.fullName || '—'}</span>
-                                    </div>
+                                    {(selectedReq.status === 'RECEIVED' || selectedReq.status === 'APPROVED') && selectedReq.approvedBy && (
+                                        <>
+                                            <div className="modal-timeline-divider" />
+                                            <div className="modal-timeline-item">
+                                                <span className="modal-timeline-item-label"><CheckCircle size={13} /> Người duyệt</span>
+                                                <span className="modal-timeline-item-value">{selectedReq.approvedBy?.fullName}</span>
+                                            </div>
+                                        </>
+                                    )}
+                                    {selectedReq.status === 'RECEIVED' && selectedReq.receivedBy && (
+                                        <>
+                                            <div className="modal-timeline-divider" />
+                                            <div className="modal-timeline-item">
+                                                <span className="modal-timeline-item-label"><Check size={13} /> Người nhận hàng</span>
+                                                <span className="modal-timeline-item-value">{selectedReq.receivedBy?.fullName}</span>
+                                            </div>
+                                        </>
+                                    )}
                                     <div className="modal-timeline-divider" />
                                     <div className="modal-timeline-item">
                                         <span className="modal-timeline-item-label"><Calendar size={13} /> Ngày xuất</span>
