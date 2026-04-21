@@ -51,10 +51,17 @@ export const categoryAPI = {
     getById: (id) => api.get(`/categories/${id}`),
 };
 
-// Branch Food API (lấy món theo chi nhánh kèm khuyến mãi)
+// Branch Food API
 export const branchFoodAPI = {
-    getByBranch: (branchId) => api.get(`/branch-foods/branch/${branchId}`),
-    getWithPromotions: (branchId) => api.get(`/branch-foods/branch/${branchId}/with-promotions`),
+    // Lấy danh sách món theo chi nhánh và category
+    getByBranchAndCategory: (branchId, categoryId) => {
+        return api.get(`/branch-foods/branch/${branchId}?categoryId=${categoryId}`);
+    },
+
+    // Lấy danh sách món theo chi nhánh (không filter)
+    getByBranch: (branchId) => {
+        return api.get(`/branch-foods/branch/${branchId}`); // SỬA: dùng api.get
+    },
 };
 
 // Order API
@@ -104,14 +111,66 @@ export const tableAPI = {
     free: (id) => api.put(`/tables/${id}/free`),
 };
 
-export const kitchenAPI = {
-    // ĐÚNG: backend có /api/kitchen/queue
-    getQueue: () => api.get('/kitchen/queue'),
+export const branchIngredientAPI = {
+    // Lấy nguyên liệu theo chi nhánh
+    getByBranch: (branchId) => api.get(`/branch-ingredients/branch/${branchId}`),
 
-    // ĐÚNG: backend có /api/kitchen/order-items/{id}/status
+    // Cập nhật số lượng
+    updateQuantity: (id, quantity) => api.put(`/branch-ingredients/${id}?quantity=${quantity}`),
+};
+
+export const ingredientAPI = {
+    getAll: () => api.get('/ingredients'),
+    getActive: () => api.get('/ingredients/active'),
+    getById: (id) => api.get(`/ingredients/${id}`),
+    search: (keyword) => api.get(`/ingredients/search?keyword=${keyword}`),
+};
+
+// Thêm vào kitchenAPI
+export const kitchenAPI = {
+    getQueue: () => api.get('/kitchen/queue'),
     updateItemStatus: (id, status) => api.put(`/kitchen/order-items/${id}/status?status=${status}`),
 
-    // THÊM: lấy danh sách order items (dùng queue thay vì order-items)
-    getOrderItems: () => api.get('/kitchen/queue'),  // Dùng queue endpoint
+    // Kiểm tra nguyên liệu cho món ăn (cần backend implement)
+    checkIngredients: async (branchId, foodId, quantity) => {
+        try {
+            // Gọi API kiểm tra nguyên liệu
+            const response = await api.get(`/branches/${branchId}/foods/${foodId}/check-ingredients`, {
+                params: { quantity }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Error checking ingredients:', error);
+            return { available: true, missingIngredients: [], lowStock: [] };
+        }
+    },
+
+    // Lấy cảnh báo nguyên liệu sắp hết
+    getLowStockWarnings: async (branchId, threshold = 0.3) => {
+        try {
+            const response = await api.get(`/branch-ingredients/branch/${branchId}`);
+            const ingredients = response.data || [];
+
+            // Tính toán ngưỡng cảnh báo (30% của threshold)
+            const warnings = ingredients
+                .filter(item => {
+                    const thresholdValue = (item.ingredient?.threshold || 10) * threshold;
+                    return item.quantity <= thresholdValue;
+                })
+                .map(item => ({
+                    id: item.id,
+                    name: item.ingredient?.name || 'Unknown',
+                    quantity: item.quantity,
+                    unit: item.ingredient?.unit || 'kg',
+                    threshold: item.ingredient?.threshold || 10,
+                    status: item.quantity <= 0 ? 'critical' : 'warning'
+                }));
+
+            return warnings;
+        } catch (error) {
+            console.error('Error getting low stock warnings:', error);
+            return [];
+        }
+    }
 };
 export default api;

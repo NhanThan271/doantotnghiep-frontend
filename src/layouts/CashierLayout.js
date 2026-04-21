@@ -18,7 +18,7 @@ const CashierLayout = () => {
 
         // 👉 mở sidebar → đi tới trang kết ca
         if (newState) {
-            navigate("/employee/cashier/shift");
+            navigate("/cashier/shift");
         }
     };
 
@@ -48,37 +48,37 @@ const CashierLayout = () => {
 
                 {/* Menu items */}
                 <div
-                    onClick={() => navigate("/employee/cashier/shift")}
+                    onClick={() => navigate("/cashier/shift")}
                     style={{
                         padding: "10px 15px",
                         cursor: "pointer",
                         marginTop: 10,
-                        background: location.pathname === "/employee/cashier/shift" ? "rgba(212,175,55,0.2)" : "transparent",
-                        borderLeft: location.pathname === "/employee/cashier/shift" ? "3px solid #D4AF37" : "3px solid transparent"
+                        background: location.pathname === "/cashier/shift" ? "rgba(212,175,55,0.2)" : "transparent",
+                        borderLeft: location.pathname === "/cashier/shift" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
                     Ca làm việc
                 </div>
 
                 <div
-                    onClick={() => navigate("/employee/cashier/history")}
+                    onClick={() => navigate("/cashier/history")}
                     style={{
                         padding: "10px 15px",
                         cursor: "pointer",
-                        background: location.pathname === "/employee/cashier/history" ? "rgba(212,175,55,0.2)" : "transparent",
-                        borderLeft: location.pathname === "/employee/cashier/history" ? "3px solid #D4AF37" : "3px solid transparent"
+                        background: location.pathname === "/cashier/history" ? "rgba(212,175,55,0.2)" : "transparent",
+                        borderLeft: location.pathname === "/cashier/history" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
                     Lịch sử
                 </div>
 
                 <div
-                    onClick={() => navigate("/employee/cashier/withdraw")}
+                    onClick={() => navigate("/cashier/withdraw")}
                     style={{
                         padding: "10px 15px",
                         cursor: "pointer",
-                        background: location.pathname === "/employee/cashier/withdraw" ? "rgba(212,175,55,0.2)" : "transparent",
-                        borderLeft: location.pathname === "/employee/cashier/withdraw" ? "3px solid #D4AF37" : "3px solid transparent"
+                        background: location.pathname === "/cashier/withdraw" ? "rgba(212,175,55,0.2)" : "transparent",
+                        borderLeft: location.pathname === "/cashier/withdraw" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
                     Rút tiền
@@ -160,7 +160,7 @@ const CashierLayout = () => {
                     {/* 👉 TẤT CẢ BÀN */}
                     <span
                         onClick={() => {
-                            navigate("/employee/cashier/tables");
+                            navigate("/cashier/tables");
                             setIsSidebarOpen(false);
                         }}
                         style={{ cursor: "pointer" }}
@@ -170,7 +170,7 @@ const CashierLayout = () => {
 
                     <span
                         onClick={() => {
-                            navigate("/employee/cashier/booking");
+                            navigate("/cashier/booking");
                             setIsSidebarOpen(false);
                         }}
                         style={{ cursor: "pointer" }}

@@ -159,13 +159,13 @@ const OrderDetail = () => {
                     {/* Action Buttons */}
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <button
-                            onClick={() => navigate(`/employee/waiter/payment-request/${order.id}`)}
+                            onClick={() => navigate(`/waiter/payment-request/${order.id}`)}
                             style={{ flex: 1, padding: '12px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
                         >
                             📤 Yêu cầu thanh toán
                         </button>
                         <button
-                            onClick={() => navigate(`/employee/waiter/orders/new?tableId=${order.tableId}&tableName=${order.tableName}&orderId=${order.id}`)}
+                            onClick={() => navigate(`/waiter/orders/new?tableId=${order.tableId}&tableName=${order.tableName}&orderId=${order.id}`)}
                             style={{ flex: 1, padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
                         >
                             ➕ Gọi thêm món

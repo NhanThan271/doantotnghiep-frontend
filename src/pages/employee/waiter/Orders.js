@@ -9,25 +9,26 @@ const Orders = () => {
     const location = useLocation();
     const [cart, setCart] = useState([]);
     const [menu, setMenu] = useState([]);
+    const [filteredMenu, setFilteredMenu] = useState([]);
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [tableInfo, setTableInfo] = useState(null);
-    const [selectedRoomType, setSelectedRoomType] = useState('normal'); // 'normal' hoặc 'vip'
-    const [selectedArea, setSelectedArea] = useState(''); // Khu vực cho phòng thường
-    const [selectedRoomId, setSelectedRoomId] = useState(''); // ID phòng VIP
+    const [selectedRoomType, setSelectedRoomType] = useState('normal');
+    const [selectedArea, setSelectedArea] = useState('');
+    const [selectedRoomId, setSelectedRoomId] = useState('');
     const [selectedTableNumber, setSelectedTableNumber] = useState('');
     const [selectedTableId, setSelectedTableId] = useState('');
     const [generalNote, setGeneralNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [existingOrderId, setExistingOrderId] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [loadingMenu, setLoadingMenu] = useState(false);
     const [currentBranch, setCurrentBranch] = useState(null);
 
-    // Dữ liệu từ backend
-    const [rooms, setRooms] = useState([]); // Danh sách phòng VIP
-    const [areas, setAreas] = useState([]); // Danh sách khu vực (cho bàn thường)
-    const [tables, setTables] = useState([]); // Danh sách bàn theo khu vực
+    const [rooms, setRooms] = useState([]);
+    const [areas, setAreas] = useState([]);
+    const [tables, setTables] = useState([]);
     const [loadingRooms, setLoadingRooms] = useState(false);
     const [loadingTables, setLoadingTables] = useState(false);
 
@@ -38,10 +39,16 @@ const Orders = () => {
             fetchRooms(user.branch.id);
             fetchAreas(user.branch.id);
         }
-        fetchMenu();
         fetchCategories();
         fetchParams();
     }, []);
+
+    // Load menu khi chọn category
+    useEffect(() => {
+        if (currentBranch?.id) {
+            fetchMenuByCategory(selectedCategory);
+        }
+    }, [currentBranch, selectedCategory]);
 
     const fetchCategories = async () => {
         try {
@@ -51,6 +58,89 @@ const Orders = () => {
             console.error('Lỗi khi lấy danh mục:', error);
         }
     };
+
+    const fetchMenuByCategory = async (categoryId) => {
+        setLoadingMenu(true);
+        try {
+            const branchId = currentBranch?.id;
+            if (!branchId) return;
+
+            // Dùng fetch trực tiếp hoặc axios
+            const token = localStorage.getItem('token');
+            const API_BASE_URL = 'http://localhost:8080';
+
+            let url = `${API_BASE_URL}/api/branch-foods/branch/${branchId}/with-promotions`;
+            if (categoryId !== 'all') {
+                url += `?categoryId=${parseInt(categoryId)}`;
+            }
+
+            const response = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch');
+            }
+
+            const foods = await response.json();
+            console.log('Foods from API:', foods);
+
+            const menuData = foods.map(item => {
+                // Xử lý image URL giống TableDetail
+                let imageUrl = null;
+                if (item.imageUrl) {
+                    if (item.imageUrl.startsWith('http')) {
+                        imageUrl = item.imageUrl;
+                    } else {
+                        imageUrl = `${API_BASE_URL}/${item.imageUrl}`;
+                    }
+                }
+
+                return {
+                    id: item.id,
+                    name: item.name,
+                    category: item.categoryName?.toLowerCase() || 'main',
+                    categoryId: item.categoryId,
+                    categoryName: item.categoryName,
+                    price: Number(item.finalPrice) || Number(item.branchPrice) || 0,
+                    originalPrice: Number(item.originalPrice) || Number(item.branchPrice) || 0,
+                    discount: item.discountPercentage || 0,
+                    image: imageUrl,
+                    isActive: item.isActive !== false
+                };
+            });
+
+            // Chỉ hiển thị món đang active
+            const activeMenu = menuData.filter(item => item.isActive !== false);
+            console.log('Active menu data:', activeMenu);
+            setMenu(activeMenu);
+
+            if (searchTerm) {
+                const searched = activeMenu.filter(item =>
+                    item.name?.toLowerCase().includes(searchTerm.toLowerCase())
+                );
+                setFilteredMenu(searched);
+            } else {
+                setFilteredMenu(activeMenu);
+            }
+        } catch (error) {
+            console.error('Error fetching menu:', error);
+        } finally {
+            setLoadingMenu(false);
+        }
+    };
+
+    // Lọc theo search term
+    useEffect(() => {
+        if (searchTerm) {
+            const searched = menu.filter(item =>
+                item.name?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            setFilteredMenu(searched);
+        } else {
+            setFilteredMenu(menu);
+        }
+    }, [searchTerm, menu]);
 
     const fetchRooms = async (branchId) => {
         setLoadingRooms(true);
@@ -90,7 +180,6 @@ const Orders = () => {
         }
     };
 
-    // Khi chọn khu vực (phòng thường) -> fetch bàn
     useEffect(() => {
         if (currentBranch?.id && selectedRoomType === 'normal' && selectedArea) {
             fetchTablesByArea(currentBranch.id, selectedArea);
@@ -150,52 +239,6 @@ const Orders = () => {
         }
     };
 
-    const fetchMenu = async () => {
-        try {
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const branchId = user.branch?.id;
-
-            let foods = [];
-
-            if (branchId) {
-                const response = await branchFoodAPI.getWithPromotions(branchId);
-                foods = response.data || [];
-                console.log('Foods from API:', foods);
-            } else {
-                const response = await foodAPI.getAll();
-                foods = response.data || [];
-            }
-
-            const menuData = foods.map(item => {
-                let imageUrl = null;
-                if (item.imageUrl) {
-                    if (item.imageUrl.startsWith('/uploads/')) {
-                        imageUrl = `http://localhost:8080${item.imageUrl}`;
-                    } else if (item.imageUrl.startsWith('http')) {
-                        imageUrl = item.imageUrl;
-                    } else {
-                        imageUrl = `http://localhost:8080/uploads/${item.imageUrl}`;
-                    }
-                }
-
-                return {
-                    id: item.id,
-                    name: item.name,
-                    category: item.categoryName?.toLowerCase() || 'main',
-                    price: Number(item.finalPrice) || Number(item.branchPrice) || 0,
-                    originalPrice: Number(item.originalPrice) || Number(item.branchPrice) || 0,
-                    discount: item.discountPercentage || 0,
-                    image: imageUrl
-                };
-            });
-
-            console.log('Menu data with images:', menuData);
-            setMenu(menuData);
-        } catch (error) {
-            console.error('Error fetching menu:', error);
-        }
-    };
-
     const addToCart = (item) => {
         const existingItem = cart.find(cartItem => cartItem.id === item.id);
         if (existingItem) {
@@ -232,7 +275,7 @@ const Orders = () => {
     };
 
     const calculateSubtotal = () => cart.reduce((sum, item) => sum + item.total, 0);
-    const calculateTotal = () => calculateSubtotal() * 1.1;
+    const calculateTotal = () => calculateSubtotal();
 
     const getLocationName = () => {
         if (selectedRoomType === 'vip') {
@@ -249,15 +292,12 @@ const Orders = () => {
             return;
         }
 
-        // VALIDATION THEO ĐÚNG LOGIC
         if (selectedRoomType === 'vip') {
-            // Phòng VIP: chỉ cần chọn phòng, không cần bàn
             if (!selectedRoomId) {
                 alert('Vui lòng chọn phòng VIP!');
                 return;
             }
         } else {
-            // Phòng thường: cần chọn khu vực VÀ bàn
             if (!selectedArea) {
                 alert('Vui lòng chọn khu vực!');
                 return;
@@ -271,7 +311,6 @@ const Orders = () => {
         setSubmitting(true);
         try {
             if (existingOrderId) {
-                // Thêm món vào đơn cũ
                 const itemsToAdd = cart.map(item => ({
                     foodId: item.id,
                     quantity: item.quantity,
@@ -291,15 +330,12 @@ const Orders = () => {
 
                 alert(`Đã thêm món mới vào đơn hàng ${existingOrderId}!`);
             } else {
-                // Tạo đơn mới
                 const orderData = {
                     branch: { id: currentBranch?.id },
                     roomType: selectedRoomType,
-                    // Nếu là phòng VIP
                     ...(selectedRoomType === 'vip' && selectedRoomId && {
                         room: { id: parseInt(selectedRoomId) }
                     }),
-                    // Nếu là phòng thường
                     ...(selectedRoomType === 'normal' && {
                         table: { id: parseInt(selectedTableId) },
                         areaName: selectedArea,
@@ -323,7 +359,6 @@ const Orders = () => {
                 const response = await orderAPI.create(orderData);
                 console.log('✅ Order created:', response.data);
 
-                // Gửi qua Socket
                 if (wsService.connected) {
                     const socketOrderData = {
                         id: response.data.id,
@@ -359,7 +394,7 @@ const Orders = () => {
 
                 alert(`Đơn hàng #${response.data.id} đã được gửi đến bếp!`);
             }
-            navigate('/employee/waiter');
+            navigate('/waiter');
         } catch (error) {
             console.error('Error submitting order:', error);
             alert('Có lỗi xảy ra: ' + (error.response?.data?.message || 'Vui lòng thử lại'));
@@ -369,13 +404,21 @@ const Orders = () => {
     };
 
     const getCategoryIcon = (category) => {
-        const icons = { soup: '🍜', appetizer: '🍢', rice: '🍚', main: '🍛', hotpot: '🍲', beverage: '🥤' };
-        return icons[category] || '🍽️';
+        const icons = {
+            soup: '🍜',
+            appetizer: '🍢',
+            rice: '🍚',
+            main: '🍛',
+            hotpot: '🍲',
+            beverage: '🥤',
+            drink: '🥤',
+            food: '🍽️'
+        };
+        return icons[category?.toLowerCase()] || '🍽️';
     };
 
     const handleRoomTypeChange = (type) => {
         setSelectedRoomType(type);
-        // Reset các giá trị khi đổi loại phòng
         setSelectedArea('');
         setSelectedRoomId('');
         setSelectedTableId('');
@@ -418,143 +461,161 @@ const Orders = () => {
                         <button
                             onClick={() => setSelectedCategory('all')}
                             style={{
-                                padding: '6px 12px',
+                                padding: '8px 16px',
                                 background: selectedCategory === 'all' ? '#3b82f6' : '#f1f5f9',
                                 color: selectedCategory === 'all' ? 'white' : '#1e293b',
                                 border: 'none',
                                 borderRadius: '20px',
                                 cursor: 'pointer',
-                                fontSize: '13px',
+                                fontSize: '14px',
+                                fontWeight: selectedCategory === 'all' ? '600' : '400',
                                 whiteSpace: 'nowrap'
                             }}
                         >
-                            Tất cả
+                            🍽️ Tất cả
                         </button>
                         {categories.map(cat => (
                             <button
                                 key={cat.id}
-                                onClick={() => setSelectedCategory(cat.name?.toLowerCase() || cat.id)}
+                                onClick={() => setSelectedCategory(cat.id.toString())}
                                 style={{
-                                    padding: '6px 12px',
-                                    background: selectedCategory === (cat.name?.toLowerCase() || cat.id) ? '#3b82f6' : '#f1f5f9',
-                                    color: selectedCategory === (cat.name?.toLowerCase() || cat.id) ? 'white' : '#1e293b',
+                                    padding: '8px 16px',
+                                    background: selectedCategory === cat.id.toString() ? '#3b82f6' : '#f1f5f9',
+                                    color: selectedCategory === cat.id.toString() ? 'white' : '#1e293b',
                                     border: 'none',
                                     borderRadius: '20px',
                                     cursor: 'pointer',
-                                    fontSize: '13px',
+                                    fontSize: '14px',
+                                    fontWeight: selectedCategory === cat.id.toString() ? '600' : '400',
                                     whiteSpace: 'nowrap',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '4px'
+                                    gap: '6px'
                                 }}
                             >
-                                {getCategoryIcon(cat.name?.toLowerCase())} {cat.name}
+                                {getCategoryIcon(cat.name)} {cat.name}
                             </button>
                         ))}
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '15px' }}>
-                    {menu
-                        .filter(item => {
-                            if (selectedCategory !== 'all' && item.category !== selectedCategory) return false;
-                            if (searchTerm && !item.name?.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-                            return true;
-                        })
-                        .map(item => (
-                            <div
-                                key={item.id}
-                                onClick={() => addToCart(item)}
-                                style={{
-                                    background: 'white',
-                                    borderRadius: '12px',
-                                    padding: '15px',
-                                    cursor: 'pointer',
-                                    transition: 'transform 0.2s',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                    position: 'relative'
-                                }}
-                            >
-                                {item.discount > 0 && (
-                                    <div style={{
-                                        position: 'absolute',
-                                        top: 8,
-                                        right: 8,
-                                        background: '#ef4444',
-                                        color: 'white',
-                                        padding: '2px 6px',
-                                        borderRadius: '4px',
-                                        fontSize: '10px',
-                                        fontWeight: 'bold'
-                                    }}>
-                                        -{item.discount}%
-                                    </div>
-                                )}
-
-                                {item.image ? (
-                                    <img
-                                        src={item.image}
-                                        alt={item.name}
-                                        style={{
-                                            width: '100%',
-                                            height: '120px',
-                                            objectFit: 'cover',
-                                            borderRadius: '8px',
-                                            marginBottom: '10px',
-                                            backgroundColor: '#f1f5f9'
-                                        }}
-                                        onError={(e) => {
-                                            console.log('Image failed to load:', item.image);
-                                            e.target.style.display = 'none';
-                                            e.target.nextSibling.style.display = 'flex';
-                                        }}
-                                    />
-                                ) : null}
-
-                                <div style={{
-                                    fontSize: '40px',
-                                    marginBottom: '10px',
-                                    display: item.image ? 'none' : 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    height: '120px',
-                                    backgroundColor: '#f1f5f9',
-                                    borderRadius: '8px'
-                                }}>
-                                    {getCategoryIcon(item.category)}
-                                </div>
-
-                                <h4 style={{ margin: '0 0 5px 0', fontSize: '14px', textAlign: 'center' }}>{item.name}</h4>
-                                <div style={{ textAlign: 'center' }}>
-                                    {item.discount > 0 ? (
-                                        <>
-                                            <span style={{ color: '#10b981', fontWeight: 'bold' }}>
-                                                {item.price?.toLocaleString('vi-VN')}đ
-                                            </span>
-                                            <span style={{
-                                                marginLeft: '8px',
-                                                fontSize: '12px',
-                                                color: '#94a3b8',
-                                                textDecoration: 'line-through'
-                                            }}>
-                                                {item.originalPrice?.toLocaleString('vi-VN')}đ
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <p style={{ margin: 0, color: '#10b981', fontWeight: 'bold' }}>
-                                            {item.price?.toLocaleString('vi-VN')}đ
-                                        </p>
-                                    )}
-                                </div>
+                {loadingMenu ? (
+                    <div style={{ textAlign: 'center', padding: '50px', background: 'white', borderRadius: '12px' }}>
+                        <p>Đang tải thực đơn...</p>
+                    </div>
+                ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
+                        {filteredMenu.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '50px', background: 'white', borderRadius: '12px', gridColumn: '1/-1' }}>
+                                <p>Không tìm thấy món ăn nào</p>
                             </div>
-                        ))}
-                </div>
+                        ) : (
+                            filteredMenu.map(item => (
+                                <div
+                                    key={item.id}
+                                    onClick={() => addToCart(item)}
+                                    style={{
+                                        background: 'white',
+                                        borderRadius: '12px',
+                                        padding: '15px',
+                                        cursor: 'pointer',
+                                        transition: 'transform 0.2s, box-shadow 0.2s',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                        position: 'relative',
+                                        ':hover': {
+                                            transform: 'translateY(-2px)',
+                                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                                        }
+                                    }}
+                                >
+                                    {item.discount > 0 && (
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: 8,
+                                            right: 8,
+                                            background: '#ef4444',
+                                            color: 'white',
+                                            padding: '2px 8px',
+                                            borderRadius: '4px',
+                                            fontSize: '11px',
+                                            fontWeight: 'bold',
+                                            zIndex: 1
+                                        }}>
+                                            -{item.discount}%
+                                        </div>
+                                    )}
+
+                                    {item.image ? (
+                                        <img
+                                            src={item.image}
+                                            alt={item.name}
+                                            style={{
+                                                width: '100%',
+                                                height: '130px',
+                                                objectFit: 'cover',
+                                                borderRadius: '8px',
+                                                marginBottom: '10px',
+                                                backgroundColor: '#f1f5f9'
+                                            }}
+                                            onError={(e) => {
+                                                console.log('Image failed to load:', item.image);
+                                                e.target.style.display = 'none';
+                                                if (e.target.nextSibling) {
+                                                    e.target.nextSibling.style.display = 'flex';
+                                                }
+                                            }}
+                                        />
+                                    ) : null}
+
+                                    <div style={{
+                                        fontSize: '48px',
+                                        marginBottom: '10px',
+                                        display: item.image ? 'none' : 'flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        height: '130px',
+                                        backgroundColor: '#f1f5f9',
+                                        borderRadius: '8px'
+                                    }}>
+                                        {getCategoryIcon(item.categoryName)}
+                                    </div>
+
+                                    <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: '600', textAlign: 'center' }}>
+                                        {item.name}
+                                    </h4>
+
+                                    <div style={{ textAlign: 'center' }}>
+                                        {item.discount > 0 ? (
+                                            <>
+                                                <span style={{ color: '#10b981', fontWeight: 'bold', fontSize: '16px' }}>
+                                                    {item.price?.toLocaleString('vi-VN')}đ
+                                                </span>
+                                                <span style={{
+                                                    marginLeft: '8px',
+                                                    fontSize: '12px',
+                                                    color: '#94a3b8',
+                                                    textDecoration: 'line-through'
+                                                }}>
+                                                    {item.originalPrice?.toLocaleString('vi-VN')}đ
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <p style={{ margin: 0, color: '#10b981', fontWeight: 'bold', fontSize: '16px' }}>
+                                                {item.price?.toLocaleString('vi-VN')}đ
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* Cart Section */}
+            {/* Cart Section - giữ nguyên */}
             <div style={{ flex: 1 }}>
                 <div style={{ background: 'white', borderRadius: '12px', padding: '20px', position: 'sticky', top: '20px' }}>
-                    <h3 style={{ margin: '0 0 15px 0' }}>🛒 Giỏ hàng</h3>
+                    <h3 style={{ margin: '0 0 15px 0' }}>🛒 Giỏ hàng ({cart.length} món)</h3>
 
                     <div style={{ marginBottom: '15px', padding: '10px', background: '#f1f5f9', borderRadius: '8px' }}>
                         <div style={{ marginBottom: '10px' }}>
@@ -594,16 +655,13 @@ const Orders = () => {
                         </div>
 
                         {selectedRoomType === 'vip' ? (
-                            // PHÒNG VIP: chỉ chọn phòng, không cần bàn
                             <div style={{ marginBottom: '10px' }}>
                                 <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '500' }}>🏛️ Chọn phòng VIP</label>
                                 <select
                                     value={selectedRoomId}
                                     onChange={(e) => {
                                         const roomId = e.target.value;
-                                        const room = rooms.find(r => r.id === parseInt(roomId));
                                         setSelectedRoomId(roomId);
-                                        // Reset các giá trị bàn
                                         setSelectedArea('');
                                         setSelectedTableId('');
                                         setSelectedTableNumber('');
@@ -620,7 +678,6 @@ const Orders = () => {
                                 </select>
                             </div>
                         ) : (
-                            // PHÒNG THƯỜNG: cần chọn khu vực VÀ bàn
                             <>
                                 <div style={{ marginBottom: '10px' }}>
                                     <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '500' }}>🏘️ Chọn khu vực</label>
@@ -666,7 +723,6 @@ const Orders = () => {
                             </>
                         )}
 
-                        {/* Hiển thị vị trí đã chọn */}
                         {((selectedRoomType === 'vip' && selectedRoomId) ||
                             (selectedRoomType === 'normal' && selectedArea && selectedTableId)) && (
                                 <div style={{ marginTop: '10px', padding: '8px', background: '#dbeafe', borderRadius: '6px' }}>
@@ -711,13 +767,10 @@ const Orders = () => {
                             <span style={{ fontWeight: 'bold', fontSize: '16px' }}>Tạm tính:</span>
                             <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#10b981' }}>{calculateSubtotal().toLocaleString('vi-VN')}đ</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748b' }}>
-                            <span>VAT (10%)</span>
-                            <span>{(calculateSubtotal() * 0.1).toLocaleString('vi-VN')}đ</span>
-                        </div>
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
                             <span style={{ fontWeight: 'bold' }}>Tổng thanh toán:</span>
-                            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#10b981' }}>{(calculateSubtotal() * 1.1).toLocaleString('vi-VN')}đ</span>
+                            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#10b981' }}>{calculateTotal().toLocaleString('vi-VN')}đ</span>
                         </div>
                     </div>
 

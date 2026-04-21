@@ -58,7 +58,7 @@ const WaiterPaymentRequests = () => {
                                     {total.toLocaleString('vi-VN')}đ
                                 </div>
                                 <button
-                                    onClick={() => navigate(`/employee/waiter/orders/${order.id}`)}
+                                    onClick={() => navigate(`/waiter/orders/${order.id}`)}
                                     style={{ marginTop: '8px', padding: '6px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
                                 >
                                     Xem chi tiết
