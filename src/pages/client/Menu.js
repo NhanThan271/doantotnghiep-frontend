@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
     ChevronDown, Grid, List, Search, X,
-    Filter, ChevronUp, DollarSign, Tag, ArrowUpDown,
+    Filter, ChevronUp, DollarSign, ArrowUpDown,
     ShoppingBag, MapPin, Building2
 } from 'lucide-react';
 import PhoneFloatButton from './booking/PhoneFloatButton';
@@ -11,6 +11,7 @@ const API_BASE_URL = 'http://localhost:8080';
 
 const Menu = () => {
     const [categories, setCategories] = useState([]);
+    const [allProducts, setAllProducts] = useState([]);
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -24,11 +25,10 @@ const Menu = () => {
     const [viewMode, setViewMode] = useState('grid');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Filter states
+    // Filter states - Bỏ isAvailable
     const [filters, setFilters] = useState({
         priceRange: { min: '', max: '' },
-        sortBy: 'name_asc',
-        isAvailable: true
+        sortBy: 'name_asc'
     });
 
     const [priceStats, setPriceStats] = useState({ min: 0, max: 0 });
@@ -72,8 +72,6 @@ const Menu = () => {
     const fetchCategories = async () => {
         try {
             const token = getAuthToken();
-            console.log("🔍 Fetching categories from /api/categories");
-
             const response = await fetch(`${API_BASE_URL}/api/categories`, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -84,12 +82,9 @@ const Menu = () => {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
 
-            console.log("📂 Categories loaded:", data);
-
             if (data && data.length > 0) {
                 setCategories(data);
             } else {
-                console.warn("⚠️ No categories from API, using mock data");
                 const mockCategories = [
                     { id: 1, name: "Món khai vị" },
                     { id: 2, name: "Món chính" },
@@ -115,21 +110,13 @@ const Menu = () => {
         }
     };
 
-    // Fetch products by branch with optional category filter
-    const fetchProductsByBranch = async (branchId, categoryId = null) => {
+    // Fetch all products by branch - CHỈ LẤY MÓN CÒN BÁN
+    const fetchAllProductsByBranch = async (branchId) => {
         try {
             setLoading(true);
             setError(null);
-
             const token = getAuthToken();
-
-            // Build URL with category filter if provided
-            let url = `${API_BASE_URL}/api/branch-foods/branch/${branchId}`;
-            if (categoryId) {
-                url += `?categoryId=${categoryId}`;
-            }
-
-            console.log(`🔍 Fetching products from: ${url}`);
+            const url = `${API_BASE_URL}/api/branch-foods/branch/${branchId}`;
 
             const response = await fetch(url, {
                 headers: {
@@ -141,22 +128,23 @@ const Menu = () => {
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             const data = await response.json();
-            console.log("🍽️ Raw BranchFood data:", data);
 
-            // Transform dữ liệu - BỎ KHUYẾN MÃI
-            const transformedProducts = data.map(item => ({
-                id: item.id,
-                name: item.food?.name || item.name,
-                description: item.food?.description || '',
-                price: item.customPrice || item.food?.price || 0,
-                imageUrl: item.food?.imageUrl,
-                categoryId: item.food?.category?.id,
-                categoryName: item.food?.category?.name,
-                stockQuantity: item.stockQuantity,
-                isAvailable: item.isActive
-            }));
+            // ✅ Chỉ lấy món còn bán (isActive === true)
+            const transformedProducts = data
+                .filter(item => item.isActive === true)
+                .map(item => ({
+                    id: item.id,
+                    name: item.food?.name || item.name,
+                    description: item.food?.description || '',
+                    price: item.customPrice || item.food?.price || 0,
+                    imageUrl: item.food?.imageUrl,
+                    categoryId: item.food?.category?.id,
+                    categoryName: item.food?.category?.name,
+                    stockQuantity: item.stockQuantity,
+                    isAvailable: item.isActive
+                }));
 
-            console.log("✅ Transformed products:", transformedProducts);
+            setAllProducts(transformedProducts);
             setProducts(transformedProducts);
 
             // Calculate price range
@@ -170,6 +158,7 @@ const Menu = () => {
         } catch (err) {
             console.error('Lỗi khi lấy sản phẩm:', err);
             setError(`Không thể tải sản phẩm: ${err.message}`);
+            setAllProducts([]);
             setProducts([]);
         } finally {
             setLoading(false);
@@ -184,35 +173,30 @@ const Menu = () => {
         setSearchTerm('');
         setFilters({
             priceRange: { min: '', max: '' },
-            sortBy: 'name_asc',
-            isAvailable: true
+            sortBy: 'name_asc'
         });
 
-        await fetchProductsByBranch(branch.id);
+        await fetchAllProductsByBranch(branch.id);
     };
 
     // Handle category selection
-    const handleCategorySelect = async (category) => {
-        console.log(`📂 Selected category:`, category);
+    const handleCategorySelect = (category) => {
         setSelectedCategory(category);
-
-        if (!selectedBranch) return;
-
-        if (category.id === 'all') {
-            await fetchProductsByBranch(selectedBranch.id);
-        } else {
-            await fetchProductsByBranch(selectedBranch.id, category.id);
-        }
-
         setSearchTerm('');
         setFilters({
             priceRange: { min: '', max: '' },
-            sortBy: 'name_asc',
-            isAvailable: true
+            sortBy: 'name_asc'
         });
+
+        if (category.id === 'all') {
+            setProducts(allProducts);
+        } else {
+            const filtered = allProducts.filter(p => p.categoryId === category.id);
+            setProducts(filtered);
+        }
     };
 
-    // Apply filters and search
+    // Apply filters and search - Bỏ isAvailable
     const applyFilters = useCallback(() => {
         let result = [...products];
 
@@ -230,11 +214,6 @@ const Menu = () => {
         }
         if (filters.priceRange.max) {
             result = result.filter(product => product.price <= parseFloat(filters.priceRange.max));
-        }
-
-        // Availability filter
-        if (filters.isAvailable) {
-            result = result.filter(product => product.isAvailable !== false);
         }
 
         // Sorting
@@ -267,10 +246,7 @@ const Menu = () => {
     // Load products when branch changes
     useEffect(() => {
         if (selectedBranch?.id) {
-            const categoryId = (selectedCategory && selectedCategory.id !== 'all')
-                ? selectedCategory.id
-                : null;
-            fetchProductsByBranch(selectedBranch.id, categoryId);
+            fetchAllProductsByBranch(selectedBranch.id);
         }
     }, [selectedBranch?.id]);
 
@@ -289,8 +265,7 @@ const Menu = () => {
     const clearAllFilters = () => {
         setFilters({
             priceRange: { min: '', max: '' },
-            sortBy: 'name_asc',
-            isAvailable: true
+            sortBy: 'name_asc'
         });
         setSearchTerm('');
     };
@@ -307,7 +282,14 @@ const Menu = () => {
         return price.toLocaleString('vi-VN') + 'đ';
     };
 
-    if (loading && products.length === 0) {
+    const getProductCountByCategory = (categoryId) => {
+        if (categoryId === 'all') {
+            return allProducts.length;
+        }
+        return allProducts.filter(p => p.categoryId === categoryId).length;
+    };
+
+    if (loading && allProducts.length === 0) {
         return (
             <div className="menu-page">
                 <div className="loading-overlay">
@@ -318,7 +300,7 @@ const Menu = () => {
         );
     }
 
-    if (error && products.length === 0) {
+    if (error && allProducts.length === 0) {
         return (
             <div className="menu-page">
                 <div className="error-container">
@@ -427,7 +409,7 @@ const Menu = () => {
                         )}
                     </div>
 
-                    {/* Filter Panel */}
+                    {/* Filter Panel - Bỏ phần Trạng thái */}
                     {isFilterOpen && (
                         <div className="filter-panel">
                             <div className="filter-header">
@@ -472,18 +454,6 @@ const Menu = () => {
                                         <option value="price_desc">Giá giảm dần</option>
                                     </select>
                                 </div>
-
-                                <div className="filter-group">
-                                    <label><ShoppingBag size={16} /> Trạng thái</label>
-                                    <label className="checkbox-label">
-                                        <input
-                                            type="checkbox"
-                                            checked={filters.isAvailable}
-                                            onChange={(e) => setFilters({ ...filters, isAvailable: e.target.checked })}
-                                        />
-                                        <span>Chỉ hiển thị món còn bán</span>
-                                    </label>
-                                </div>
                             </div>
                         </div>
                     )}
@@ -505,28 +475,25 @@ const Menu = () => {
                                         <span className="category-icon-emoji">{allCategory.icon}</span>
                                         <div className="category-info">
                                             <span className="category-name">{allCategory.name}</span>
-                                            <span className="category-count">{products.length} món</span>
+                                            <span className="category-count">{getProductCountByCategory('all')} món</span>
                                         </div>
                                     </li>
 
                                     <li className="category-divider" />
 
-                                    {categories.map((category) => {
-                                        const productCount = products.filter(p => p.categoryId === category.id).length;
-                                        return (
-                                            <li
-                                                key={category.id}
-                                                className={`category-item ${selectedCategory?.id === category.id ? 'active' : ''}`}
-                                                onClick={() => handleCategorySelect({ id: category.id, name: category.name })}
-                                            >
-                                                <span className="category-icon-emoji">🍲</span>
-                                                <div className="category-info">
-                                                    <span className="category-name">{category.name}</span>
-                                                    <span className="category-count">{productCount} món</span>
-                                                </div>
-                                            </li>
-                                        );
-                                    })}
+                                    {categories.map((category) => (
+                                        <li
+                                            key={category.id}
+                                            className={`category-item ${selectedCategory?.id === category.id ? 'active' : ''}`}
+                                            onClick={() => handleCategorySelect({ id: category.id, name: category.name })}
+                                        >
+                                            <span className="category-icon-emoji">🍲</span>
+                                            <div className="category-info">
+                                                <span className="category-name">{category.name}</span>
+                                                <span className="category-count">{getProductCountByCategory(category.id)} món</span>
+                                            </div>
+                                        </li>
+                                    ))}
                                 </ul>
                             )}
                         </aside>
