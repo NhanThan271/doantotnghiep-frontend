@@ -27,13 +27,12 @@ import BookingPage from "./pages/employee/cashier/BookingPage";
 import TableDetail from "./pages/employee/cashier/TableDetail";
 
 import Orders from "./pages/employee/waiter/Orders";
-import OrderDetail from "./pages/employee/waiter/OrderDetail";
-import WaiterPaymentRequests from "./pages/employee/waiter/WaiterPaymentRequests";
 
 import ChefDashboard from "./pages/employee/chef/ChefDashboard";
 import StockDashboard from "./pages/employee/stock/StockDashboard";
 import PaymentSuccess from "./pages/client/booking/PaymentSuccess";
 import PaymentCancel from "./pages/client/booking/PaymentCancel";
+import WaiterInterface from "./pages/employee/waiter/Orders";
 
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (
@@ -75,9 +74,9 @@ function App() {
         <Route path="/cashier/rooms/:id" element={<TableDetail />} />
 
         {/* Waiter Routes - Thêm trực tiếp */}
-        <Route path="/waiter/orders" element={<WaiterLayout><Orders /></WaiterLayout>} />
-        <Route path="/waiter/orders/:id" element={<WaiterLayout><OrderDetail /></WaiterLayout>} />
-        <Route path="/waiter/payment-requests" element={<WaiterLayout><WaiterPaymentRequests /></WaiterLayout>} />
+        <Route path="/waiter" element={<WaiterLayout />}>
+          <Route path="orders" element={<Orders />} />
+        </Route>
 
         {/* Chef routes - Thêm trực tiếp */}
         <Route path="/chef" element={<ChefLayout><ChefDashboard /></ChefLayout>} />

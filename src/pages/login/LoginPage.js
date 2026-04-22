@@ -97,7 +97,7 @@ const LoginPage = () => {
                         navigate("/cashier/shift", { replace: true });
                         break;
                     case "WAITER":
-                        navigate("/waiter/orders", { replace: true });
+                        navigate("/waiter", { replace: true });
                         break;
                     case "CHEF":
                         navigate("/chef/", { replace: true });
