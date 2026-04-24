@@ -18,7 +18,7 @@ const CashierLayout = () => {
 
         // 👉 mở sidebar → đi tới trang kết ca
         if (newState) {
-            navigate("/cashier/shift");
+            navigate("/cashier/dashboard");
         }
     };
 
@@ -48,40 +48,52 @@ const CashierLayout = () => {
 
                 {/* Menu items */}
                 <div
-                    onClick={() => navigate("/cashier/shift")}
+                    onClick={() => navigate("/cashier/dashboard")}
                     style={{
                         padding: "10px 15px",
                         cursor: "pointer",
                         marginTop: 10,
-                        background: location.pathname === "/cashier/shift" ? "rgba(212,175,55,0.2)" : "transparent",
-                        borderLeft: location.pathname === "/cashier/shift" ? "3px solid #D4AF37" : "3px solid transparent"
+                        background: location.pathname === "/cashier/dashboard" ? "rgba(212,175,55,0.2)" : "transparent",
+                        borderLeft: location.pathname === "/cashier/dashboard" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
-                    Ca làm việc
+                    📊 Dashboard
                 </div>
 
                 <div
-                    onClick={() => navigate("/cashier/history")}
+                    onClick={() => navigate("/cashier/bill")}
                     style={{
                         padding: "10px 15px",
                         cursor: "pointer",
-                        background: location.pathname === "/cashier/history" ? "rgba(212,175,55,0.2)" : "transparent",
-                        borderLeft: location.pathname === "/cashier/history" ? "3px solid #D4AF37" : "3px solid transparent"
+                        background: location.pathname === "/cashier/bill" ? "rgba(212,175,55,0.2)" : "transparent",
+                        borderLeft: location.pathname === "/cashier/bill" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
-                    Lịch sử
+                    🧾 Đơn hàng
                 </div>
 
                 <div
-                    onClick={() => navigate("/cashier/withdraw")}
+                    onClick={() => navigate("/cashier/report")}
                     style={{
                         padding: "10px 15px",
                         cursor: "pointer",
-                        background: location.pathname === "/cashier/withdraw" ? "rgba(212,175,55,0.2)" : "transparent",
-                        borderLeft: location.pathname === "/cashier/withdraw" ? "3px solid #D4AF37" : "3px solid transparent"
+                        background: location.pathname === "/cashier/report" ? "rgba(212,175,55,0.2)" : "transparent",
+                        borderLeft: location.pathname === "/cashier/report" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
-                    Rút tiền
+                    📈 Báo cáo
+                </div>
+
+                <div
+                    onClick={() => navigate("/cashier/setting")}
+                    style={{
+                        padding: "10px 15px",
+                        cursor: "pointer",
+                        background: location.pathname === "/cashier/setting" ? "rgba(212,175,55,0.2)" : "transparent",
+                        borderLeft: location.pathname === "/cashier/setting" ? "3px solid #D4AF37" : "3px solid transparent"
+                    }}
+                >
+                    ⚙️ Cài đặt
                 </div>
 
                 {/* Phần thông tin và đăng xuất ở cuối sidebar */}

@@ -1,0 +1,529 @@
+/* Dashboard.module.css */
+.container {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    min-height: calc(100vh - 40px);
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.headerLeft h2 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    color: #1e3a8a;
+}
+
+.shiftStatus {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.statusBadge {
+    background: #d1fae5;
+    color: #065f46;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.shiftTimer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #5d6e5f;
+    font-size: 14px;
+}
+
+.headerRight {
+    display: flex;
+    gap: 12px;
+}
+
+.startShiftBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.startShiftBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.endShiftBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.endShiftBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.refreshBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 40px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.2s;
+}
+
+.refreshBtn:hover {
+    background: #e5e7eb;
+    transform: rotate(180deg);
+}
+
+/* Stats Grid */
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.statCard {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: white;
+}
+
+.statIcon {
+    font-size: 32px;
+}
+
+.statInfo {
+    flex: 1;
+}
+
+.statTitle {
+    font-size: 13px;
+    opacity: 0.8;
+    margin-bottom: 4px;
+}
+
+.statValue {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+/* Payment Breakdown */
+.paymentBreakdown {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.breakdownCard {
+    background: #f8faf5;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    border: 1px solid #e2e8e0;
+}
+
+.breakdownTitle {
+    font-size: 14px;
+    color: #5d6e5f;
+    margin-bottom: 8px;
+}
+
+.breakdownAmount {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e3a8a;
+}
+
+/* Shift Info Card */
+.shiftInfoCard {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    color: white;
+}
+
+.shiftInfoHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.shiftInfoHeader h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.actionButtons {
+    display: flex;
+    gap: 12px;
+}
+
+.withdrawBtn,
+.depositBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: white;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.withdrawBtn {
+    color: #d97706;
+}
+
+.withdrawBtn:hover {
+    background: #fef3c7;
+    transform: translateY(-1px);
+}
+
+.depositBtn {
+    color: #10b981;
+}
+
+.depositBtn:hover {
+    background: #d1fae5;
+    transform: translateY(-1px);
+}
+
+.shiftInfoGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.shiftInfoGrid div {
+    display: flex;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.shiftInfoGrid span {
+    opacity: 0.7;
+}
+
+/* Two Column Layout */
+.twoColumnLayout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.recentOrdersCard,
+.topDishesCard {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #e2e8e0;
+}
+
+.recentOrdersCard h3,
+.topDishesCard h3 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    color: #1e3a8a;
+}
+
+/* Orders Table */
+.ordersTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ordersTable th {
+    text-align: left;
+    padding: 8px 0;
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 500;
+    border-bottom: 1px solid #e2e8e0;
+}
+
+.ordersTable td {
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+}
+
+.paidBadge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #d1fae5;
+    color: #065f46;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.unpaidBadge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #fef3c7;
+    color: #92400e;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Dishes List */
+.dishesList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dishItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.dishRank {
+    width: 30px;
+    height: 30px;
+    background: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #d32f2f;
+}
+
+.dishName {
+    flex: 1;
+    font-weight: 500;
+}
+
+.dishQuantity {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+/* No Shift Card */
+.noShiftCard {
+    background: #f8faf5;
+    border-radius: 20px;
+    border: 2px dashed #e2e8e0;
+    padding: 60px 24px;
+    text-align: center;
+}
+
+.noShiftContent h3 {
+    margin: 16px 0 8px 0;
+    color: #5d6e5f;
+}
+
+.noShiftContent p {
+    color: #9ca3af;
+}
+
+/* Modals */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal {
+    background: white;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 450px;
+    padding: 24px;
+}
+
+.modalContent {
+    margin-bottom: 20px;
+}
+
+.modalContent label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #374151;
+}
+
+.modalInput {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e2e8e0;
+    border-radius: 12px;
+    font-size: 16px;
+}
+
+.modalInput:focus {
+    outline: none;
+    border-color: #d32f2f;
+}
+
+.modalInfo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px;
+    background: #fef3c7;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #92400e;
+}
+
+.modalFooter {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.cancelBtn {
+    padding: 10px 20px;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+}
+
+.confirmBtn,
+.endShiftConfirmBtn,
+.withdrawConfirmBtn,
+.depositConfirmBtn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.confirmBtn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.endShiftConfirmBtn {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.withdrawConfirmBtn {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.depositConfirmBtn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+/* End Shift Summary */
+.endShiftSummary {
+    background: #f8faf5;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.summaryRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+}
+
+.divider {
+    height: 1px;
+    background: #e2e8e0;
+    margin: 12px 0;
+}
+
+.cashHighlight {
+    color: #d32f2f;
+    font-size: 16px;
+}
+
+.totalHighlight {
+    font-size: 18px;
+    color: #10b981;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 16px;
+    }
+
+    .statsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .twoColumnLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .paymentBreakdown {
+        grid-template-columns: 1fr;
+    }
+
+    .shiftInfoGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .shiftInfoHeader {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

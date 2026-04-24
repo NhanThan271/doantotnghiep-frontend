@@ -21,11 +21,14 @@ import WaiterLayout from "./layouts/WaiterLayout";
 import ChefLayout from "./layouts/ChefLayout";
 import StockLayout from "./layouts/StockLayout";
 
-import ShiftPage from "./pages/employee/cashier/ShiftPage";
+// Cashier pages
+import Dashboard from "./pages/employee/cashier/Dashboard";
+import BillPage from "./pages/employee/cashier/BillPage";
+import ReportPage from "./pages/employee/cashier/ReportPage";
+import SettingPage from "./pages/employee/cashier/SettingPage";
 import TablesPage from "./pages/employee/cashier/TablesPage";
 import BookingPage from "./pages/employee/cashier/BookingPage";
 import TableDetail from "./pages/employee/cashier/TableDetail";
-
 import Orders from "./pages/employee/waiter/Orders";
 
 import ChefDashboard from "./pages/employee/chef/ChefDashboard";
@@ -63,10 +66,13 @@ function App() {
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route path="/payment-cancel" element={<PaymentCancel />} />
 
-        {/* Cashier routes - Thêm trực tiếp, không qua CafeStaffSystem */}
+        {/* Cashier routes - Thêm trực tiếp */}
         <Route path="/cashier" element={<CashierLayout />}>
-          <Route index element={<ShiftPage />} />
-          <Route path="shift" element={<ShiftPage />} />
+          <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="bill" element={<BillPage />} />
+          <Route path="report" element={<ReportPage />} />
+          <Route path="setting" element={<SettingPage />} />
           <Route path="tables" element={<TablesPage />} />
           <Route path="booking" element={<BookingPage />} />
         </Route>
