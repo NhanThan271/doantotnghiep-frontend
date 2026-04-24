@@ -4,11 +4,12 @@ import { ArrowLeft, ShoppingCart, Users, Plus, Minus, Trash2, Printer, Tag, X, P
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
 import PaymentMethodModal from "./PaymentMethodModal";
-import TransferPaymentPayOs from "./TransferPaymentPayOs";
 import ToastNotification from "./ToastNotification";
 import styles from "./TableDetail.module.css";
 import CashPaymentModal from "./CashPaymentModal";
+
 const socket = io('http://localhost:3001');
+const API = "http://localhost:8080";
 
 const TableDetail = () => {
     const { state } = useLocation();
@@ -33,14 +34,14 @@ const TableDetail = () => {
     const [promotions, setPromotions] = useState([]);
     const [showPromotionModal, setShowPromotionModal] = useState(false);
     const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
-    const [showPayOSModal, setShowPayOSModal] = useState(false);
     const [toasts, setToasts] = useState([]);
     const [isUpdating, setIsUpdating] = useState(false);
     const [isConfirming, setIsConfirming] = useState(false);
+    const [showCashModal, setShowCashModal] = useState(false);
+    const [processingPayment, setProcessingPayment] = useState(false);
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
     const API_BASE_URL = 'http://localhost:8080';
-    const [showCashModal, setShowCashModal] = useState(false);
 
     const showToast = (message, type = 'info', duration = 5000) => {
         const id = Date.now();
@@ -61,11 +62,8 @@ const TableDetail = () => {
 
             if (res.ok) {
                 const data = await res.json();
-                console.log("📦 Dữ liệu sản phẩm từ API:", data);
-
                 const activeProducts = data.filter(p => p.isActive !== false);
                 setProducts(activeProducts);
-
                 const cats = ["Tất cả", ...new Set(activeProducts.map(p => p.categoryName).filter(Boolean))];
                 setCategories(cats);
             }
@@ -103,7 +101,7 @@ const TableDetail = () => {
                 if (existingOrder.items && existingOrder.items.length > 0) {
                     items = existingOrder.items.map(item => ({
                         id: item.foodId,
-                        name: item.foodName,        // QUAN TRỌNG: lưu tên món
+                        name: item.foodName,
                         price: item.price || 0,
                         quantity: item.quantity || 0,
                         image: item.foodImageUrl
@@ -150,7 +148,6 @@ const TableDetail = () => {
         }).filter(Boolean));
     };
 
-    // Sửa lại removeFromCart - CHỈ CẬP NHẬT LOCAL STATE
     const removeFromCart = (id) => {
         setCart(cart.filter(item => item.id !== id));
     };
@@ -164,78 +161,7 @@ const TableDetail = () => {
 
     const finalTotal = originalTotal - discount;
 
-    const handleConfirmOrder = async () => {
-        if (cart.length === 0) {
-            showToast("Vui lòng chọn món!", "warning", 2000);
-            return;
-        }
-
-        setIsConfirming(true);
-
-        try {
-            const orderData = {
-                customerName: customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`,
-                status: "PENDING",
-                branch: { id: branchId },
-                ...(isRoom ? { room: { id: entity.id } } : { table: { id: entity.id } })
-            };
-
-            if (selectedPromotion && selectedPromotion.id) {
-                orderData.promotion = { id: selectedPromotion.id };
-            }
-
-            console.log("📤 Tạo đơn hàng:", JSON.stringify(orderData, null, 2));
-
-            const res = await axiosClient.post("/customer/orders", orderData);
-            const newOrder = res.data;
-
-            console.log("✅ Đã tạo đơn, Order ID:", newOrder.id);
-
-            const itemsToAdd = cart.map(item => ({
-                foodId: item.id,
-                quantity: item.quantity
-            }));
-
-            console.log("📤 Thêm món vào đơn:", itemsToAdd);
-
-            if (itemsToAdd.length > 0) {
-                await axiosClient.post(`/customer/orders/${newOrder.id}/add-items`, itemsToAdd);
-            }
-
-            const finalRes = await axiosClient.get(`/customer/orders/${newOrder.id}`);
-            const finalOrder = finalRes.data;
-
-            console.log("✅ Đơn hàng hoàn chỉnh:", finalOrder);
-
-            setOrder(finalOrder);
-
-            // Cập nhật lại cart - GIỮ LẠI thông tin từ cart cũ
-            const updatedCart = (finalOrder.items || []).map(item => {
-                const existingCartItem = cart.find(c => c.id === item.foodId);
-                return {
-                    id: item.foodId,
-                    name: existingCartItem?.name || item.foodName,
-                    price: item.price || existingCartItem?.price || 0,
-                    quantity: item.quantity || 0,
-                    image: existingCartItem?.image || item.foodImageUrl
-                };
-            });
-            setCart(updatedCart);
-
-            socket.emit("update-tables");
-            socket.emit("new-order", finalOrder);
-
-            showToast(`Đơn hàng đã được gửi đến bếp!`, 'success', 4000);
-
-        } catch (err) {
-            console.error("❌ Lỗi tạo đơn:", err);
-            console.error("Response:", err.response?.data);
-            alert(`Lỗi: ${err.response?.data?.message || "Không thể tạo đơn hàng!"}`);
-        } finally {
-            setIsConfirming(false);
-        }
-    };
-
+    // Trong handleUpdateOrder, sau khi thêm món thành công, thêm socket emit
     const handleUpdateOrder = async () => {
         if (cart.length === 0) {
             showToast("Vui lòng chọn món!", "warning", 2000);
@@ -270,35 +196,48 @@ const TableDetail = () => {
                 return;
             }
 
-            console.log(`📤 Thêm ${itemsToAdd.length} món vào đơn #${order.id}:`, itemsToAdd);
-
             const res = await axiosClient.post(`/customer/orders/${order.id}/add-items`, itemsToAdd);
             const updatedOrder = res.data;
 
-            console.log("📦 Dữ liệu updatedOrder:", updatedOrder);
-            console.log("📦 updatedOrder.items:", updatedOrder.items);
-
             setOrder(updatedOrder);
 
-            // Cập nhật lại cart - LẤY TÊN TỪ CART CŨ
             const updatedCart = (updatedOrder.items || []).map(item => {
-                // Tìm thông tin món từ cart cũ (giữ nguyên tên)
                 const existingCartItem = cart.find(c => c.id === item.foodId);
-
-                console.log("Item từ API:", item);
-                console.log("existingCartItem:", existingCartItem);
-
                 return {
                     id: item.foodId,
-                    name: existingCartItem?.name || item.foodName || item.food?.name || `Sản phẩm #${item.foodId}`,
+                    name: existingCartItem?.name || item.foodName || `Sản phẩm #${item.foodId}`,
                     price: item.price || existingCartItem?.price || 0,
                     quantity: item.quantity || 0,
-                    image: existingCartItem?.image || item.foodImageUrl || item.food?.imageUrl
+                    image: existingCartItem?.image || item.foodImageUrl
+                };
+            });
+            setCart(updatedCart);
+
+            // ✅ GỬI SOCKET REAL-TIME CHO BẾP VÀ NHÂN VIÊN
+            // Tạo danh sách các món mới được thêm
+            const newItems = itemsToAdd.map(item => {
+                const cartItem = cart.find(c => c.id === item.foodId);
+                return {
+                    id: item.foodId,
+                    name: cartItem?.name || `Món #${item.foodId}`,
+                    quantity: item.quantity,
+                    orderId: order.id,
+                    tableNumber: entityNumber,
+                    tableId: entity.id,
+                    status: 'WAITING'
                 };
             });
 
-            console.log("📦 updatedCart sau khi map:", updatedCart);
-            setCart(updatedCart);
+            console.log("🆕 Món mới thêm:", newItems);
+
+            // Gửi sự kiện order-items-added cho bếp
+            socket.emit("order-items-added", {
+                orderId: order.id,
+                tableNumber: entityNumber,
+                tableId: entity.id,
+                items: newItems,
+                timestamp: new Date().toISOString()
+            });
 
             socket.emit("update-tables");
             socket.emit("update-order", updatedOrder);
@@ -307,33 +246,217 @@ const TableDetail = () => {
 
         } catch (err) {
             console.error("❌ Lỗi cập nhật đơn:", err);
-            console.error("Response:", err.response?.data);
             alert(`Lỗi: ${err.response?.data?.message || "Không thể cập nhật đơn hàng!"}`);
         } finally {
             setIsUpdating(false);
         }
     };
 
-    const handleCompletePayment = async (orderId, method) => {
+    // Tương tự, trong handleConfirmOrder, cũng thêm socket emit
+    const handleConfirmOrder = async () => {
+        if (cart.length === 0) {
+            showToast("Vui lòng chọn món!", "warning", 2000);
+            return;
+        }
+
+        setIsConfirming(true);
+
+        try {
+            const orderData = {
+                customerName: customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`,
+                status: "PENDING",
+                branch: { id: branchId },
+                ...(isRoom ? { room: { id: entity.id } } : { table: { id: entity.id } })
+            };
+
+            if (selectedPromotion && selectedPromotion.id) {
+                orderData.promotion = { id: selectedPromotion.id };
+            }
+
+            const res = await axiosClient.post("/customer/orders", orderData);
+            const newOrder = res.data;
+
+            const itemsToAdd = cart.map(item => ({
+                foodId: item.id,
+                quantity: item.quantity
+            }));
+
+            if (itemsToAdd.length > 0) {
+                await axiosClient.post(`/customer/orders/${newOrder.id}/add-items`, itemsToAdd);
+            }
+
+            const finalRes = await axiosClient.get(`/customer/orders/${newOrder.id}`);
+            const finalOrder = finalRes.data;
+
+            setOrder(finalOrder);
+
+            const updatedCart = (finalOrder.items || []).map(item => {
+                const existingCartItem = cart.find(c => c.id === item.foodId);
+                return {
+                    id: item.foodId,
+                    name: existingCartItem?.name || item.foodName,
+                    price: item.price || existingCartItem?.price || 0,
+                    quantity: item.quantity || 0,
+                    image: existingCartItem?.image || item.foodImageUrl
+                };
+            });
+            setCart(updatedCart);
+
+            // ✅ GỬI SOCKET REAL-TIME CHO BẾP
+            const newItems = itemsToAdd.map(item => {
+                const cartItem = cart.find(c => c.id === item.foodId);
+                return {
+                    id: item.foodId,
+                    name: cartItem?.name || `Món #${item.foodId}`,
+                    quantity: item.quantity,
+                    orderId: newOrder.id,
+                    tableNumber: entityNumber,
+                    tableId: entity.id,
+                    status: 'WAITING'
+                };
+            });
+
+            socket.emit("new-order", {
+                orderId: newOrder.id,
+                tableNumber: entityNumber,
+                tableId: entity.id,
+                items: newItems,
+                timestamp: new Date().toISOString()
+            });
+
+            socket.emit("update-tables");
+
+            showToast(`Đơn hàng đã được gửi đến bếp!`, 'success', 4000);
+
+        } catch (err) {
+            console.error("❌ Lỗi tạo đơn:", err);
+            alert(`Lỗi: ${err.response?.data?.message || "Không thể tạo đơn hàng!"}`);
+        } finally {
+            setIsConfirming(false);
+        }
+    };
+
+    const handlePayOSPayment = async () => {
+        if (!order) {
+            showToast("Không tìm thấy đơn hàng!", "error", 2000);
+            return;
+        }
+
+        setProcessingPayment(true);
+        try {
+            const token = localStorage.getItem("token");
+            const tempOrderCode = Date.now() % 2147483647;
+            const shortDesc = `Thanh toan don ${order.id}`.substring(0, 25);
+
+            // Xóa flag cũ nếu có
+            sessionStorage.removeItem('paymentCancelled');
+
+            // Lưu thông tin đơn hàng tạm thời
+            const tempPaymentData = {
+                orderId: order.id,
+                totalAmount: finalTotal,
+                customerName: customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`,
+                entityType: entityType,
+                entityNumber: entityNumber,
+                entityId: entity.id,
+                isRoom: isRoom
+            };
+            sessionStorage.setItem('tempCashierPayment', JSON.stringify(tempPaymentData));
+
+            // Lưu entity để phục hồi sau
+            const entityData = {
+                id: entity.id,
+                number: entity.number,
+                type: isRoom ? 'room' : 'table',
+                status: entity.status,
+                capacity: entity.capacity,
+                area: entity.area
+            };
+            sessionStorage.setItem('lastEntity', JSON.stringify(entityData));
+
+            // ✅ QUAN TRỌNG: Đảm bảo tên món là string
+            const items = cart.map(item => ({
+                name: String(item.name || "Món ăn"),  // Chuyển thành string
+                quantity: Number(item.quantity) || 1,
+                price: Math.floor(Number(item.price) || 0)
+            }));
+
+            console.log("📦 Items gửi lên PayOS:", items);
+
+            const paymentResponse = await fetch(`${API}/api/payos/create`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    orderCode: tempOrderCode,
+                    amount: Math.floor(finalTotal),
+                    description: shortDesc,
+                    returnUrl: `${window.location.origin}/cashier-payment-success`,
+                    cancelUrl: `${window.location.origin}/cashier-payment-cancel`,
+                    items: items
+                }),
+            });
+
+            const paymentResult = await paymentResponse.json();
+            console.log("PayOS response:", paymentResult);
+
+            if (paymentResult.code !== "00" || !paymentResult.data?.checkoutUrl) {
+                throw new Error(paymentResult.desc || "Không thể tạo link thanh toán");
+            }
+
+            // Chuyển hướng sang PayOS
+            window.location.href = paymentResult.data.checkoutUrl;
+
+        } catch (err) {
+            console.error("Payment error:", err);
+            showToast(`Lỗi thanh toán: ${err.message}`, "error", 3000);
+            setProcessingPayment(false);
+        }
+    };
+    // ✅ Hàm xử lý thanh toán sau khi PayOS thành công
+    const handleCompletePayment = async (orderId, method, paymentData = null) => {
         try {
             let backendMethod = 'CASH';
             if (method === 'cash') {
                 backendMethod = 'CASH';
             } else if (method === 'card') {
                 backendMethod = 'CARD';
-            } else {
+            } else if (method === 'transfer' || method === 'payos') {
                 backendMethod = 'MOBILE';
             }
 
             console.log(`💳 Thanh toán đơn #${orderId} với phương thức: ${backendMethod}`);
 
+            // Nếu có paymentData từ PayOS, cập nhật thêm thông tin
+            const payData = paymentData || {};
             const response = await axiosClient.put(
-                `/customer/orders/${orderId}/pay?paymentMethod=${backendMethod}`
+                `/customer/orders/${orderId}/pay?paymentMethod=${backendMethod}`,
+                payData
             );
 
             console.log("✅ Kết quả thanh toán:", response.data);
 
-            if (response.data?.success) {
+            if (response.data?.success || response.status === 200) {
+                // Cập nhật trạng thái bàn/phòng thành FREE sau khi thanh toán
+                if (entity) {
+                    const updateUrl = isRoom
+                        ? `${API}/api/rooms/${entity.id}/status?status=FREE`
+                        : `${API}/api/tables/${entity.id}/status?status=FREE`;
+
+                    try {
+                        const token = localStorage.getItem("token");
+                        await fetch(updateUrl, {
+                            method: "PUT",
+                            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }
+                        });
+                        console.log(`✅ Đã cập nhật ${entityType.toLowerCase()} ${entityNumber} thành FREE`);
+                    } catch (err) {
+                        console.error("Lỗi cập nhật trạng thái:", err);
+                    }
+                }
+
                 setOrder(null);
                 setCart([]);
                 setSelectedPromotion(null);
@@ -342,15 +465,14 @@ const TableDetail = () => {
                 showToast(`Thanh toán thành công!`, 'success', 4000);
 
                 setTimeout(() => {
-                    navigate(-1);
+                    navigate('/cashier/tables');
                 }, 2000);
             } else {
                 throw new Error(response.data?.message || "Thanh toán thất bại");
             }
         } catch (err) {
             console.error("❌ Lỗi thanh toán:", err);
-            console.error("Response:", err.response?.data);
-            alert(`Lỗi thanh toán: ${err.response?.data?.message || "Không thể thanh toán!"}`);
+            showToast(`Lỗi thanh toán: ${err.response?.data?.message || "Không thể thanh toán!"}`, "error", 3000);
         }
     };
 
@@ -431,6 +553,23 @@ const TableDetail = () => {
     }, [products, activeTab, searchTerm]);
 
     const existingOrderFromState = state?.existingOrder;
+    useEffect(() => {
+        const paymentCancelled = sessionStorage.getItem('paymentCancelled');
+        if (paymentCancelled === 'true') {
+            sessionStorage.removeItem('paymentCancelled');
+            showToast("Thanh toán đã bị hủy, bạn có thể thử lại", "warning", 3000);
+            setProcessingPayment(false); // Reset trạng thái xử lý
+        }
+    }, []);
+
+    useEffect(() => {
+        const paymentCancelled = sessionStorage.getItem('paymentCancelled');
+        if (paymentCancelled === 'true') {
+            sessionStorage.removeItem('paymentCancelled');
+            showToast("Thanh toán đã bị hủy", "warning", 3000);
+            // Không làm gì thêm, giữ nguyên dữ liệu hiện tại
+        }
+    }, []);
 
     useEffect(() => {
         const initialize = async () => {
@@ -438,32 +577,24 @@ const TableDetail = () => {
             await fetchPromotions();
 
             if (existingOrderFromState) {
-                console.log("📋 Đang khôi phục đơn hàng từ state:", existingOrderFromState);
-                console.log("📋 existingOrderFromState.items:", existingOrderFromState.items);
-
                 setOrder(existingOrderFromState);
                 setCustomerName(existingOrderFromState.customerName || "");
 
                 let items = [];
                 if (existingOrderFromState.items && existingOrderFromState.items.length > 0) {
-                    items = existingOrderFromState.items.map(item => {
-                        console.log("Item trong state:", item);
-                        return {
-                            id: item.foodId,
-                            name: item.foodName || item.food?.name || `Sản phẩm #${item.foodId}`,
-                            price: item.price || 0,
-                            quantity: item.quantity || 0,
-                            image: item.foodImageUrl || item.food?.imageUrl
-                        };
-                    });
+                    items = existingOrderFromState.items.map(item => ({
+                        id: item.foodId,
+                        name: item.foodName || item.food?.name || `Sản phẩm #${item.foodId}`,
+                        price: item.price || 0,
+                        quantity: item.quantity || 0,
+                        image: item.foodImageUrl || item.food?.imageUrl
+                    }));
                 }
                 setCart(items);
 
                 if (existingOrderFromState.promotion) {
                     setSelectedPromotion(existingOrderFromState.promotion);
                 }
-
-                showToast(`Đã tải đơn hàng #${existingOrderFromState.id}`, 'info', 3000);
             } else if (entity) {
                 await checkExistingOrder();
             }
@@ -488,7 +619,7 @@ const TableDetail = () => {
                 <div className={styles.tableInfo}>
                     <h1>{entityType} {entityNumber}</h1>
                     <div className={`${entity?.status === "FREE" ? styles.available : styles.occupied}`}>
-                        {entity?.status === "FREE" ? "🟢 Trống" : "🔴 Đã có khách"}
+                        {entity?.status === "FREE" ? "🟢 Trống" : entity?.status === "RESERVED" ? "📅 Đã đặt" : "🔴 Đã có khách"}
                     </div>
                     {order?.status === "PENDING" && (
                         <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>
@@ -713,8 +844,9 @@ const TableDetail = () => {
                                     <button
                                         className={styles.payBtn}
                                         onClick={() => setShowPaymentMethodModal(true)}
+                                        disabled={processingPayment}
                                     >
-                                        Thanh toán
+                                        {processingPayment ? "Đang xử lý..." : "Thanh toán"}
                                     </button>
                                 )}
                             </div>
@@ -785,7 +917,7 @@ const TableDetail = () => {
                 onSelect={(method) => {
                     setShowPaymentMethodModal(false);
                     if (method === "transfer" || method === "momo") {
-                        setShowPayOSModal(true);
+                        handlePayOSPayment();
                     } else if (method === "cash") {
                         setShowCashModal(true);
                     } else if (method === "card") {
@@ -794,16 +926,13 @@ const TableDetail = () => {
                 }}
             />
 
-            <TransferPaymentPayOs
-                show={showPayOSModal}
-                onClose={(paid) => {
-                    setShowPayOSModal(false);
-                    if (paid && order?.id) {
-                        handleCompletePayment(order.id, "transfer");
-                    }
+            <CashPaymentModal
+                show={showCashModal}
+                onClose={() => setShowCashModal(false)}
+                onConfirm={() => {
+                    handleCompletePayment(order?.id, "cash");
                 }}
                 totalAmount={finalTotal}
-                orderId={order?.id || ""}
             />
 
             <div className={styles.toastContainer}>
@@ -817,15 +946,6 @@ const TableDetail = () => {
                     />
                 ))}
             </div>
-
-            <CashPaymentModal
-                show={showCashModal}
-                onClose={() => setShowCashModal(false)}
-                onConfirm={() => {
-                    handleCompletePayment(order?.id, "cash");
-                }}
-                totalAmount={finalTotal}
-            />
         </div>
     );
 };

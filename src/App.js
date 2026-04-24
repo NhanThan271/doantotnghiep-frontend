@@ -33,7 +33,8 @@ import StockDashboard from "./pages/employee/stock/StockDashboard";
 import PaymentSuccess from "./pages/client/booking/PaymentSuccess";
 import PaymentCancel from "./pages/client/booking/PaymentCancel";
 import WaiterInterface from "./pages/employee/waiter/Orders";
-
+import CashierPaymentSuccess from "./pages/employee/cashier/CashierPaymentSuccess";
+import CashierPaymentCancel from "./pages/employee/cashier/CashierPaymentCancel";
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (
   <>
@@ -72,6 +73,8 @@ function App() {
         {/* Route cho TableDetail */}
         <Route path="/cashier/tables/:id" element={<TableDetail />} />
         <Route path="/cashier/rooms/:id" element={<TableDetail />} />
+        <Route path="/cashier-payment-success" element={<CashierPaymentSuccess />} />
+        <Route path="/cashier-payment-cancel" element={<CashierPaymentCancel />} />
 
         {/* Waiter Routes - Thêm trực tiếp */}
         <Route path="/waiter" element={<WaiterLayout />}>

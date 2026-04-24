@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Table, Home, Users, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, PlusCircle } from "lucide-react";
+import { Table, Home, Users, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, PlusCircle, MapPin } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
 const API = "http://localhost:8080";
@@ -132,12 +132,10 @@ const TablesPage = () => {
     }, [selectedArea, branchId, activeTab]);
 
     const handleTableClick = (table) => {
-        // Lấy đúng key
         const existingOrder = existingOrders[`table_${table.id}`];
 
         console.log(`🖱️ Click bàn ${table.number}, table.id=${table.id}, existingOrder:`, existingOrder);
 
-        // Truyền existingOrder nếu có, nếu không thì truyền null
         navigate(`/cashier/tables/${table.id}`, {
             state: {
                 table: table,
@@ -160,11 +158,15 @@ const TablesPage = () => {
     };
 
     const getStatusText = (status) => {
-        return status === "FREE" ? "Trống" : "Đã có khách";
+        if (status === "FREE") return "Trống";
+        if (status === "RESERVED") return "Đã đặt";
+        return "Đã có khách";
     };
 
     const getStatusColor = (status) => {
-        return status === "FREE" ? "#10b981" : "#ef4444";
+        if (status === "FREE") return "#10b981";
+        if (status === "RESERVED") return "#f59e0b";
+        return "#ef4444";
     };
 
     const formatTime = () => {
@@ -277,7 +279,7 @@ const TablesPage = () => {
                         }}
                     >
                         <span style={{ fontWeight: "bold", color: "#2c3e2f" }}>
-                            📍 Khu vực
+                            📍 Khu vực / Tầng
                         </span>
                         {showAreas ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                     </div>
@@ -338,7 +340,7 @@ const TablesPage = () => {
                     ) : (
                         <div style={{
                             display: "grid",
-                            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
                             gap: "16px"
                         }}>
                             {tables.map((table) => {
@@ -353,7 +355,9 @@ const TablesPage = () => {
                                             position: "relative",
                                             background: table.status === "FREE"
                                                 ? "linear-gradient(135deg, #ffffff, #f8faf5)"
-                                                : "#fff3e0",
+                                                : table.status === "RESERVED"
+                                                    ? "#fffbeb"
+                                                    : "#fff3e0",
                                             borderRadius: "16px",
                                             padding: "20px",
                                             cursor: "pointer",
@@ -392,7 +396,7 @@ const TablesPage = () => {
                                         )}
 
                                         <div style={{ fontSize: "40px", marginBottom: "8px" }}>
-                                            {table.status === "FREE" ? "🍽️" : "🍜"}
+                                            {table.status === "FREE" ? "🍽️" : table.status === "RESERVED" ? "📅" : "🍜"}
                                         </div>
                                         <div style={{
                                             fontSize: "18px",
@@ -400,6 +404,20 @@ const TablesPage = () => {
                                             color: "#2c3e2f"
                                         }}>
                                             Bàn {table.number}
+                                        </div>
+
+                                        {/* ✅ HIỂN THỊ TẦNG/KHU VỰC */}
+                                        <div style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "4px",
+                                            marginTop: "4px",
+                                            fontSize: "12px",
+                                            color: "#8a9b8c"
+                                        }}>
+                                            <MapPin size={12} />
+                                            <span>{table.area || "Khu vực chung"}</span>
                                         </div>
 
                                         {hasOrder && orderStatus && (
@@ -424,12 +442,14 @@ const TablesPage = () => {
                                         }}>
                                             {table.status === "FREE" ? (
                                                 <CheckCircle size={14} />
+                                            ) : table.status === "RESERVED" ? (
+                                                <Clock size={14} />
                                             ) : (
                                                 <XCircle size={14} />
                                             )}
                                             <span>{getStatusText(table.status)}</span>
                                         </div>
-                                        {table.status !== "FREE" && (
+                                        {table.status !== "FREE" && table.status !== "RESERVED" && (
                                             <div style={{
                                                 fontSize: "11px",
                                                 color: "#8a9b8c",
@@ -461,7 +481,7 @@ const TablesPage = () => {
             {activeTab === "rooms" && (
                 <div style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
                     gap: "16px"
                 }}>
                     {rooms.length === 0 ? (
@@ -487,13 +507,15 @@ const TablesPage = () => {
                                         position: "relative",
                                         background: room.status === "FREE"
                                             ? "linear-gradient(135deg, #ffffff, #f8faf5)"
-                                            : "#fff3e0",
+                                            : room.status === "RESERVED"
+                                                ? "#fffbeb"
+                                                : "#fff3e0",
                                         borderRadius: "16px",
                                         padding: "20px",
                                         cursor: "pointer",
                                         transition: "all 0.2s",
                                         boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                                        border: `2px solid ${room.status === "FREE" ? "#10b981" : "#ef4444"}`,
+                                        border: `2px solid ${room.status === "FREE" ? "#10b981" : room.status === "RESERVED" ? "#f59e0b" : "#ef4444"}`,
                                         textAlign: "center"
                                     }}
                                     onMouseEnter={(e) => {
@@ -536,6 +558,20 @@ const TablesPage = () => {
                                         Phòng {room.number}
                                     </div>
 
+                                    {/* ✅ HIỂN THỊ TẦNG/KHU VỰC CHO PHÒNG */}
+                                    <div style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: "4px",
+                                        marginTop: "4px",
+                                        fontSize: "12px",
+                                        color: "#8a9b8c"
+                                    }}>
+                                        <MapPin size={12} />
+                                        <span>{room.area || "Khu vực VIP"}</span>
+                                    </div>
+
                                     {hasOrder && orderStatus && (
                                         <div style={{
                                             fontSize: "11px",
@@ -548,27 +584,22 @@ const TablesPage = () => {
                                     )}
 
                                     <div style={{
-                                        fontSize: "13px",
-                                        color: "#8a9b8c",
-                                        marginTop: "4px"
-                                    }}>
-                                        {room.area}
-                                    </div>
-                                    <div style={{
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "center",
                                         gap: "8px",
                                         marginTop: "8px",
                                         fontSize: "13px",
-                                        color: room.status === "FREE" ? "#10b981" : "#ef4444"
+                                        color: room.status === "FREE" ? "#10b981" : room.status === "RESERVED" ? "#f59e0b" : "#ef4444"
                                     }}>
                                         {room.status === "FREE" ? (
                                             <CheckCircle size={14} />
+                                        ) : room.status === "RESERVED" ? (
+                                            <Clock size={14} />
                                         ) : (
                                             <XCircle size={14} />
                                         )}
-                                        <span>{room.status === "FREE" ? "Trống" : "Đã có khách"}</span>
+                                        <span>{room.status === "FREE" ? "Trống" : room.status === "RESERVED" ? "Đã đặt" : "Đã có khách"}</span>
                                     </div>
                                     <div style={{
                                         fontSize: "11px",
