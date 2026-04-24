@@ -371,150 +371,153 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
         if (url.startsWith('http')) return url;
         return `${API}${url.startsWith('/') ? '' : '/uploads/'}${url}`;
     };
-    <div className="order-layout">
-        {/* ── LEFT: MENU ── */}
-        <div>
-            <div className="card" style={{ marginBottom: 16 }}>
-                <div className="card-body" style={{ paddingBottom: 12 }}>
-                    <div className="search-input-wrap" style={{ marginBottom: 12 }}>
-                        <Search size={15} />
-                        <input className="search-input" placeholder="Tìm món..." value={search} onChange={e => setSearch(e.target.value)} />
-                    </div>
-                    <div className="category-chips">
-                        <button className={`cat-chip ${selectedCat === 'all' ? 'active' : ''}`} onClick={() => setSelectedCat('all')}>🍽️ Tất cả</button>
-                        {categories.map(c => (
-                            <button key={c.id} className={`cat-chip ${selectedCat === c.name?.toLowerCase() ? 'active' : ''}`}
-                                onClick={() => setSelectedCat(c.name?.toLowerCase())}>
-                                {c.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            <div className="menu-grid">
-                {filteredMenu.map(item => {
-                    const price = Number(item.finalPrice || item.branchPrice || 0);
-                    const original = Number(item.originalPrice || item.branchPrice || 0);
-                    const discount = item.discountPercentage || 0;
-                    const inCart = cart.find(c => c.id === item.id);
-                    const imgUrl = getImgUrl(item.imageUrl);
-                    return (
-                        <div key={item.id} className="menu-item" onClick={() => addToCart(item)}>
-                            {discount > 0 && <div className="menu-item-discount">-{discount}%</div>}
-                            {inCart && <div className="menu-item-in-cart">×{inCart.qty}</div>}
-                            <div className="menu-item-img">
-                                {imgUrl ? <img src={imgUrl} alt={item.name} onError={e => { e.target.style.display = 'none'; }} /> : <span>🍽️</span>}
-                            </div>
-                            <div className="menu-item-body">
-                                <div className="menu-item-name">{item.name}</div>
-                                <div>
-                                    <span className="menu-item-price">{fmtPrice(price)}</span>
-                                    {discount > 0 && <span className="menu-item-original">{fmtPrice(original)}</span>}
-                                </div>
-                            </div>
+
+    return (
+        <div className="order-layout">
+            {/* ── LEFT: MENU ── */}
+            <div>
+                <div className="card" style={{ marginBottom: 16 }}>
+                    <div className="card-body" style={{ paddingBottom: 12 }}>
+                        <div className="search-input-wrap" style={{ marginBottom: 12 }}>
+                            <Search size={15} />
+                            <input className="search-input" placeholder="Tìm món..." value={search} onChange={e => setSearch(e.target.value)} />
                         </div>
-                    );
-                })}
-            </div>
-        </div>
-        {/* ── RIGHT: CART ── */}
-        <div className="cart-panel">
-            <div className="card">
-                <div className="card-header">
-                    <div className="card-title"><ShoppingCart size={16} /> Giỏ hàng ({cart.length})</div>
-                </div>
-                <div className="card-body">
-                    {/* Location selector */}
-                    <div className="location-selector">
-                        <span className="location-label">Vị trí</span>
-                        <div className="type-tabs" style={{ marginBottom: 10 }}>
-                            <button className={`type-tab ${seatType === 'table' ? 'active' : ''}`} onClick={() => handleSeatTypeChange('table')}>
-                                🪑 Bàn thường
-                            </button>
-                            <button className={`type-tab vip ${seatType === 'room' ? 'active' : ''}`} onClick={() => handleSeatTypeChange('room')}>
-                                👑 Phòng VIP
-                            </button>
-                        </div>
-                        {seatType === 'room' ? (
-                            <select className="location-select" value={selectedRoomId}
-                                onChange={e => setSelectedRoomId(e.target.value)}>
-                                <option value="">-- Chọn phòng VIP --</option>
-                                {rooms.map(r => (
-                                    <option key={r.id} value={r.id}>
-                                        Phòng {r.number} - {r.area} ({r.capacity} người) {r.status === 'OCCUPIED' ? '🔴' : '🟢'}
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            <>
-                                <select className="location-select" value={selectedArea}
-                                    onChange={e => { setSelectedArea(e.target.value); setSelectedTableId(''); setSelectedTableNumber(''); }}>
-                                    <option value="">-- Chọn khu vực --</option>
-                                    {areas.map(a => <option key={a} value={a}>Khu {a}</option>)}
-                                </select>
-                                {selectedArea && (
-                                    <select className="location-select" value={selectedTableId}
-                                        onChange={e => {
-                                            const t = tablesByArea.find(tb => String(tb.id) === e.target.value);
-                                            setSelectedTableId(e.target.value);
-                                            setSelectedTableNumber(t?.number?.toString() || '');
-                                        }}>
-                                        <option value="">-- Chọn bàn --</option>
-                                        {tablesByArea.map(t => (
-                                            <option key={t.id} value={t.id}>
-                                                Bàn {t.number} - {t.capacity} người {t.status === 'OCCUPIED' ? '🔴' : '🟢'}
-                                            </option>
-                                        ))}
-                                    </select>
-                                )}
-                            </>
-                        )}
-                        {((seatType === 'room' && selectedRoomId) || (seatType === 'table' && selectedTableId)) && (
-                            <div className="location-selected-info">📍 {getLocationName()}</div>
-                        )}
-                    </div>
-                    {/* Cart items */}
-                    {cart.length === 0 ? (
-                        <div className="empty-state" style={{ padding: '24px 0' }}>
-                            <ShoppingCart size={32} />
-                            <p style={{ fontSize: 13 }}>Chưa có món nào</p>
-                        </div>
-                    ) : (
-                        <div className="cart-items">
-                            {cart.map(item => (
-                                <div key={item.id} className="cart-item">
-                                    <div className="cart-item-top">
-                                        <div>
-                                            <div className="cart-item-name">{item.name}</div>
-                                            <div className="cart-item-price">{fmtPrice(item.price)}/món</div>
-                                        </div>
-                                        <div className="cart-item-subtotal">{fmtPrice(item.total)}</div>
-                                    </div>
-                                    <div className="qty-control">
-                                        <button className="qty-btn" onClick={() => updateQty(item.id, -1)}><Minus size={11} /></button>
-                                        <span className="qty-num">{item.qty}</span>
-                                        <button className="qty-btn" onClick={() => updateQty(item.id, 1)}><Plus size={11} /></button>
-                                    </div>
-                                </div>
+                        <div className="category-chips">
+                            <button className={`cat-chip ${selectedCat === 'all' ? 'active' : ''}`} onClick={() => setSelectedCat('all')}>🍽️ Tất cả</button>
+                            {categories.map(c => (
+                                <button key={c.id} className={`cat-chip ${selectedCat === c.name?.toLowerCase() ? 'active' : ''}`}
+                                    onClick={() => setSelectedCat(c.name?.toLowerCase())}>
+                                    {c.name}
+                                </button>
                             ))}
                         </div>
-                    )}
-
-                    {/* Summary */}
-                    <div className="cart-summary">
-                        <div className="cart-row"><span>Tạm tính</span><span>{fmtPrice(subtotal)}</span></div>
-                        <div className="cart-row total"><span>Tổng cộng</span><span className="cart-total-amount">{fmtPrice(total)}</span></div>
                     </div>
+                </div>
+                <div className="menu-grid">
+                    {filteredMenu.map(item => {
+                        const price = Number(item.finalPrice || item.branchPrice || 0);
+                        const original = Number(item.originalPrice || item.branchPrice || 0);
+                        const discount = item.discountPercentage || 0;
+                        const inCart = cart.find(c => c.id === item.id);
+                        const imgUrl = getImgUrl(item.imageUrl);
+                        return (
+                            <div key={item.id} className="menu-item" onClick={() => addToCart(item)}>
+                                {discount > 0 && <div className="menu-item-discount">-{discount}%</div>}
+                                {inCart && <div className="menu-item-in-cart">×{inCart.qty}</div>}
+                                <div className="menu-item-img">
+                                    {imgUrl ? <img src={imgUrl} alt={item.name} onError={e => { e.target.style.display = 'none'; }} /> : <span>🍽️</span>}
+                                </div>
+                                <div className="menu-item-body">
+                                    <div className="menu-item-name">{item.name}</div>
+                                    <div>
+                                        <span className="menu-item-price">{fmtPrice(price)}</span>
+                                        {discount > 0 && <span className="menu-item-original">{fmtPrice(original)}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+            {/* ── RIGHT: CART ── */}
+            <div className="cart-panel">
+                <div className="card">
+                    <div className="card-header">
+                        <div className="card-title"><ShoppingCart size={16} /> Giỏ hàng ({cart.length})</div>
+                    </div>
+                    <div className="card-body">
+                        {/* Location selector */}
+                        <div className="location-selector">
+                            <span className="location-label">Vị trí</span>
+                            <div className="type-tabs" style={{ marginBottom: 10 }}>
+                                <button className={`type-tab ${seatType === 'table' ? 'active' : ''}`} onClick={() => handleSeatTypeChange('table')}>
+                                    🪑 Bàn thường
+                                </button>
+                                <button className={`type-tab vip ${seatType === 'room' ? 'active' : ''}`} onClick={() => handleSeatTypeChange('room')}>
+                                    👑 Phòng VIP
+                                </button>
+                            </div>
+                            {seatType === 'room' ? (
+                                <select className="location-select" value={selectedRoomId}
+                                    onChange={e => setSelectedRoomId(e.target.value)}>
+                                    <option value="">-- Chọn phòng VIP --</option>
+                                    {rooms.map(r => (
+                                        <option key={r.id} value={r.id}>
+                                            Phòng {r.number} - {r.area} ({r.capacity} người) {r.status === 'OCCUPIED' ? '🔴' : '🟢'}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <>
+                                    <select className="location-select" value={selectedArea}
+                                        onChange={e => { setSelectedArea(e.target.value); setSelectedTableId(''); setSelectedTableNumber(''); }}>
+                                        <option value="">-- Chọn khu vực --</option>
+                                        {areas.map(a => <option key={a} value={a}>Khu {a}</option>)}
+                                    </select>
+                                    {selectedArea && (
+                                        <select className="location-select" value={selectedTableId}
+                                            onChange={e => {
+                                                const t = tablesByArea.find(tb => String(tb.id) === e.target.value);
+                                                setSelectedTableId(e.target.value);
+                                                setSelectedTableNumber(t?.number?.toString() || '');
+                                            }}>
+                                            <option value="">-- Chọn bàn --</option>
+                                            {tablesByArea.map(t => (
+                                                <option key={t.id} value={t.id}>
+                                                    Bàn {t.number} - {t.capacity} người {t.status === 'OCCUPIED' ? '🔴' : '🟢'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </>
+                            )}
+                            {((seatType === 'room' && selectedRoomId) || (seatType === 'table' && selectedTableId)) && (
+                                <div className="location-selected-info">📍 {getLocationName()}</div>
+                            )}
+                        </div>
+                        {/* Cart items */}
+                        {cart.length === 0 ? (
+                            <div className="empty-state" style={{ padding: '24px 0' }}>
+                                <ShoppingCart size={32} />
+                                <p style={{ fontSize: 13 }}>Chưa có món nào</p>
+                            </div>
+                        ) : (
+                            <div className="cart-items">
+                                {cart.map(item => (
+                                    <div key={item.id} className="cart-item">
+                                        <div className="cart-item-top">
+                                            <div>
+                                                <div className="cart-item-name">{item.name}</div>
+                                                <div className="cart-item-price">{fmtPrice(item.price)}/món</div>
+                                            </div>
+                                            <div className="cart-item-subtotal">{fmtPrice(item.total)}</div>
+                                        </div>
+                                        <div className="qty-control">
+                                            <button className="qty-btn" onClick={() => updateQty(item.id, -1)}><Minus size={11} /></button>
+                                            <span className="qty-num">{item.qty}</span>
+                                            <button className="qty-btn" onClick={() => updateQty(item.id, 1)}><Plus size={11} /></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
-                    <textarea className="general-note" placeholder="📝 Ghi chú chung cho bếp..." value={generalNote} onChange={e => setGeneralNote(e.target.value)} />
+                        {/* Summary */}
+                        <div className="cart-summary">
+                            <div className="cart-row"><span>Tạm tính</span><span>{fmtPrice(subtotal)}</span></div>
+                            <div className="cart-row total"><span>Tổng cộng</span><span className="cart-total-amount">{fmtPrice(total)}</span></div>
+                        </div>
 
-                    <button className="btn btn-success btn-lg btn-block" disabled={submitting || cart.length === 0} onClick={handleSubmit}>
-                        {submitting ? <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Đang xử lý...</> : <><Send size={16} /> Gửi đơn hàng</>}
-                    </button>
+                        <textarea className="general-note" placeholder="📝 Ghi chú chung cho bếp..." value={generalNote} onChange={e => setGeneralNote(e.target.value)} />
+
+                        <button className="btn btn-success btn-lg btn-block" disabled={submitting || cart.length === 0} onClick={handleSubmit}>
+                            {submitting ? <><div className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Đang xử lý...</> : <><Send size={16} /> Gửi đơn hàng</>}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    );
 }
 
 function OrdersTab({ branchId, toast }) {

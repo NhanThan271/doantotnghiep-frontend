@@ -32,9 +32,10 @@ import ChefDashboard from "./pages/employee/chef/ChefDashboard";
 import StockDashboard from "./pages/employee/stock/StockDashboard";
 import PaymentSuccess from "./pages/client/booking/PaymentSuccess";
 import PaymentCancel from "./pages/client/booking/PaymentCancel";
-import WaiterInterface from "./pages/employee/waiter/Orders";
 import CashierPaymentSuccess from "./pages/employee/cashier/CashierPaymentSuccess";
 import CashierPaymentCancel from "./pages/employee/cashier/CashierPaymentCancel";
+import PaymentRequest from "./pages/employee/waiter/PaymentRequest";
+import PaymentQR from "./pages/employee/waiter/PaymentQR";
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (
   <>
@@ -79,7 +80,9 @@ function App() {
         {/* Waiter Routes - Thêm trực tiếp */}
         <Route path="/waiter" element={<WaiterLayout />}>
           <Route path="orders" element={<Orders />} />
+          <Route path="payment-requests" element={<PaymentRequest />} />
         </Route>
+        <Route path="/waiter/payment-requests/:id" element={<PaymentQR />} />
 
         {/* Chef routes - Thêm trực tiếp */}
         <Route path="/chef" element={<ChefLayout><ChefDashboard /></ChefLayout>} />
