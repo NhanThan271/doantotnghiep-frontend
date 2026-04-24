@@ -6,6 +6,13 @@ import {
     Coffee, DoorOpen, Layers, Check
 } from 'lucide-react';
 import './WaiterInterface.css';
+import io from 'socket.io-client';
+
+
+const socket = io('http://localhost:3001', {
+    autoConnect: true,
+    reconnection: true,
+});
 
 const API = 'http://localhost:8080';
 const getToken = () => localStorage.getItem('token');
@@ -354,6 +361,12 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
             if (!r.ok) throw new Error('Tạo đơn thất bại');
             const saved = await r.json();
             await apiFetch(`/api/customer/orders/${saved.id}/confirm`, { method: 'PUT' });
+            socket.emit('place-order', {
+                ...saved,
+                table: { number: selectedTableNumber },
+                tableNumber: selectedTableNumber,
+                items: cart.map(i => ({ name: i.name, quantity: i.qty })),
+            });
             toast.add('success', `Món #${saved.id} đã gửi bếp!`, getLocationName());
             setCart([]); setGeneralNote('');
             onOrderCreated && onOrderCreated(saved);
@@ -865,6 +878,8 @@ export default function WaiterInterface() {
 
     const [pendingKitchen, setPendingKitchen] = useState(0);
 
+    const [kitchenNotifs, setKitchenNotifs] = useState([]);
+
     useEffect(() => {
         apiFetch('/api/kitchen-orders/status?status=WAITING')
             .then(r => r.ok ? r.json() : [])
@@ -876,6 +891,46 @@ export default function WaiterInterface() {
         }, 15000);
         return () => clearInterval(id);
     }, []);
+
+    useEffect(() => {
+        // Đăng ký role employee để nhận thông báo từ bếp
+        const registerEmployee = () => {
+            socket.emit('register-role', {
+                role: 'employee',
+                userId: user?.id,
+                branchId: branchId
+            });
+        };
+
+        if (socket.connected) {
+            registerEmployee();
+        } else {
+            socket.on('connect', registerEmployee);
+        }
+
+        // ← Lắng nghe khi bếp cập nhật trạng thái món
+        const handleItemUpdated = (itemData) => {
+            const msg = {
+                id: Date.now(),
+                itemName: itemData.itemName,
+                tableNumber: itemData.tableNumber,
+                status: itemData.status,
+                time: new Date(),
+            };
+            setKitchenNotifs(prev => [msg, ...prev].slice(0, 10)); // giữ 10 notif gần nhất
+            toast.add('info',
+                `🍳 Bàn ${itemData.tableNumber}: ${itemData.itemName}`,
+                itemData.status === 'READY' ? ' Đã hoàn thành!' : ' Đang nấu...'
+            );
+        };
+
+        socket.on('order-item-updated', handleItemUpdated);
+
+        return () => {
+            socket.off('connect', registerEmployee);
+            socket.off('order-item-updated', handleItemUpdated);
+        };
+    }, [branchId, user?.id]);
 
     const handleSelectSeat = (seat, type) => {
         setSelectedSeat(seat);
