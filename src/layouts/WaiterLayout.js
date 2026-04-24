@@ -13,7 +13,7 @@ const WaiterLayout = () => {
 
     const menuItems = [
         { label: "🍽️ Gọi món", path: "/waiter/orders" },
-        { label: "📋 Yêu cầu thanh toán", path: "/employee/waiter/payment-requests" },
+        { label: "📋 Yêu cầu thanh toán", path: "/waiter/payment-requests" },
     ];
 
     return (
