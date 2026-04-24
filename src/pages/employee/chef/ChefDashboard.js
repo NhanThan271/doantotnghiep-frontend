@@ -319,7 +319,6 @@ const ChefDashboard = () => {
             {/* ==================== HEADER ĐƠN GIẢN ==================== */}
             <div className={styles.header}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <ChefHat size={28} className={styles.logoIcon} />
                     <div>
                         <div style={{
                             display: 'flex',

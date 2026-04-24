@@ -96,6 +96,27 @@
 /* Content */
 .modalContent {
     padding: 24px;
+    max-height: calc(90vh - 140px);
+    overflow-y: auto;
+}
+
+/* Custom Scrollbar */
+.modalContent::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modalContent::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.modalContent::-webkit-scrollbar-thumb {
+    background: #d32f2f;
+    border-radius: 10px;
+}
+
+.modalContent::-webkit-scrollbar-thumb:hover {
+    background: #b71c1c;
 }
 
 /* Total Section */
@@ -121,6 +142,14 @@
     font-weight: 700;
     color: #d32f2f;
     letter-spacing: 1px;
+}
+
+/* Original amount hint */
+.originalAmountHint {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 6px;
+    font-style: italic;
 }
 
 /* Input Section */
@@ -163,14 +192,91 @@
     background: #fef2f2;
 }
 
+/* Exact Amount Button */
+.exactAmountBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    justify-content: center;
+}
+
+.exactAmountBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.exactAmountBtn:active {
+    transform: translateY(0);
+}
+
+/* Suggested Section */
+.suggestedSection {
+    margin-top: 16px;
+    padding-top: 8px;
+}
+
+.suggestedLabel {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.suggestedButtons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.suggestedBtn {
+    padding: 8px 14px;
+    background: #f3f4f6;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 0 0 auto;
+}
+
+.suggestedBtn:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.suggestedBtn:active {
+    transform: translateY(0);
+}
+
 /* Error Message */
 .errorMessage {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 8px;
+    margin-top: 12px;
     font-size: 13px;
     color: #dc2626;
+    background: #fef2f2;
+    padding: 10px 12px;
+    border-radius: 10px;
 }
 
 /* Change Section */
@@ -183,6 +289,7 @@
     align-items: center;
     justify-content: space-between;
     animation: slideIn 0.3s ease;
+    border: 1px solid #6ee7b7;
 }
 
 @keyframes slideIn {
@@ -201,8 +308,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 500;
+    font-weight: 600;
     color: #065f46;
+    font-size: 14px;
 }
 
 .changeAmount {
@@ -221,6 +329,7 @@
     gap: 10px;
     font-size: 13px;
     color: #92400e;
+    border-left: 4px solid #f59e0b;
 }
 
 /* Footer */
@@ -236,10 +345,10 @@
     flex: 1;
     padding: 12px;
     background: white;
-    border: 1px solid #e2e8e0;
+    border: 1.5px solid #e2e8e0;
     border-radius: 40px;
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
     color: #5d6e5f;
@@ -248,6 +357,11 @@
 .cancelBtn:hover:not(:disabled) {
     background: #f1f3ee;
     border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+.cancelBtn:active:not(:disabled) {
+    transform: translateY(0);
 }
 
 .confirmBtn {
@@ -269,12 +383,17 @@
 
 .confirmBtn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+    box-shadow: 0 6px 20px rgba(211, 47, 47, 0.4);
+}
+
+.confirmBtn:active:not(:disabled) {
+    transform: translateY(0);
 }
 
 .confirmBtn.disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    transform: none;
 }
 
 /* Spinner */
@@ -297,10 +416,15 @@
 @media (max-width: 480px) {
     .modalContainer {
         width: 95%;
+        border-radius: 20px;
     }
 
     .modalHeader {
         padding: 16px 20px;
+    }
+
+    .modalHeader h3 {
+        font-size: 18px;
     }
 
     .modalContent {
@@ -329,4 +453,76 @@
         padding: 10px;
         font-size: 14px;
     }
+
+    .suggestedButtons {
+        gap: 8px;
+    }
+
+    .suggestedBtn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .exactAmountBtn {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+
+    .changeLabel {
+        font-size: 12px;
+    }
+
+    .changeAmount {
+        font-size: 18px;
+    }
+}
+
+/* Tablet Responsive */
+@media (min-width: 481px) and (max-width: 768px) {
+    .modalContainer {
+        max-width: 90%;
+    }
+
+    .suggestedBtn {
+        padding: 7px 13px;
+        font-size: 13px;
+    }
+}
+
+/* Focus visible for accessibility */
+.amountInput:focus-visible,
+.exactAmountBtn:focus-visible,
+.suggestedBtn:focus-visible,
+.cancelBtn:focus-visible,
+.confirmBtn:focus-visible {
+    outline: 2px solid #d32f2f;
+    outline-offset: 2px;
+}
+
+/* Animation for change amount */
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+}
+
+.changeSection {
+    animation: slideIn 0.3s ease, pulse 0.5s ease 0.3s;
+}
+
+.amountInput::-webkit-outer-spin-button,
+.amountInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.amountInput[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
 }
