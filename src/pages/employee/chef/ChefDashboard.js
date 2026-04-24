@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ChefHat, Clock, Play, Check, RefreshCw, Bell, Wifi, WifiOff } from 'lucide-react';
+import { ChefHat, Clock, Play, Check, RefreshCw, Bell } from 'lucide-react';
 import { kitchenAPI } from '../../../services/api';
 import ToastNotification from './ToastNotification';
 import IngredientWarning from './IngredientWarning';
@@ -171,10 +171,8 @@ const ChefDashboard = () => {
         }
     }, []);
 
-    // LẮNG NGHE SOCKET
     useEffect(() => {
         const handleNewOrder = (orderData) => {
-            console.log("🆕 Đơn hàng mới:", orderData);
             fetchData();
             const tableNumber = orderData.table?.number || orderData.tableNumber;
             const message = `📋 Đơn hàng mới từ bàn ${tableNumber}`;
@@ -201,18 +199,36 @@ const ChefDashboard = () => {
             fetchData();
         };
 
+        const registerKitchen = () => {
+            socket.emit('register-role', {
+                role: 'kitchen',
+                userId: user?.id,
+                branchId: branchId
+            });
+            setIsSocketConnected(true);
+            fetchData();
+        };
+
         socket.on("new-order", handleNewOrder);
         socket.on("order-items-added", handleItemsAdded);
         socket.on("update-tables", handleUpdateTables);
         socket.on("order-item-updated", handleItemUpdated);
+        socket.on('connect', registerKitchen);
+        socket.on('disconnect', () => setIsSocketConnected(false));
+
+        if (socket.connected) {
+            registerKitchen();
+        }
 
         return () => {
             socket.off("new-order", handleNewOrder);
             socket.off("order-items-added", handleItemsAdded);
             socket.off("update-tables", handleUpdateTables);
             socket.off("order-item-updated", handleItemUpdated);
+            socket.off('connect', registerKitchen);
+            socket.off('disconnect');
         };
-    }, [fetchData]);
+    }, [fetchData, branchId, user?.id]);
 
     useEffect(() => {
         fetchData();
