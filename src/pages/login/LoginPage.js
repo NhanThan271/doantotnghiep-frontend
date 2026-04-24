@@ -94,10 +94,10 @@ const LoginPage = () => {
                 // Điều hướng theo position
                 switch (user.position) {
                     case "CASHIER":
-                        navigate("/cashier/shift", { replace: true });
+                        navigate("/cashier/dashboard", { replace: true });
                         break;
                     case "WAITER":
-                        navigate("/waiter", { replace: true });
+                        navigate("/waiter/orders", { replace: true });
                         break;
                     case "CHEF":
                         navigate("/chef/", { replace: true });

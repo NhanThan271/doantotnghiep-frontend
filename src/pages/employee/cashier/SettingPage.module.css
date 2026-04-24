@@ -1,0 +1,198 @@
+/* SettingPage.module.css */
+.container {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    min-height: calc(100vh - 40px);
+}
+
+.header {
+    margin-bottom: 24px;
+}
+
+.header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #1e3a8a;
+}
+
+.message {
+    padding: 12px 16px;
+    background: #d1fae5;
+    color: #065f46;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.settingsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+}
+
+.settingCard {
+    background: #f8faf5;
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #e2e8e0;
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8e0;
+}
+
+.cardHeader h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #1e3a8a;
+}
+
+.formGroup {
+    margin-bottom: 16px;
+}
+
+.formGroup label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #5d6e5f;
+    margin-bottom: 6px;
+}
+
+.input,
+.inputDisabled {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.input:focus {
+    outline: none;
+    border-color: #d32f2f;
+    box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);
+}
+
+.inputDisabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.saveBtn,
+.changePasswordBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.saveBtn:hover,
+.changePasswordBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+}
+
+/* Toggle Group */
+.toggleGroup {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e2e8e0;
+}
+
+.toggleGroup label {
+    font-size: 14px;
+    color: #374151;
+}
+
+.toggle {
+    width: 44px;
+    height: 24px;
+    appearance: none;
+    background: #e2e8e0;
+    border-radius: 24px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.toggle:checked {
+    background: #d32f2f;
+}
+
+.toggle::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    top: 2px;
+    left: 2px;
+    transition: all 0.3s;
+}
+
+.toggle:checked::before {
+    left: 22px;
+}
+
+/* Theme Options */
+.themeOptions {
+    display: flex;
+    gap: 12px;
+}
+
+.themeBtn,
+.themeActive {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #e2e8e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.themeBtn:hover {
+    border-color: #d32f2f;
+    background: #fef2f2;
+}
+
+.themeActive {
+    background: #d32f2f;
+    color: white;
+    border-color: #d32f2f;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 16px;
+    }
+
+    .settingsGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .settingCard {
+        padding: 16px;
+    }
+}

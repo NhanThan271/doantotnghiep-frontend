@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import styles from "./TableDetail.module.css";
 
 const ToastNotification = ({ message, type = 'info', duration = 5000, onClose }) => {
     const [isVisible, setIsVisible] = useState(true);
