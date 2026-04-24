@@ -1,121 +1,141 @@
-import React, { useState } from "react";
-import styles from "./TableDetail.module.css";
+import React, { useState, useEffect } from "react";
+import { X, DollarSign, CheckCircle, AlertCircle } from "lucide-react";
+import styles from "./CashPaymentModal.module.css";
 
 const CashPaymentModal = ({ show, onClose, onConfirm, totalAmount }) => {
-    const [cashReceived, setCashReceived] = useState("");
+    const [receivedAmount, setReceivedAmount] = useState("");
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        if (!show) {
+            setReceivedAmount("");
+            setError("");
+        }
+    }, [show]);
 
     if (!show) return null;
 
-    const total = totalAmount || 0;
-    const received = parseFloat(cashReceived) || 0;
-    const change = received - total;
-    const isValid = received >= total;
-
     const handleConfirm = async () => {
-        if (isValid) {
+        const received = parseFloat(receivedAmount);
+
+        if (isNaN(received)) {
+            setError("Vui lòng nhập số tiền khách đưa");
+            return;
+        }
+
+        if (received < totalAmount) {
+            setError(`Số tiền khách đưa (${received.toLocaleString()}đ) phải lớn hơn hoặc bằng tổng tiền (${totalAmount.toLocaleString()}đ)`);
+            return;
+        }
+
+        setError("");
+        setIsProcessing(true);
+        try {
             await onConfirm();
-            setCashReceived(""); // Reset state
             onClose();
+        } catch (error) {
+            console.error("Payment error:", error);
+            setError("Có lỗi xảy ra khi thanh toán!");
+        } finally {
+            setIsProcessing(false);
         }
     };
 
+    const formatCurrency = (amount) => {
+        if (!amount || isNaN(amount)) return "0đ";
+        return amount.toLocaleString('vi-VN') + 'đ';
+    };
+
+    const change = receivedAmount ? parseFloat(receivedAmount) - totalAmount : 0;
+    const isValid = receivedAmount && parseFloat(receivedAmount) >= totalAmount;
+
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
-            <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalContainer} onClick={(e) => e.stopPropagation()}>
+
+                {/* Header */}
                 <div className={styles.modalHeader}>
-                    <h3>💵 Thanh toán tiền mặt</h3>
-                    <button onClick={onClose} className={styles.modalClose}>✕</button>
+                    <div className={styles.headerTitle}>
+                        <DollarSign size={24} className={styles.headerIcon} />
+                        <h3>Thanh toán tiền mặt</h3>
+                    </div>
+                    <button onClick={onClose} className={styles.closeBtn}>
+                        <X size={20} />
+                    </button>
                 </div>
 
-                <div style={{ marginBottom: "20px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-                        <span>Tổng tiền:</span>
-                        <strong style={{ color: "#d32f2f", fontSize: "20px" }}>
-                            {total.toLocaleString('vi-VN')}đ
-                        </strong>
+                {/* Content */}
+                <div className={styles.modalContent}>
+                    {/* Total Amount */}
+                    <div className={styles.totalSection}>
+                        <label className={styles.label}>Tổng tiền cần thanh toán</label>
+                        <div className={styles.totalAmount}>{formatCurrency(totalAmount)}</div>
                     </div>
 
-                    <label style={{ display: "block", marginBottom: "8px", fontWeight: "500" }}>
-                        Tiền khách đưa:
-                    </label>
-                    <input
-                        type="number"
-                        className={styles.searchInput}
-                        value={cashReceived}
-                        onChange={(e) => setCashReceived(e.target.value)}
-                        placeholder="Nhập số tiền khách đưa"
-                        style={{ fontSize: "16px", marginBottom: "10px" }}
-                        autoFocus
-                    />
-
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "10px" }}>
-                        {[20000, 50000, 100000, 200000, 500000].map(amount => (
-                            <button
-                                key={amount}
-                                type="button"
-                                onClick={() => setCashReceived(amount.toString())}
-                                style={{
-                                    padding: "8px 12px",
-                                    background: "#f1f3ee",
-                                    border: "none",
-                                    borderRadius: "8px",
-                                    cursor: "pointer"
+                    {/* Received Amount Input */}
+                    <div className={styles.inputSection}>
+                        <label className={styles.label}>Tiền khách đưa</label>
+                        <div className={styles.inputWrapper}>
+                            <span className={styles.inputCurrency}>₫</span>
+                            <input
+                                type="number"
+                                className={`${styles.amountInput} ${error ? styles.inputError : ""}`}
+                                value={receivedAmount}
+                                onChange={(e) => {
+                                    setReceivedAmount(e.target.value);
+                                    setError("");
                                 }}
-                            >
-                                {amount.toLocaleString('vi-VN')}đ
-                            </button>
-                        ))}
-                        <button
-                            type="button"
-                            onClick={() => setCashReceived(total.toString())}
-                            style={{
-                                padding: "8px 12px",
-                                background: "#10b981",
-                                color: "white",
-                                border: "none",
-                                borderRadius: "8px",
-                                cursor: "pointer"
-                            }}
-                        >
-                            Vừa đủ
-                        </button>
+                                placeholder="Nhập số tiền khách đưa"
+                                autoFocus
+                            />
+                        </div>
+                        {error && (
+                            <div className={styles.errorMessage}>
+                                <AlertCircle size={14} />
+                                <span>{error}</span>
+                            </div>
+                        )}
                     </div>
 
-                    {cashReceived && (
-                        <div style={{
-                            padding: "10px",
-                            borderRadius: "8px",
-                            background: isValid ? "#d4edda" : "#f8d7da",
-                            color: isValid ? "#155724" : "#721c24",
-                            marginTop: "10px"
-                        }}>
-                            {isValid ? (
-                                <>💰 Tiền thừa: <strong>{change.toLocaleString('vi-VN')}đ</strong></>
-                            ) : (
-                                <>⚠️ Còn thiếu: <strong>{(total - received).toLocaleString('vi-VN')}đ</strong></>
-                            )}
+                    {/* Change Amount */}
+                    {isValid && (
+                        <div className={styles.changeSection}>
+                            <div className={styles.changeLabel}>
+                                <CheckCircle size={18} />
+                                <span>Tiền thừa trả khách</span>
+                            </div>
+                            <div className={styles.changeAmount}>
+                                {formatCurrency(change)}
+                            </div>
                         </div>
                     )}
+
+                    {/* Info Message */}
+                    <div className={styles.infoMessage}>
+                        <span>💡</span>
+                        <span>Vui lòng kiểm tra kỹ số tiền trước khi xác nhận</span>
+                    </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "12px" }}>
-                    <button
-                        onClick={() => {
-                            setCashReceived("");
-                            onClose();
-                        }}
-                        className={styles.printBtn}
-                        style={{ flex: 1, background: "#6c757d" }}
-                    >
-                        Hủy
+                {/* Footer */}
+                <div className={styles.modalFooter}>
+                    <button onClick={onClose} className={styles.cancelBtn} disabled={isProcessing}>
+                        Hủy bỏ
                     </button>
                     <button
                         onClick={handleConfirm}
-                        disabled={!isValid}
-                        className={styles.orderBtn}
-                        style={{ flex: 1, background: "#10b981", opacity: isValid ? 1 : 0.5, cursor: isValid ? "pointer" : "not-allowed" }}
+                        className={`${styles.confirmBtn} ${!isValid ? styles.disabled : ""}`}
+                        disabled={!isValid || isProcessing}
                     >
-                        Xác nhận thanh toán
+                        {isProcessing ? (
+                            <>
+                                <span className={styles.spinner}></span>
+                                Đang xử lý...
+                            </>
+                        ) : (
+                            "Xác nhận thanh toán"
+                        )}
                     </button>
                 </div>
             </div>
