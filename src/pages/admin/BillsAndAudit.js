@@ -97,7 +97,7 @@ export default function BillsAndAuditSystem() {
     };
 
     const formatDateTime = (dateTime) => {
-        if (!dateTime) return 'N/A';
+        if (!dateTime) return 'Không xác định';
         const date = new Date(dateTime);
         return date.toLocaleString('vi-VN', {
             day: '2-digit',
@@ -151,7 +151,7 @@ export default function BillsAndAuditSystem() {
         role: user.role,
         action: user.isActive ? 'Đang hoạt động' : 'Đã vô hiệu hóa',
         timestamp: user.updatedAt || user.createdAt,
-        branch: user.branch?.name || 'N/A',
+        branch: user.branch?.name || 'Không xác định',
         status: user.isActive
     }));
 
@@ -160,7 +160,7 @@ export default function BillsAndAuditSystem() {
             {/* Header */}
             <div style={{
                 padding: '32px 24px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(26, 26, 26, 0.8) 100%)',
+                background: 'white',
                 borderRadius: '20px',
                 marginBottom: '24px',
                 border: '1px solid rgba(139, 92, 246, 0.2)',
@@ -187,10 +187,10 @@ export default function BillsAndAuditSystem() {
                 display: 'flex',
                 gap: '12px',
                 marginBottom: '24px',
-                background: '#1A1A1A',
+                background: '#f3f4f6',
                 padding: '8px',
                 borderRadius: '16px',
-                border: '1px solid #2D2D2D'
+                border: '1px solid var(--color-border)'
             }}>
                 <button
                     onClick={() => setActiveTab('bills')}
@@ -199,7 +199,7 @@ export default function BillsAndAuditSystem() {
                         padding: '14px 24px',
                         background: activeTab === 'bills'
                             ? 'linear-gradient(135deg, #8B5CF6, #7C3AED)'
-                            : 'transparent',
+                            : 'white',
                         color: activeTab === 'bills' ? 'white' : '#94A3B8',
                         border: 'none',
                         borderRadius: '12px',
@@ -222,7 +222,7 @@ export default function BillsAndAuditSystem() {
                         padding: '14px 24px',
                         background: activeTab === 'audit'
                             ? 'linear-gradient(135deg, #8B5CF6, #7C3AED)'
-                            : 'transparent',
+                            : 'white',
                         color: activeTab === 'audit' ? 'white' : '#94A3B8',
                         border: 'none',
                         borderRadius: '12px',
@@ -361,8 +361,8 @@ export default function BillsAndAuditSystem() {
 
                     {/* Filters */}
                     <div style={{
-                        background: '#1A1A1A',
-                        border: '1px solid #2D2D2D',
+                        background: 'white',
+                        border: '1px solid var(--color-border)',
                         borderRadius: '16px',
                         padding: '20px',
                         marginBottom: '24px'
@@ -384,10 +384,10 @@ export default function BillsAndAuditSystem() {
                                     style={{
                                         width: '100%',
                                         padding: '12px 12px 12px 48px',
-                                        background: '#0F0F0F',
-                                        border: '1px solid #2D2D2D',
+                                        background: '#f3f4f6',
+                                        border: '1px solid var(--color-border)',
                                         borderRadius: '12px',
-                                        color: 'white',
+                                        color: 'var(--color-text-secondary)',
                                         fontSize: '14px'
                                     }}
                                 />
@@ -398,10 +398,10 @@ export default function BillsAndAuditSystem() {
                                 onChange={(e) => setPaymentStatusFilter(e.target.value)}
                                 style={{
                                     padding: '12px 16px',
-                                    background: '#0F0F0F',
-                                    border: '1px solid #2D2D2D',
+                                    background: '#f3f4f6',
+                                    border: '1px solid var(--color-border)',
                                     borderRadius: '12px',
-                                    color: 'white',
+                                    color: 'var(--color-text-secondary)',
                                     fontSize: '14px',
                                     cursor: 'pointer'
                                 }}
@@ -418,10 +418,10 @@ export default function BillsAndAuditSystem() {
                                 onChange={(e) => setPaymentMethodFilter(e.target.value)}
                                 style={{
                                     padding: '12px 16px',
-                                    background: '#0F0F0F',
-                                    border: '1px solid #2D2D2D',
+                                    background: '#f3f4f6',
+                                    border: '1px solid var(--color-border)',
                                     borderRadius: '12px',
-                                    color: 'white',
+                                    color: 'var(--color-text-secondary)',
                                     fontSize: '14px',
                                     cursor: 'pointer'
                                 }}
@@ -439,10 +439,10 @@ export default function BillsAndAuditSystem() {
                                 onChange={(e) => setDateFrom(e.target.value)}
                                 style={{
                                     padding: '12px 16px',
-                                    background: '#0F0F0F',
-                                    border: '1px solid #2D2D2D',
+                                    background: '#f3f4f6',
+                                    border: '1px solid var(--color-border)',
                                     borderRadius: '12px',
-                                    color: 'white',
+                                    color: 'var(--color-text-secondary)',
                                     fontSize: '14px'
                                 }}
                             />
@@ -453,10 +453,10 @@ export default function BillsAndAuditSystem() {
                                 onChange={(e) => setDateTo(e.target.value)}
                                 style={{
                                     padding: '12px 16px',
-                                    background: '#0F0F0F',
-                                    border: '1px solid #2D2D2D',
+                                    background: '#f3f4f6',
+                                    border: '1px solid var(--color-border)',
                                     borderRadius: '12px',
-                                    color: 'white',
+                                    color: 'var(--color-text-secondary)',
                                     fontSize: '14px'
                                 }}
                             />
@@ -465,21 +465,21 @@ export default function BillsAndAuditSystem() {
 
                     {/* Bills Table */}
                     <div style={{
-                        background: '#1A1A1A',
-                        border: '1px solid #2D2D2D',
+                        background: '#f3f4f6',
+                        border: '1px solid var(--color-border)',
                         borderRadius: '16px',
                         overflow: 'hidden'
                     }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                             <thead>
-                                <tr style={{ background: '#0F0F0F', borderBottom: '1px solid #2D2D2D' }}>
-                                    <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Mã HĐ</th>
-                                    <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Đơn hàng</th>
-                                    <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Tổng tiền</th>
-                                    <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Phương thức</th>
-                                    <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Trạng thái</th>
-                                    <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Thời gian</th>
-                                    <th style={{ padding: '16px', textAlign: 'center', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Thao tác</th>
+                                <tr style={{ background: '#fff', borderBottom: '1px solid var(--color-border)' }}>
+                                    <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Mã HĐ</th>
+                                    <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Đơn hàng</th>
+                                    <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Tổng tiền</th>
+                                    <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Phương thức</th>
+                                    <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Trạng thái</th>
+                                    <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Thời gian</th>
+                                    <th style={{ padding: '16px', textAlign: 'center', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -496,14 +496,14 @@ export default function BillsAndAuditSystem() {
                                         const StatusIcon = statusColor.icon;
 
                                         return (
-                                            <tr key={bill.id} style={{ borderBottom: '1px solid #2D2D2D' }}>
-                                                <td style={{ padding: '16px', color: 'white', fontWeight: '600' }}>
+                                            <tr key={bill.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                                <td style={{ padding: '16px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
                                                     #{bill.id}
                                                 </td>
-                                                <td style={{ padding: '16px', color: '#94A3B8' }}>
-                                                    #{bill.order?.id || 'N/A'}
+                                                <td style={{ padding: '16px', color: 'var(--color-text-secondary)' }}>
+                                                    #{bill.order?.id || 'Không có'}
                                                 </td>
-                                                <td style={{ padding: '16px', color: 'white', fontWeight: '600' }}>
+                                                <td style={{ padding: '16px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
                                                     {formatCurrency(bill.totalAmount)}
                                                 </td>
                                                 <td style={{ padding: '16px' }}>
@@ -591,27 +591,27 @@ export default function BillsAndAuditSystem() {
             {/* Audit Tab */}
             {activeTab === 'audit' && (
                 <div style={{
-                    background: '#1A1A1A',
-                    border: '1px solid #2D2D2D',
+                    background: '#f3f4f6',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '16px',
                     overflow: 'hidden'
                 }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
-                            <tr style={{ background: '#0F0F0F', borderBottom: '1px solid #2D2D2D' }}>
-                                <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>ID</th>
-                                <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Người dùng</th>
-                                <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Vai trò</th>
-                                <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Chi nhánh</th>
-                                <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Hành động</th>
-                                <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Trạng thái</th>
-                                <th style={{ padding: '16px', textAlign: 'left', color: '#94A3B8', fontWeight: '600', fontSize: '13px' }}>Thời gian</th>
+                            <tr style={{ background: '#fff', borderBottom: '1px solid var(--color-border)' }}>
+                                <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>ID</th>
+                                <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Người dùng</th>
+                                <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Vai trò</th>
+                                <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Chi nhánh</th>
+                                <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Hành động</th>
+                                <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Trạng thái</th>
+                                <th style={{ padding: '16px', textAlign: 'left', color: 'var(--color-text-secondary)', fontWeight: '600', fontSize: '13px' }}>Thời gian</th>
                             </tr>
                         </thead>
                         <tbody>
                             {auditLogs.map((log) => (
-                                <tr key={log.id} style={{ borderBottom: '1px solid #2D2D2D' }}>
-                                    <td style={{ padding: '16px', color: 'white', fontWeight: '600' }}>
+                                <tr key={log.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                                    <td style={{ padding: '16px', color: 'var(--color-text-secondary)', fontWeight: '600' }}>
                                         #{log.id}
                                     </td>
                                     <td style={{ padding: '16px' }}>
@@ -624,13 +624,13 @@ export default function BillsAndAuditSystem() {
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
-                                                color: 'white',
+                                                color: 'var(--color-text-secondary)',
                                                 fontWeight: '600',
                                                 fontSize: '14px'
                                             }}>
                                                 {log.user.charAt(0).toUpperCase()}
                                             </div>
-                                            <span style={{ color: 'white', fontWeight: '500' }}>
+                                            <span style={{ color: 'var(--color-text-secondary)', fontWeight: '500' }}>
                                                 {log.user}
                                             </span>
                                         </div>
@@ -752,7 +752,7 @@ export default function BillsAndAuditSystem() {
                             }}>
                                 <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '4px' }}>Mã đơn hàng</div>
                                 <div style={{ fontSize: '16px', color: 'white', fontWeight: '600' }}>
-                                    #{selectedBill.order?.id || 'N/A'}
+                                    #{selectedBill.order?.id || 'Không có'}
                                 </div>
                             </div>
 

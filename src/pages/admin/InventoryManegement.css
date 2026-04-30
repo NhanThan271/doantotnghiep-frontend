@@ -1,9 +1,9 @@
 /* Container */
 .inventory-container {
     padding: 24px;
-    background: #0a0f1e;
+    background: white;
     min-height: 100vh;
-    color: #fff;
+    color: #333;
 }
 
 /* Header */
@@ -44,7 +44,7 @@
     padding: 12px 24px;
     background: transparent;
     border: none;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-text-secondary);
     font-size: 15px;
     font-weight: 500;
     cursor: pointer;
@@ -55,7 +55,7 @@
 }
 
 .inventory-tab:hover {
-    color: rgba(255, 255, 255, 0.9);
+    color: #667eea;
     background: rgba(255, 255, 255, 0.05);
 }
 
@@ -67,9 +67,9 @@
 
 /* Stats Grid */
 .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 12px;
     margin-bottom: 32px;
 }
 
@@ -81,9 +81,11 @@
 .stat-card {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 24px;
+    border-radius: 12px;
+    padding: 2px !important;
     transition: all 0.3s ease;
+    min-height: 20px !important;
+    align-items: center;
 }
 
 .stat-card.pending {
@@ -113,9 +115,9 @@
 }
 
 .stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -138,9 +140,9 @@
 }
 
 .stat-number {
-    font-size: 36px;
+    font-size: 28px;
     font-weight: 700;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .stat-number.pending {
@@ -161,15 +163,15 @@
 
 .stat-label {
     color: rgba(255, 255, 255, 0.6);
-    font-size: 14px;
+    font-size: 12px;
 }
 
 /* Branch Section */
 .branch-inventory-section {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: white;
+    border: 1px solid var(--color-border);
     border-radius: 16px;
-    padding: 24px;
+    padding: 10px;
     margin-bottom: 24px;
 }
 
@@ -195,10 +197,10 @@
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #f3f4f6;
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--color-text-secondary);
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
@@ -206,7 +208,7 @@
 }
 
 .branch-button:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: #667eea;
     color: #fff;
 }
 
@@ -229,12 +231,12 @@
     gap: 8px;
     font-size: 18px;
     font-weight: 600;
-    color: #fff;
+    color: var(--color-text-secondary);
     margin-bottom: 8px;
 }
 
 .branch-info-address {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--color-text-secondary);
     font-size: 14px;
     margin: 0;
     padding-left: 26px;
@@ -263,10 +265,10 @@
 .search-input {
     width: 100%;
     padding: 12px 16px 12px 48px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #f3f4f6 !important;
+    border: 1px solid var(--color-border);
     border-radius: 10px;
-    color: #fff;
+    color: var(--color-text-secondary) !important;
     font-size: 14px;
     transition: all 0.3s ease;
     box-sizing: border-box;
@@ -313,8 +315,8 @@
 }
 
 .request-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #f3f4f6;
+    border: 1px solid var(--color-border);
     border-radius: 12px;
     padding: 20px;
     transition: all 0.3s ease;
@@ -385,9 +387,9 @@
 }
 
 .request-title {
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
-    color: #fff;
+    color: var(--color-text-secondary);
     margin-bottom: 8px;
 }
 
@@ -401,8 +403,8 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 13px;
+    color: var(--color-text-secondary);
+    font-size: 15px;
 }
 
 .request-actions {
@@ -598,7 +600,7 @@
     display: block;
     font-size: 13px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 8px;
@@ -769,11 +771,11 @@
 
 .ingredient-name {
     font-weight: 600;
-    color: #fff;
+    color: var(--color-text-secondary) !important;
 }
 
 .ingredient-unit {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--color-text-secondary) !important;
     font-size: 13px;
 }
 
@@ -802,7 +804,7 @@
     }
 
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .request-header {

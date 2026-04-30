@@ -270,7 +270,7 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                             fontSize: '16px',
                             fontWeight: '600',
                             margin: 0,
-                            color: 'var(--color-text-primary)'
+                            color: 'var(--color-text-secondary)'
                         }}>
                             Lọc theo Chi nhánh
                         </h4>
@@ -287,7 +287,7 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                                 background: selectedBranch === 'all'
                                     ? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))'
                                     : 'var(--color-bg-secondary)',
-                                color: selectedBranch === 'all' ? '#000' : 'var(--color-text-primary)',
+                                color: selectedBranch === 'all' ? '#000' : 'var(--color-text-secondary)',
                                 border: selectedBranch === 'all'
                                     ? 'none'
                                     : '1px solid var(--color-border)',
@@ -325,7 +325,7 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                                         background: selectedBranch === branch.id.toString()
                                             ? 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))'
                                             : 'var(--color-bg-secondary)',
-                                        color: selectedBranch === branch.id.toString() ? '#000' : 'var(--color-text-primary)',
+                                        color: selectedBranch === branch.id.toString() ? '#000' : 'var(--color-text-secondary)',
                                         border: selectedBranch === branch.id.toString()
                                             ? 'none'
                                             : '1px solid var(--color-border)',
@@ -384,7 +384,7 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                                 <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px', marginBottom: '8px' }}>
                                     {selectedBranch === 'all' ? 'Tổng nhân viên' : 'Nhân viên chi nhánh'}
                                 </p>
-                                <h3 style={{ fontSize: '28px', fontWeight: '700', margin: 0 }}>
+                                <h3 style={{ fontSize: '28px', fontWeight: '700', margin: 0, color: '#3B82F6' }}>
                                     {branchStats.total}
                                 </h3>
                             </div>
@@ -578,7 +578,7 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                                                         </div>
                                                     )}
                                                     <div>
-                                                        <div style={{ fontWeight: '600', marginBottom: '2px' }}>
+                                                        <div style={{ fontWeight: '600', marginBottom: '2px', color: 'var(--color-text-secondary)' }}>
                                                             {emp.fullName || emp.username}
                                                         </div>
                                                         <div style={{

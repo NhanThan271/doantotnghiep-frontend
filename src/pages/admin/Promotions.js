@@ -308,10 +308,10 @@ export default function PromotionManagement() {
                             style={{
                                 width: '100%',
                                 padding: '10px 12px 10px 40px',
-                                background: '#1e293b',
-                                border: '1px solid #334155',
+                                background: '#f3f4f6',
+                                border: '1px solid var(--color-border)',
                                 borderRadius: '8px',
-                                color: '#fff',
+                                color: 'var(--color-text-secondary)',
                                 fontSize: '14px'
                             }}
                         />
@@ -321,10 +321,10 @@ export default function PromotionManagement() {
                         onChange={(e) => setFilterStatus(e.target.value)}
                         style={{
                             padding: '10px 16px',
-                            background: '#1e293b',
-                            border: '1px solid #334155',
+                            background: '#f3f4f6',
+                            border: '1px solid var(--color-border)',
                             borderRadius: '8px',
-                            color: '#fff',
+                            color: 'var(--color-text-secondary)',
                             fontSize: '14px',
                             cursor: 'pointer'
                         }}
@@ -363,8 +363,8 @@ export default function PromotionManagement() {
                                 <div
                                     key={promotion.id}
                                     style={{
-                                        background: '#1e293b',
-                                        border: '1px solid #334155',
+                                        background: '#f3f4f6',
+                                        border: '1px solid var(--color-border)',
                                         borderRadius: '12px',
                                         padding: '20px',
                                         transition: 'transform 0.2s, box-shadow 0.2s'
@@ -393,11 +393,11 @@ export default function PromotionManagement() {
                                                     <Tag size={24} color="#D4AF37" />
                                                 </div>
                                                 <div style={{ flex: 1 }}>
-                                                    <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px', color: '#fff' }}>
+                                                    <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px', color: 'var(--color-text-secondary)' }}>
                                                         {promotion.name}
                                                     </h3>
                                                     {promotion.description && (
-                                                        <p style={{ fontSize: '13px', color: '#94a3b8' }}>
+                                                        <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
                                                             {promotion.description}
                                                         </p>
                                                     )}
