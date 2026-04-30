@@ -206,8 +206,7 @@ export default function Dashboard() {
             value: stats.todayRevenue.toLocaleString('vi-VN') + 'đ',
             icon: TrendingUp,
             color: '#10B981',
-            bgColor: 'rgba(16, 185, 129, 0.1)',
-            trend: '+12%'
+            bgColor: 'rgba(16, 185, 129, 0.1)'
         },
         {
             title: 'Tổng doanh thu',
@@ -246,7 +245,7 @@ export default function Dashboard() {
                         width: '40px',
                         height: '40px',
                         border: '4px solid var(--color-border)',
-                        borderTop: '4px solid var(--color-primary)',
+                        borderTop: '4px solid var(--color-secondary)',
                         borderRadius: '50%',
                         animation: 'spin 1s linear infinite',
                         margin: '0 auto 16px'
@@ -264,10 +263,9 @@ export default function Dashboard() {
                     fontSize: '32px',
                     fontWeight: '800',
                     marginBottom: '8px',
-                    background: 'linear-gradient(135deg, var(--color-primary-light))',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    letterSpacing: '-0.5px'
+                    color: '#D4AF37',
+                    letterSpacing: '-0.5px',
+
                 }}>
                     Dashboard
                 </h2>
@@ -320,7 +318,7 @@ export default function Dashboard() {
                                     <h3 style={{
                                         fontSize: '28px',
                                         fontWeight: '700',
-                                        color: 'var(--color-text-primary)',
+                                        color: 'var(--color-text-secondary)',
                                         margin: 0
                                     }}>
                                         {stat.value}
@@ -348,8 +346,6 @@ export default function Dashboard() {
                                     color: '#10B981',
                                     fontWeight: '600'
                                 }}>
-                                    <TrendingUp size={14} />
-                                    <span>{stat.trend} so với hôm qua</span>
                                 </div>
                             )}
                             <div style={{
@@ -382,7 +378,7 @@ export default function Dashboard() {
                         <h4 style={{
                             fontSize: '16px',
                             fontWeight: '600',
-                            color: 'var(--color-text-primary)',
+                            color: 'var(--color-text-secondary)',
                             margin: 0
                         }}>
                             Doanh thu theo Chi nhánh
@@ -412,8 +408,7 @@ export default function Dashboard() {
                                                 width: '24px',
                                                 height: '24px',
                                                 borderRadius: '6px',
-                                                background: 'var(--color-primary)',
-                                                color: 'white',
+                                                color: 'var(--color-text-secondary)',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
@@ -425,7 +420,7 @@ export default function Dashboard() {
                                             <span style={{
                                                 fontSize: '14px',
                                                 fontWeight: '600',
-                                                color: 'var(--color-text-primary)'
+                                                color: 'var(--color-text-secondary)'
                                             }}>
                                                 {branch.name}
                                             </span>
@@ -433,7 +428,7 @@ export default function Dashboard() {
                                         <span style={{
                                             fontSize: '14px',
                                             fontWeight: '700',
-                                            color: 'var(--color-primary)'
+                                            color: 'var(--color-text-secondary)'
                                         }}>
                                             {branch.revenue.toLocaleString('vi-VN')}đ
                                         </span>
@@ -472,7 +467,7 @@ export default function Dashboard() {
                         <h4 style={{
                             fontSize: '16px',
                             fontWeight: '600',
-                            color: 'var(--color-text-primary)',
+                            color: 'var(--color-text-secondary)',
                             margin: 0
                         }}>
                             Top Sản phẩm Bán chạy
@@ -504,7 +499,7 @@ export default function Dashboard() {
                                                 height: '24px',
                                                 borderRadius: '6px',
                                                 background: idx === 0 ? '#F59E0B' : idx === 1 ? '#8B5CF6' : '#3B82F6',
-                                                color: 'white',
+                                                color: 'var(--color-text-secondary)',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
@@ -516,7 +511,7 @@ export default function Dashboard() {
                                             <span style={{
                                                 fontSize: '14px',
                                                 fontWeight: '600',
-                                                color: 'var(--color-text-primary)'
+                                                color: 'var(--color-text-secondary)'
                                             }}>
                                                 {product.name}
                                             </span>
@@ -524,7 +519,7 @@ export default function Dashboard() {
                                         <span style={{
                                             fontSize: '14px',
                                             fontWeight: '700',
-                                            color: 'var(--color-primary)'
+                                            color: 'var(--color-secondary)'
                                         }}>
                                             {product.quantity} sp
                                         </span>
@@ -566,7 +561,7 @@ export default function Dashboard() {
                         <h4 style={{
                             fontSize: '16px',
                             fontWeight: '600',
-                            color: 'var(--color-text-primary)',
+                            color: 'var(--color-text-secondary)',
                             margin: 0
                         }}>
                             Trạng thái Chi nhánh
@@ -626,7 +621,7 @@ export default function Dashboard() {
                         fontSize: '16px',
                         fontWeight: '600',
                         marginBottom: '16px',
-                        color: 'var(--color-text-primary)'
+                        color: 'var(--color-text-secondary)'
                     }}>
                         Doanh thu
                     </h4>
@@ -641,7 +636,7 @@ export default function Dashboard() {
                             </span>
                             <span style={{
                                 fontWeight: '600',
-                                color: 'var(--color-primary)'
+                                color: 'var(--color-text-secondary)'
                             }}>
                                 {stats.todayRevenue.toLocaleString('vi-VN')}đ
                             </span>
@@ -656,7 +651,7 @@ export default function Dashboard() {
                             </span>
                             <span style={{
                                 fontWeight: '600',
-                                color: 'var(--color-primary)'
+                                color: 'var(--color-text-secondary)'
                             }}>
                                 {stats.totalRevenue.toLocaleString('vi-VN')}đ
                             </span>
@@ -670,7 +665,7 @@ export default function Dashboard() {
                             </span>
                             <span style={{
                                 fontWeight: '600',
-                                color: 'var(--color-primary)'
+                                color: 'var(--color-text-secondary)'
                             }}>
                                 {stats.totalOrders > 0
                                     ? Math.round(stats.totalRevenue / stats.totalOrders).toLocaleString('vi-VN')

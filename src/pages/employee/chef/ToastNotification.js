@@ -1,4 +1,3 @@
-// pages/employee/chef/ToastNotification.js
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 

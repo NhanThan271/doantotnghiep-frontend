@@ -75,9 +75,7 @@ export default function Categories({ openAdd, openEdit, refreshTrigger }) {
                         fontSize: '32px',
                         fontWeight: '800',
                         marginBottom: '8px',
-                        background: 'linear-gradient(135deg, var(--color-primary-light))',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
+                        color: '#D4AF37',
                         letterSpacing: '-0.5px'
                     }}>
                         Quản lý Danh mục
@@ -167,7 +165,7 @@ export default function Categories({ openAdd, openEdit, refreshTrigger }) {
                                             </div>
                                         </td>
                                         <td>
-                                            <div style={{ fontWeight: '600' }}>
+                                            <div style={{ color: 'var(--color-text-secondary)', fontWeight: '600' }}>
                                                 {c.name}
                                             </div>
                                         </td>

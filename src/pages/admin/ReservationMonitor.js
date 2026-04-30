@@ -136,7 +136,7 @@ export default function ReservationMonitor() {
             {/* Header */}
             <div style={{
                 padding: '32px 24px',
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(26, 26, 26, 0.8) 100%)',
+                background: 'white',
                 borderRadius: '20px',
                 marginBottom: '24px',
                 border: '1px solid rgba(59, 130, 246, 0.2)',
@@ -319,8 +319,8 @@ export default function ReservationMonitor() {
 
             {/* Filters */}
             <div style={{
-                background: '#1A1A1A',
-                border: '1px solid #2D2D2D',
+                background: 'white',
+                border: '1px solid var(--color-border)',
                 borderRadius: '16px',
                 padding: '20px',
                 marginBottom: '24px'
@@ -342,10 +342,10 @@ export default function ReservationMonitor() {
                             style={{
                                 width: '100%',
                                 padding: '12px 12px 12px 48px',
-                                background: '#0F0F0F',
-                                border: '1px solid #2D2D2D',
+                                background: '#f3f4f6',
+                                border: '1px solid var(--color-border)',
                                 borderRadius: '12px',
-                                color: 'white',
+                                color: 'var(--color-text-secondary)',
                                 fontSize: '14px'
                             }}
                         />
@@ -356,10 +356,10 @@ export default function ReservationMonitor() {
                         onChange={(e) => setSelectedBranch(e.target.value)}
                         style={{
                             padding: '12px 16px',
-                            background: '#0F0F0F',
-                            border: '1px solid #2D2D2D',
+                            background: '#f3f4f6',
+                            border: '1px solid var(--color-border)',
                             borderRadius: '12px',
-                            color: 'white',
+                            color: 'var(--color-text-secondary)',
                             fontSize: '14px',
                             cursor: 'pointer'
                         }}
@@ -375,10 +375,10 @@ export default function ReservationMonitor() {
                         onChange={(e) => setSelectedStatus(e.target.value)}
                         style={{
                             padding: '12px 16px',
-                            background: '#0F0F0F',
-                            border: '1px solid #2D2D2D',
+                            background: '#f3f4f6',
+                            border: '1px solid var(--color-border)',
                             borderRadius: '12px',
-                            color: 'white',
+                            color: 'var(--color-text-secondary)',
                             fontSize: '14px',
                             cursor: 'pointer'
                         }}
@@ -403,12 +403,12 @@ export default function ReservationMonitor() {
                         gridColumn: '1 / -1',
                         textAlign: 'center',
                         padding: '60px 20px',
-                        background: '#1A1A1A',
-                        border: '1px solid #2D2D2D',
+                        background: '#f3f4f6',
+                        border: '1px solid var(--color-border)',
                         borderRadius: '16px'
                     }}>
                         <Calendar size={64} color="#64748B" style={{ margin: '0 auto 16px', opacity: 0.3 }} />
-                        <p style={{ color: '#94A3B8', fontSize: '16px' }}>Không có đặt bàn nào</p>
+                        <p style={{ color: 'var(--color-text-secondary)', fontSize: '16px' }}>Không có đặt bàn nào</p>
                     </div>
                 ) : (
                     filteredReservations.map(reservation => {
@@ -419,7 +419,7 @@ export default function ReservationMonitor() {
                             <div
                                 key={reservation.id}
                                 style={{
-                                    background: '#1A1A1A',
+                                    background: '#f3f4f6',
                                     border: `1px solid ${statusColor.border}`,
                                     borderRadius: '16px',
                                     padding: '20px',

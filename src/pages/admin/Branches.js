@@ -117,8 +117,8 @@ export default function Branches({ openAdd, openEdit, refreshTrigger }) {
                             branches.map(b => (
                                 <tr key={b.id}>
                                     <td>
-                                        <div style={{ fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <MapPin size={18} style={{ color: 'var(--color-primary)' }} />
+                                        <div style={{ fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)'}}>
+                                            <MapPin size={18} />
                                             {b.name}
                                         </div>
                                     </td>

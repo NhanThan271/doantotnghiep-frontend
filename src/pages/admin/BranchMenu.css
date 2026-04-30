@@ -3,7 +3,7 @@
 /* Branch Buttons */
 .branch-btn {
     padding: 14px 16px;
-    background: var(--color-bg-dark);
+    background: #f3f4f6;
     border: 1px solid var(--color-border);
     border-radius: 12px;
     color: var(--color-text-secondary);
@@ -256,27 +256,27 @@
 
 .search-input1 {
     padding: 12px 16px;
-    background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+    background: #f3f4f6 !important;
     border: 1px solid rgba(139, 92, 246, 0.4);
     border-radius: 12px;
-    color: #ffffff;
+    color: var(--color-text-secondary) !important;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     outline: none;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: none;
 }
 
 .search-input1:hover {
     border-color: rgba(139, 92, 246, 0.6);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
-    transform: translateY(-1px);
+    box-shadow: none;
+    transform: none;
 }
 
 .search-input1:focus {
     border-color: #8B5CF6;
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15), 0 4px 12px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
 .search-input1 option {

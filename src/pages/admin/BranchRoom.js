@@ -284,10 +284,10 @@ export default function RoomManagement() {
                                         style={{
                                             width: '100%',
                                             padding: '12px 16px 12px 48px',
-                                            background: 'var(--color-bg-dark)',
+                                            background: '#f3f4f6',
                                             border: '1px solid var(--color-border)',
                                             borderRadius: '12px',
-                                            color: 'var(--color-text-primary)',
+                                            color: 'var(--color-text-secondary)',
                                             fontSize: '14px',
                                             outline: 'none',
                                             transition: 'all 0.2s ease'

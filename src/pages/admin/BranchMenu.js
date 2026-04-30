@@ -202,7 +202,7 @@ export default function BranchMenuDistribution() {
             {/* Header */}
             <div style={{
                 padding: '32px 24px 24px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(26, 26, 26, 0.8) 100%)',
+                background: 'white',
                 borderRadius: '20px',
                 marginBottom: '24px',
                 border: '1px solid rgba(139, 92, 246, 0.2)',
@@ -234,7 +234,7 @@ export default function BranchMenuDistribution() {
             <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '24px' }}>
                 {/* Branches Sidebar */}
                 <div style={{
-                    background: 'var(--color-bg-card)',
+                    background: 'white',
                     border: '1px solid var(--color-border)',
                     borderRadius: '16px',
                     padding: '20px',
@@ -244,7 +244,7 @@ export default function BranchMenuDistribution() {
                         fontSize: '16px',
                         fontWeight: '700',
                         marginBottom: '16px',
-                        color: 'var(--color-text-primary)',
+                        color: 'var(--color-text-secondary)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px'
@@ -404,10 +404,10 @@ export default function BranchMenuDistribution() {
                                         style={{
                                             width: '100%',
                                             padding: '12px 16px 12px 48px',
-                                            background: 'var(--color-bg-dark)',
+                                            background: '#f3f4f6',
                                             border: '1px solid var(--color-border)',
                                             borderRadius: '12px',
-                                            color: 'var(--color-text-primary)',
+                                            color: 'var(--color-text-secondary)',
                                             fontSize: '14px',
                                             outline: 'none',
                                             transition: 'all 0.2s ease'

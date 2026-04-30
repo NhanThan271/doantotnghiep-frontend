@@ -360,10 +360,10 @@ export default function BranchDashboard() {
             {/* Header */}
             <div style={{
                 padding: '32px 24px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(26, 26, 26, 0.8) 100%)',
+                background: 'white',
                 borderRadius: '20px',
                 marginBottom: '24px',
-                border: '1px solid rgba(139, 92, 246, 0.2)',
+                border: '1px solid var(--color-border)',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -379,7 +379,7 @@ export default function BranchDashboard() {
                             Dashboard Chi Nhánh
                         </h1>
                         <p style={{
-                            color: '#94A3B8',
+                            color: 'var(--color-text-secondary)',
                             fontSize: '14px',
                             display: 'flex',
                             alignItems: 'center',
@@ -431,10 +431,10 @@ export default function BranchDashboard() {
                         <div
                             key={index}
                             style={{
-                                background: '#1A1A1A',
-                                border: '1px solid #2D2D2D',
+                                background: 'white',
+                                border: '1px solid var(--color-border)',
                                 borderRadius: '16px',
-                                padding: '24px',
+                                padding: '5px',
                                 position: 'relative',
                                 overflow: 'hidden',
                                 transition: 'transform 0.2s, box-shadow 0.2s',
@@ -457,7 +457,7 @@ export default function BranchDashboard() {
                             }}>
                                 <div>
                                     <p style={{
-                                        color: '#94A3B8',
+                                        color: 'var(--color-text-secondary)',
                                         fontSize: '13px',
                                         marginBottom: '8px',
                                         fontWeight: '500'
@@ -467,7 +467,7 @@ export default function BranchDashboard() {
                                     <h3 style={{
                                         fontSize: index === 0 ? '20px' : '28px',
                                         fontWeight: '700',
-                                        color: 'white',
+                                        color: 'var(--color-text-secondary)',
                                         margin: 0
                                     }}>
                                         {stat.value}
@@ -475,7 +475,7 @@ export default function BranchDashboard() {
                                     {stat.subtitle && (
                                         <p style={{
                                             fontSize: '11px',
-                                            color: '#64748B',
+                                            color: 'var(--color-text-secondary)',
                                             marginTop: '4px'
                                         }}>
                                             {stat.subtitle}
@@ -521,8 +521,8 @@ export default function BranchDashboard() {
             }}>
                 {/* Recent Orders */}
                 <div style={{
-                    background: '#1A1A1A',
-                    border: '1px solid #2D2D2D',
+                    background: '#f3f4f6',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '16px',
                     padding: '24px'
                 }}>
@@ -530,7 +530,7 @@ export default function BranchDashboard() {
                         fontSize: '18px',
                         fontWeight: '600',
                         marginBottom: '16px',
-                        color: 'white',
+                        color: 'var(--color-text-secondary)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px'
@@ -557,9 +557,9 @@ export default function BranchDashboard() {
                                         key={order.id}
                                         style={{
                                             padding: '16px',
-                                            background: '#0F0F0F',
+                                            background: 'white',
                                             borderRadius: '12px',
-                                            border: '1px solid #2D2D2D',
+                                            border: '1px solid var(--color-border)',
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center'
@@ -569,14 +569,14 @@ export default function BranchDashboard() {
                                             <div style={{
                                                 fontSize: '14px',
                                                 fontWeight: '600',
-                                                color: 'white',
+                                                color: 'var(--color-text-secondary)',
                                                 marginBottom: '4px'
                                             }}>
                                                 Đơn #{order.id} - Bàn {order.table?.number || 'N/A'}
                                             </div>
                                             <div style={{
                                                 fontSize: '12px',
-                                                color: '#64748B'
+                                                color: 'var(--color-text-secondary)'
                                             }}>
                                                 {formatDateTime(order.createdAt || order.orderDate)}
                                             </div>
@@ -611,8 +611,8 @@ export default function BranchDashboard() {
 
                 {/* Quick Summary */}
                 <div style={{
-                    background: '#1A1A1A',
-                    border: '1px solid #2D2D2D',
+                    background: '#f3f4f6',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '16px',
                     padding: '24px'
                 }}>
@@ -620,7 +620,7 @@ export default function BranchDashboard() {
                         fontSize: '18px',
                         fontWeight: '600',
                         marginBottom: '16px',
-                        color: 'white',
+                        color: 'var(--color-text-secondary)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px'
@@ -632,11 +632,11 @@ export default function BranchDashboard() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={{
                             padding: '16px',
-                            background: '#0F0F0F',
+                            background: 'white',
                             borderRadius: '12px',
-                            border: '1px solid #2D2D2D'
+                            border: '1px solid var(--color-border)'
                         }}>
-                            <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '4px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
                                 Tổng đơn hàng
                             </div>
                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#3B82F6' }}>
@@ -646,11 +646,11 @@ export default function BranchDashboard() {
 
                         <div style={{
                             padding: '16px',
-                            background: '#0F0F0F',
+                            background: 'white',
                             borderRadius: '12px',
-                            border: '1px solid #2D2D2D'
+                            border: '1px solid var(--color-border)'
                         }}>
-                            <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '4px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
                                 Hoàn thành
                             </div>
                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#10B981' }}>
@@ -660,11 +660,11 @@ export default function BranchDashboard() {
 
                         <div style={{
                             padding: '16px',
-                            background: '#0F0F0F',
+                            background: 'white',
                             borderRadius: '12px',
-                            border: '1px solid #2D2D2D'
+                            border: '1px solid var(--color-border)'
                         }}>
-                            <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '4px' }}>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
                                 Trung bình/đơn
                             </div>
                             <div style={{ fontSize: '18px', fontWeight: '700', color: '#D4AF37' }}>

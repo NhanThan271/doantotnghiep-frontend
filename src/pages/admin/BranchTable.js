@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Plus, Edit2, Trash2, Users, Grid, Search, Layers } from 'lucide-react';
 import TableFormModal from '../admin/forms/TableFormModal';
 import './BranchTable.css';
+import CartSection from './../employee/CartSection';
 
 export default function TableManagement() {
     const [branches, setBranches] = useState([]);
@@ -290,10 +291,10 @@ export default function TableManagement() {
                                         style={{
                                             width: '100%',
                                             padding: '12px 16px 12px 48px',
-                                            background: 'var(--color-bg-dark)',
+                                            background: '#f3f4f6',
                                             border: '1px solid var(--color-border)',
                                             borderRadius: '12px',
-                                            color: 'var(--color-text-primary)',
+                                            color: 'var(--color-text-secondary)',
                                             fontSize: '14px',
                                             outline: 'none',
                                             transition: 'all 0.2s ease'

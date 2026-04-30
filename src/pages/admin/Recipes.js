@@ -109,7 +109,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
             {/* Header */}
             <div style={{
                 padding: '32px 24px 24px',
-                background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, rgba(26, 26, 26, 0.8) 100%)',
+                background: 'white',
                 borderRadius: '20px',
                 marginBottom: '24px',
                 border: '1px solid var(--color-border)',
@@ -273,10 +273,10 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                             style={{
                                 width: '100%',
                                 padding: '12px 16px 12px 48px',
-                                background: 'var(--color-bg-dark)',
+                                background: '#f3f4f6',
                                 border: '1px solid var(--color-border)',
                                 borderRadius: '12px',
-                                color: 'var(--color-text-primary)',
+                                color: 'var(--color-text-secondary)',
                                 fontSize: '14px',
                                 outline: 'none',
                                 transition: 'all 0.2s ease'
@@ -298,10 +298,10 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                             onChange={(e) => setFilterProduct(e.target.value)}
                             style={{
                                 padding: '12px 16px',
-                                background: 'var(--color-bg-dark)',
+                                background: '#f3f4f6',
                                 border: '1px solid var(--color-border)',
                                 borderRadius: '12px',
-                                color: 'var(--color-text-primary)',
+                                color: 'var(--color-text-secondary)',
                                 fontSize: '14px',
                                 cursor: 'pointer',
                                 outline: 'none',
@@ -325,7 +325,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                 {filteredGroups.length === 0 ? (
                     <div style={{
                         textAlign: 'center', padding: '60px 20px',
-                        background: 'var(--color-bg-card)',
+                        background: '#f3f4f6',
                         borderRadius: '16px', border: '1px solid var(--color-border)'
                     }}>
                         <ChefHat size={64} style={{ margin: '0 auto 16px', opacity: 0.2, display: 'block' }} />
@@ -338,7 +338,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                         const isOpen = expandedFoodId === group.food.id;
                         return (
                             <div key={group.food.id} style={{
-                                background: 'var(--color-bg-card)',
+                                background: '#f3f4f6',
                                 border: `1px solid ${isOpen ? 'rgba(249, 115, 22, 0.4)' : 'var(--color-border)'}`,
                                 borderRadius: '16px',
                                 overflow: 'hidden',
@@ -379,7 +379,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                         <div>
                                             <div style={{
                                                 fontWeight: '700', fontSize: '17px',
-                                                color: 'var(--color-text-primary)', marginBottom: '4px'
+                                                color: 'var(--color-text-secondary)', marginBottom: '4px'
                                             }}>
                                                 {group.food?.name}
                                             </div>
@@ -483,7 +483,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                                         <td style={{ color: 'var(--color-text-secondary)', fontWeight: '600' }}>
                                                             {idx + 1}
                                                         </td>
-                                                        <td>
+                                                        <td style={{ fontWeight: '500', color: 'var(--color-text-secondary)' }}>
                                                             <b>{ing.name}</b>
                                                         </td>
                                                         <td>

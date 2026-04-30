@@ -337,7 +337,7 @@ export default function InventoryManagement() {
     const stats = [
         { key: 'total', label: 'Tổng yêu cầu', count: requests.length, icon: <FileText size={24} color="#3B82F6" /> },
         { key: 'pending', label: 'Chờ duyệt', count: requests.filter(r => r?.status === 'PENDING').length, icon: <Clock size={24} color="#F59E0B" /> },
-        { key: 'approved', label: 'Đã duyệt, chờ nhận hàng', count: requests.filter(r => r?.status === 'APPROVED').length, icon: <CheckCircle size={24} color="#10B981" /> },
+        { key: 'approved', label: 'Đã duyệt', count: requests.filter(r => r?.status === 'APPROVED').length, icon: <CheckCircle size={24} color="#10B981" /> },
         { key: 'received', label: 'Đã nhận hàng', count: requests.filter(r => r?.status === 'RECEIVED').length, icon: <Check size={24} color="#6366f1" /> },
         { key: 'rejected', label: 'Từ chối', count: requests.filter(r => r?.status === 'REJECTED').length, icon: <XCircle size={24} color="#EF4444" /> },
     ];
@@ -365,7 +365,10 @@ export default function InventoryManagement() {
             {/* Header */}
             <div className="inventory-header">
                 <h1>Quản lý kho</h1>
-                <p><Warehouse size={16} /> Theo dõi kho tổng, chi nhánh và yêu cầu nhập xuất</p>
+                <p style={{
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '14px'
+                }}><Warehouse size={16} /> Theo dõi kho tổng, chi nhánh và yêu cầu nhập xuất</p>
             </div>
 
             {/* Stats */}
@@ -396,7 +399,7 @@ export default function InventoryManagement() {
                             <Icon size={15} /> {t.label}
                             {t.badge > 0 && (
                                 <span style={{
-                                    background: '#ef4444', color: '#fff',
+                                    background: '#ef4444', color: 'var(--color-text-secondary)',
                                     borderRadius: 10, padding: '1px 7px',
                                     fontSize: 11, fontWeight: 700, marginLeft: 4
                                 }}>
@@ -410,10 +413,13 @@ export default function InventoryManagement() {
 
             {/* Kho tổng */}
             {tab === 'warehouse' && (
-                <div style={{ display: 'grid', gap: 20 }}>
+                <div style={{ display: 'grid', gap: 2 }}>
                     {/* Create warehouse */}
                     <div className="branch-inventory-section">
-                        <h3><PlusCircle size={16} /> Tạo kho mới</h3>
+                        <h3 style={{
+                            color: 'var(--color-text-secondary)'
+                        }}>
+                            <PlusCircle size={16} /> Tạo kho mới</h3>
                         <div style={{ display: 'flex', gap: 10 }}>
                             <input
                                 className="search-input"
@@ -436,17 +442,23 @@ export default function InventoryManagement() {
 
                     {/* Warehouse list */}
                     <div className="branch-inventory-section">
-                        <h3><Warehouse size={16} /> Danh sách kho ({warehouses.length})</h3>
+                        <h3 style={{
+                            color: 'var(--color-text-secondary)'
+                        }}>
+                            <Warehouse size={16} /> Danh sách kho ({warehouses.length})
+                        </h3>
                         {warehouses.length === 0 ? (
                             <div className="empty-state"><Warehouse size={40} /><p>Chưa có kho nào</p></div>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                            <div style={{
+                                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, background: '#f3f4f6',
+                                border: '1px solid var(--color-border)', borderRadius: 10, padding: 12
+                            }}>
                                 {warehouses.map(w => (
                                     <div key={w.id} className="branch-button" style={{ cursor: 'default' }}>
                                         <Warehouse size={18} color="#667eea" />
                                         <div>
-                                            <div style={{ fontWeight: 600, fontSize: 14 }}>{w.name}</div>
-                                            <div style={{ fontSize: 12, opacity: .6 }}>ID: {w.id}</div>
+                                            <div style={{ color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: 14 }}>{w.name}</div>
                                         </div>
                                     </div>
                                 ))}
@@ -459,7 +471,7 @@ export default function InventoryManagement() {
             {/* Nhập kho */}
             {tab === 'import' && (
                 <div className="branch-inventory-section">
-                    <h3><Download size={16} /> Nhập nguyên liệu vào kho</h3>
+                    <h3 style={{ color: 'var(--color-text-secondary)' }}><Download size={16} /> Nhập nguyên liệu vào kho</h3>
 
                     <div style={{ marginBottom: 16 }}>
                         <label className="modal-field-label">Chọn kho *</label>
@@ -539,7 +551,7 @@ export default function InventoryManagement() {
 
             {/* Tồn kho tổng */}
             {tab === 'wh-stock' && (
-                <div style={{ display: 'grid', gap: 20 }}>
+                <div style={{ display: 'grid', gap: 2 }}>
                     <div className="branch-inventory-section">
                         <label className="modal-field-label" style={{ display: 'block', marginBottom: 8 }}>
                             Chọn kho để xem tồn kho
@@ -557,7 +569,7 @@ export default function InventoryManagement() {
 
                     {selectedWh && (
                         <div className="branch-inventory-section">
-                            <h3>
+                            <h3 style={{ color: 'var(--color-text-secondary)' }}>
                                 {warehouses.find(w => String(w.id) === String(selectedWh))?.name}
                                 {' '}— Tồn kho ({whInventory.length} nguyên liệu)
                             </h3>
@@ -569,7 +581,9 @@ export default function InventoryManagement() {
                                         <thead>
                                             <tr>
                                                 {['Nguyên liệu', 'Đơn vị', 'Số lượng', 'Trạng thái'].map(h => (
-                                                    <th key={h}>{h}</th>
+                                                    <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
+                                                        {h}
+                                                    </th>
                                                 ))}
                                             </tr>
                                         </thead>
@@ -578,7 +592,9 @@ export default function InventoryManagement() {
                                                 <tr key={item.id}>
                                                     <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
                                                     <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
-                                                    <td className={qtyClass(item.quantity ?? 0)}>{item.quantity ?? 0}</td>
+                                                    <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
+                                                        {item.quantity ?? 0}
+                                                    </td>
                                                     <td><StockBadge qty={item.quantity ?? 0} /></td>
                                                 </tr>
                                             ))}
@@ -593,9 +609,10 @@ export default function InventoryManagement() {
 
             {/* Tồn kho chi nhánh */}
             {tab === 'branch-stock' && (
-                <div style={{ display: 'grid', gap: 20 }}>
+                <div style={{ display: 'grid', gap: 2 }}>
                     <div className="branch-inventory-section">
-                        <h3>Chọn chi nhánh</h3>
+                        <h3 style={{ color: 'var(--color-text-secondary)' }}>
+                            Chọn chi nhánh</h3>
                         <div className="branch-buttons">
                             {branches.map(b => (
                                 <button
@@ -618,7 +635,8 @@ export default function InventoryManagement() {
 
                     {selectedBranch && (
                         <div className="branch-inventory-section">
-                            <h3>Tồn kho — {selectedBranch.name}</h3>
+                            <h3 style={{ color: 'var(--color-text-secondary)' }}>
+                                Tồn kho — {selectedBranch.name}</h3>
                             {branchIngredients.length === 0 ? (
                                 <div className="empty-state"><Store size={40} /><p>Chưa có nguyên liệu</p></div>
                             ) : (
@@ -627,7 +645,9 @@ export default function InventoryManagement() {
                                         <thead>
                                             <tr>
                                                 {['Nguyên liệu', 'Đơn vị', 'Tồn kho', 'Trạng thái'].map(h => (
-                                                    <th key={h}>{h}</th>
+                                                    <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
+                                                        {h}
+                                                    </th>
                                                 ))}
                                             </tr>
                                         </thead>
@@ -636,7 +656,7 @@ export default function InventoryManagement() {
                                                 <tr key={item.id}>
                                                     <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
                                                     <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
-                                                    <td className={qtyClass(item.quantity ?? 0)}>{item.quantity ?? 0}</td>
+                                                    <td style={{ color: 'var(--color-text-secondary)' }} className={qtyClass(item.quantity ?? 0)}>{item.quantity ?? 0}</td>
                                                     <td><StockBadge qty={item.quantity ?? 0} /></td>
                                                 </tr>
                                             ))}
@@ -651,7 +671,7 @@ export default function InventoryManagement() {
 
             {/* Yêu cầu */}
             {tab === 'requests' && (
-                <div style={{ display: 'grid', gap: 20 }}>
+                <div style={{ display: 'grid', gap: 2 }}>
                     {/* Filters */}
                     <div className="filters-container">
                         <div className="search-wrapper">
@@ -665,7 +685,7 @@ export default function InventoryManagement() {
                         <select className="search-input1" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                             <option value="all">Tất cả trạng thái</option>
                             <option value="PENDING">Chờ duyệt</option>
-                            <option value="APPROVED">Đã duyệt, chờ nhận hàng</option>
+                            <option value="APPROVED">Đã duyệt</option>
                             <option value="RECEIVED">Đã nhận hàng</option>
                             <option value="REJECTED">Từ chối</option>
                         </select>
@@ -751,7 +771,7 @@ export default function InventoryManagement() {
                     {/* Xuất kho */}
                     {historyTab === 'export' && (
                         <div className="branch-inventory-section">
-                            <h3><ArrowUpCircle size={16} /> Lịch sử xuất kho ({exportHistory.length})</h3>
+                            <h3 style={{ color: 'var(--color-text-secondary)' }}><ArrowUpCircle size={16} /> Lịch sử xuất kho ({exportHistory.length})</h3>
                             {exportHistory.length === 0 ? (
                                 <div className="empty-state"><ArrowUpCircle size={40} /><p>Chưa có dữ liệu</p></div>
                             ) : (
@@ -760,7 +780,9 @@ export default function InventoryManagement() {
                                         <thead>
                                             <tr>
                                                 {['Ngày', 'Kho', 'Chi nhánh', 'Người duyệt', ''].map(h => (
-                                                    <th key={h}>{h}</th>
+                                                    <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
+                                                        {h}
+                                                    </th>
                                                 ))}
                                             </tr>
                                         </thead>
@@ -772,10 +794,10 @@ export default function InventoryManagement() {
                                                         await fetchExportDetail(ex.id);
                                                     }}
                                                 >
-                                                    <td>{fmtDate(ex.createdAt)}</td>
-                                                    <td className="ingredient-name">{ex.warehouse?.name || '—'}</td>
-                                                    <td>{ex.branch?.name || '—'}</td>
-                                                    <td>{ex.createdBy?.fullName || ex.createdBy?.username || '—'}</td>
+                                                    <td style={{ color: 'var(--color-text-secondary)' }}>{fmtDate(ex.createdAt)}</td>
+                                                    <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>{ex.warehouse?.name || '—'}</td>
+                                                    <td style={{ color: 'var(--color-text-secondary)' }}>{ex.branch?.name || '—'}</td>
+                                                    <td style={{ color: 'var(--color-text-secondary)' }}>{ex.createdBy?.fullName || ex.createdBy?.username || '—'}</td>
                                                     <td>
                                                         <span style={{
                                                             fontSize: 12, color: '#667eea',
@@ -797,7 +819,7 @@ export default function InventoryManagement() {
                     {/* Nhập kho */}
                     {historyTab === 'import' && (
                         <div className="branch-inventory-section">
-                            <h3><ArrowDownCircle size={16} /> Lịch sử nhập kho (tồn kho hiện tại)</h3>
+                            <h3 style={{ color: 'var(--color-text-secondary)' }}><ArrowDownCircle size={16} /> Lịch sử nhập kho (tồn kho hiện tại)</h3>
                             {importHistory.length === 0 ? (
                                 <div className="empty-state"><ArrowDownCircle size={40} /><p>Chưa có dữ liệu</p></div>
                             ) : (
@@ -806,17 +828,27 @@ export default function InventoryManagement() {
                                         <thead>
                                             <tr>
                                                 {['Kho', 'Nguyên liệu', 'Đơn vị', 'Tồn kho', 'Trạng thái'].map(h => (
-                                                    <th key={h}>{h}</th>
+                                                    <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
+                                                        {h}
+                                                    </th>
                                                 ))}
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {importHistory.map(item => (
                                                 <tr key={item.id}>
-                                                    <td className="ingredient-name">{item.warehouse?.name || '—'}</td>
-                                                    <td>{item.ingredient?.name || '—'}</td>
-                                                    <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
-                                                    <td className={qtyClass(item.quantity ?? 0)}>{item.quantity ?? 0}</td>
+                                                    <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>
+                                                        {item.warehouse?.name || '—'}
+                                                    </td>
+                                                    <td style={{ color: 'var(--color-text-secondary)' }}>
+                                                        {item.ingredient?.name || '—'}
+                                                    </td>
+                                                    <td className="ingredient-unit" style={{ color: 'var(--color-text-secondary)' }}>
+                                                        {item.ingredient?.unit || '—'}
+                                                    </td>
+                                                    <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
+                                                        {item.quantity ?? 0}
+                                                    </td>
                                                     <td><StockBadge qty={item.quantity ?? 0} /></td>
                                                 </tr>
                                             ))}
