@@ -357,7 +357,7 @@ export default function BranchReports() {
                             value={dateFrom}
                             onChange={(e) => setDateFrom(e.target.value)}
                             className={styles.filterSelect}
-                            style={{ width: 'auto' }}
+                            style={{ width: 'auto', background: 'rgb(243, 244, 246)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
                         />
                         <span>đến</span>
                         <input
@@ -365,7 +365,7 @@ export default function BranchReports() {
                             value={dateTo}
                             onChange={(e) => setDateTo(e.target.value)}
                             className={styles.filterSelect}
-                            style={{ width: 'auto' }}
+                            style={{ width: 'auto', background: 'rgb(243, 244, 246)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
                         />
                     </div>
                 </div>

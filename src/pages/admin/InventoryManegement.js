@@ -331,7 +331,7 @@ export default function InventoryManagement() {
             (filterStatus === 'all' || req.status === filterStatus) &&
             (filterType === 'all' || req.type === filterType)
         );
-    });
+    }).sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
 
     /* Stats */
     const stats = [
@@ -787,28 +787,30 @@ export default function InventoryManagement() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {exportHistory.map(ex => (
-                                                <tr key={ex.id} style={{ cursor: 'pointer' }}
-                                                    onClick={async () => {
-                                                        setSelectedExport(ex);
-                                                        await fetchExportDetail(ex.id);
-                                                    }}
-                                                >
-                                                    <td style={{ color: 'var(--color-text-secondary)' }}>{fmtDate(ex.createdAt)}</td>
-                                                    <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>{ex.warehouse?.name || '—'}</td>
-                                                    <td style={{ color: 'var(--color-text-secondary)' }}>{ex.branch?.name || '—'}</td>
-                                                    <td style={{ color: 'var(--color-text-secondary)' }}>{ex.createdBy?.fullName || ex.createdBy?.username || '—'}</td>
-                                                    <td>
-                                                        <span style={{
-                                                            fontSize: 12, color: '#667eea',
-                                                            border: '1px solid #667eea',
-                                                            borderRadius: 6, padding: '3px 10px'
-                                                        }}>
-                                                            Chi tiết
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {[...exportHistory]
+                                                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                                                .map(ex => (
+                                                    <tr key={ex.id} style={{ cursor: 'pointer' }}
+                                                        onClick={async () => {
+                                                            setSelectedExport(ex);
+                                                            await fetchExportDetail(ex.id);
+                                                        }}
+                                                    >
+                                                        <td style={{ color: 'var(--color-text-secondary)' }}>{fmtDate(ex.createdAt)}</td>
+                                                        <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>{ex.warehouse?.name || '—'}</td>
+                                                        <td style={{ color: 'var(--color-text-secondary)' }}>{ex.branch?.name || '—'}</td>
+                                                        <td style={{ color: 'var(--color-text-secondary)' }}>{ex.createdBy?.fullName || ex.createdBy?.username || '—'}</td>
+                                                        <td>
+                                                            <span style={{
+                                                                fontSize: 12, color: '#667eea',
+                                                                border: '1px solid #667eea',
+                                                                borderRadius: 6, padding: '3px 10px'
+                                                            }}>
+                                                                Chi tiết
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
                                         </tbody>
                                     </table>
                                 </div>
@@ -821,7 +823,7 @@ export default function InventoryManagement() {
                         <div className="branch-inventory-section">
                             <h3 style={{ color: 'var(--color-text-secondary)' }}><ArrowDownCircle size={16} /> Lịch sử nhập kho (tồn kho hiện tại)</h3>
                             {importHistory.length === 0 ? (
-                                <div className="empty-state"><ArrowDownCircle size={40} /><p>Chưa có dữ liệu</p></div>
+                                <exportHistorydiv className="empty-state"><ArrowDownCircle size={40} /><p>Chưa có dữ liệu</p></exportHistorydiv>
                             ) : (
                                 <div className="inventory-table-container">
                                     <table className="inventory-table">
@@ -835,23 +837,25 @@ export default function InventoryManagement() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {importHistory.map(item => (
-                                                <tr key={item.id}>
-                                                    <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>
-                                                        {item.warehouse?.name || '—'}
-                                                    </td>
-                                                    <td style={{ color: 'var(--color-text-secondary)' }}>
-                                                        {item.ingredient?.name || '—'}
-                                                    </td>
-                                                    <td className="ingredient-unit" style={{ color: 'var(--color-text-secondary)' }}>
-                                                        {item.ingredient?.unit || '—'}
-                                                    </td>
-                                                    <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
-                                                        {item.quantity ?? 0}
-                                                    </td>
-                                                    <td><StockBadge qty={item.quantity ?? 0} /></td>
-                                                </tr>
-                                            ))}
+                                            {[...importHistory]
+                                                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                                                .map(item => (
+                                                    <tr key={item.id}>
+                                                        <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>
+                                                            {item.warehouse?.name || '—'}
+                                                        </td>
+                                                        <td style={{ color: 'var(--color-text-secondary)' }}>
+                                                            {item.ingredient?.name || '—'}
+                                                        </td>
+                                                        <td className="ingredient-unit" style={{ color: 'var(--color-text-secondary)' }}>
+                                                            {item.ingredient?.unit || '—'}
+                                                        </td>
+                                                        <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
+                                                            {item.quantity ?? 0}
+                                                        </td>
+                                                        <td><StockBadge qty={item.quantity ?? 0} /></td>
+                                                    </tr>
+                                                ))}
                                         </tbody>
                                     </table>
                                 </div>

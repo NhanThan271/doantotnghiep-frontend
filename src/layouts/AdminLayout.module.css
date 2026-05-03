@@ -825,7 +825,7 @@ tbody tr:hover {
 
 .branchName {
     font-weight: 600;
-    color: var(--color-primary);
+    color: var(--color-text-secondary);
 }
 
 .branchAddress {
@@ -1047,7 +1047,7 @@ tbody tr:hover {
 }
 
 .table thead tr {
-    background: var(--color-bg-darker);
+    background: white;
     border-bottom: 1px solid var(--color-border);
 }
 
@@ -1106,8 +1106,9 @@ tbody tr:hover {
 }
 
 .productName {
-    color: var(--color-text-primary);
+    color: var(--color-text-secondary);
     font-weight: 600;
+    font-size: 15px;
 }
 
 .categoryCell {
@@ -1356,14 +1357,14 @@ tbody tr:hover {
 .emptyState {
     padding: 48px;
     text-align: center;
-    color: var(--color-text-tertiary);
+    color: var(--color-text-secondary);
 }
 
 .gridEmptyState {
     grid-column: 1 / -1;
     padding: 48px;
     text-align: center;
-    color: var(--color-text-tertiary);
+    color: var(--color-text-secondary);
     background: var(--color-bg-card);
     border-radius: 16px;
     border: 1px solid var(--color-border);
@@ -1421,17 +1422,17 @@ tbody tr:hover {
 /* Page Container */
 .pageContainer {
     padding: 24px;
-    background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+    background: var(--color-bg-primary);
     min-height: 100vh;
 }
 
 /* Header Card */
 .headerCard {
-    background: #1c1c1e;
+    background: white;
     border-radius: 16px;
     padding: 24px;
     margin-bottom: 24px;
-    border: 1px solid #2c2c2e;
+    border: 1px solid var(--color-border);
 }
 
 .headerTop {
@@ -1458,12 +1459,12 @@ tbody tr:hover {
 }
 
 .branchName {
-    color: #e5e7eb;
+    color: var(--color-text-secondary);
     font-weight: 500;
 }
 
 .branchAddress {
-    color: #9ca3af;
+    color: var(--color-text-secondary);
 }
 
 /* Refresh Button */
@@ -1472,18 +1473,13 @@ tbody tr:hover {
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: #2c2c2e;
-    color: #e5e7eb;
-    border: 1px solid #3f3f46;
-    border-radius: 8px;
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--color-text-secondary);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s;
     font-weight: 500;
-}
-
-.refreshButton:hover {
-    background: #3f3f46;
-    border-color: #52525b;
 }
 
 .refreshButtonDisabled {
@@ -1514,23 +1510,26 @@ tbody tr:hover {
 }
 
 .statCard,
-.statCardSuccess,
+.statCardSuccess {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    transition: all 0.2s;
+}
+
 .statCardPrimary {
     display: flex;
     align-items: center;
     gap: 16px;
     padding: 20px;
-    background: #2c2c2e;
+    background: rgba(212, 175, 55, 0.1);
     border-radius: 12px;
-    border: 1px solid #3f3f46;
+    border: 1px solid rgba(212, 175, 55, 0.2);
     transition: all 0.2s;
-}
-
-.statCard:hover,
-.statCardSuccess:hover,
-.statCardPrimary:hover {
-    transform: translateY(-2px);
-    border-color: #52525b;
 }
 
 .statIcon {
@@ -1539,7 +1538,7 @@ tbody tr:hover {
     justify-content: center;
     width: 48px;
     height: 48px;
-    background: #3f3f46;
+    background: rgba(59, 130, 246, 0.3);
     border-radius: 12px;
     color: #a855f7;
 }
@@ -1547,12 +1546,12 @@ tbody tr:hover {
 .statValue {
     font-size: 24px;
     font-weight: 700;
-    color: #e5e7eb;
+    color: var(--color-text-secondary);
 }
 
 .statLabel {
     font-size: 14px;
-    color: #9ca3af;
+    color: var(--color-text-secondary);
     margin-top: 4px;
 }
 
@@ -1625,9 +1624,11 @@ tbody tr:hover {
 
 /* Table Card */
 .tableCard {
-    background: #1c1c1e;
+    background: white;
     border-radius: 16px;
-    border: 1px solid #2c2c2e;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid var(--color-border);
 }
 
 /* Status Badges */
@@ -1955,6 +1956,22 @@ tbody tr:hover {
 }
 
 /* Custom styles for table cards */
+.orderId {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 15px;
+    color: var(--color-text-secondary);
+}
+
+.customerCell {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 15px;
+    color: var(--color-text-secondary);
+}
+
 .tableNumber {
     font-size: 20px;
     font-weight: 700;
@@ -1966,8 +1983,16 @@ tbody tr:hover {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 13px;
-    color: #9ca3af;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.dateCell {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-text-secondary);
+    font-size: 15px;
 }
 
 /* ===== FILTER BAR ===== */
@@ -1992,9 +2017,9 @@ tbody tr:hover {
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
-    color: #000;
-    border: none;
+    background: rgb(243, 244, 246);
+    color: #B8B8B8;
+    border: 1px solid #B8B8B8;
     border-radius: 10px;
     font-weight: 600;
     font-size: 14px;
@@ -2006,6 +2031,9 @@ tbody tr:hover {
 .tabActive:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+    background: rgb(243, 244, 246);
+    color: #B8B8B8;
+    border: 1px solid #B8B8B8;
 }
 
 .tabInactive {
@@ -2013,9 +2041,9 @@ tbody tr:hover {
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: var(--color-background);
+    background: rgb(243, 244, 246);
     color: var(--color-text-secondary);
-    border: 1px solid var(--color-border);
+    border: 1px solid #B8B8B8;
     border-radius: 10px;
     font-weight: 600;
     font-size: 14px;
@@ -2024,9 +2052,9 @@ tbody tr:hover {
 }
 
 .tabInactive:hover {
-    background: var(--color-surface);
-    color: var(--color-text);
-    border-color: var(--color-primary);
+    background: rgb(243, 244, 246);
+    color: #B8B8B8;
+    border-color: #B8B8B8;
     transform: translateY(-1px);
 }
 
@@ -2050,18 +2078,30 @@ tbody tr:hover {
 .searchInput {
     width: 100%;
     padding: 12px 16px 12px 44px;
-    background: var(--color-surface);
+    background: rgb(243, 244, 246);
     border: 1px solid var(--color-border);
     border-radius: 10px;
     font-size: 14px;
-    color: var(--color-text);
+    color: var(--color-text-secondary);
     transition: all 0.3s ease;
 }
 
 .searchInput:focus {
     outline: none;
+    background: rgb(243, 244, 246);
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+.searchInput1 {
+    width: 100%;
+    padding: 12px 16px 12px 44px;
+    background: rgb(15, 15, 15);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    transition: all 0.3s ease;
 }
 
 .searchInput::placeholder {
@@ -2555,8 +2595,21 @@ tbody tr:hover {
     border-radius: 20px;
     border: 1px solid var(--color-border);
     width: 90%;
-    max-width: 500px;
-    max-height: 90vh;
+    max-width: 800px;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-container-food {
+    background: var(--color-bg-card);
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    width: 90%;
+    max-width: 1000px;
+    height: 700px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2603,4 +2656,10 @@ tbody tr:hover {
     border-top: 1px solid var(--color-border);
     background: var(--color-bg-card);
     flex-shrink: 0;
+}
+
+.promotionName {
+    font-weight: 600;
+    font-size: 15px;
+    color: #B8B8B8;
 }

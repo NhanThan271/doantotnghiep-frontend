@@ -272,7 +272,7 @@ export default function ApplyPromotions() {
                                                                 <Tag size={20} color="var(--color-primary)" />
                                                             </div>
                                                             <div>
-                                                                <div className={styles.foodName}>
+                                                                <div className={styles.promotionName}>
                                                                     {p.name}
                                                                 </div>
                                                                 {p.description && (
@@ -297,7 +297,7 @@ export default function ApplyPromotions() {
                                                                     display: 'flex',
                                                                     alignItems: 'center',
                                                                     gap: '4px',
-                                                                    color: 'var(--color-primary)',
+                                                                    color: 'var(--color-secondary)',
                                                                     fontWeight: '600',
                                                                     fontSize: '14px'
                                                                 }}>
@@ -310,7 +310,7 @@ export default function ApplyPromotions() {
                                                                     display: 'flex',
                                                                     alignItems: 'center',
                                                                     gap: '4px',
-                                                                    color: 'var(--color-primary)',
+                                                                    color: 'var(--color-secondary)',
                                                                     fontWeight: '600',
                                                                     fontSize: '14px'
                                                                 }}>
@@ -329,7 +329,7 @@ export default function ApplyPromotions() {
                                                         }}>
                                                             <Calendar size={14} style={{ color: 'var(--color-text-secondary)' }} />
                                                             <div>
-                                                                <div>{formatDate(p.startDate)}</div>
+                                                                <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>{formatDate(p.startDate)}</div>
                                                                 <div style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>
                                                                     đến {formatDate(p.endDate)}
                                                                 </div>

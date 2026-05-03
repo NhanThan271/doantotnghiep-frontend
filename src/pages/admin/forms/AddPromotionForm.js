@@ -147,7 +147,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
 
     return (
         <div className={styles['modal-backdrop']} onClick={closeForm}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', height: '90vh', overflow: 'auto' }}>
                 {/* Header */}
                 <div style={{
                     display: 'flex',

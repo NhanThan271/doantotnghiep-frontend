@@ -3,35 +3,46 @@ import { X, Package, Ruler } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
 
 export default function AddIngredientForm({ closeForm, onSave }) {
-    const [formData, setFormData] = useState({
-        name: '',
-        unit: ''
-    });
+    const [ingredients, setIngredients] = useState([
+        { id: Date.now(), name: '', unit: '' }
+    ]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     const API_BASE_URL = 'http://localhost:8080';
 
-    const handleChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+    const addRow = () => {
+        setIngredients(prev => [...prev, { id: Date.now(), name: '', unit: '' }]);
+    };
+
+    const removeRow = (id) => {
+        if (ingredients.length === 1) return;
+        setIngredients(prev => prev.filter(item => item.id !== id));
+    };
+
+    const handleChange = (id, field, value) => {
+        setIngredients(prev =>
+            prev.map(item => item.id === id ? { ...item, [field]: value } : item)
+        );
         setError('');
     };
 
     const validateForm = () => {
-        if (!formData.name.trim()) {
-            setError('Vui lòng nhập tên nguyên liệu');
-            return false;
-        }
-        if (!formData.unit.trim()) {
-            setError('Vui lòng nhập đơn vị tính');
-            return false;
+        for (const item of ingredients) {
+            if (!item.name.trim()) {
+                setError('Vui lòng nhập đầy đủ tên nguyên liệu');
+                return false;
+            }
+            if (!item.unit.trim()) {
+                setError('Vui lòng nhập đầy đủ đơn vị tính');
+                return false;
+            }
         }
         return true;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         if (!validateForm()) return;
 
         setLoading(true);
@@ -40,36 +51,33 @@ export default function AddIngredientForm({ closeForm, onSave }) {
         try {
             const token = localStorage.getItem('token');
 
-            const response = await fetch(`${API_BASE_URL}/api/ingredients`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: formData.name.trim(),
-                    unit: formData.unit.trim()
-                })
-            });
+            const results = await Promise.all(
+                ingredients.map(item =>
+                    fetch(`${API_BASE_URL}/api/ingredients`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: item.name.trim(),
+                            unit: item.unit.trim()
+                        })
+                    }).then(async res => {
+                        if (!res.ok) {
+                            const text = await res.text();
+                            throw new Error(text || `Thêm "${item.name}" thất bại`);
+                        }
+                        return res.json();
+                    })
+                )
+            );
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Thêm nguyên liệu thất bại');
-            }
-
-            const newIngredient = await response.json();
-            console.log('Thêm nguyên liệu thành công:', newIngredient);
-
-            alert('Thêm nguyên liệu thành công!');
-
-            if (onSave) {
-                onSave(newIngredient);
-            }
-
+            alert(`Thêm thành công ${results.length} nguyên liệu!`);
+            if (onSave) onSave(results);
             closeForm();
         } catch (err) {
-            console.error('Lỗi khi thêm nguyên liệu:', err);
-            setError(err.message || 'Không thể thêm nguyên liệu. Vui lòng thử lại!');
+            setError(err.message || 'Có lỗi xảy ra. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -102,7 +110,7 @@ export default function AddIngredientForm({ closeForm, onSave }) {
                                 Thêm nguyên liệu mới
                             </h2>
                             <p style={{
-                                fontSize: '13px',
+                                fontSize: '14px',
                                 color: '#B8B8B8',
                                 margin: '4px 0 0 0'
                             }}>
@@ -158,91 +166,106 @@ export default function AddIngredientForm({ closeForm, onSave }) {
                             </div>
                         )}
 
-                        {/* Ingredient Name */}
-                        <div style={{ marginBottom: '20px' }}>
-                            <label style={{
-                                display: 'block',
-                                marginBottom: '8px',
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                color: '#FFFFFF'
-                            }}>
+
+
+                        {/* Header cột */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 140px 40px',
+                            gap: '8px',
+                            marginBottom: '8px',
+                            padding: '0 4px'
+                        }}>
+                            <label style={{ fontSize: '15px', fontWeight: '600', color: '#FFFFFF' }}>
                                 Tên nguyên liệu <span style={{ color: '#EF4444' }}>*</span>
                             </label>
-                            <div style={{ position: 'relative' }}>
-                                <Package
-                                    size={18}
-                                    style={{
-                                        position: 'absolute',
-                                        left: '14px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        color: '#B8B8B8'
-                                    }}
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Nhập tên nguyên liệu"
-                                    value={formData.name}
-                                    onChange={(e) => handleChange('name', e.target.value)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px 16px 12px 44px',
-                                        background: '#0F0F0F',
-                                        borderRadius: '12px',
-                                        border: '1px solid #2A2A2A',
-                                        color: '#FFFFFF',
-                                        fontSize: '14px',
-                                        outline: 'none',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                    required
-                                />
-                            </div>
+                            <label style={{ fontSize: '15px', fontWeight: '600', color: '#FFFFFF' }}>
+                                Đơn vị <span style={{ color: '#EF4444' }}>*</span>
+                            </label>
+                            <div />
                         </div>
 
-                        {/* Unit */}
-                        <div style={{ marginBottom: '20px' }}>
-                            <label style={{
-                                display: 'block',
-                                marginBottom: '8px',
-                                fontSize: '14px',
-                                fontWeight: '600',
-                                color: '#FFFFFF'
+                        {/* Danh sách dòng */}
+                        {ingredients.map((item, index) => (
+                            <div key={item.id} style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 140px 40px',
+                                gap: '8px',
+                                marginBottom: '10px',
+                                alignItems: 'center'
                             }}>
-                                Đơn vị tính <span style={{ color: '#EF4444' }}>*</span>
-                            </label>
-                            <div style={{ position: 'relative' }}>
-                                <Ruler
-                                    size={18}
+                                <input
+                                    type="text"
+                                    placeholder={`Nguyên liệu ${index + 1}`}
+                                    value={item.name}
+                                    onChange={(e) => handleChange(item.id, 'name', e.target.value)}
                                     style={{
-                                        position: 'absolute',
-                                        left: '14px',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        color: '#B8B8B8'
+                                        padding: '10px 14px',
+                                        background: '#0F0F0F',
+                                        borderRadius: '10px',
+                                        border: '1px solid #2A2A2A',
+                                        color: '#FFFFFF',
+                                        fontSize: '14px',
+                                        outline: 'none'
                                     }}
                                 />
                                 <input
                                     type="text"
-                                    placeholder="Ví dụ: kg, lít, gói..."
-                                    value={formData.unit}
-                                    onChange={(e) => handleChange('unit', e.target.value)}
+                                    placeholder="kg, lít, gói..."
+                                    value={item.unit}
+                                    onChange={(e) => handleChange(item.id, 'unit', e.target.value)}
                                     style={{
-                                        width: '100%',
-                                        padding: '12px 16px 12px 44px',
+                                        padding: '10px 14px',
                                         background: '#0F0F0F',
-                                        borderRadius: '12px',
+                                        borderRadius: '10px',
                                         border: '1px solid #2A2A2A',
                                         color: '#FFFFFF',
                                         fontSize: '14px',
-                                        outline: 'none',
-                                        transition: 'all 0.2s ease'
+                                        outline: 'none'
                                     }}
-                                    required
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => removeRow(item.id)}
+                                    disabled={ingredients.length === 1}
+                                    style={{
+                                        width: '36px', height: '36px',
+                                        borderRadius: '8px',
+                                        border: '1px solid #2A2A2A',
+                                        background: 'transparent',
+                                        color: ingredients.length === 1 ? '#444' : '#EF4444',
+                                        cursor: ingredients.length === 1 ? 'not-allowed' : 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    }}
+                                >
+                                    <X size={16} />
+                                </button>
                             </div>
-                        </div>
+                        ))}
+
+                        {/* Nút thêm dòng */}
+                        <button
+                            type="button"
+                            onClick={addRow}
+                            style={{
+                                width: '100%',
+                                padding: '10px',
+                                marginTop: '4px',
+                                background: 'rgba(212, 175, 55, 0.08)',
+                                border: '1px dashed #D4AF37',
+                                borderRadius: '10px',
+                                color: '#D4AF37',
+                                fontSize: '14px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            + Thêm dòng
+                        </button>
                     </form>
                 </div>
 
@@ -301,7 +324,7 @@ export default function AddIngredientForm({ closeForm, onSave }) {
                                 e.currentTarget.style.transform = 'translateY(0)';
                             }}
                         >
-                            {loading ? 'Đang xử lý...' : 'Thêm nguyên liệu'}
+                            {loading ? 'Đang xử lý...' : `Thêm ${ingredients.length} nguyên liệu`}
                         </button>
                     </div>
                 </div>

@@ -182,7 +182,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
 
     return (
         <div className={styles['modal-backdrop']} onClick={closeForm}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', height: '600px', overflow: 'auto' }}>
                 {/* Header */}
                 <div style={{
                     display: 'flex',
