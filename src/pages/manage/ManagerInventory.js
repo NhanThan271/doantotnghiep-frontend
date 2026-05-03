@@ -557,7 +557,7 @@ export default function ManagerInventoryManagement() {
                         <div className={styles.filterControls}>
                             <select value={filterStock} onChange={(e) => setFilterStock(e.target.value)}
                                 className={styles.filterSelect}
-                                style={{ padding: '12px 16px', background: 'var(--color-bg-dark)', border: '1px solid var(--color-border)', borderRadius: '12px', color: 'var(--color-text-primary)', fontSize: '14px', cursor: 'pointer', outline: 'none', minWidth: '150px' }}>
+                                style={{ padding: '12px 16px', background: 'rgb(243, 244, 246)', border: '1px solid var(--color-border)', borderRadius: '12px', color: 'var(--color-text-secondary)', fontSize: '14px', cursor: 'pointer', outline: 'none', minWidth: '150px' }}>
                                 <option value="all">Tất cả tồn kho</option>
                                 <option value="low">Sắp hết (&lt; 10)</option>
                                 <option value="out">Hết hàng</option>
@@ -581,14 +581,14 @@ export default function ManagerInventoryManagement() {
                         </div>
                         <div className={styles.filterControls}>
                             <select value={historyFilter} onChange={(e) => setHistoryFilter(e.target.value)}
-                                style={{ padding: '12px 16px', background: 'var(--color-bg-dark)', border: '1px solid var(--color-border)', borderRadius: '12px', color: 'var(--color-text-primary)', fontSize: '14px', cursor: 'pointer', outline: 'none', minWidth: '170px' }}>
+                                style={{ padding: '12px 16px', background: 'rgb(243, 244, 246)', border: '1px solid var(--color-border)', borderRadius: '12px', color: 'var(--color-text-secondary)', fontSize: '14px', cursor: 'pointer', outline: 'none', minWidth: '170px' }}>
                                 <option value="all">Tất cả giao dịch</option>
                                 <option value="IMPORT">Nhập từ kho tổng</option>
                                 <option value="EXPORT">Xuất nội bộ</option>
                                 <option value="SALE">Xuất bán hàng</option>
                             </select>
                             <button onClick={fetchInventoryHistory} className={styles.actionButtonPrimary}
-                                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px' }}>
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: 'rgb(243, 244, 246)', color: '#B8B8B8', borderRadius: '12px', border: '1px solid var(--color-border)' }}>
                                 <RefreshCw size={18} />
                                 Làm mới
                             </button>
@@ -614,20 +614,20 @@ export default function ManagerInventoryManagement() {
                                 return (
                                     <div
                                         key={`bi-${branchIng.id || index}`}
-                                        style={{ border: `2px solid ${stockStatus.color}30`, borderRadius: '12px', padding: '20px', backgroundColor: '#2c2c2e', transition: 'all 0.2s' }}
+                                        style={{ border: `2px solid ${stockStatus.color}30`, borderRadius: '12px', padding: '20px', backgroundColor: '#F7F0EA', transition: 'all 0.2s' }}
                                         onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = stockStatus.color; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = `${stockStatus.color}30`; }}
                                     >
                                         <div style={{ width: '56px', height: '56px', background: `${stockStatus.color}20`, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
                                             <Beaker size={28} color={stockStatus.color} />
                                         </div>
-                                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#e5e7eb', marginBottom: '8px' }}>
+                                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#B8B8B8', marginBottom: '8px' }}>
                                             {branchIng.ingredient?.name || 'N/A'}
                                         </h3>
                                         <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '16px' }}>
                                             Đơn vị: {branchIng.ingredient?.unit || 'N/A'}
                                         </p>
-                                        <div style={{ padding: '12px', background: '#1c1c1e', borderRadius: '8px', marginBottom: '12px' }}>
+                                        <div style={{ border: `2px solid ${stockStatus.color}30`, padding: '12px', background: '#fff', borderRadius: '8px', marginBottom: '12px' }}>
                                             <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase' }}>Tồn kho</div>
                                             <div style={{ fontSize: '24px', fontWeight: '700', color: stockStatus.color }}>{branchIng.quantity}</div>
                                         </div>
@@ -674,98 +674,100 @@ export default function ManagerInventoryManagement() {
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                                {inventoryRequests.map((request) => {
-                                    const statusInfo = getRequestStatusBadge(request.status);
-                                    const StatusIcon = statusInfo.icon;
-                                    const items = getRequestItems(request.id);
-                                    return (
-                                        <div key={`request-${request.id}`}
-                                            style={{ border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px', backgroundColor: '#2c2c2e', transition: 'all 0.2s' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                                        <p style={{ fontSize: '18px', fontWeight: '700', color: '#e5e7eb' }}>Yêu cầu #{request.id}</p>
-                                                        <span className={statusInfo.class} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <StatusIcon size={16} />{statusInfo.text}
-                                                        </span>
-                                                        <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: 'auto' }}>
-                                                            {formatDate(request.requestedAt)}
-                                                        </span>
-                                                    </div>
-
-                                                    {items.length > 0 && (
-                                                        <div style={{ background: '#1c1c1e', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
-                                                            <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: '600', textTransform: 'uppercase' }}>
-                                                                Nguyên liệu yêu cầu ({items.length} loại)
-                                                            </div>
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                                {items.map((item, idx) => {
-                                                                    const currentQty = getCurrentStock(item.ingredient?.id);
-                                                                    return (
-                                                                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '6px' }}>
-                                                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                                                <span style={{ color: '#e5e7eb', fontWeight: '600', fontSize: '14px' }}>{item.ingredient?.name || 'N/A'}</span>
-                                                                                <span style={{ color: '#9ca3af', fontSize: '12px' }}>Tồn hiện tại: {currentQty} {item.ingredient?.unit || ''}</span>
-                                                                            </div>
-                                                                            <span style={{ color: '#8B5CF6', fontWeight: '700', fontSize: '15px' }}>
-                                                                                +{item.quantity} {item.ingredient?.unit || ''}
-                                                                            </span>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
+                                {[...inventoryRequests]
+                                    .sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt))
+                                    .map((request) => {
+                                        const statusInfo = getRequestStatusBadge(request.status);
+                                        const StatusIcon = statusInfo.icon;
+                                        const items = getRequestItems(request.id);
+                                        return (
+                                            <div key={`request-${request.id}`}
+                                                style={{ border: '1px solid var(--color-border)', borderRadius: '12px', padding: '20px', backgroundColor: '#F7F0EA', transition: 'all 0.2s' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                                            <p style={{ fontSize: '18px', fontWeight: '700', color: '#B8B8B8' }}>Yêu cầu #{request.id}</p>
+                                                            <span className={statusInfo.class} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <StatusIcon size={16} />{statusInfo.text}
+                                                            </span>
+                                                            <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: 'auto' }}>
+                                                                {formatDate(request.requestedAt)}
+                                                            </span>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            </div>
 
-                                            {request.reason && (
-                                                <div style={{ fontSize: '14px', color: '#e5e7eb', marginBottom: '12px', padding: '12px', background: '#1c1c1e', borderRadius: '8px', borderLeft: '3px solid #8B5CF6' }}>
-                                                    <strong style={{ color: '#8B5CF6' }}>Lý do:</strong> {request.reason}
-                                                </div>
-                                            )}
-
-                                            {request.note && request.status === 'REJECTED' && (
-                                                <div style={{ fontSize: '13px', color: '#EF4444', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', borderLeft: '3px solid #EF4444' }}>
-                                                    <strong>Lý do từ chối:</strong> {request.note}
-                                                </div>
-                                            )}
-
-                                            {request.approvedBy && (
-                                                <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                    <CheckCircle size={14} color="#10B981" />
-                                                    {request.status === 'REJECTED' ? 'Từ chối' : 'Duyệt'} bởi:{' '}
-                                                    <strong>{request.approvedBy.fullName || request.approvedBy.username}</strong>
-                                                    {request.approvedAt && ` • ${formatDate(request.approvedAt)}`}
-                                                </div>
-                                            )}
-                                            {/* Nút xác nhận nhận hàng */}
-                                            {request.status === 'APPROVED' && (
-                                                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                                                    <div style={{
-                                                        padding: '12px', marginBottom: '12px',
-                                                        background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
-                                                        borderRadius: '8px', fontSize: '13px', color: '#F59E0B'
-                                                    }}>
-                                                        Admin đã duyệt và xuất hàng từ kho tổng. Vui lòng xác nhận đã nhận hàng để cập nhật tồn kho chi nhánh.
+                                                        {items.length > 0 && (
+                                                            <div style={{ background: '#fff', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
+                                                                <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: '600', textTransform: 'uppercase' }}>
+                                                                    Nguyên liệu yêu cầu ({items.length} loại)
+                                                                </div>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                    {items.map((item, idx) => {
+                                                                        const currentQty = getCurrentStock(item.ingredient?.id);
+                                                                        return (
+                                                                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#F7F0EA', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '6px' }}>
+                                                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                                    <span style={{ color: '#B8B8B8', fontWeight: '600', fontSize: '14px' }}>{item.ingredient?.name || 'N/A'}</span>
+                                                                                    <span style={{ color: '#B8B8B8', fontSize: '12px' }}>Tồn hiện tại: {currentQty} {item.ingredient?.unit || ''}</span>
+                                                                                </div>
+                                                                                <span style={{ color: '#8B5CF6', fontWeight: '700', fontSize: '15px' }}>
+                                                                                    +{item.quantity} {item.ingredient?.unit || ''}
+                                                                                </span>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    <button
-                                                        onClick={() => confirmReceived(request.id)}
-                                                        style={{
-                                                            display: 'flex', alignItems: 'center', gap: '8px',
-                                                            padding: '10px 20px', background: '#10B981', color: 'white',
-                                                            border: 'none', borderRadius: '8px', cursor: 'pointer',
-                                                            fontSize: '14px', fontWeight: '600'
-                                                        }}
-                                                    >
-                                                        <CheckCircle size={18} />
-                                                        Xác nhận đã nhận hàng
-                                                    </button>
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+
+                                                {request.reason && (
+                                                    <div style={{ fontSize: '14px', color: '#B8B8B8', marginBottom: '12px', padding: '12px', background: '#fff', borderRadius: '8px', borderLeft: '3px solid #8B5CF6' }}>
+                                                        <strong style={{ color: '#8B5CF6' }}>Lý do:</strong> {request.reason}
+                                                    </div>
+                                                )}
+
+                                                {request.note && request.status === 'REJECTED' && (
+                                                    <div style={{ fontSize: '13px', color: '#EF4444', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', borderLeft: '3px solid #EF4444' }}>
+                                                        <strong>Lý do từ chối:</strong> {request.note}
+                                                    </div>
+                                                )}
+
+                                                {request.approvedBy && (
+                                                    <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <CheckCircle size={14} color="#10B981" />
+                                                        {request.status === 'REJECTED' ? 'Từ chối' : 'Duyệt'} bởi:{' '}
+                                                        <strong>{request.approvedBy.fullName || request.approvedBy.username}</strong>
+                                                        {request.approvedAt && ` • ${formatDate(request.approvedAt)}`}
+                                                    </div>
+                                                )}
+                                                {/* Nút xác nhận nhận hàng */}
+                                                {request.status === 'APPROVED' && (
+                                                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                                        <div style={{
+                                                            padding: '12px', marginBottom: '12px',
+                                                            background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+                                                            borderRadius: '8px', fontSize: '13px', color: '#F59E0B'
+                                                        }}>
+                                                            Admin đã duyệt và xuất hàng từ kho tổng. Vui lòng xác nhận đã nhận hàng để cập nhật tồn kho chi nhánh.
+                                                        </div>
+                                                        <button
+                                                            onClick={() => confirmReceived(request.id)}
+                                                            style={{
+                                                                display: 'flex', alignItems: 'center', gap: '8px',
+                                                                padding: '10px 20px', background: '#10B981', color: 'white',
+                                                                border: 'none', borderRadius: '8px', cursor: 'pointer',
+                                                                fontSize: '14px', fontWeight: '600'
+                                                            }}
+                                                        >
+                                                            <CheckCircle size={18} />
+                                                            Xác nhận đã nhận hàng
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                             </div>
                         )}
                     </div>
@@ -932,7 +934,7 @@ export default function ManagerInventoryManagement() {
                                 <select
                                     value={requestForm.warehouseId}
                                     onChange={(e) => setRequestForm({ ...requestForm, warehouseId: e.target.value })}
-                                    className={styles.searchInput} style={{ width: '100%' }}>
+                                    className={styles.searchInput1} style={{ width: '100%' }}>
                                     <option value="">-- Chọn kho tổng --</option>
                                     {warehouses.map(w => (
                                         <option key={w.id} value={w.id}>{w.name}</option>
@@ -953,7 +955,7 @@ export default function ManagerInventoryManagement() {
                                         <select
                                             value={item.ingredientId}
                                             onChange={(e) => updateFormItem(index, 'ingredientId', e.target.value)}
-                                            className={styles.searchInput} style={{ flex: 2 }}>
+                                            className={styles.searchInput1} style={{ flex: 2 }}>
                                             <option value="">-- Chọn nguyên liệu --</option>
                                             {allIngredients.map(ing => (
                                                 <option key={ing.id} value={ing.id}>
@@ -966,7 +968,7 @@ export default function ManagerInventoryManagement() {
                                             placeholder="Số lượng"
                                             value={item.quantity}
                                             onChange={(e) => updateFormItem(index, 'quantity', e.target.value)}
-                                            className={styles.searchInput} style={{ flex: 1 }} />
+                                            className={styles.searchInput1} style={{ flex: 1 }} />
                                         {requestForm.items.length > 1 && (
                                             <button onClick={() => removeFormItem(index)}
                                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}>
@@ -992,7 +994,7 @@ export default function ManagerInventoryManagement() {
                                 <textarea
                                     value={requestForm.reason}
                                     onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
-                                    className={styles.searchInput} placeholder="Nhập lý do yêu cầu nhập kho..."
+                                    className={styles.searchInput1} placeholder="Nhập lý do yêu cầu nhập kho..."
                                     rows="3" style={{ width: '100%', resize: 'vertical' }} />
                             </div>
 

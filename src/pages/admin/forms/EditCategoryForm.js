@@ -151,7 +151,10 @@ export default function EditCategory({ category, onClose, onSuccess, refreshCall
 
     return (
         <div className={styles['modal-backdrop']} onClick={onClose}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{
+                maxWidth: '900px',
+                height: '600px'
+            }}>
                 {/* Header */}
                 <div style={{
                     display: 'flex',

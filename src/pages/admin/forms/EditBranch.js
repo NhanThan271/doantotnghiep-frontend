@@ -95,8 +95,8 @@ export default function EditBranch({ branch, onClose, closeForm, onSuccess, onSa
             if (e.target === e.currentTarget) handleClose();
         }}>
             <div className={styles.modal} style={{
-                maxWidth: '500px',
-                maxHeight: '90vh',
+                maxWidth: '900px',
+                height: '600px',
                 overflowY: 'auto',
                 display: 'flex',
                 flexDirection: 'column'

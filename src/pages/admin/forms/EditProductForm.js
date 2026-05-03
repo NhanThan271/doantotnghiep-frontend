@@ -163,8 +163,8 @@ export default function EditProductForm({ product, closeForm, onSave, refreshCal
     return (
         <div className={styles['modal-backdrop']} onClick={closeForm}>
             <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{
-                maxWidth: '500px',
-                maxHeight: '90vh',
+                maxWidth: '1000px',
+                height: '700px',
                 overflowY: 'auto',
                 display: 'flex',
                 flexDirection: 'column'

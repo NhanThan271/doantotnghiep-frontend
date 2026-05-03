@@ -139,7 +139,7 @@ export default function AddProductForm({ closeForm, onSave }) {
 
     return (
         <div className={styles['modal-backdrop']} onClick={closeForm}>
-            <div className={styles['modal-container']} onClick={(e) => e.stopPropagation()}>
+            <div className={styles['modal-container-food']} onClick={(e) => e.stopPropagation()}>
                 {/* Header - Fixed */}
                 <div className={styles['modal-header']}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -164,7 +164,7 @@ export default function AddProductForm({ closeForm, onSave }) {
                                 Thêm sản phẩm mới
                             </h2>
                             <p style={{
-                                fontSize: '13px',
+                                fontSize: '14px',
                                 color: '#B8B8B8',
                                 margin: '4px 0 0 0'
                             }}>
@@ -225,7 +225,7 @@ export default function AddProductForm({ closeForm, onSave }) {
                             <label style={{
                                 display: 'block',
                                 marginBottom: '8px',
-                                fontSize: '14px',
+                                fontSize: '15px',
                                 fontWeight: '600',
                                 color: '#FFFFFF'
                             }}>

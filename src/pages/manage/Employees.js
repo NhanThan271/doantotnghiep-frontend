@@ -448,10 +448,10 @@ export default function BranchEmployeesManager() {
                                 className={styles.filterSelect}
                                 style={{
                                     padding: '12px 16px',
-                                    background: 'var(--color-bg-dark)',
+                                    background: 'rgb(243, 244, 246)',
                                     border: '1px solid var(--color-border)',
                                     borderRadius: '12px',
-                                    color: 'var(--color-text-primary)',
+                                    color: 'var(--color-text-secondary)',
                                     fontSize: '14px',
                                     cursor: 'pointer',
                                     outline: 'none',
@@ -514,20 +514,20 @@ export default function BranchEmployeesManager() {
                                                             <span className={styles.productName}>
                                                                 {emp.fullName || emp.username}
                                                             </span>
-                                                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                                                            <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
                                                                 ID: {emp.id}
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', fontSize: '15px' }}>
                                                         <Mail size={16} style={{ color: 'var(--color-text-secondary)' }} />
                                                         {emp.email || '-'}
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', fontSize: '15px' }}>
                                                         <Phone size={16} style={{ color: 'var(--color-text-secondary)' }} />
                                                         {emp.phone || '-'}
                                                     </div>
@@ -543,7 +543,7 @@ export default function BranchEmployeesManager() {
                                                                 background: posInfo.bg,
                                                                 color: posInfo.color,
                                                                 borderRadius: '8px',
-                                                                fontSize: '12px',
+                                                                fontSize: '13px',
                                                                 fontWeight: '600',
                                                                 border: `1px solid ${posInfo.color}40`
                                                             }}>
@@ -556,7 +556,7 @@ export default function BranchEmployeesManager() {
                                                                 background: 'rgba(107,114,128,0.1)',
                                                                 color: '#6B7280',
                                                                 borderRadius: '8px',
-                                                                fontSize: '12px',
+                                                                fontSize: '13px',
                                                                 fontWeight: '600'
                                                             }}>
                                                                 Chưa có
@@ -591,7 +591,7 @@ export default function BranchEmployeesManager() {
                                     value={selectedDate}
                                     onChange={(e) => setSelectedDate(e.target.value)}
                                     className={styles.filterSelect}
-                                    style={{ width: 'auto' }}
+                                    style={{ width: 'auto', background: 'rgb(243, 244, 246)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
                                 />
                             </div>
                         </div>
@@ -619,7 +619,7 @@ export default function BranchEmployeesManager() {
                                                         <Clock size={20} />
                                                     </div>
                                                     <div>
-                                                        <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>
+                                                        <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: 'var(--color-text-secondary)' }}>
                                                             {shift?.name} — {shift?.startTime} - {shift?.endTime}
                                                         </h3>
                                                         <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
@@ -645,13 +645,13 @@ export default function BranchEmployeesManager() {
                                                                         />
                                                                     ) : (
                                                                         <div className={styles.productImagePlaceholder} style={{ width: '40px', height: '40px' }}>
-                                                                            <span style={{ fontWeight: '700', fontSize: '12px' }}>
+                                                                            <span style={{ fontWeight: '700', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                                                                                 {getInitials(ss.staff?.user?.fullName || 'U')}
                                                                             </span>
                                                                         </div>
                                                                     )}
                                                                     <div>
-                                                                        <div style={{ fontWeight: '600' }}>
+                                                                        <div style={{ fontWeight: '600', color: 'var(--color-text-secondary)' }}>
                                                                             {ss.staff?.user?.fullName || ss.staff?.user?.username || 'N/A'}
                                                                         </div>
                                                                         <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
@@ -694,7 +694,7 @@ export default function BranchEmployeesManager() {
                                     value={selectedDate}
                                     onChange={(e) => setSelectedDate(e.target.value)}
                                     className={styles.filterSelect}
-                                    style={{ width: 'auto' }}
+                                    style={{ width: 'auto', background: 'rgb(243, 244, 246)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
                                 />
                             </div>
                         </div>
@@ -732,7 +732,7 @@ export default function BranchEmployeesManager() {
                                                             />
                                                         ) : (
                                                             <div className={styles.productImagePlaceholder}>
-                                                                <span style={{ fontWeight: '700', fontSize: '14px' }}>
+                                                                <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                                                                     {getInitials(shift.user?.fullName || 'U')}
                                                                 </span>
                                                             </div>
@@ -743,7 +743,7 @@ export default function BranchEmployeesManager() {
                                                     </div>
                                                 </td>
                                                 <td className={styles.textCenter}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--color-text-secondary)' }}>
                                                         <Clock size={16} style={{ color: 'var(--color-text-secondary)' }} />
                                                         {shift.startTime} - {shift.endTime}
                                                     </div>

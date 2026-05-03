@@ -315,7 +315,7 @@ export default function BranchReservationManager() {
                             value={filterDate}
                             onChange={(e) => setFilterDate(e.target.value)}
                             className={styles.filterSelect}
-                            style={{ width: '180px' }}
+                            style={{ width: '180px', background: 'rgb(243, 244, 246)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
                         />
 
                         <select
@@ -324,10 +324,10 @@ export default function BranchReservationManager() {
                             className={styles.filterSelect}
                             style={{
                                 padding: '12px 16px',
-                                background: 'var(--color-bg-dark)',
+                                background: 'rgb(243, 244, 246)',
                                 border: '1px solid var(--color-border)',
                                 borderRadius: '12px',
-                                color: 'var(--color-text-primary)',
+                                color: 'var(--color-text-secondary)',
                                 fontSize: '14px',
                                 cursor: 'pointer',
                                 outline: 'none',
