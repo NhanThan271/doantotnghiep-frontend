@@ -239,6 +239,7 @@ const ChefDashboard = () => {
         setItemUpdating(prev => ({ ...prev, [id]: true }));
 
         try {
+            // ✅ Gọi đúng API kitchen
             await kitchenAPI.updateItemStatus(id, status);
             await fetchData();
 
@@ -259,6 +260,7 @@ const ChefDashboard = () => {
                 addNotification(`✅ Món ${itemName} (Bàn ${tableNumber}) đã hoàn thành!`, 'success');
             }
         } catch (err) {
+            console.error('Update status error:', err);
             const errorMsg = err.response?.data?.message || err.message;
             showToast(`❌ Update thất bại: ${errorMsg}`, 'error');
         } finally {
@@ -266,7 +268,6 @@ const ChefDashboard = () => {
             setItemUpdating(prev => ({ ...prev, [id]: false }));
         }
     };
-
     // ⏰ HÀM LẤY THỜI GIAN REAL-TIME
     const getElapsedTime = (createdAt) => {
         const elapsed = Math.floor((currentTime - new Date(createdAt).getTime()) / 1000);

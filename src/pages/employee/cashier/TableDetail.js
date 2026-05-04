@@ -62,6 +62,7 @@ const TableDetail = () => {
 
             if (res.ok) {
                 const data = await res.json();
+                console.log("📦 Dữ liệu sản phẩm từ API:", data);
                 const activeProducts = data.filter(p => p.isActive !== false);
                 setProducts(activeProducts);
                 const cats = ["Tất cả", ...new Set(activeProducts.map(p => p.categoryName).filter(Boolean))];
@@ -99,13 +100,20 @@ const TableDetail = () => {
 
                 let items = [];
                 if (existingOrder.items && existingOrder.items.length > 0) {
-                    items = existingOrder.items.map(item => ({
-                        id: item.foodId,
-                        name: item.foodName,
-                        price: item.price || 0,
-                        quantity: item.quantity || 0,
-                        image: item.foodImageUrl
-                    }));
+                    items = existingOrder.items.map(item => {
+                        // Lấy foodId và foodName từ nhiều nguồn
+                        const foodId = item.foodId || item.food?.id || item.id;
+                        const foodName = item.food?.name || item.foodName || item.name;
+                        const product = products.find(p => p.id === foodId);
+
+                        return {
+                            id: foodId,
+                            name: product?.name || foodName || `Sản phẩm #${foodId}`,
+                            price: item.price || 0,
+                            quantity: item.quantity || 0,
+                            image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
+                        };
+                    }).filter(item => item.id);
                 }
                 setCart(items);
 
@@ -161,7 +169,6 @@ const TableDetail = () => {
 
     const finalTotal = originalTotal - discount;
 
-    // Trong handleUpdateOrder, sau khi thêm món thành công, thêm socket emit
     const handleUpdateOrder = async () => {
         if (cart.length === 0) {
             showToast("Vui lòng chọn món!", "warning", 2000);
@@ -171,24 +178,44 @@ const TableDetail = () => {
         setIsUpdating(true);
 
         try {
-            const existingItems = order.items || [];
+            console.log("🛒 Cart hiện tại:", cart);
+            console.log("📦 Order items hiện tại:", order.items);
+
+            const existingQuantities = {};
+            if (order.items && order.items.length > 0) {
+                order.items.forEach(item => {
+                    const foodId = item.foodId || item.food?.id;
+                    if (foodId) {
+                        existingQuantities[foodId] = item.quantity;
+                    }
+                });
+            }
+            console.log("📊 Existing quantities:", existingQuantities);
+
+            const cartQuantities = {};
+            cart.forEach(item => {
+                if (item.id) {
+                    cartQuantities[item.id] = item.quantity;
+                }
+            });
+            console.log("📊 Cart quantities:", cartQuantities);
 
             const itemsToAdd = [];
-            for (const cartItem of cart) {
-                const existingItem = existingItems.find(item => item.foodId === cartItem.id);
-                let quantityToAdd = cartItem.quantity;
+            for (const [foodId, cartQty] of Object.entries(cartQuantities)) {
+                const existingQty = existingQuantities[foodId] || 0;
+                const quantityToAdd = cartQty - existingQty;  // Đây là số cần thêm mới
 
-                if (existingItem) {
-                    quantityToAdd = cartItem.quantity - existingItem.quantity;
-                }
+                console.log(`🍽️ Món ${foodId}: cart=${cartQty}, existing=${existingQty}, toAdd=${quantityToAdd}`);
 
                 if (quantityToAdd > 0) {
                     itemsToAdd.push({
-                        foodId: cartItem.id,
+                        foodId: parseInt(foodId),
                         quantity: quantityToAdd
                     });
                 }
             }
+
+            console.log("📦 itemsToAdd gửi lên API:", JSON.stringify(itemsToAdd, null, 2));
 
             if (itemsToAdd.length === 0) {
                 showToast("Không có món mới để thêm!", "info", 2000);
@@ -196,30 +223,43 @@ const TableDetail = () => {
                 return;
             }
 
+            const invalidItems = itemsToAdd.filter(item => !item.foodId || item.foodId <= 0);
+            if (invalidItems.length > 0) {
+                console.error("❌ Items không hợp lệ:", invalidItems);
+                showToast("Dữ liệu món ăn không hợp lệ!", "error", 3000);
+                setIsUpdating(false);
+                return;
+            }
+
             const res = await axiosClient.post(`/customer/orders/${order.id}/add-items`, itemsToAdd);
             const updatedOrder = res.data;
 
+            console.log("✅ Update thành công:", updatedOrder);
+
             setOrder(updatedOrder);
 
+            // ✅ SỬA: Lấy tên từ food object (fix "Sản phẩm #undefined")
             const updatedCart = (updatedOrder.items || []).map(item => {
-                const existingCartItem = cart.find(c => c.id === item.foodId);
+                const foodName = item.food?.name || item.foodName || item.name;
+                const product = products.find(p => p.id === item.foodId);
+
                 return {
                     id: item.foodId,
-                    name: existingCartItem?.name || item.foodName || `Sản phẩm #${item.foodId}`,
-                    price: item.price || existingCartItem?.price || 0,
+                    name: product?.name || foodName || `Sản phẩm #${item.foodId}`,
+                    price: item.price || 0,
                     quantity: item.quantity || 0,
-                    image: existingCartItem?.image || item.foodImageUrl
+                    image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
                 };
             });
+
+            console.log("📦 updatedCart sau khi map:", updatedCart);
             setCart(updatedCart);
 
-            // ✅ GỬI SOCKET REAL-TIME CHO BẾP VÀ NHÂN VIÊN
-            // Tạo danh sách các món mới được thêm
             const newItems = itemsToAdd.map(item => {
-                const cartItem = cart.find(c => c.id === item.foodId);
+                const product = products.find(p => p.id === item.foodId);
                 return {
                     id: item.foodId,
-                    name: cartItem?.name || `Món #${item.foodId}`,
+                    name: product?.name || `Món #${item.foodId}`,
                     quantity: item.quantity,
                     orderId: order.id,
                     tableNumber: entityNumber,
@@ -228,9 +268,6 @@ const TableDetail = () => {
                 };
             });
 
-            console.log("🆕 Món mới thêm:", newItems);
-
-            // Gửi sự kiện order-items-added cho bếp
             socket.emit("order-items-added", {
                 orderId: order.id,
                 tableNumber: entityNumber,
@@ -246,13 +283,15 @@ const TableDetail = () => {
 
         } catch (err) {
             console.error("❌ Lỗi cập nhật đơn:", err);
-            alert(`Lỗi: ${err.response?.data?.message || "Không thể cập nhật đơn hàng!"}`);
+            console.error("Response data:", err.response?.data);
+            const errorMessage = err.response?.data || err.message;
+            alert(`Lỗi: ${errorMessage}`);
+            showToast(`Lỗi: ${errorMessage}`, "error", 5000);
         } finally {
             setIsUpdating(false);
         }
     };
 
-    // Tương tự, trong handleConfirmOrder, cũng thêm socket emit
     const handleConfirmOrder = async () => {
         if (cart.length === 0) {
             showToast("Vui lòng chọn món!", "warning", 2000);
@@ -276,10 +315,14 @@ const TableDetail = () => {
             const res = await axiosClient.post("/customer/orders", orderData);
             const newOrder = res.data;
 
-            const itemsToAdd = cart.map(item => ({
-                foodId: item.id,
-                quantity: item.quantity
-            }));
+            const itemsToAdd = cart
+                .filter(item => item.id && item.quantity > 0)
+                .map(item => ({
+                    foodId: item.id,
+                    quantity: item.quantity
+                }));
+
+            console.log("📦 itemsToAdd cho đơn mới:", itemsToAdd);
 
             if (itemsToAdd.length > 0) {
                 await axiosClient.post(`/customer/orders/${newOrder.id}/add-items`, itemsToAdd);
@@ -290,24 +333,26 @@ const TableDetail = () => {
 
             setOrder(finalOrder);
 
+            // ✅ SỬA: Lấy tên từ food object (fix "Sản phẩm #undefined")
             const updatedCart = (finalOrder.items || []).map(item => {
-                const existingCartItem = cart.find(c => c.id === item.foodId);
+                const foodName = item.food?.name || item.foodName || item.name;
+                const product = products.find(p => p.id === item.foodId);
+
                 return {
                     id: item.foodId,
-                    name: existingCartItem?.name || item.foodName,
-                    price: item.price || existingCartItem?.price || 0,
+                    name: product?.name || foodName || `Sản phẩm #${item.foodId}`,
+                    price: item.price || 0,
                     quantity: item.quantity || 0,
-                    image: existingCartItem?.image || item.foodImageUrl
+                    image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
                 };
             });
             setCart(updatedCart);
 
-            // ✅ GỬI SOCKET REAL-TIME CHO BẾP
             const newItems = itemsToAdd.map(item => {
-                const cartItem = cart.find(c => c.id === item.foodId);
+                const product = products.find(p => p.id === item.foodId);
                 return {
                     id: item.foodId,
-                    name: cartItem?.name || `Món #${item.foodId}`,
+                    name: product?.name || `Món #${item.foodId}`,
                     quantity: item.quantity,
                     orderId: newOrder.id,
                     tableNumber: entityNumber,
@@ -348,10 +393,8 @@ const TableDetail = () => {
             const tempOrderCode = Date.now() % 2147483647;
             const shortDesc = `Thanh toan don ${order.id}`.substring(0, 25);
 
-            // Xóa flag cũ nếu có
             sessionStorage.removeItem('paymentCancelled');
 
-            // Lưu thông tin đơn hàng tạm thời
             const tempPaymentData = {
                 orderId: order.id,
                 totalAmount: finalTotal,
@@ -363,7 +406,6 @@ const TableDetail = () => {
             };
             sessionStorage.setItem('tempCashierPayment', JSON.stringify(tempPaymentData));
 
-            // Lưu entity để phục hồi sau
             const entityData = {
                 id: entity.id,
                 number: entity.number,
@@ -374,9 +416,8 @@ const TableDetail = () => {
             };
             sessionStorage.setItem('lastEntity', JSON.stringify(entityData));
 
-            // ✅ QUAN TRỌNG: Đảm bảo tên món là string
             const items = cart.map(item => ({
-                name: String(item.name || "Món ăn"),  // Chuyển thành string
+                name: String(item.name || "Món ăn"),
                 quantity: Number(item.quantity) || 1,
                 price: Math.floor(Number(item.price) || 0)
             }));
@@ -406,7 +447,6 @@ const TableDetail = () => {
                 throw new Error(paymentResult.desc || "Không thể tạo link thanh toán");
             }
 
-            // Chuyển hướng sang PayOS
             window.location.href = paymentResult.data.checkoutUrl;
 
         } catch (err) {
@@ -415,7 +455,7 @@ const TableDetail = () => {
             setProcessingPayment(false);
         }
     };
-    // ✅ Hàm xử lý thanh toán sau khi PayOS thành công
+
     const handleCompletePayment = async (orderId, method, paymentData = null) => {
         try {
             let backendMethod = 'CASH';
@@ -429,7 +469,6 @@ const TableDetail = () => {
 
             console.log(`💳 Thanh toán đơn #${orderId} với phương thức: ${backendMethod}`);
 
-            // Nếu có paymentData từ PayOS, cập nhật thêm thông tin
             const payData = paymentData || {};
             const response = await axiosClient.put(
                 `/customer/orders/${orderId}/pay?paymentMethod=${backendMethod}`,
@@ -439,7 +478,6 @@ const TableDetail = () => {
             console.log("✅ Kết quả thanh toán:", response.data);
 
             if (response.data?.success || response.status === 200) {
-                // Cập nhật trạng thái bàn/phòng thành FREE sau khi thanh toán
                 if (entity) {
                     const updateUrl = isRoom
                         ? `${API}/api/rooms/${entity.id}/status?status=FREE`
@@ -553,28 +591,95 @@ const TableDetail = () => {
     }, [products, activeTab, searchTerm]);
 
     const existingOrderFromState = state?.existingOrder;
+
+    // ✅ FIX 1: Đồng bộ tên sản phẩm từ products vào cart
+    useEffect(() => {
+        if (products.length > 0 && cart.length > 0) {
+            let hasChange = false;
+            const updatedCart = cart.map(item => {
+                const product = products.find(p => p.id === item.id);
+                if (product && product.name !== item.name) {
+                    hasChange = true;
+                    return { ...item, name: product.name };
+                }
+                return item;
+            });
+
+            if (hasChange) {
+                console.log("🔄 Đồng bộ tên sản phẩm từ products vào cart");
+                setCart(updatedCart);
+            }
+        }
+    }, [products]);
+
+    // ✅ FIX 2: Tự động sửa các cart item bị thiếu id
+    useEffect(() => {
+        if (products.length > 0 && cart.length > 0) {
+            let hasChange = false;
+            const fixedCart = cart.map(item => {
+                if (!item.id && item.name) {
+                    const product = products.find(p => p.name === item.name);
+                    if (product) {
+                        hasChange = true;
+                        return { ...item, id: product.id };
+                    }
+                }
+                return item;
+            });
+
+            if (hasChange) {
+                console.log("🔧 Đã tự động fix cart items bị undefined id");
+                setCart(fixedCart);
+            }
+        }
+    }, [products, cart]);
+
+    // ✅ FIX 3: Gộp các item trùng tên (fix 2 item "ruou" riêng biệt)
+    useEffect(() => {
+        if (cart.length <= 1) return;
+
+        const grouped = new Map();
+        cart.forEach(item => {
+            const key = item.name; // Gộp theo tên
+            if (grouped.has(key)) {
+                const existing = grouped.get(key);
+                existing.quantity += item.quantity;
+            } else {
+                grouped.set(key, { ...item });
+            }
+        });
+
+        const mergedCart = Array.from(grouped.values());
+        if (mergedCart.length !== cart.length) {
+            console.log("🔄 Đã gộp các món trùng tên:", mergedCart);
+            setCart(mergedCart);
+        }
+    }, [cart]);
+
     useEffect(() => {
         const paymentCancelled = sessionStorage.getItem('paymentCancelled');
         if (paymentCancelled === 'true') {
             sessionStorage.removeItem('paymentCancelled');
             showToast("Thanh toán đã bị hủy, bạn có thể thử lại", "warning", 3000);
-            setProcessingPayment(false); // Reset trạng thái xử lý
+            setProcessingPayment(false);
         }
     }, []);
 
-    useEffect(() => {
-        const paymentCancelled = sessionStorage.getItem('paymentCancelled');
-        if (paymentCancelled === 'true') {
-            sessionStorage.removeItem('paymentCancelled');
-            showToast("Thanh toán đã bị hủy", "warning", 3000);
-            // Không làm gì thêm, giữ nguyên dữ liệu hiện tại
-        }
-    }, []);
-
+    // ✅ FIX 4: Khởi tạo dữ liệu - KHÔNG phụ thuộc vào products
     useEffect(() => {
         const initialize = async () => {
             await fetchProducts();
             await fetchPromotions();
+        };
+
+        if (entity) {
+            initialize();
+        }
+    }, [entity]);
+
+    useEffect(() => {
+        const processExistingOrder = async () => {
+            if (products.length === 0) return;
 
             if (existingOrderFromState) {
                 setOrder(existingOrderFromState);
@@ -582,14 +687,21 @@ const TableDetail = () => {
 
                 let items = [];
                 if (existingOrderFromState.items && existingOrderFromState.items.length > 0) {
-                    items = existingOrderFromState.items.map(item => ({
-                        id: item.foodId,
-                        name: item.foodName || item.food?.name || `Sản phẩm #${item.foodId}`,
-                        price: item.price || 0,
-                        quantity: item.quantity || 0,
-                        image: item.foodImageUrl || item.food?.imageUrl
-                    }));
+                    items = existingOrderFromState.items.map(item => {
+                        const foodId = item.foodId || item.food?.id || item.id;
+                        const foodName = item.food?.name || item.foodName || item.name;
+                        const product = products.find(p => p.id === foodId);
+
+                        return {
+                            id: foodId,
+                            name: product?.name || foodName || `Sản phẩm #${foodId}`,
+                            price: item.price || 0,
+                            quantity: item.quantity || 0,
+                            image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
+                        };
+                    }).filter(item => item.id);
                 }
+                console.log("📦 Cart items sau khi map:", items);
                 setCart(items);
 
                 if (existingOrderFromState.promotion) {
@@ -600,10 +712,8 @@ const TableDetail = () => {
             }
         };
 
-        if (entity) {
-            initialize();
-        }
-    }, [entity, existingOrderFromState]);
+        processExistingOrder();
+    }, [products, existingOrderFromState, entity]);
 
     const canPay = order?.status === "COMPLETED";
     const canPrint = order?.status === "COMPLETED" || order?.status === "PAID";
@@ -766,8 +876,8 @@ const TableDetail = () => {
                     ) : (
                         <>
                             <div className={styles.cartList}>
-                                {cart.map(item => (
-                                    <div key={item.id} className={styles.cartItem}>
+                                {cart.map((item, index) => (
+                                    <div key={item.id || item.name || index} className={styles.cartItem}>
                                         <div className={styles.cartItemInfo}>
                                             <span className={styles.cartItemName}>{item.name}</span>
                                             <span className={styles.cartItemPrice}>

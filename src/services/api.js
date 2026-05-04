@@ -127,17 +127,23 @@ export const ingredientAPI = {
 };
 
 // Thêm vào kitchenAPI
+// ✅ SỬA kitchenAPI cho đúng với backend
 export const kitchenAPI = {
+    // Lấy hàng đợi bếp - endpoint /api/kitchen/queue
     getQueue: () => api.get('/kitchen/queue'),
+
+    // ✅ SỬA: Cập nhật trạng thái món - endpoint /api/kitchen/order-items/{id}/status
     updateItemStatus: (id, status) => api.put(`/kitchen/order-items/${id}/status?status=${status}`),
+
+    // Lấy món theo trạng thái
     getByStatus: (status) => api.get(`/kitchen/order-items/status?status=${status}`),
 
-    // Lấy tất cả món (kể cả READY)
+    // Lấy tất cả món
     getAllItems: () => api.get('/kitchen/order-items'),
-    // Kiểm tra nguyên liệu cho món ăn (cần backend implement)
+
+    // Kiểm tra nguyên liệu
     checkIngredients: async (branchId, foodId, quantity) => {
         try {
-            // Gọi API kiểm tra nguyên liệu
             const response = await api.get(`/branches/${branchId}/foods/${foodId}/check-ingredients`, {
                 params: { quantity }
             });
@@ -154,7 +160,6 @@ export const kitchenAPI = {
             const response = await api.get(`/branch-ingredients/branch/${branchId}`);
             const ingredients = response.data || [];
 
-            // Tính toán ngưỡng cảnh báo (30% của threshold)
             const warnings = ingredients
                 .filter(item => {
                     const thresholdValue = (item.ingredient?.threshold || 10) * threshold;
@@ -176,4 +181,5 @@ export const kitchenAPI = {
         }
     }
 };
+
 export default api;
