@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Edit2, Search, Grid, List, TrendingUp, AlertCircle, ShoppingBag } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
-import CartSection from './../employee/CartSection';
 
 export default function Ingredients({ openAdd, openEdit, refreshTrigger }) {
     const [ingredients, setIngredients] = useState([]);

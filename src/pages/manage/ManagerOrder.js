@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ShoppingCart, Search, Eye, Check, X, RefreshCw, Clock, CreditCard, Calendar, User, Package, MapPin, FileText, TrendingUp, Activity } from 'lucide-react';
+import { Search, Eye, Check, X, RefreshCw, Clock, CreditCard, Calendar, User, Package, MapPin, FileText, TrendingUp, Activity } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
-import CartSection from './../employee/CartSection';
 
 export default function ManagerOrderManagement() {
     const [orders, setOrders] = useState([]);

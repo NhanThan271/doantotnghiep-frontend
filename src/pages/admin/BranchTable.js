@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Plus, Edit2, Trash2, Users, Grid, Search, Layers } from 'lucide-react';
 import TableFormModal from '../admin/forms/TableFormModal';
 import './BranchTable.css';
-import CartSection from './../employee/CartSection';
 
 export default function TableManagement() {
     const [branches, setBranches] = useState([]);
@@ -18,6 +17,7 @@ export default function TableManagement() {
         number: '',
         capacity: '',
         area: '',
+        type: 'PHYSICAL',
         status: 'FREE'
     });
 
@@ -75,6 +75,7 @@ export default function TableManagement() {
             number: '',
             capacity: '',
             area: '',
+            type: 'PHYSICAL',
             status: 'FREE'
         });
         setShowModal(true);
@@ -86,6 +87,7 @@ export default function TableManagement() {
             number: table.number,
             capacity: table.capacity,
             area: table.area || '',
+            type: table.type || 'PHYSICAL',
             status: table.status
         });
         setShowModal(true);
@@ -109,7 +111,8 @@ export default function TableManagement() {
                 number: parseInt(formData.number),
                 capacity: parseInt(formData.capacity),
                 area: formData.area.trim(), // Trim whitespace
-                status: formData.status
+                status: formData.status,
+                type: formData.type
             };
 
             const url = editingTable

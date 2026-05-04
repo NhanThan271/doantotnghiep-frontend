@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, MapPin, Phone, FileText } from 'lucide-react';
+import { X, MapPin, Phone, FileText, Navigation } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
 
 export default function AddBranch({ onClose, closeForm, onSuccess, onSave }) {
@@ -7,6 +7,8 @@ export default function AddBranch({ onClose, closeForm, onSuccess, onSave }) {
         name: '',
         address: '',
         phone: '',
+        latitude: '',
+        longitude: '',
         isActive: true
     });
     const [loading, setLoading] = useState(false);
@@ -33,6 +35,14 @@ export default function AddBranch({ onClose, closeForm, onSuccess, onSave }) {
             setError('Số điện thoại không hợp lệ (10-11 số)');
             return false;
         }
+        if (!formData.latitude || isNaN(Number(formData.latitude))) {
+            setError('Vui lòng nhập vĩ độ hợp lệ');
+            return false;
+        }
+        if (!formData.longitude || isNaN(Number(formData.longitude))) {
+            setError('Vui lòng nhập kinh độ hợp lệ');
+            return false;
+        }
         return true;
     };
 
@@ -49,6 +59,8 @@ export default function AddBranch({ onClose, closeForm, onSuccess, onSave }) {
                 name: formData.name.trim(),
                 address: formData.address.trim() || null,
                 phone: formData.phone.trim() || null,
+                latitude: Number(formData.latitude),
+                longitude: Number(formData.longitude),
                 isActive: formData.isActive
             };
 
@@ -270,6 +282,72 @@ export default function AddBranch({ onClose, closeForm, onSuccess, onSave }) {
                             style={{ paddingLeft: '44px' }}
                         />
                     </div>
+                </div>
+
+                {/* Coordinates */}
+                <div style={{ marginBottom: '20px' }}>
+                    <label style={{
+                        display: 'block',
+                        marginBottom: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: 'var(--color-text-primary)'
+                    }}>
+                        Tọa độ <span style={{ color: '#EF4444' }}>*</span>
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        {/* Latitude */}
+                        <div style={{ position: 'relative' }}>
+                            <Navigation
+                                size={18}
+                                style={{
+                                    position: 'absolute',
+                                    left: '14px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: 'var(--color-text-secondary)'
+                                }}
+                            />
+                            <input
+                                type="number"
+                                placeholder="Vĩ độ (latitude)"
+                                value={formData.latitude}
+                                onChange={(e) => handleChange('latitude', e.target.value)}
+                                step="any"
+                                style={{ paddingLeft: '44px' }}
+                            />
+                        </div>
+                        {/* Longitude */}
+                        <div style={{ position: 'relative' }}>
+                            <Navigation
+                                size={18}
+                                style={{
+                                    position: 'absolute',
+                                    left: '14px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: 'var(--color-text-secondary)'
+                                }}
+                            />
+                            <input
+                                type="number"
+                                placeholder="Kinh độ (longitude)"
+                                value={formData.longitude}
+                                onChange={(e) => handleChange('longitude', e.target.value)}
+                                step="any"
+                                style={{ paddingLeft: '44px' }}
+                            />
+                        </div>
+                    </div>
+                    {/* Gợi ý lấy tọa độ */}
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '6px' }}>
+                        Lấy tọa độ tại{' '}
+                        <a href="https://maps.google.com" target="_blank" rel="noreferrer"
+                            style={{ color: '#3B82F6' }}>
+                            Google Maps
+                        </a>
+                        {' '}→ chuột phải vào địa điểm → chọn tọa độ
+                    </p>
                 </div>
 
                 {/* Status */}
