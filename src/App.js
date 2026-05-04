@@ -17,7 +17,6 @@ import ManagerLayout from "./layouts/ManagerLayout";
 import CashierLayout from "./layouts/CashierLayout";
 import WaiterLayout from "./layouts/WaiterLayout";
 import ChefLayout from "./layouts/ChefLayout";
-import StockLayout from "./layouts/StockLayout";
 
 // Cashier pages
 import Dashboard from "./pages/employee/cashier/Dashboard";
@@ -30,7 +29,6 @@ import TableDetail from "./pages/employee/cashier/TableDetail";
 import Orders from "./pages/employee/waiter/Orders";
 
 import ChefDashboard from "./pages/employee/chef/ChefDashboard";
-import StockDashboard from "./pages/employee/stock/StockDashboard";
 import PaymentSuccess from "./pages/client/booking/PaymentSuccess";
 import PaymentCancel from "./pages/client/booking/PaymentCancel";
 import CashierPaymentSuccess from "./pages/employee/cashier/CashierPaymentSuccess";
@@ -88,16 +86,6 @@ function App() {
 
         {/* Chef routes - Thêm trực tiếp */}
         <Route path="/chef" element={<ChefLayout><ChefDashboard /></ChefLayout>} />
-
-        {/* Stock routes - Thêm trực tiếp */}
-        <Route path="/stock" element={<StockLayout />}>
-          <Route index element={<StockDashboard />} />
-          <Route path="inventory" element={<div>Quản lý kho</div>} />
-          <Route path="import" element={<div>Nhập hàng</div>} />
-          <Route path="export" element={<div>Xuất hàng</div>} />
-          <Route path="check" element={<div>Kiểm kho</div>} />
-          <Route path="low-stock" element={<div>Hàng sắp hết</div>} />
-        </Route>
 
         {/* Trang công khai với Header + Footer */}
         <Route path="/" element={<PublicLayout><Main /></PublicLayout>} />
