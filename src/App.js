@@ -7,8 +7,6 @@ import AdminLayout from './layouts/AdminLayout';
 import LoginPage from './pages/login/LoginPage';
 import RegisterPage from './pages/login/RegisterPage';
 import ForgotPasswordPage from "./pages/login/ForgotPasswordPage";
-import CafeCusSystem from "./pages/customer/CafeCusSystem";
-import MomoReturn from './pages/employee/MomoReturn';
 
 import Promotions from "./pages/client/Promotions";
 import Menu from "./pages/client/Menu";
@@ -61,8 +59,6 @@ function App() {
         <Route path="/admin/*" element={<AdminLayout />} />
         <Route path="/manager/*" element={<ManagerLayout />} />
 
-        <Route path="/menu/*" element={<CafeCusSystem />} />
-        <Route path="/momo-return" element={<MomoReturn />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route path="/payment-cancel" element={<PaymentCancel />} />
 

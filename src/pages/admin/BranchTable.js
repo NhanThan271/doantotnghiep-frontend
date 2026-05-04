@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Plus, Edit2, Trash2, Users, Grid, Search, Layers } from 'lucide-react';
 import TableFormModal from '../admin/forms/TableFormModal';
 import './BranchTable.css';
-import CartSection from './../employee/CartSection';
 
 export default function TableManagement() {
     const [branches, setBranches] = useState([]);
