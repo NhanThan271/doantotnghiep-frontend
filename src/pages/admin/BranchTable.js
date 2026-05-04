@@ -17,6 +17,7 @@ export default function TableManagement() {
         number: '',
         capacity: '',
         area: '',
+        type: 'PHYSICAL',
         status: 'FREE'
     });
 
@@ -74,6 +75,7 @@ export default function TableManagement() {
             number: '',
             capacity: '',
             area: '',
+            type: 'PHYSICAL',
             status: 'FREE'
         });
         setShowModal(true);
@@ -85,6 +87,7 @@ export default function TableManagement() {
             number: table.number,
             capacity: table.capacity,
             area: table.area || '',
+            type: table.type || 'PHYSICAL',
             status: table.status
         });
         setShowModal(true);
@@ -108,7 +111,8 @@ export default function TableManagement() {
                 number: parseInt(formData.number),
                 capacity: parseInt(formData.capacity),
                 area: formData.area.trim(), // Trim whitespace
-                status: formData.status
+                status: formData.status,
+                type: formData.type
             };
 
             const url = editingTable

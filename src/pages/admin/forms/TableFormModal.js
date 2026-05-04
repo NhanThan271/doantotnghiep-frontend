@@ -29,10 +29,56 @@ export default function TableFormModal({
                 {/* Modal Body */}
                 <form onSubmit={onSubmit} className="modal-form">
                     <div className="form-grid">
+
+                        {/* Loại bàn — đặt đầu tiên vì ảnh hưởng các field sau */}
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                            <label className="form-label">Loại bàn *</label>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                {[
+                                    { value: 'PHYSICAL', label: '🪑 Bàn tại quán', desc: 'Phục vụ tại chỗ' },
+                                    { value: 'TAKEAWAY', label: '🛵 Mang đi', desc: 'Đơn mang đi / giao hàng' }
+                                ].map(opt => (
+                                    <label
+                                        key={opt.value}
+                                        style={{
+                                            flex: 1,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '10px',
+                                            padding: '12px 16px',
+                                            border: `2px solid ${formData.type === opt.value ? '#3B82F6' : '#e5e7eb'}`,
+                                            borderRadius: '10px',
+                                            cursor: 'pointer',
+                                            background: formData.type === opt.value
+                                                ? 'rgba(59,130,246,0.06)' : 'transparent',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="tableType"
+                                            value={opt.value}
+                                            checked={formData.type === opt.value}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                type: e.target.value,
+                                                // Reset area nếu chuyển sang TAKEAWAY
+                                                area: e.target.value === 'TAKEAWAY' ? 'TAKEAWAY' : ''
+                                            })}
+                                            style={{ accentColor: '#3B82F6' }}
+                                        />
+                                        <div>
+                                            <div style={{ fontWeight: '600', fontSize: '14px' }}>{opt.label}</div>
+                                            <div style={{ fontSize: '12px', color: '#6b7280' }}>{opt.desc}</div>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Số bàn */}
                         <div className="form-group">
-                            <label className="form-label">
-                                Số bàn *
-                            </label>
+                            <label className="form-label">Số bàn *</label>
                             <input
                                 type="number"
                                 className="form-input"
@@ -44,10 +90,9 @@ export default function TableFormModal({
                             />
                         </div>
 
+                        {/* Sức chứa */}
                         <div className="form-group">
-                            <label className="form-label">
-                                Sức chứa *
-                            </label>
+                            <label className="form-label">Sức chứa *</label>
                             <input
                                 type="number"
                                 className="form-input"
@@ -59,23 +104,24 @@ export default function TableFormModal({
                             />
                         </div>
 
-                        <div className="form-group">
-                            <label className="form-label">
-                                Khu vực / Tầng
-                            </label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                value={formData.area}
-                                onChange={(e) => setFormData({ ...formData, area: e.target.value })}
-                                placeholder="VD: Tầng 1, Khu A, Ngoài trời..."
-                            />
-                        </div>
+                        {/* Khu vực — chỉ hiện khi PHYSICAL */}
+                        {formData.type === 'PHYSICAL' && (
+                            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                                <label className="form-label">Khu vực / Tầng *</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.area}
+                                    onChange={(e) => setFormData({ ...formData, area: e.target.value })}
+                                    placeholder="VD: Tầng 1, Khu A, Ngoài trời..."
+                                    required
+                                />
+                            </div>
+                        )}
 
-                        <div className="form-group">
-                            <label className="form-label">
-                                Trạng thái
-                            </label>
+                        {/* Trạng thái */}
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                            <label className="form-label">Trạng thái</label>
                             <select
                                 className="form-select"
                                 value={formData.status}
@@ -90,18 +136,10 @@ export default function TableFormModal({
 
                     {/* Form Actions */}
                     <div className="form-actions">
-                        <button
-                            type="button"
-                            className="btn-cancel"
-                            onClick={onClose}
-                        >
+                        <button type="button" className="btn-cancel" onClick={onClose}>
                             Hủy
                         </button>
-                        <button
-                            type="submit"
-                            className="btn-submit"
-                            disabled={loading}
-                        >
+                        <button type="submit" className="btn-submit" disabled={loading}>
                             <Save size={18} />
                             {loading ? 'Đang lưu...' : (editingTable ? 'Cập nhật' : 'Tạo mới')}
                         </button>
