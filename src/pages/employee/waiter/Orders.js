@@ -136,6 +136,22 @@ function SeatTab({ branchId, onSelectSeat, toast }) {
         occupied: (seatType === 'table' ? tables : rooms).filter(i => i.status === 'OCCUPIED').length,
         reserved: (seatType === 'table' ? tables : rooms).filter(i => i.status === 'RESERVED').length,
     };
+    const handleOpenSeat = async (item, type) => {
+        try {
+            const r = await apiFetch('/api/customer/orders');
+            const orders = await r.json();
+            const active = Array.isArray(orders) ? orders.find(o =>
+                o.branch?.id === branchId &&
+                (type === 'table'
+                    ? o.table?.id === item.id
+                    : o.room?.id === item.id) &&
+                !['PAID', 'CANCELED'].includes(o.status)
+            ) : null;
+            onSelectSeat(item, type, active?.id || null);
+        } catch {
+            onSelectSeat(item, type, null);
+        }
+    };
     return (
         <div>
             {/* Type switcher */}
@@ -228,7 +244,7 @@ function SeatTab({ branchId, onSelectSeat, toast }) {
                                         ) : (
                                             <>
                                                 <button className="btn btn-primary btn-sm" style={{ flex: 1 }}
-                                                    onClick={() => onSelectSeat(item, seatType)}>
+                                                    onClick={() => handleOpenSeat(item, seatType)}>
                                                     <Plus size={13} /> Thêm món
                                                 </button>
                                                 <button className="btn btn-danger btn-sm"
@@ -247,7 +263,7 @@ function SeatTab({ branchId, onSelectSeat, toast }) {
     );
 }
 
-function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreated }) {
+function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreated, initialOrderId }) {
     const [menu, setMenu] = useState([]);
     const [categories, setCategories] = useState([]);
     const [selectedCat, setSelectedCat] = useState('all');
@@ -264,6 +280,11 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
     const [selectedRoomId, setSelectedRoomId] = useState('');
     const [existingOrderId, setExistingOrderId] = useState(null);
     const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        setExistingOrderId(initialOrderId || null);
+    }, [initialOrderId]);
+
     useEffect(() => {
         if (!branchId) return;
         apiFetch(`/api/branch-foods/branch/${branchId}/with-promotions`)
@@ -336,40 +357,45 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
 
         setSubmitting(true);
         try {
-            const orderData = {
-                branch: { id: branchId },
-                roomType: seatType,
-                notes: generalNote,
-                customerName: 'Khách lẻ',
-                locationDetail: getLocationName(),
-                totalAmount: total,
-                status: 'PENDING',
-                ...(seatType === 'room' ? { room: { id: Number(selectedRoomId) } } : {
-                    table: { id: Number(selectedTableId) },
-                    areaName: selectedArea,
-                    tableNumber: Number(selectedTableNumber)
-                }),
-                items: cart.map(i => ({
-                    food: { id: i.id },
-                    quantity: i.qty,
-                    price: i.price,
-                    note: i.note
-                }))
-            };
-
-            const r = await apiFetch('/api/customer/orders', { method: 'POST', body: JSON.stringify(orderData) });
-            if (!r.ok) throw new Error('Tạo đơn thất bại');
-            const saved = await r.json();
-            await apiFetch(`/api/customer/orders/${saved.id}/confirm`, { method: 'PUT' });
-            socket.emit('place-order', {
-                ...saved,
-                table: { number: selectedTableNumber },
-                tableNumber: selectedTableNumber,
-                items: cart.map(i => ({ name: i.name, quantity: i.qty })),
-            });
-            toast.add('success', `Món #${saved.id} đã gửi bếp!`, getLocationName());
+            if (existingOrderId) {
+                // ── THÊM VÀO ĐƠN CŨ ──
+                const body = cart.map(i => ({ foodId: i.id, quantity: i.qty, note: i.note || '' }));
+                const r = await apiFetch(`/api/customer/orders/${existingOrderId}/add-items`, {
+                    method: 'POST', body: JSON.stringify(body)
+                });
+                if (!r.ok) throw new Error('Thêm món thất bại');
+                toast.add('success', `Đã thêm món vào đơn #${existingOrderId}`, getLocationName());
+            } else {
+                // ── TẠO ĐƠN MỚI (giữ nguyên như cũ) ──
+                const orderData = {
+                    branch: { id: branchId },
+                    roomType: seatType,
+                    notes: generalNote,
+                    customerName: 'Khách lẻ',
+                    locationDetail: getLocationName(),
+                    totalAmount: total,
+                    status: 'PENDING',
+                    ...(seatType === 'room' ? { room: { id: Number(selectedRoomId) } } : {
+                        table: { id: Number(selectedTableId) },
+                        areaName: selectedArea,
+                        tableNumber: Number(selectedTableNumber)
+                    }),
+                    items: cart.map(i => ({ food: { id: i.id }, quantity: i.qty, price: i.price, note: i.note }))
+                };
+                const r = await apiFetch('/api/customer/orders', { method: 'POST', body: JSON.stringify(orderData) });
+                if (!r.ok) throw new Error('Tạo đơn thất bại');
+                const saved = await r.json();
+                await apiFetch(`/api/customer/orders/${saved.id}/confirm`, { method: 'PUT' });
+                socket.emit('place-order', {
+                    ...saved,
+                    table: { number: selectedTableNumber },
+                    tableNumber: selectedTableNumber,
+                    items: cart.map(i => ({ name: i.name, quantity: i.qty })),
+                });
+                toast.add('success', `Đơn #${saved.id} đã gửi bếp!`, getLocationName());
+            }
             setCart([]); setGeneralNote('');
-            onOrderCreated && onOrderCreated(saved);
+            onOrderCreated?.();
         } catch (e) {
             toast.add('error', 'Lỗi', e.message);
         } finally { setSubmitting(false); }
@@ -488,6 +514,16 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
                                 <div className="location-selected-info">📍 {getLocationName()}</div>
                             )}
                         </div>
+                        {existingOrderId && (
+                            <div style={{
+                                padding: '6px 10px', marginBottom: 8,
+                                background: 'rgba(59,130,246,0.1)',
+                                borderRadius: 6, fontSize: 12,
+                                color: 'var(--primary)', fontWeight: 600
+                            }}>
+                                Đang thêm món vào đơn #{existingOrderId}
+                            </div>
+                        )}
                         {/* Cart items */}
                         {cart.length === 0 ? (
                             <div className="empty-state" style={{ padding: '24px 0' }}>
@@ -879,6 +915,7 @@ export default function WaiterInterface() {
     const [pendingKitchen, setPendingKitchen] = useState(0);
 
     const [kitchenNotifs, setKitchenNotifs] = useState([]);
+    const [selectedExistingOrderId, setSelectedExistingOrderId] = useState(null);
 
     useEffect(() => {
         apiFetch('/api/kitchen-orders/status?status=WAITING')
@@ -932,9 +969,10 @@ export default function WaiterInterface() {
         };
     }, [branchId, user?.id]);
 
-    const handleSelectSeat = (seat, type) => {
+    const handleSelectSeat = (seat, type, existingOrderId = null) => {
         setSelectedSeat(seat);
         setSelectedSeatType(type);
+        setSelectedExistingOrderId(existingOrderId);
         setActiveTab('order');
     };
     const TABS = [
@@ -968,7 +1006,7 @@ export default function WaiterInterface() {
 
             <div className="waiter-content">
                 {activeTab === 'seats' && <SeatTab branchId={branchId} onSelectSeat={handleSelectSeat} toast={toast} />}
-                {activeTab === 'order' && <OrderTab branchId={branchId} initialSeat={selectedSeat} initialSeatType={selectedSeatType} toast={toast} onOrderCreated={() => setActiveTab('orders')} />}
+                {activeTab === 'order' && <OrderTab branchId={branchId} initialSeat={selectedSeat} initialSeatType={selectedSeatType} initialOrderId={selectedExistingOrderId} toast={toast} onOrderCreated={() => setActiveTab('orders')} />}
                 {activeTab === 'orders' && <OrdersTab branchId={branchId} toast={toast} />}
                 {activeTab === 'kitchen' && <KitchenTab toast={toast} />}
             </div>
