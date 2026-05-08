@@ -1,0 +1,380 @@
+/* ============================================
+   FoodGallerySlider — Noir Restaurant
+   ============================================ */
+
+.fgs {
+    position: relative;
+    width: 100%;
+    height: 580px;
+    overflow: hidden;
+    background: #0d1a3e;
+}
+
+/* ============================================
+   BACKGROUND IMAGES — Slide animation
+   ============================================ */
+.fgs__bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    will-change: transform, opacity;
+}
+
+/* ENTER states */
+.fgs__bg--enter.fgs__bg--next {
+    transform: translateX(4%) scale(1.04);
+    opacity: 0;
+}
+
+.fgs__bg--enter.fgs__bg--prev {
+    transform: translateX(-4%) scale(1.04);
+    opacity: 0;
+}
+
+.fgs__bg--enter.fgs__bg--active {
+    animation: bgEnter 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.fgs__bg--enter.fgs__bg--settled {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+}
+
+/* EXIT states */
+.fgs__bg--exit {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+    animation: bgExit 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    z-index: 1;
+}
+
+@keyframes bgEnter {
+    from {
+        transform: translateX(3%) scale(1.04);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes bgExit {
+    from {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(-3%) scale(0.98);
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   OVERLAY
+   ============================================ */
+.fgs__overlay {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(to right, rgba(13, 26, 62, 0.82) 0%, rgba(13, 26, 62, 0.35) 55%, rgba(13, 26, 62, 0.10) 100%),
+        linear-gradient(to top, rgba(13, 26, 62, 0.55) 0%, transparent 50%);
+    z-index: 2;
+}
+
+/* ============================================
+   DECORATIVE LINES
+   ============================================ */
+.fgs__lines {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.fgs__line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(201, 168, 76, 0.08);
+}
+
+.fgs__line:nth-child(1) {
+    left: 25%;
+}
+
+.fgs__line:nth-child(2) {
+    left: 50%;
+}
+
+.fgs__line:nth-child(3) {
+    left: 75%;
+}
+
+/* ============================================
+   CONTENT
+   ============================================ */
+.fgs__content {
+    position: absolute;
+    top: 50%;
+    left: 64px;
+    transform: translateY(-50%);
+    z-index: 10;
+    max-width: 520px;
+    animation: contentIn 0.75s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes contentIn {
+    from {
+        opacity: 0;
+        transform: translateY(calc(-50% + 18px));
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-50%);
+    }
+}
+
+.fgs__meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.fgs__tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #0d1a3e;
+    background: #C9A84C;
+    padding: 3px 10px;
+    text-transform: uppercase;
+}
+
+.fgs__cat {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+}
+
+.fgs__title {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 700;
+    font-style: italic;
+    line-height: 1.15;
+    color: #fff;
+    margin: 0 0 18px;
+    text-shadow: 0 2px 24px rgba(0, 0, 0, 0.4);
+}
+
+.fgs__subtitle {
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.78);
+    margin: 0 0 24px;
+    max-width: 420px;
+}
+
+.fgs__accent {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.fgs__accent-line {
+    display: block;
+    width: 36px;
+    height: 1px;
+    background: #C9A84C;
+    flex-shrink: 0;
+}
+
+.fgs__accent-text {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: #C9A84C;
+    text-transform: uppercase;
+}
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+.fgs__nav {
+    position: absolute;
+    bottom: 36px;
+    left: 64px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+}
+
+.fgs__counter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fgs__counter-cur {
+    font-family: 'Georgia', serif;
+    font-size: 28px;
+    font-style: italic;
+    font-weight: 700;
+    color: #C9A84C;
+    line-height: 1;
+}
+
+.fgs__counter-sep {
+    display: block;
+    width: 24px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.35);
+    transform: rotate(-65deg);
+}
+
+.fgs__counter-total {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.fgs__dots {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fgs__dot {
+    position: relative;
+    width: 40px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden;
+    transition: background 0.3s;
+}
+
+.fgs__dot--active {
+    background: rgba(201, 168, 76, 0.3);
+}
+
+.fgs__dot-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: #C9A84C;
+    transition: width 0.1s linear;
+}
+
+/* ============================================
+   ARROW BUTTONS
+   ============================================ */
+.fgs__arr {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid rgba(201, 168, 76, 0.4);
+    background: rgba(13, 26, 62, 0.5);
+    color: rgba(255, 255, 255, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: background 0.25s, border-color 0.25s, transform 0.25s;
+}
+
+.fgs__arr:hover {
+    background: rgba(201, 168, 76, 0.25);
+    border-color: #C9A84C;
+    color: #C9A84C;
+    transform: translateY(-50%) scale(1.08);
+}
+
+.fgs__arr--prev {
+    right: 76px;
+}
+
+.fgs__arr--next {
+    right: 24px;
+}
+
+/* ============================================
+   GOLD BOTTOM BAR
+   ============================================ */
+.fgs__gold-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(to right, transparent 0%, #C9A84C 30%, #f0d878 50%, #C9A84C 70%, transparent 100%);
+    z-index: 10;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    .fgs {
+        height: 460px;
+    }
+
+    .fgs__content {
+        left: 24px;
+        right: 24px;
+        max-width: none;
+    }
+
+    .fgs__title {
+        font-size: 28px;
+    }
+
+    .fgs__subtitle {
+        font-size: 13px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .fgs__nav {
+        left: 24px;
+        bottom: 24px;
+    }
+
+    .fgs__arr--prev {
+        right: 68px;
+    }
+
+    .fgs__arr--next {
+        right: 20px;
+    }
+
+    .fgs__arr {
+        width: 40px;
+        height: 40px;
+    }
+
+    .fgs__line:nth-child(3) {
+        display: none;
+    }
+}

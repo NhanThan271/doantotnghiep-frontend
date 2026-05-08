@@ -1,0 +1,260 @@
+/* ============================================================
+   PRICE SECTION — MENU SHOWCASE
+   Palette: White/Cream bg · Navy #0d1a3e · Gold #C9A84C
+   Matches: BrandsSection & About aesthetic
+   Fonts: Cormorant Garamond + Jost
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,600&family=Jost:wght@300;400;500;600;700&display=swap');
+
+/* ── Root ── */
+.prs {
+    position: relative;
+    background: #ffffff; /* Đổi sang nền trắng */
+    padding: 90px 72px 80px;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Subtle radial glow - Điều chỉnh sang màu vàng nhạt trên nền sáng */
+.prs::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 70% 60% at 15% 50%,
+            rgba(201, 168, 76, 0.03) 0%,
+            transparent 70%);
+    pointer-events: none;
+}
+
+/* ── Scroll reveal ── */
+.prs-reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition:
+        opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1) var(--delay, 0s),
+        transform 0.7s cubic-bezier(0.4, 0, 0.2, 1) var(--delay, 0s);
+}
+
+.prs-reveal--visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ── Gold rule ── */
+.prs__rule {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(to right,
+            transparent,
+            #C9A84C 30%,
+            #C9A84C 70%,
+            transparent);
+    margin-bottom: 72px;
+    opacity: 0;
+    transform: scaleX(0.3);
+    transition:
+        opacity 0.9s ease var(--delay, 0s),
+        transform 0.9s ease var(--delay, 0s);
+}
+
+.prs__rule.prs-reveal--visible {
+    opacity: 1; /* Tăng độ đậm cho nền sáng */
+    transform: scaleX(1);
+}
+
+.prs__rule--bottom {
+    margin-top: 72px;
+    margin-bottom: 0;
+}
+
+/* ── 2-column inner layout ── */
+.prs__inner {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 80px;
+    align-items: start;
+    max-width: 1300px;
+    margin: 0 auto;
+}
+
+/* ── LEFT column ── */
+.prs__left {
+    position: sticky;
+    top: 40px;
+}
+
+.prs__eyebrow {
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #0d1a3e; /* Đổi sang Navy */
+    margin: 0 0 20px;
+}
+
+.prs__title {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: clamp(36px, 4vw, 60px);
+    font-weight: 600;
+    color: #0d1a3e; /* Đổi sang Navy */
+    line-height: 1.15;
+    margin: 0 0 32px;
+    letter-spacing: -0.3px;
+}
+
+.prs__title em {
+    font-style: italic;
+    font-weight: 400;
+    color: #C9A84C; /* Vàng Gold giữ nguyên làm điểm nhấn */
+}
+
+.prs__body {
+    font-family: 'Jost', sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.9;
+    color: #7a6e5a; /* Màu chữ phụ của brand */
+    margin: 0 0 16px;
+    letter-spacing: 0.2px;
+}
+
+.prs__body:last-of-type {
+    margin-bottom: 36px;
+}
+
+/* CTA link */
+.prs__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #0d1a3e; /* Navy */
+    text-decoration: none;
+    border-bottom: 1px solid rgba(13, 26, 62, 0.2);
+    padding-bottom: 4px;
+    transition: color 0.25s ease, border-color 0.25s ease;
+}
+
+.prs__cta:hover {
+    color: #C9A84C;
+    border-color: #C9A84C;
+}
+
+.prs__cta svg {
+    transition: transform 0.25s ease;
+}
+
+.prs__cta:hover svg {
+    transform: translateX(4px);
+}
+
+/* ── RIGHT column ── */
+.prs__right {
+    padding-top: 4px;
+}
+
+/* Spinner color adjustment */
+.prs__spinner {
+    border: 1.5px solid rgba(201, 168, 76, 0.2);
+    border-top-color: #C9A84C;
+}
+
+.prs__empty {
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    color: #b0a48a;
+    padding: 40px 0;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
+
+/* List */
+.prs__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.prs__item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 22px 0;
+    border-bottom: 1px solid #e8e0d0; /* Màu border nhạt của brand */
+    transition: background 0.3s ease;
+}
+
+.prs__item:first-child {
+    border-top: 1px solid #e8e0d0;
+}
+
+.prs__item:hover {
+    border-bottom-color: #C9A84C;
+    background: #faf7f0; /* Hiệu ứng hover nhẹ khi trên nền trắng */
+}
+
+.prs__item-name {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 21px;
+    font-weight: 600;
+    color: #0d1a3e; /* Đổi sang Navy */
+    line-height: 1.2;
+    letter-spacing: 0.1px;
+}
+
+.prs__item-desc {
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: #7a6e5a; /* Chữ mô tả màu nâu xám */
+    letter-spacing: 0.3px;
+    line-height: 1.5;
+}
+
+.prs__item-price {
+    font-family: 'Jost', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: #C9A84C; /* Vàng Gold */
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-top: 3px;
+}
+
+/* footer note */
+.prs__footer-note {
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #b0a48a;
+    margin: 36px 0 0;
+    text-align: center;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1100px) {
+    .prs__inner {
+        grid-template-columns: 340px 1fr;
+    }
+}
+
+@media (max-width: 860px) {
+    .prs__left {
+        border-bottom: 1px solid #e8e0d0;
+        padding-bottom: 40px;
+        margin-bottom: 20px;
+    }
+}

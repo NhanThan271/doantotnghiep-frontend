@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
     ChevronDown, Grid, List, Search, X,
     Filter, ChevronUp, DollarSign, ArrowUpDown,
-    ShoppingBag, MapPin, Building2
+    ShoppingBag
 } from 'lucide-react';
 import PhoneFloatButton from './booking/PhoneFloatButton';
 import './Menu.css';
@@ -15,17 +15,14 @@ const Menu = () => {
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
-    const [selectedBranch, setSelectedBranch] = useState(null);
-    const [branches, setBranches] = useState([]);
+    const [branchName, setBranchName] = useState('');
     const [isCategoryOpen, setIsCategoryOpen] = useState(true);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
-    const [isBranchOpen, setIsBranchOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [viewMode, setViewMode] = useState('grid');
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Filter states - Bỏ isAvailable
     const [filters, setFilters] = useState({
         priceRange: { min: '', max: '' },
         sortBy: 'name_asc'
@@ -33,42 +30,15 @@ const Menu = () => {
 
     const [priceStats, setPriceStats] = useState({ min: 0, max: 0 });
 
-    const allCategory = {
-        id: 'all',
-        name: 'Tất cả món ăn',
-        icon: '🍽️'
-    };
+    const allCategory = { id: 'all', name: 'Tất cả món ăn', icon: '🍽️' };
 
     const getAuthToken = () => localStorage.getItem('token');
 
-    // Fetch branches
-    const fetchBranches = async () => {
-        try {
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/branches`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` })
-                }
-            });
-
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            setBranches(data);
-
-            const savedBranchId = localStorage.getItem('selectedBranchId');
-            if (savedBranchId && data.find(b => b.id === parseInt(savedBranchId))) {
-                setSelectedBranch(data.find(b => b.id === parseInt(savedBranchId)));
-            } else if (data.length > 0) {
-                setSelectedBranch(data[0]);
-                localStorage.setItem('selectedBranchId', data[0].id);
-            }
-        } catch (err) {
-            console.error('Lỗi khi lấy chi nhánh:', err);
-        }
+    // Lấy branchId từ localStorage (do HeroLanding/Home lưu vào)
+    const getBranchId = () => {
+        return localStorage.getItem('selectedBranchId');
     };
 
-    // Fetch categories
     const fetchCategories = async () => {
         try {
             const token = getAuthToken();
@@ -78,59 +48,44 @@ const Menu = () => {
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 }
             });
-
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-
-            if (data && data.length > 0) {
-                setCategories(data);
-            } else {
-                const mockCategories = [
-                    { id: 1, name: "Món khai vị" },
-                    { id: 2, name: "Món chính" },
-                    { id: 3, name: "Đồ uống" },
-                    { id: 4, name: "Tráng miệng" }
-                ];
-                setCategories(mockCategories);
-            }
-
-            if (!selectedCategory || selectedCategory.id === 'all') {
-                setSelectedCategory(allCategory);
-            }
+            setCategories(data?.length > 0 ? data : getMockCategories());
         } catch (err) {
-            console.error('❌ Lỗi khi lấy danh mục:', err);
-            const mockCategories = [
-                { id: 1, name: "Món khai vị" },
-                { id: 2, name: "Món chính" },
-                { id: 3, name: "Đồ uống" },
-                { id: 4, name: "Tráng miệng" }
-            ];
-            setCategories(mockCategories);
+            console.error('Lỗi khi lấy danh mục:', err);
+            setCategories(getMockCategories());
+        } finally {
             setSelectedCategory(allCategory);
         }
     };
 
-    // Fetch all products by branch - CHỈ LẤY MÓN CÒN BÁN
-    const fetchAllProductsByBranch = async (branchId) => {
+    const getMockCategories = () => [
+        { id: 1, name: "Món khai vị" },
+        { id: 2, name: "Món chính" },
+        { id: 3, name: "Đồ uống" },
+        { id: 4, name: "Tráng miệng" }
+    ];
+
+    const fetchProductsByBranch = async (branchId) => {
+        if (!branchId) {
+            setError('Vui lòng chọn chi nhánh từ trang chủ.');
+            setLoading(false);
+            return;
+        }
         try {
             setLoading(true);
             setError(null);
             const token = getAuthToken();
-            const url = `${API_BASE_URL}/api/branch-foods/branch/${branchId}`;
-
-            const response = await fetch(url, {
+            const response = await fetch(`${API_BASE_URL}/api/branch-foods/branch/${branchId}`, {
                 headers: {
                     'Content-Type': 'application/json',
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 }
             });
-
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
             const data = await response.json();
 
-            // ✅ Chỉ lấy món còn bán (isActive === true)
-            const transformedProducts = data
+            const transformed = data
                 .filter(item => item.isActive === true)
                 .map(item => ({
                     id: item.id,
@@ -144,16 +99,12 @@ const Menu = () => {
                     isAvailable: item.isActive
                 }));
 
-            setAllProducts(transformedProducts);
-            setProducts(transformedProducts);
+            setAllProducts(transformed);
+            setProducts(transformed);
 
-            // Calculate price range
-            const prices = transformedProducts.map(p => p.price).filter(p => p && p > 0);
+            const prices = transformed.map(p => p.price).filter(p => p > 0);
             if (prices.length > 0) {
-                setPriceStats({
-                    min: Math.min(...prices),
-                    max: Math.max(...prices)
-                });
+                setPriceStats({ min: Math.min(...prices), max: Math.max(...prices) });
             }
         } catch (err) {
             console.error('Lỗi khi lấy sản phẩm:', err);
@@ -165,92 +116,45 @@ const Menu = () => {
         }
     };
 
-    // Handle branch change
-    const handleBranchChange = async (branch) => {
-        setSelectedBranch(branch);
-        localStorage.setItem('selectedBranchId', branch.id);
-        setSelectedCategory(allCategory);
-        setSearchTerm('');
-        setFilters({
-            priceRange: { min: '', max: '' },
-            sortBy: 'name_asc'
-        });
-
-        await fetchAllProductsByBranch(branch.id);
-    };
-
-    // Handle category selection
     const handleCategorySelect = (category) => {
         setSelectedCategory(category);
         setSearchTerm('');
-        setFilters({
-            priceRange: { min: '', max: '' },
-            sortBy: 'name_asc'
-        });
-
+        setFilters({ priceRange: { min: '', max: '' }, sortBy: 'name_asc' });
         if (category.id === 'all') {
             setProducts(allProducts);
         } else {
-            const filtered = allProducts.filter(p => p.categoryId === category.id);
-            setProducts(filtered);
+            setProducts(allProducts.filter(p => p.categoryId === category.id));
         }
     };
 
-    // Apply filters and search - Bỏ isAvailable
     const applyFilters = useCallback(() => {
         let result = [...products];
-
-        // Search filter
         if (searchTerm) {
-            result = result.filter(product =>
-                product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
+            result = result.filter(p =>
+                p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.description?.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
-
-        // Price range filter
-        if (filters.priceRange.min) {
-            result = result.filter(product => product.price >= parseFloat(filters.priceRange.min));
-        }
-        if (filters.priceRange.max) {
-            result = result.filter(product => product.price <= parseFloat(filters.priceRange.max));
-        }
-
-        // Sorting
+        if (filters.priceRange.min) result = result.filter(p => p.price >= parseFloat(filters.priceRange.min));
+        if (filters.priceRange.max) result = result.filter(p => p.price <= parseFloat(filters.priceRange.max));
         switch (filters.sortBy) {
-            case 'price_asc':
-                result.sort((a, b) => a.price - b.price);
-                break;
-            case 'price_desc':
-                result.sort((a, b) => b.price - a.price);
-                break;
-            case 'name_asc':
-                result.sort((a, b) => a.name?.localeCompare(b.name));
-                break;
-            case 'name_desc':
-                result.sort((a, b) => b.name?.localeCompare(a.name));
-                break;
-            default:
-                break;
+            case 'price_asc': result.sort((a, b) => a.price - b.price); break;
+            case 'price_desc': result.sort((a, b) => b.price - a.price); break;
+            case 'name_asc': result.sort((a, b) => a.name?.localeCompare(b.name)); break;
+            case 'name_desc': result.sort((a, b) => b.name?.localeCompare(a.name)); break;
+            default: break;
         }
-
         setFilteredProducts(result);
     }, [products, searchTerm, filters]);
 
-    // Initial load
     useEffect(() => {
-        fetchBranches();
+        const branchId = getBranchId();
+        const name = localStorage.getItem('selectedBranch') || '';
+        setBranchName(name);
         fetchCategories();
+        fetchProductsByBranch(branchId);
     }, []);
 
-    // Load products when branch changes
-    useEffect(() => {
-        if (selectedBranch?.id) {
-            fetchAllProductsByBranch(selectedBranch.id);
-        }
-    }, [selectedBranch?.id]);
-
-    // Apply client-side filters
     useEffect(() => {
         applyFilters();
     }, [applyFilters]);
@@ -263,18 +167,8 @@ const Menu = () => {
     };
 
     const clearAllFilters = () => {
-        setFilters({
-            priceRange: { min: '', max: '' },
-            sortBy: 'name_asc'
-        });
+        setFilters({ priceRange: { min: '', max: '' }, sortBy: 'name_asc' });
         setSearchTerm('');
-    };
-
-    const handlePriceChange = (type, value) => {
-        setFilters(prev => ({
-            ...prev,
-            priceRange: { ...prev.priceRange, [type]: value }
-        }));
     };
 
     const formatPrice = (price) => {
@@ -283,9 +177,7 @@ const Menu = () => {
     };
 
     const getProductCountByCategory = (categoryId) => {
-        if (categoryId === 'all') {
-            return allProducts.length;
-        }
+        if (categoryId === 'all') return allProducts.length;
         return allProducts.filter(p => p.categoryId === categoryId).length;
     };
 
@@ -320,54 +212,10 @@ const Menu = () => {
                 <div className="container">
                     <h1 className="hero-title">Thực Đơn Tinh Hoa</h1>
                     <p className="hero-subtitle">
-                        Những món ăn được chế biến từ nguyên liệu tươi ngon nhất,
-                        mang đến trải nghiệm ẩm thực khó quên
+                        {branchName
+                            ? `Chi nhánh ${branchName} — Những món ăn được chế biến từ nguyên liệu tươi ngon nhất`
+                            : 'Những món ăn được chế biến từ nguyên liệu tươi ngon nhất, mang đến trải nghiệm ẩm thực khó quên'}
                     </p>
-                </div>
-            </div>
-
-            {/* Branch Selector */}
-            <div className="branch-selector-section">
-                <div className="container">
-                    <div className="branch-selector-wrapper">
-                        <div className="branch-selector-label">
-                            <Building2 size={20} />
-                            <span>Chọn chi nhánh:</span>
-                        </div>
-                        <div className="branch-dropdown">
-                            <button
-                                className="branch-selector-btn"
-                                onClick={() => setIsBranchOpen(!isBranchOpen)}
-                            >
-                                <MapPin size={18} />
-                                <span>{selectedBranch?.name || 'Chọn chi nhánh'}</span>
-                                <ChevronDown className={`dropdown-icon ${isBranchOpen ? 'open' : ''}`} />
-                            </button>
-                            {isBranchOpen && (
-                                <div className="branch-dropdown-menu">
-                                    {branches.map(branch => (
-                                        <div
-                                            key={branch.id}
-                                            className={`branch-option ${selectedBranch?.id === branch.id ? 'active' : ''}`}
-                                            onClick={() => {
-                                                handleBranchChange(branch);
-                                                setIsBranchOpen(false);
-                                            }}
-                                        >
-                                            <MapPin size={16} />
-                                            <div className="branch-info">
-                                                <span className="branch-name">{branch.name}</span>
-                                                <span className="branch-address">{branch.address}</span>
-                                            </div>
-                                            {selectedBranch?.id === branch.id && (
-                                                <span className="branch-check">✓</span>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -409,16 +257,13 @@ const Menu = () => {
                         )}
                     </div>
 
-                    {/* Filter Panel - Bỏ phần Trạng thái */}
+                    {/* Filter Panel */}
                     {isFilterOpen && (
                         <div className="filter-panel">
                             <div className="filter-header">
                                 <h3>Lọc & Sắp xếp</h3>
-                                <button className="clear-filters" onClick={clearAllFilters}>
-                                    Xóa tất cả
-                                </button>
+                                <button className="clear-filters" onClick={clearAllFilters}>Xóa tất cả</button>
                             </div>
-
                             <div className="filter-grid">
                                 <div className="filter-group">
                                     <label><DollarSign size={16} /> Khoảng giá</label>
@@ -427,7 +272,7 @@ const Menu = () => {
                                             type="number"
                                             placeholder={`Từ ${priceStats.min?.toLocaleString()}đ`}
                                             value={filters.priceRange.min}
-                                            onChange={(e) => handlePriceChange('min', e.target.value)}
+                                            onChange={(e) => setFilters(prev => ({ ...prev, priceRange: { ...prev.priceRange, min: e.target.value } }))}
                                             className="price-input"
                                         />
                                         <span>-</span>
@@ -435,12 +280,11 @@ const Menu = () => {
                                             type="number"
                                             placeholder={`Đến ${priceStats.max?.toLocaleString()}đ`}
                                             value={filters.priceRange.max}
-                                            onChange={(e) => handlePriceChange('max', e.target.value)}
+                                            onChange={(e) => setFilters(prev => ({ ...prev, priceRange: { ...prev.priceRange, max: e.target.value } }))}
                                             className="price-input"
                                         />
                                     </div>
                                 </div>
-
                                 <div className="filter-group">
                                     <label><ArrowUpDown size={16} /> Sắp xếp theo</label>
                                     <select
@@ -459,13 +303,12 @@ const Menu = () => {
                     )}
 
                     <div className="menu-layout">
-                        {/* Sidebar - Categories */}
+                        {/* Sidebar */}
                         <aside className="menu-sidebar">
                             <div className="category-header" onClick={() => setIsCategoryOpen(!isCategoryOpen)}>
                                 <h3 className="category-title">Danh mục</h3>
                                 <ChevronDown className={`category-icon ${isCategoryOpen ? 'open' : ''}`} />
                             </div>
-
                             {isCategoryOpen && (
                                 <ul className="category-list">
                                     <li
@@ -478,10 +321,8 @@ const Menu = () => {
                                             <span className="category-count">{getProductCountByCategory('all')} món</span>
                                         </div>
                                     </li>
-
                                     <li className="category-divider" />
-
-                                    {categories.map((category) => (
+                                    {categories.map(category => (
                                         <li
                                             key={category.id}
                                             className={`category-item ${selectedCategory?.id === category.id ? 'active' : ''}`}
@@ -498,25 +339,18 @@ const Menu = () => {
                             )}
                         </aside>
 
-                        {/* Products Section */}
+                        {/* Products */}
                         <main className="menu-products">
                             <div className="products-toolbar">
                                 <div className="products-count">
                                     <ShoppingBag size={18} />
                                     <span><strong>{filteredProducts.length}</strong> món được tìm thấy</span>
                                 </div>
-
                                 <div className="view-toggle">
-                                    <button
-                                        onClick={() => setViewMode('grid')}
-                                        className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                                    >
+                                    <button onClick={() => setViewMode('grid')} className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}>
                                         <Grid size={18} />
                                     </button>
-                                    <button
-                                        onClick={() => setViewMode('list')}
-                                        className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
-                                    >
+                                    <button onClick={() => setViewMode('list')} className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}>
                                         <List size={18} />
                                     </button>
                                 </div>
@@ -527,9 +361,7 @@ const Menu = () => {
                                     <div className="empty-icon">🔍</div>
                                     <h3>Không tìm thấy món ăn nào</h3>
                                     <p>Hãy thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm khác nhé!</p>
-                                    <button onClick={clearAllFilters} className="empty-action-btn">
-                                        Xóa bộ lọc
-                                    </button>
+                                    <button onClick={clearAllFilters} className="empty-action-btn">Xóa bộ lọc</button>
                                 </div>
                             ) : viewMode === 'grid' ? (
                                 <div className="products-grid">
@@ -548,9 +380,7 @@ const Menu = () => {
                                                         }}
                                                     />
                                                 ) : (
-                                                    <div className="product-image-placeholder">
-                                                        <span>🍽️</span>
-                                                    </div>
+                                                    <div className="product-image-placeholder"><span>🍽️</span></div>
                                                 )}
                                             </div>
                                             <div className="product-details">
@@ -559,11 +389,7 @@ const Menu = () => {
                                                     <p className="product-description">{product.description}</p>
                                                 )}
                                                 <div className="product-footer">
-                                                    <div className="product-price-wrapper">
-                                                        <span className="product-price">
-                                                            {formatPrice(product.price)}
-                                                        </span>
-                                                    </div>
+                                                    <span className="product-price">{formatPrice(product.price)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -581,16 +407,12 @@ const Menu = () => {
                                                 )}
                                             </div>
                                             <div className="product-list-details">
-                                                <div className="product-list-header">
-                                                    <h4>{product.name}</h4>
-                                                </div>
+                                                <h4>{product.name}</h4>
                                                 {product.description && (
                                                     <p className="product-list-description">{product.description}</p>
                                                 )}
                                                 <div className="product-list-footer">
-                                                    <div className="product-list-price">
-                                                        <span className="current-price">{formatPrice(product.price)}</span>
-                                                    </div>
+                                                    <span className="current-price">{formatPrice(product.price)}</span>
                                                 </div>
                                             </div>
                                         </div>

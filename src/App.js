@@ -35,6 +35,10 @@ import CashierPaymentSuccess from "./pages/employee/cashier/CashierPaymentSucces
 import CashierPaymentCancel from "./pages/employee/cashier/CashierPaymentCancel";
 import PaymentRequest from "./pages/employee/waiter/PaymentRequest";
 import PaymentQR from "./pages/employee/waiter/PaymentQR";
+
+import HeroLanding from "./pages/client/HeroLanding";
+import Home from "./layouts/Home";
+
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (
   <>
@@ -48,6 +52,9 @@ function App() {
   return (
     <>
       <Routes>
+        {/* ===== Trang Hero — KHÔNG có Header/Footer ===== */}
+        <Route path="/" element={<HeroLanding />} />
+
         {/* Trang đăng nhập */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -88,7 +95,7 @@ function App() {
         <Route path="/chef" element={<ChefLayout><ChefDashboard /></ChefLayout>} />
 
         {/* Trang công khai với Header + Footer */}
-        <Route path="/" element={<PublicLayout><Main /></PublicLayout>} />
+        <Route path="/home" element={<PublicLayout><Home /></PublicLayout>} />
         <Route path="/uu-dai" element={<PublicLayout><Promotions /></PublicLayout>} />
         <Route path="/thuc-don" element={<PublicLayout><Menu /></PublicLayout>} />
         <Route path="/dat-ban-chi-tiet" element={<PublicLayout><BookingDetail /></PublicLayout>} />
