@@ -1,94 +1,405 @@
+/* ============================================
+   HeroSlider — Noir Restaurant
+   ============================================ */
+
 .hero-slider {
-    position: relative;
+    display: flex;
     width: 100%;
-    height: 500px;
     overflow: hidden;
-    background-color: #1a1a1a;
+    font-family: sans-serif;
+    position: relative;
+    background: #111;
 }
 
-.slide {
+/* ============================================
+   CHỮ NOIR + VÒNG TRÒN — CỐ ĐỊNH TRÊN CÙNG
+   ============================================ */
+.hero-title-wrap {
     position: absolute;
     top: 0;
     left: 0;
+    right: 0;
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.hero-noir-text {
+    width: 480px;
+    height: 120px;
+    position: relative;
+    z-index: 2;
+    filter: drop-shadow(0 4px 24px rgba(0, 0, 0, 0.6));
+}
+
+/* Vòng tròn đồng tâm */
+.hero-rings {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.h-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1px solid rgba(201, 168, 76, 0.25);
+    animation: ringBreath 4s ease-in-out infinite;
+}
+
+.h-ring-1 {
+    width: 80px;
+    height: 80px;
+    animation-delay: 0s;
+    border-color: rgba(201, 168, 76, 0.50);
+}
+
+.h-ring-2 {
+    width: 130px;
+    height: 130px;
+    animation-delay: 0.4s;
+    border-color: rgba(201, 168, 76, 0.38);
+}
+
+.h-ring-3 {
+    width: 185px;
+    height: 185px;
+    animation-delay: 0.8s;
+    border-color: rgba(201, 168, 76, 0.26);
+}
+
+.h-ring-4 {
+    width: 240px;
+    height: 240px;
+    animation-delay: 1.2s;
+    border-color: rgba(201, 168, 76, 0.16);
+}
+
+.h-ring-5 {
+    width: 300px;
+    height: 300px;
+    animation-delay: 1.6s;
+    border-color: rgba(201, 168, 76, 0.08);
+}
+
+@keyframes ringBreath {
+
+    0%,
+    100% {
+        opacity: 0.5;
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.04);
+    }
+}
+
+/* ============================================
+   BRANCH PANEL
+   ============================================ */
+.branch {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    min-width: 0;
+    flex: 1;
+    transition: flex 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.branch>img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
+    object-fit: cover;
+    transition: transform 0.65s ease, filter 0.5s ease;
+}
+
+.branch:hover>img {
+    transform: scale(1.05);
+}
+
+.branch-dimmed>img {
+    filter: grayscale(65%) brightness(0.5);
+}
+
+.branch-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top,
+            rgba(0, 0, 0, 0.80) 0%,
+            rgba(0, 0, 0, 0.20) 50%,
+            rgba(0, 0, 0, 0.05) 100%);
+    transition: background 0.4s ease;
+}
+
+.branch-dimmed .branch-overlay {
+    background: rgba(0, 0, 0, 0.30);
+}
+
+/* Đường chia vàng */
+.branch-divider {
+    position: absolute;
+    top: 0;
+    right: -1px;
+    width: 3px;
+    height: 100%;
+    background: linear-gradient(to bottom,
+            transparent 0%,
+            #C9A84C 25%,
+            #f0d878 50%,
+            #C9A84C 75%,
+            transparent 100%);
+    z-index: 4;
+    pointer-events: none;
+    transform: skewX(-4deg);
+    transform-origin: top;
+}
+
+/* ============================================
+   POPUP MENU — NẰM TRONG PANEL
+   ============================================ */
+.branch-menu-popup {
+    position: absolute;
+    top: 140px;
+    /* dưới chữ Noir */
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    width: 85%;
+    max-width: 240px;
+    background: rgba(8, 16, 52, 0.88);
+    border: 1px solid rgba(201, 168, 76, 0.55);
+    border-radius: 6px;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    z-index: 10;
     opacity: 0;
-    transition: opacity 1s;
+    pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
-.slide.active {
+.branch-menu-popup.visible {
     opacity: 1;
+    transform: translateX(-50%) translateY(0);
 }
 
-.slide img {
+.bmp-img {
     width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: center;
+    height: 120px;
+    object-fit: cover;
+    display: block;
 }
 
-.slide-overlay {
+.bmp-body {
+    padding: 8px 12px 12px;
+}
+
+.bmp-top {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.bmp-tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 1px 5px;
+    text-transform: uppercase;
+}
+
+.bmp-count {
+    font-size: 30px;
+    font-weight: 800;
+    color: #C9A84C;
+    line-height: 1;
+}
+
+.bmp-unit {
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.bmp-tagline {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 1.5px;
+    margin-top: 3px;
+    text-transform: uppercase;
+}
+
+/* ============================================
+   NỘI DUNG CHỮ DƯỚI
+   ============================================ */
+.branch-content {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 50%;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+    padding: 16px 16px 28px;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    z-index: 5;
 }
 
-.slider-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background-color: rgba(255, 255, 255, 0.3);
-    border: none;
-    border-radius: 50%;
-    width: 48px;
-    height: 48px;
+.branch-num {
+    font-size: 20px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.branch-label {
+    font-size: 15px;
+    font-weight: 1000;
+    letter-spacing: 3px;
+    color: #C9A84C;
+    text-transform: uppercase;
+}
+
+.branch-name {
+    font-size: clamp(28px, 4vw, 64px);
+    font-weight: 700;
+    line-height: 1.1;
+    color: #C9A84C;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.branch:hover .branch-name {
+    white-space: normal;
+}
+
+.branch-cta {
+    margin-top: 6px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s ease 0.1s, transform 0.3s ease 0.1s;
+    width: fit-content;
+}
+
+.branch-cta.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.branch-cta span {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 20px;
+    padding: 6px 18px;
+    transition: background 0.3s;
+}
+
+.branch-cta span:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 768px) {
+    .hero-slider {
+        flex-direction: column;
+    }
+
+    .branch {
+        flex: none !important;
+        height: 160px;
+        width: 100%;
+        transition: height 0.5s ease;
+    }
+
+    .branch:hover {
+        height: 300px;
+    }
+
+    .branch-name {
+        font-size: 22px;
+        white-space: normal;
+    }
+
+    .branch-divider {
+        top: auto;
+        bottom: 0;
+        right: 0;
+        width: 100%;
+        height: 2px;
+        transform: none;
+        background: linear-gradient(to right, transparent, #C9A84C, transparent);
+    }
+
+    .hero-title-wrap {
+        height: 140px;
+    }
+
+    .hero-noir-text {
+        width: 280px;
+        height: 80px;
+    }
+
+    .h-ring-4,
+    .h-ring-5 {
+        display: none;
+    }
+}
+
+
+/* ============================================
+   HERO FOOTER BAR
+   ============================================ */
+.hero-footer {
+    position: relative;
+    width: 100%;
+    background: #f5f0e8;
     display: flex;
     align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background-color 0.3s;
+    justify-content: space-between;
+    padding: 14px 40px;
+    font-size: 13px;
+    color: #5a4a2a;
+    letter-spacing: 0.3px;
+    border-top: 1px solid rgba(201, 168, 76, 0.3);
+    flex-shrink: 0;
 }
 
-.slider-btn:hover {
-    background-color: rgba(255, 255, 255, 0.5);
+.hero-footer span:first-child {
+    font-weight: 400;
 }
 
-.slider-btn.prev {
-    left: 20px;
-}
-
-.slider-btn.next {
-    right: 20px;
-}
-
-.slider-dots {
-    position: absolute;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 8px;
-}
-
-.slider-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.5);
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.slider-dot.active {
-    background-color: white;
+.hero-footer span:last-child {
+    font-style: italic;
+    color: #7a6035;
 }
 
 @media (max-width: 768px) {
-    .hero-slider {
-        height: 300px;
+    .hero-footer {
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+        padding: 12px 20px;
+        font-size: 11px;
     }
 }

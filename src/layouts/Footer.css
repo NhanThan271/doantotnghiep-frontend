@@ -1,0 +1,206 @@
+/* ============================================
+   NOIR FOOTER — Cấu trúc linh hoạt cho API
+   ============================================ */
+
+.footer-noir {
+    background-color: #0d1a3e; /* Navy đậm đồng bộ Header */
+    color: #f5f0e3; /* Kem nhạt */
+    padding: 80px 0 40px;
+    font-family: 'Jost', sans-serif;
+    position: relative;
+    border-top: 1px solid #C9A84C; /* Đường kẻ Gold trên cùng */
+}
+
+.footer-top {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+/* Logo Noir cách điệu */
+.logo-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 3.5rem;
+    font-weight: 300;
+    color: #C9A84C; /* Gold chủ đạo */
+    margin: 0;
+    letter-spacing: 12px; /* Tăng độ thưa cho sang trọng */
+    text-transform: uppercase;
+    font-style: italic;
+    line-height: 1;
+}
+
+.logo-sub {
+    font-size: 11px;
+    letter-spacing: 5px;
+    color: rgba(201, 168, 76, 0.7); /* Gold mờ */
+    display: block;
+    margin-top: 8px;
+    text-transform: uppercase;
+}
+
+.footer-divider {
+    width: 85%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(201, 168, 76, 0.3), transparent);
+    margin: 0 auto;
+}
+
+/* Section chứa các chi nhánh */
+.footer-content {
+    max-width: 1320px;
+    margin: 60px auto;
+    padding: 0 40px;
+}
+
+.footer-grid {
+    display: grid;
+    /* ✅ Tự động chia cột dựa trên dữ liệu API: tối thiểu 280px/cột */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 50px;
+    text-align: left; /* Chuyển sang canh trái nhìn chuyên nghiệp hơn */
+}
+
+.branch-col {
+    display: flex;
+    flex-direction: column;
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+.branch-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    color: #C9A84C;
+    margin-bottom: 25px;
+    font-weight: 600;
+    text-transform: uppercase;
+    position: relative;
+    padding-bottom: 10px;
+}
+
+/* Gạch chân nhỏ dưới tên chi nhánh */
+.branch-name::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 30px;
+    height: 1px;
+    background: #C9A84C;
+}
+
+.branch-info {
+    font-size: 14px;
+    line-height: 1.8;
+    color: rgba(245, 240, 227, 0.85);
+    margin-bottom: 20px;
+    min-height: 50px; /* Đảm bảo chiều cao tối thiểu */
+}
+
+.branch-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.branch-contact a {
+    display: inline-flex;
+    align-items: center;
+    color: #f5f0e3;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    font-weight: 400;
+    opacity: 0.9;
+}
+
+.branch-contact a:hover {
+    color: #C9A84C;
+    transform: translateX(5px);
+    opacity: 1;
+}
+
+/* Cột liên kết hỗ trợ */
+.footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-links li {
+    margin-bottom: 12px;
+}
+
+.footer-links a {
+    color: rgba(245, 240, 227, 0.7);
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.3s;
+    display: inline-block;
+}
+
+.footer-links a:hover {
+    color: #C9A84C;
+    transform: translateX(5px);
+}
+
+/* Bottom Copyright */
+.footer-bottom {
+    text-align: center;
+    padding: 40px 20px 20px;
+    font-size: 12px;
+    color: rgba(245, 240, 227, 0.4);
+    letter-spacing: 1.5px;
+    border-top: 1px solid rgba(201, 168, 76, 0.1);
+    width: 90%;
+    margin: 0 auto;
+}
+
+.legal-info {
+    margin-top: 12px;
+    font-style: italic;
+    font-size: 11px;
+}
+
+/* Hiệu ứng load nhẹ */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .footer-grid {
+        grid-template-columns: repeat(2, 1fr); /* Tablet 2 cột */
+    }
+}
+
+@media (max-width: 768px) {
+    .footer-noir {
+        padding: 60px 0 30px;
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr; /* Mobile 1 cột */
+        gap: 40px;
+        text-align: center;
+    }
+
+    .branch-name::after {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .logo-text {
+        font-size: 2.8rem;
+    }
+    
+    .branch-contact a:hover {
+        transform: none;
+    }
+}

@@ -1,190 +1,228 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
-import TableSelectionModal from "../../customer/TableSelectionModal";
-import FoodSelectionModal from "./FoodSelectionModal";
 import styles from "./BookingDetail.module.css";
 
 const API = "http://localhost:8080";
 
-const STEPS = [
-    { id: 2, label: "Ngày giờ" },
-    { id: 3, label: "Bàn" },
-    { id: 4, label: "Món ăn" },
-    { id: 5, label: "Thông tin" },
-    { id: 6, label: "Thanh toán" },
-];
+/* ── helpers ── */
+const getAuthToken = () => localStorage.getItem("token");
+const getImgUrl = (url) => {
+    if (!url) return null;
+    if (url.startsWith("http")) return url;
+    return `${API}${url.startsWith("/") ? url : "/" + url}`;
+};
+const fmtPrice = (p) => p ? p.toLocaleString("vi-VN") + "đ" : "0đ";
+const isVipArea = (area) => area && area.toLowerCase().includes("vip");
 
+// ✅ FIX: helper đọc tên chi nhánh an toàn từ bất kỳ kiểu dữ liệu nào
+const safeName = (value) => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') return value.name || '';
+    return String(value);
+};
+
+const groupByCapacity = (tables) => {
+    const bands = { small: [], medium: [], large: [], vip: [], grandVip: [] };
+    tables.forEach(t => {
+        if (t.capacity <= 4)        bands.small.push(t);
+        else if (t.capacity <= 6)   bands.medium.push(t);
+        else if (t.capacity <= 8)   bands.large.push(t);
+        else if (t.capacity <= 15)  bands.vip.push(t);
+        else                        bands.grandVip.push(t);
+    });
+    return bands;
+};
+
+/* ════════════════════════════════════════════════════════ */
 const BookingDetail = () => {
     const { state } = useLocation();
-    const branch = state?.branch;
 
-    const [step, setStep] = useState(2);
-    const [showModal, setShowModal] = useState(false);
-    const [showMenuModal, setShowMenuModal] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
+    const [loading, setLoading]   = useState(false);
+    const [errors, setErrors]     = useState({});
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [bookingSuccessInfo, setBookingSuccessInfo] = useState(null);
 
+    /* table map */
+    const [tableAreas, setTableAreas]       = useState([]);
+    const [activeArea, setActiveArea]       = useState(null);
+    const [areaTablesMap, setAreaTablesMap] = useState({});
+    const [areaLoading, setAreaLoading]     = useState(false);
+
+    /* menu */
+    const [categories, setCategories]   = useState([]);
+    const [allFoods, setAllFoods]       = useState([]);
+    const [activeCat, setActiveCat]     = useState(null);
+    const [menuLoading, setMenuLoading] = useState(true);
+
+    /* form */
     const [data, setData] = useState({
-        date: "",
-        time: "",
-        table: null,
-        tableNumber: "",
-        customerName: "",
-        phone: "",
-        email: "",
-        note: "",
+        date: "", time: "",
+        table: null, tableNumber: "", tableCapacity: "",
+        customerName: "", phone: "", email: "", note: "",
         payment: "deposit",
         selectedFoods: [],
-        selectedType: null,
         selectedTableId: null,
-        selectedRoomId: null,
     });
 
-    // Khôi phục branch từ nhiều nguồn
+    /* ── restore branch ── */
     useEffect(() => {
-        let currentBranch = branch;
-        if (!currentBranch?.id) {
-            const savedBranch = sessionStorage.getItem('currentBranch');
-            if (savedBranch) {
-                try {
-                    currentBranch = JSON.parse(savedBranch);
-                    console.log("🔄 Đã khôi phục branch:", currentBranch);
-                } catch (e) { }
-            }
+        let cb = null;
+
+        // Bước 1: thử đọc từ sessionStorage
+        try { cb = JSON.parse(sessionStorage.getItem("currentBranch")); } catch {}
+
+        // Bước 2: fallback từ localStorage
+        if (!cb?.id) {
+            const id   = localStorage.getItem('selectedBranchId');
+            const name = localStorage.getItem('selectedBranch');
+            if (id) cb = { id: parseInt(id), name: name || '' };
         }
-        if (currentBranch?.id) {
-            sessionStorage.setItem('currentBranch', JSON.stringify(currentBranch));
+
+        // Bước 3: đảm bảo name luôn là string
+        if (cb?.id) {
+            cb = { id: cb.id, name: safeName(cb.name) };
+            sessionStorage.setItem("currentBranch", JSON.stringify(cb));
         } else {
-            console.error("❌ KHÔNG CÓ BRANCH!");
-            setTimeout(() => window.location.href = '/dat-ban-dia-chi', 2000);
-        }
-    }, [branch]);
-
-    // Khôi phục dữ liệu khi quay lại từ hủy thanh toán
-    useEffect(() => {
-        const userData = JSON.parse(localStorage.getItem("user") || "{}");
-        const fromCancel = sessionStorage.getItem('paymentCancelled');
-        const restoreData = sessionStorage.getItem('bookingDataToRestore');
-
-        if (fromCancel && restoreData) {
-            try {
-                const savedData = JSON.parse(restoreData);
-                setData(prev => ({
-                    ...prev,
-                    date: savedData.reservationTime?.split(' ')[0] || "",
-                    time: savedData.reservationTime?.split(' ')[1] || "",
-                    selectedType: savedData.tableId ? "table" : (savedData.roomId ? "room" : null),
-                    selectedTableId: savedData.tableId || null,
-                    selectedRoomId: savedData.roomId || null,
-                    customerName: savedData.customerName || userData.fullName || userData.username || "",
-                    phone: savedData.customerPhone || userData.phone || "",
-                    email: savedData.customerEmail || userData.email || "",
-                    note: savedData.note || "",
-                    payment: savedData.paymentMethod || "deposit",
-                    selectedFoods: savedData.selectedFoods || []
-                }));
-                sessionStorage.removeItem('bookingDataToRestore');
-                sessionStorage.removeItem('paymentCancelled');
-            } catch (error) {
-                console.error("Lỗi khôi phục:", error);
-            }
-        } else if (userData.fullName || userData.username) {
-            setData(prev => ({
-                ...prev,
-                customerName: userData.fullName || userData.username,
-                phone: userData.phone || "",
-                email: userData.email || "",
-            }));
+            setTimeout(() => (window.location.href = "/dat-ban-dia-chi"), 2000);
         }
     }, []);
 
-    // Validation
-    const validateName = (v) => {
-        if (!v?.trim()) return "Vui lòng nhập họ tên";
-        if (v.trim().length < 2) return "Họ tên phải có ít nhất 2 ký tự";
-        if (v.trim().length > 50) return "Họ tên không được quá 50 ký tự";
-        if (/[0-9]/.test(v)) return "Họ tên không được chứa số";
-        return "";
-    };
+    /* ── prefill user ── */
+    useEffect(() => {
+        try {
+            const u = JSON.parse(localStorage.getItem("user") || "{}");
+            setData(prev => ({
+                ...prev,
+                customerName: u.fullName || u.username || "",
+                phone: u.phone || "",
+                email: u.email || "",
+            }));
+        } catch {}
+    }, []);
 
-    const validatePhone = (v) => {
-        if (!v?.trim()) return "Vui lòng nhập số điện thoại";
-        if (!/^(0|84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-9])[0-9]{7}$/.test(v.replace(/\s/g, "")))
-            return "Số điện thoại không hợp lệ (VD: 0912345678)";
-        return "";
-    };
+    /* ── load areas ── */
+    useEffect(() => {
+        try {
+            const cb = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
+            if (!cb?.id) return;
+            fetch(`${API}/api/tables/branch/${cb.id}/areas`)
+                .then(r => r.json())
+                .then(areas => {
+    const areaList = (areas || []).map(a => 
+        typeof a === 'string' ? a : (a.name || a.areaName || String(a))
+    );
+    setTableAreas(areaList);
+    if (areaList.length) setActiveArea(areaList[0]);
+})
+                .catch(console.error);
+        } catch {}
+    }, []);
 
-    const validateEmail = (v) => {
-        if (v?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))
-            return "Email không hợp lệ (VD: example@email.com)";
-        return "";
-    };
+    /* ── load tables per area ── */
+    const loadTablesForArea = useCallback(async (area) => {
+        if (areaTablesMap[area]) return;
+        try {
+            const cb = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
+            if (!cb?.id) return;
+            setAreaLoading(true);
+            const res  = await fetch(`${API}/api/tables/branch/${cb.id}/area/${encodeURIComponent(area)}`);
+            const json = await res.json();
+            setAreaTablesMap(prev => ({
+                ...prev,
+                [area]: json.map(t => ({ id: t.id, number: t.number, status: t.status, capacity: t.capacity }))
+            }));
+        } catch (e) { console.error(e); }
+        finally { setAreaLoading(false); }
+    }, [areaTablesMap]);
 
-    const validateCurrentStep = () => {
-        if (step !== 5) return true;
-        const newErrors = {
-            customerName: validateName(data.customerName),
-            phone: validatePhone(data.phone),
-            email: validateEmail(data.email),
-        };
-        setErrors(newErrors);
-        return !Object.values(newErrors).some(Boolean);
-    };
+    useEffect(() => { if (activeArea) loadTablesForArea(activeArea); }, [activeArea]);
 
-    const next = () => validateCurrentStep() && setStep(s => s + 1);
-    const back = () => setStep(s => s - 1);
+    /* ── load menu ── */
+    useEffect(() => {
+        try {
+            const cb = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
+            if (!cb?.id) return;
+            setMenuLoading(true);
+            Promise.all([
+                fetch(`${API}/api/categories`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
+                fetch(`${API}/api/branch-foods/branch/${cb.id}`, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
+                    }
+                }).then(r => r.json()),
+            ])
+                .then(([cats, foods]) => {
+                    setCategories(cats || []);
+                    if (cats?.length) setActiveCat(cats[0]);
+                    const active = (foods || [])
+                        .filter(f => f.isActive)
+                        .map(f => ({
+                            branchFoodId: f.id, id: f.id,
+                            name: f.food?.name || f.name,
+                            description: f.food?.description || "",
+                            price: f.customPrice || f.food?.price || 0,
+                            imageUrl: f.food?.imageUrl,
+                            categoryId: f.food?.category?.id,
+                        }));
+                    setAllFoods(active);
+                })
+                .catch(console.error)
+                .finally(() => setMenuLoading(false));
+        } catch {}
+    }, []);
+
+    /* ── validation ── */
+    const validateName  = v => !v?.trim() ? "Vui lòng nhập họ tên"
+        : v.trim().length < 2 ? "Ít nhất 2 ký tự"
+        : /[0-9]/.test(v) ? "Họ tên không chứa số" : "";
+    const validatePhone = v => !v?.trim() ? "Vui lòng nhập số điện thoại"
+        : !/^(0|84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-9])[0-9]{7}$/.test(v.replace(/\s/g, ""))
+        ? "SĐT không hợp lệ" : "";
+    const validateEmail = v => v?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+        ? "Email không hợp lệ" : "";
 
     const handleInputChange = (field, value) => {
         setData(prev => ({ ...prev, [field]: value }));
-        const validators = { customerName: validateName, phone: validatePhone, email: validateEmail };
-        if (validators[field]) {
-            setErrors(prev => ({ ...prev, [field]: validators[field](value) || "" }));
-        }
+        const fns = { customerName: validateName, phone: validatePhone, email: validateEmail };
+        if (fns[field]) setErrors(prev => ({ ...prev, [field]: fns[field](value) || "" }));
     };
 
-    const handleSelectTable = (sel) => {
+    /* ── select table ── */
+    const handleSelectTable = (table) => {
+        if (table.status !== "FREE") return;
         setData(prev => ({
             ...prev,
-            table: sel.id,
-            tableNumber: sel.number,
-            selectedType: sel.type,
-            selectedTableId: sel.tableId,
-            selectedRoomId: sel.roomId,
+            table: table.id, tableNumber: table.number, tableCapacity: table.capacity,
+            selectedTableId: table.id,
         }));
     };
 
-    const handleAddMultipleFoods = (newFoods) => {
+    /* ── food qty ── */
+    const setQty = (branchFoodId, qty) => {
         setData(prev => {
-            const updated = [...prev.selectedFoods];
-            (Array.isArray(newFoods) ? newFoods : [newFoods]).forEach(nf => {
-                const idx = updated.findIndex(f => f.branchFoodId === nf.branchFoodId);
-                if (idx !== -1) updated[idx].quantity += nf.quantity;
-                else updated.push({ ...nf, id: nf.branchFoodId });
-            });
+            const list = prev.selectedFoods;
+            if (qty <= 0) return { ...prev, selectedFoods: list.filter(f => f.branchFoodId !== branchFoodId) };
+            const idx = list.findIndex(f => f.branchFoodId === branchFoodId);
+            if (idx === -1) {
+                const food = allFoods.find(f => f.branchFoodId === branchFoodId);
+                return { ...prev, selectedFoods: [...list, { ...food, quantity: qty }] };
+            }
+            const updated = [...list];
+            updated[idx] = { ...updated[idx], quantity: qty };
             return { ...prev, selectedFoods: updated };
         });
     };
+    const getQty = (id) => data.selectedFoods.find(f => f.branchFoodId === id)?.quantity || 0;
 
-    const handleRemoveFood = (id) => {
-        setData(prev => ({ ...prev, selectedFoods: prev.selectedFoods.filter(f => f.branchFoodId !== id) }));
-    };
-
-    const updateQuantity = (id, qty) => {
-        if (qty <= 0) handleRemoveFood(id);
-        else setData(prev => ({
-            ...prev, selectedFoods: prev.selectedFoods.map(f =>
-                f.branchFoodId === id ? { ...f, quantity: qty } : f
-            )
-        }));
-    };
-
+    /* ── totals ── */
     const totalFoodAmount = data.selectedFoods.reduce((s, f) => s + f.price * f.quantity, 0);
-    const getPayableAmount = () => totalFoodAmount * (data.payment === "full" ? 0.9 : 0.2);
+    const payable = Math.floor(totalFoodAmount * (data.payment === "full" ? 0.9 : 0.2));
 
+    /* ── available times ── */
     const getAvailableTimes = () => {
-        const all = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30"];
+        const all = ["11:00","11:30","12:00","12:30","13:00","13:30","17:00","17:30","18:00","18:30","19:00","19:30","20:00","20:30"];
         const today = new Date().toISOString().split("T")[0];
         if (!data.date || data.date !== today) return all;
         const now = new Date();
@@ -194,451 +232,568 @@ const BookingDetail = () => {
         });
     };
 
-    const updateRoomStatus = async (roomId, status) => {
-        try {
-            const token = localStorage.getItem("token");
-            console.log(`📡 Đang cập nhật phòng ${roomId} -> ${status}`);
-
-            const response = await fetch(`${API}/api/rooms/${roomId}/status?status=${status}`, {
-                method: "PUT",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                }
-            });
-
-            const result = await response.json();
-            console.log("📥 Kết quả cập nhật phòng:", result);
-
-            if (response.ok) {
-                console.log(`✅ Phòng ${roomId} đã được cập nhật thành ${status}`);
-                return true;
-            } else {
-                console.error(`❌ Lỗi cập nhật phòng: ${response.status}`, result);
-                return false;
-            }
-        } catch (error) {
-            console.error("❌ Lỗi kết nối khi cập nhật phòng:", error);
-            return false;
-        }
-    };
+    /* ── update table status ── */
     const updateTableStatus = async (tableId, status) => {
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${API}/api/tables/${tableId}/status?status=${status}`, {
+            await fetch(`${API}/api/tables/${tableId}/status?status=${status}`, {
                 method: "PUT",
-                headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }
+                headers: { Authorization: `Bearer ${getAuthToken()}`, "Content-Type": "application/json" }
             });
-            return response.ok;
-        } catch (error) {
-            console.error("Error updating table status:", error);
-            return false;
-        }
+        } catch {}
     };
 
+    /* ── booking without food ── */
     const handleBookingOnlyTable = async () => {
-        if (!data.table) return alert("❌ Vui lòng chọn bàn");
-        const ne = validateName(data.customerName);
-        if (ne) return alert(`❌ ${ne}`);
-        const pe = validatePhone(data.phone);
-        if (pe) return alert(`❌ ${pe}`);
-        const ee = validateEmail(data.email);
-        if (ee) return alert(`❌ ${ee}`);
-
+        const ne = validateName(data.customerName); if (ne) return alert(`❌ ${ne}`);
+        const pe = validatePhone(data.phone);       if (pe) return alert(`❌ ${pe}`);
+        const ee = validateEmail(data.email);       if (ee) return alert(`❌ ${ee}`);
         setLoading(true);
         try {
-            const token = localStorage.getItem("token");
-            const userData = JSON.parse(localStorage.getItem("user") || "{}");
-            const currentBranch = JSON.parse(sessionStorage.getItem('currentBranch'));
-
-            const requestData = {
-                userId: userData.id || null,
-                branchId: currentBranch?.id,
-                tableId: data.selectedType === "table" ? data.selectedTableId : null,
-                roomId: data.selectedType === "room" ? data.selectedRoomId : null,
-                reservationTime: `${data.date} ${data.time}`,
-                customerName: data.customerName.trim(),
-                customerPhone: data.phone.replace(/\s/g, ""),
-                customerEmail: data.email || "",
-                note: data.note || "Đặt bàn không kèm đồ ăn",
-                depositAmount: 0,
-                items: []
-            };
-
-            console.log("📤 Sending booking request:", requestData);
-
-            const response = await fetch(`${API}/api/reservations/full`, {
+            const cb = JSON.parse(sessionStorage.getItem("currentBranch"));
+            const u  = JSON.parse(localStorage.getItem("user") || "{}");
+            const res = await fetch(`${API}/api/reservations/full`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-                body: JSON.stringify(requestData)
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
+                body: JSON.stringify({
+                    userId: u.id || null, branchId: cb?.id,
+                    tableId: data.selectedTableId || null,
+                    reservationTime: `${data.date} ${data.time}`,
+                    customerName: data.customerName.trim(),
+                    customerPhone: data.phone.replace(/\s/g, ""),
+                    customerEmail: data.email || "",
+                    note: data.note || "Đặt bàn không kèm đồ ăn",
+                    depositAmount: 0, items: []
+                })
             });
-
-            const result = await response.json();
-            console.log("📥 Response:", result);
-
-            if (response.ok) {
-                // ✅ Cập nhật trạng thái bàn HOẶC phòng
-                if (data.selectedType === "table" && data.selectedTableId) {
-                    await updateTableStatus(data.selectedTableId, "RESERVED");
-                    console.log("✅ Đã cập nhật bàn");
-                } else if (data.selectedType === "room" && data.selectedRoomId) {
-                    await updateRoomStatus(data.selectedRoomId, "RESERVED");
-                    console.log("✅ Đã cập nhật phòng");
-                }
-
+            const result = await res.json();
+            if (res.ok) {
+                if (data.selectedTableId) await updateTableStatus(data.selectedTableId, "RESERVED");
+                setAreaTablesMap(prev => {
+                    const u2 = { ...prev };
+                    if (activeArea && u2[activeArea]) {
+                        u2[activeArea] = u2[activeArea].map(t =>
+                            t.id === data.selectedTableId ? { ...t, status: "RESERVED" } : t
+                        );
+                    }
+                    return u2;
+                });
                 setBookingSuccessInfo({
                     id: result.id,
-                    branchName: currentBranch?.name,
-                    tableNumber: data.tableNumber,
-                    date: data.date,
-                    time: data.time,
-                    customerName: data.customerName,
-                    customerPhone: data.phone,
+                    branchName: safeName(cb?.name), // ✅ FIX: luôn là string
+                    tableNumber: data.tableNumber, date: data.date, time: data.time,
+                    customerName: data.customerName, customerPhone: data.phone,
                 });
                 setShowSuccessModal(true);
-            } else {
-                throw new Error(result.message || JSON.stringify(result));
-            }
-        } catch (err) {
-            console.error("❌ Booking error:", err);
-            alert(`❌ Đặt bàn thất bại: ${err.message}`);
-        } finally {
-            setLoading(false);
-        }
+            } else throw new Error(result.message || JSON.stringify(result));
+        } catch (err) { alert(`❌ Đặt bàn thất bại: ${err.message}`); }
+        finally { setLoading(false); }
     };
 
+    /* ── booking with food → PayOS ── */
     const handleBooking = async () => {
-        if (!data.table) return alert("❌ Vui lòng chọn bàn");
-        const ne = validateName(data.customerName);
-        if (ne) return alert(`❌ ${ne}`);
-        const pe = validatePhone(data.phone);
-        if (pe) return alert(`❌ ${pe}`);
-        const ee = validateEmail(data.email);
-        if (ee) return alert(`❌ ${ee}`);
-        if (!data.selectedFoods.length) return alert("❌ Vui lòng chọn món ăn");
-
+        if (!data.selectedFoods.length) return alert("❌ Vui lòng chọn ít nhất 1 món");
+        const ne = validateName(data.customerName); if (ne) return alert(`❌ ${ne}`);
+        const pe = validatePhone(data.phone);       if (pe) return alert(`❌ ${pe}`);
+        const ee = validateEmail(data.email);       if (ee) return alert(`❌ ${ee}`);
         setLoading(true);
         try {
-            const token = localStorage.getItem("token");
-            const userData = JSON.parse(localStorage.getItem("user") || "{}");
-            const currentBranch = JSON.parse(sessionStorage.getItem('currentBranch'));
-            const payableAmount = getPayableAmount();
+            const cb = JSON.parse(sessionStorage.getItem("currentBranch"));
+            const u  = JSON.parse(localStorage.getItem("user") || "{}");
             const tempOrderCode = Date.now() % 2147483647;
-            const shortDesc = `Dat ban ${currentBranch?.name?.substring(0, 10) || ""}`.substring(0, 25);
-
-            const tempBookingData = {
-                userId: userData.id,
-                branchId: currentBranch?.id,
-                tableId: data.selectedType === "table" ? data.selectedTableId : null,
-                roomId: data.selectedType === "room" ? data.selectedRoomId : null,
-                reservationTime: `${data.date} ${data.time}`,
-                depositAmount: payableAmount,
-                customerName: data.customerName.trim(),
-                customerPhone: data.phone.replace(/\s/g, ""),
-                customerEmail: data.email || "",
-                note: data.note || "",
+            const cbName = safeName(cb?.name); // ✅ FIX: luôn là string
+            sessionStorage.setItem("tempBooking", JSON.stringify({
+                userId: u.id, branchId: cb?.id,
+                tableId: data.selectedTableId || null,
+                reservationTime: `${data.date} ${data.time}`, depositAmount: payable,
+                customerName: data.customerName.trim(), customerPhone: data.phone.replace(/\s/g, ""),
+                customerEmail: data.email || "", note: data.note || "",
                 items: data.selectedFoods.map(f => ({ branchFoodId: f.branchFoodId, quantity: f.quantity })),
-                selectedFoods: data.selectedFoods,
-                paymentMethod: data.payment,
-                orderCode: tempOrderCode,
-                tableNumber: data.tableNumber,
-                selectedType: data.selectedType,
-                selectedTableId: data.selectedTableId,
-                selectedRoomId: data.selectedRoomId,
-                date: data.date,
-                time: data.time
-            };
-
-            sessionStorage.setItem("tempBooking", JSON.stringify(tempBookingData));
-            sessionStorage.setItem('lastBranch', JSON.stringify(currentBranch));
-
-            const paymentResponse = await fetch(`${API}/api/payos/create`, {
+                selectedFoods: data.selectedFoods, paymentMethod: data.payment,
+                orderCode: tempOrderCode, tableNumber: data.tableNumber,
+                selectedTableId: data.selectedTableId, date: data.date, time: data.time
+            }));
+            sessionStorage.setItem("lastBranch", JSON.stringify({ id: cb?.id, name: cbName }));
+            const payRes = await fetch(`${API}/api/payos/create`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
                 body: JSON.stringify({
-                    orderCode: tempOrderCode,
-                    amount: Math.floor(payableAmount),
-                    description: shortDesc,
+                    orderCode: tempOrderCode, amount: payable,
+                    description: `Dat ban ${cbName.substring(0, 10)}`.substring(0, 25), // ✅ FIX
                     returnUrl: `${window.location.origin}/payment-success`,
                     cancelUrl: `${window.location.origin}/payment-cancel`,
                     items: data.selectedFoods.map(f => ({ name: f.name, quantity: f.quantity, price: Math.floor(f.price) })),
                 }),
             });
-
-            const paymentResult = await paymentResponse.json();
-            if (paymentResult.code !== "00" || !paymentResult.data?.checkoutUrl) {
-                throw new Error(paymentResult.desc || "Không thể tạo link thanh toán");
-            }
-            window.location.href = paymentResult.data.checkoutUrl;
-        } catch (err) {
-            alert(`❌ ${err.message || "Vui lòng thử lại sau"}`);
-            setLoading(false);
-        }
+            const payResult = await payRes.json();
+            if (payResult.code !== "00" || !payResult.data?.checkoutUrl)
+                throw new Error(payResult.desc || "Không thể tạo link thanh toán");
+            window.location.href = payResult.data.checkoutUrl;
+        } catch (err) { alert(`❌ ${err.message}`); setLoading(false); }
     };
 
-    const StepBar = () => (
-        <div className={styles.stepBar}>
-            {STEPS.map((s, i) => (
-                <React.Fragment key={s.id}>
-                    <div className={`${styles.stepDot} ${step === s.id ? styles.active : ""} ${step > s.id ? styles.done : ""}`}>
-                        {step > s.id ? "✓" : i + 1}
-                    </div>
-                    {i < STEPS.length - 1 && <div className={`${styles.stepLine} ${step > s.id ? styles.done : ""}`} />}
-                </React.Fragment>
-            ))}
+    const canConfirm = data.table && data.date && data.time &&
+        data.customerName && data.phone &&
+        !validateName(data.customerName) && !validatePhone(data.phone) && !validateEmail(data.email);
+
+    const currentBranch = (() => {
+        try {
+            const cb = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
+            return { id: cb.id, name: safeName(cb.name) }; // ✅ FIX: name luôn là string
+        } catch { return {}; }
+    })();
+
+    const currentTables = areaTablesMap[activeArea] || [];
+    const { small, medium, large, vip, grandVip } = groupByCapacity(currentTables);
+    const displayedFoods = activeCat ? allFoods.filter(f => f.categoryId === activeCat.id) : allFoods;
+
+    if (!currentBranch?.id) return (
+        <div className={styles.bookingPage}>
+            <div className={styles.loadingScreen}>
+                <div className={styles.spinner} />
+                <p>Đang tải nhà hàng...</p>
+            </div>
         </div>
     );
 
-    const currentBranch = JSON.parse(sessionStorage.getItem('currentBranch') || '{}');
-
-    if (!currentBranch?.id) {
-        return (
-            <div className={styles.bookingWrapper}>
-                <div className={styles.bookingLeft}>
-                    <div className={styles.card} style={{ textAlign: 'center', padding: '60px' }}>
-                        <div style={{ fontSize: '48px' }}>🏠</div>
-                        <h3>Đang tải thông tin nhà hàng...</h3>
-                        <div className={styles.spinner} style={{ margin: '20px auto' }}></div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className={styles.bookingWrapper}>
-            <div className={styles.bookingLeft}>
-                <h2>Đặt bàn — {currentBranch.name}</h2>
-                <StepBar />
+        <div className={styles.bookingPage}>
 
-                {/* STEP 2 */}
-                {step === 2 && (
-                    <div className={styles.card}>
-                        <h3>📅 Chọn ngày & giờ</h3>
-                        <input type="date" value={data.date}
+            {/* ══ COL 1 — FORM ══ */}
+            <div className={styles.colForm}>
+                <div className={styles.formTitle}>Đặt Bàn</div>
+
+                <div className={styles.formGroup}>
+                    <label className={styles.flabel}>Họ và tên *</label>
+                    <input
+                        className={`${styles.finput}${errors.customerName ? " " + styles.inputError : ""}`}
+                        type="text" placeholder="Nguyễn Văn A"
+                        value={data.customerName}
+                        onChange={e => handleInputChange("customerName", e.target.value)}
+                    />
+                    {errors.customerName && <span className={styles.errMsg}>{errors.customerName}</span>}
+                </div>
+
+                <div className={styles.formGroup}>
+                    <label className={styles.flabel}>Số điện thoại *</label>
+                    <input
+                        className={`${styles.finput}${errors.phone ? " " + styles.inputError : ""}`}
+                        type="tel" placeholder="0912 345 678"
+                        value={data.phone}
+                        onChange={e => handleInputChange("phone", e.target.value)}
+                    />
+                    {errors.phone && <span className={styles.errMsg}>{errors.phone}</span>}
+                </div>
+
+                <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                        <label className={styles.flabel}>Ngày</label>
+                        <input className={styles.finput} type="date"
+                            value={data.date}
                             min={new Date().toISOString().split("T")[0]}
                             max={new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]}
-                            onChange={e => setData({ ...data, date: e.target.value, time: "" })} />
-                        {data.date && (
-                            <>
-                                {data.date === new Date().toISOString().split("T")[0] && (
-                                    <p className={styles.dateWarning}>⏰ Chỉ hiển thị giờ trong tương lai</p>
-                                )}
-                                <div className={styles.timeGrid}>
-                                    {getAvailableTimes().map(t => (
-                                        <button key={t} className={`${styles.timeChip} ${data.time === t ? styles.selectedTime : ""}`}
-                                            onClick={() => setData({ ...data, time: t })}>{t}</button>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                        <button onClick={next} disabled={!data.date || !data.time} className={styles.nextBtn}>Tiếp tục →</button>
+                            onChange={e => setData({ ...data, date: e.target.value, time: "" })}
+                        />
                     </div>
-                )}
+                    <div className={styles.formGroup}>
+                        <label className={styles.flabel}>Giờ</label>
+                        <select className={styles.finput} value={data.time}
+                            onChange={e => setData({ ...data, time: e.target.value })}
+                            disabled={!data.date}>
+                            <option value="">--:--</option>
+                            {getAvailableTimes().map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                    </div>
+                </div>
 
-                {/* STEP 3 */}
-                {step === 3 && (
-                    <div className={styles.card}>
-                        <h3>🪑 Chọn bàn</h3>
-                        <button onClick={() => setShowModal(true)} className={styles.selectBtn}>
-                            {data.table ? `✅ Đã chọn bàn ${data.tableNumber} — đổi bàn` : "🔍 Xem sơ đồ & chọn bàn, phòng"}
-                        </button>
-                        {data.table && <p className={styles.selectedInfo}>✅ Bàn số <strong>{data.tableNumber}</strong> đã được chọn</p>}
-                        <div className={styles.actions}>
-                            <button onClick={back} className={styles.backBtn}>← Quay lại</button>
-                            <button onClick={next} disabled={!data.table} className={styles.nextBtn}>Tiếp tục →</button>
-                        </div>
-                    </div>
-                )}
+                <div className={styles.formGroup}>
+                    <label className={styles.flabel}>Email</label>
+                    <input
+                        className={`${styles.finput}${errors.email ? " " + styles.inputError : ""}`}
+                        type="email" placeholder="example@email.com"
+                        value={data.email}
+                        onChange={e => handleInputChange("email", e.target.value)}
+                    />
+                    {errors.email && <span className={styles.errMsg}>{errors.email}</span>}
+                </div>
 
-                {/* STEP 4 */}
-                {step === 4 && (
-                    <div className={styles.card}>
-                        <h3>🍽️ Chọn món ăn</h3>
-                        <button onClick={() => setShowMenuModal(true)} className={styles.addFoodBtn}>+ Thêm món</button>
-                        {data.selectedFoods.length > 0 ? (
-                            <div className={styles.selectedFoods}>
-                                <h4>Món đã chọn</h4>
-                                {data.selectedFoods.map(food => (
-                                    <div key={food.branchFoodId} className={styles.foodItem}>
-                                        <img src={food.imageUrl?.startsWith("http") ? food.imageUrl : `${API}${food.imageUrl || ""}`}
-                                            alt={food.name} className={styles.foodItemImage}
-                                            onError={e => e.target.src = "/default-food.jpg"} />
-                                        <div className={styles.foodInfo}>
-                                            <span className={styles.foodName}>{food.name}</span>
-                                            <span className={styles.foodPrice}>{food.price.toLocaleString()}đ / phần</span>
-                                        </div>
-                                        <div className={styles.foodControls}>
-                                            <button onClick={() => updateQuantity(food.branchFoodId, food.quantity - 1)}>−</button>
-                                            <span className={styles.quantity}>{food.quantity}</span>
-                                            <button onClick={() => updateQuantity(food.branchFoodId, food.quantity + 1)}>+</button>
-                                            <button onClick={() => handleRemoveFood(food.branchFoodId)} className={styles.removeBtn}>🗑</button>
-                                        </div>
-                                        <div className={styles.foodSubtotal}>{(food.price * food.quantity).toLocaleString()}đ</div>
-                                    </div>
-                                ))}
-                                <div className={styles.foodTotal}><strong>Tổng cộng: {totalFoodAmount.toLocaleString()}đ</strong></div>
-                            </div>
-                        ) : <p className={styles.emptyFoods}>Chưa có món nào. Vui lòng thêm món ăn!</p>}
-                        <div className={styles.actions}>
-                            <button onClick={back} className={styles.backBtn}>← Quay lại</button>
-                            <button onClick={next} className={styles.nextBtn}>Tiếp tục →</button>
-                        </div>
-                    </div>
-                )}
+                <div className={styles.formDivider} />
 
-                {/* STEP 5 */}
-                {step === 5 && (
-                    <div className={styles.card}>
-                        <h3>👤 Thông tin khách hàng</h3>
-                        <p className={styles.requiredLabel}>* Các trường có dấu sao là bắt buộc</p>
-                        <div className={styles.formGroup}>
-                            <input type="text" placeholder="Họ và tên *" value={data.customerName}
-                                onChange={e => handleInputChange("customerName", e.target.value)}
-                                className={errors.customerName ? styles.errorInput : ""} />
-                            {errors.customerName && <span className={styles.errorMessage}>{errors.customerName}</span>}
+                <div className={styles.formGroup}>
+                    <label className={styles.flabel}>Bàn đã chọn</label>
+                    {data.table ? (
+                        <div className={styles.selectedTable}>
+                            <span className={styles.selectedDot} />
+                            <span className={styles.selectedText}>
+                                {data.tableCapacity >= 16 ? "Phòng " : "Bàn "}
+                                <strong>{data.tableNumber}</strong>
+                            </span>
+                            <span className={styles.selectedCap}>{data.tableCapacity} người</span>
+                            <button className={styles.clearBtn}
+                                onClick={() => setData(prev => ({
+                                    ...prev, table: null, tableNumber: "",
+                                    tableCapacity: "", selectedTableId: null
+                                }))}>
+                                ✕
+                            </button>
                         </div>
-                        <div className={styles.formGroup}>
-                            <input type="tel" placeholder="Số điện thoại * (VD: 0912345678)" value={data.phone}
-                                onChange={e => handleInputChange("phone", e.target.value)}
-                                className={errors.phone ? styles.errorInput : ""} />
-                            {errors.phone && <span className={styles.errorMessage}>{errors.phone}</span>}
-                        </div>
-                        <div className={styles.formGroup}>
-                            <input type="email" placeholder="Email (không bắt buộc)" value={data.email}
-                                onChange={e => handleInputChange("email", e.target.value)}
-                                className={errors.email ? styles.errorInput : ""} />
-                            {errors.email && <span className={styles.errorMessage}>{errors.email}</span>}
-                            <span className={styles.helperText}>💡 Nhập email để nhận xác nhận đặt bàn</span>
-                        </div>
-                        <textarea placeholder="Ghi chú (không bắt buộc)" value={data.note}
-                            onChange={e => setData({ ...data, note: e.target.value })} rows="3" />
-                        <span className={styles.helperText}>💡 Ví dụ: yêu cầu đặc biệt, dị ứng thực phẩm...</span>
-                        <div className={styles.actions}>
-                            <button onClick={back} className={styles.backBtn}>← Quay lại</button>
-                            <button onClick={next} disabled={!!errors.customerName || !!errors.phone || !data.customerName || !data.phone}
-                                className={styles.nextBtn}>Tiếp tục →</button>
-                        </div>
-                    </div>
-                )}
-
-                {/* STEP 6 */}
-                {step === 6 && (
-                    <div className={styles.card}>
-                        <h3>{data.selectedFoods.length === 0 ? "📝 Xác nhận đặt bàn" : "💳 Thanh toán"}</h3>
-                        {data.selectedFoods.length > 0 && (
-                            <>
-                                <div className={styles.paymentSummary}>
-                                    <div className={styles.summaryRow}><span>Tổng tiền món ăn</span><span>{totalFoodAmount.toLocaleString()}đ</span></div>
-                                    {data.payment === "full" && (
-                                        <div className={`${styles.summaryRow} ${styles.discount}`}>
-                                            <span>Ưu đãi thanh toán trước (−10%)</span>
-                                            <span>−{(totalFoodAmount * 0.1).toLocaleString()}đ</span>
-                                        </div>
-                                    )}
-                                    <div className={`${styles.summaryRow} ${styles.total}`}>
-                                        <span>Cần thanh toán</span><span>{getPayableAmount().toLocaleString()}đ</span>
-                                    </div>
-                                </div>
-                                <div className={styles.paymentOptions}>
-                                    <label className={`${styles.paymentOption} ${data.payment === "deposit" ? styles.active : ""}`}>
-                                        <input type="radio" name="payment" value="deposit" checked={data.payment === "deposit"}
-                                            onChange={() => setData({ ...data, payment: "deposit" })} />
-                                        <div><strong>💎 Đặt cọc 20%</strong>
-                                            <p>Thanh toán {Math.floor(totalFoodAmount * 0.2).toLocaleString()}đ ngay hôm nay, phần còn lại thanh toán khi đến nhà hàng</p>
-                                        </div>
-                                    </label>
-                                    <label className={`${styles.paymentOption} ${data.payment === "full" ? styles.active : ""}`}>
-                                        <input type="radio" name="payment" value="full" checked={data.payment === "full"}
-                                            onChange={() => setData({ ...data, payment: "full" })} />
-                                        <div><strong>💳 Thanh toán toàn bộ <span className={styles.discountBadge}>GIẢM 10%</span></strong>
-                                            <p>Tiết kiệm {(totalFoodAmount * 0.1).toLocaleString()}đ, chỉ còn {Math.floor(totalFoodAmount * 0.9).toLocaleString()}đ</p>
-                                        </div>
-                                    </label>
-                                </div>
-                            </>
-                        )}
-                        {data.selectedFoods.length === 0 && (
-                            <div className={styles.noFoodWarning}>
-                                <span className={styles.warningIcon}>⚠️</span>
-                                <p>Bạn chưa chọn món ăn nào. Đặt bàn chỉ để sử dụng dịch vụ (không bao gồm đồ ăn).</p>
-                                <button onClick={() => setStep(4)} className={styles.addFoodNowBtn}>+ Thêm món ngay</button>
-                            </div>
-                        )}
-                        <button onClick={data.selectedFoods.length > 0 ? handleBooking : handleBookingOnlyTable}
-                            disabled={loading}
-                            className={data.selectedFoods.length > 0 ? styles.payosBtn : styles.bookingOnlyBtn}>
-                            {loading ? "🔄 Đang xử lý..." : (data.selectedFoods.length > 0 ? "💳 Thanh toán qua PayOS" : "📅 Đặt bàn ngay")}
-                        </button>
-                        <div className={styles.actions}><button onClick={back} className={styles.backBtn}>← Quay lại</button></div>
-                    </div>
-                )}
-            </div>
-
-            {/* RIGHT - Summary */}
-            <div className={styles.bookingRight}>
-                <h3>📋 Tóm tắt đặt bàn</h3>
-                <div className={styles.summaryDetails}>
-                    <div className={styles.summaryItem}><span className={styles.summaryIcon}>📍</span><span>{currentBranch.name}</span></div>
-                    <div className={styles.summaryItem}><span className={styles.summaryIcon}>📅</span>
-                        <span>{data.date ? `${data.date} — ${data.time || "chưa chọn giờ"}` : "Chưa chọn ngày"}</span>
-                    </div>
-                    <div className={styles.summaryItem}><span className={styles.summaryIcon}>🪑</span>
-                        <span>{data.tableNumber ? `Bàn số ${data.tableNumber}` : "Chưa chọn bàn"}</span>
-                    </div>
-                    {data.selectedFoods.length > 0 && (
-                        <>
-                            <hr />
-                            <div className={styles.summaryFoods}><strong>Món đã chọn</strong>
-                                {data.selectedFoods.map(f => (
-                                    <div key={f.branchFoodId} className={styles.summaryFood}>
-                                        {f.name} ×{f.quantity} — {(f.price * f.quantity).toLocaleString()}đ
-                                    </div>
-                                ))}
-                            </div>
-                            <hr />
-                            <div className={styles.summaryTotal}>Tổng tiền món: <strong>{totalFoodAmount.toLocaleString()}đ</strong></div>
-                            {data.payment === "full" && <div className={styles.summaryDiscount}>Giảm 10%: −{(totalFoodAmount * 0.1).toLocaleString()}đ</div>}
-                            <div className={styles.summaryPayable}>Cần thanh toán: {getPayableAmount().toLocaleString()}đ</div>
-                        </>
+                    ) : (
+                        <div className={styles.noTable}>← Chọn bàn trên sơ đồ</div>
                     )}
                 </div>
             </div>
 
-            {/* Success Modal */}
+            {/* ══ COL 2 — SƠ ĐỒ BÀN + THỰC ĐƠN ══ */}
+            <div className={styles.colMid}>
+
+                <div className={styles.mapSection}>
+                    <div className={styles.mapHeader}>
+                        <div className={styles.mapTitle}>Sơ đồ bàn</div>
+                        {/* ✅ FIX: currentBranch.name đã là string qua safeName */}
+                        <div className={styles.mapSub}>{currentBranch.name} · Chọn vị trí yêu thích</div>
+                    </div>
+
+                    <div className={styles.floorTabs}>
+                        {tableAreas.map((area, i) => (
+                            <button key={area}
+                                className={`${styles.floorTab}${activeArea === area ? " " + styles.floorTabActive : ""}`}
+                                onClick={() => setActiveArea(area)}>
+                                <span className={styles.floorBadge}>
+                                    {isVipArea(area) ? "★" : `${i + 1}F`}
+                                </span>
+                                {area}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className={styles.tableMapWrap}>
+                        {areaLoading ? (
+                            <div className={styles.mapLoading}>
+                                <div className={styles.spinner} />
+                                <span>Đang tải sơ đồ...</span>
+                            </div>
+                        ) : currentTables.length === 0 ? (
+                            <div className={styles.emptyArea}>Không có bàn trong khu vực này</div>
+                        ) : (
+                            <div className={styles.tablesGrid}>
+                                {small.length > 0 && (
+                                    <div>
+                                        <div className={styles.tableGroupLabel}>Bàn nhỏ (2–4 người)</div>
+                                        <div className={styles.tableRow}>
+                                            {small.map(t => (
+                                                <TableCard key={t.id} table={t}
+                                                    selected={data.selectedTableId}
+                                                    onSelect={handleSelectTable}
+                                                    isVip={isVipArea(activeArea)} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {medium.length > 0 && (
+                                    <div>
+                                        <div className={styles.tableGroupLabel}>Bàn thường (6 người)</div>
+                                        <div className={styles.tableRow}>
+                                            {medium.map(t => (
+                                                <TableCard key={t.id} table={t}
+                                                    selected={data.selectedTableId}
+                                                    onSelect={handleSelectTable}
+                                                    isVip={isVipArea(activeArea)} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {large.length > 0 && (
+                                    <div>
+                                        <div className={styles.tableGroupLabel}>Bàn lớn (8 người)</div>
+                                        <div className={styles.tableRow}>
+                                            {large.map(t => (
+                                                <TableCard key={t.id} table={t}
+                                                    selected={data.selectedTableId}
+                                                    onSelect={handleSelectTable}
+                                                    isVip={isVipArea(activeArea)} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {vip.length > 0 && (
+                                    <div>
+                                        <div className={styles.tableGroupLabel}>★ Phòng VIP (10–15 người)</div>
+                                        <div className={styles.tableRow}>
+                                            {vip.map(t => (
+                                                <TableCard key={t.id} table={t}
+                                                    selected={data.selectedTableId}
+                                                    onSelect={handleSelectTable}
+                                                    isVip={true} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {grandVip.length > 0 && (
+                                    <div>
+                                        <div className={styles.tableGroupLabel}>👑 Phòng VIP Lớn (16+ người)</div>
+                                        <div className={styles.tableRow}>
+                                            {grandVip.map(t => (
+                                                <TableCard key={t.id} table={t}
+                                                    selected={data.selectedTableId}
+                                                    onSelect={handleSelectTable}
+                                                    isVip={true}
+                                                    isGrandVip={true} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className={styles.legend}>
+                        {[
+                            { color: "#4a7fd4",                   label: "Còn trống" },
+                            { color: "#C9A84C",                   label: "Đang chọn" },
+                            { color: "rgba(223, 222, 220, 0.45)", label: "Đã đặt"    },
+                            { color: "rgba(220,38,38,0.35)",      label: "Có khách"  },
+                        ].map(l => (
+                            <div key={l.label} className={styles.legendItem}>
+                                <span className={styles.legendBox} style={{ background: l.color }} />
+                                <span>{l.label}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className={styles.sectionDivider} />
+
+                {/* Thực đơn */}
+                <div className={styles.menuSection}>
+                    <div className={styles.menuHeader}>
+                        <span className={styles.menuTitle}>Thực đơn</span>
+                        <span className={styles.menuSub}>Tuỳ chọn · Thêm món để đặt trước</span>
+                    </div>
+
+                    <div className={styles.catTabs}>
+                        <button
+                            className={`${styles.catTab}${!activeCat ? " " + styles.catTabActive : ""}`}
+                            onClick={() => setActiveCat(null)}>
+                            Tất cả
+                        </button>
+                        {categories.map(c => (
+                            <button key={c.id}
+                                className={`${styles.catTab}${activeCat?.id === c.id ? " " + styles.catTabActive : ""}`}
+                                onClick={() => setActiveCat(c)}>
+                                {c.name}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className={styles.foodGrid}>
+                        {menuLoading ? (
+                            <div className={styles.menuLoading}><div className={styles.spinner} /></div>
+                        ) : displayedFoods.length === 0 ? (
+                            <div className={styles.menuEmpty}>Không có món trong danh mục này</div>
+                        ) : displayedFoods.map(food => {
+                            const qty = getQty(food.branchFoodId);
+                            return (
+                                <div key={food.branchFoodId}
+                                    className={`${styles.foodCard}${qty > 0 ? " " + styles.foodCardInCart : ""}`}>
+                                    <div className={styles.foodCardImg}>
+                                        {getImgUrl(food.imageUrl)
+                                            ? <img src={getImgUrl(food.imageUrl)} alt={food.name}
+                                                onError={e => e.target.style.display = "none"} />
+                                            : <span>🍽️</span>
+                                        }
+                                    </div>
+                                    <div className={styles.foodCardBody}>
+                                        <span className={styles.foodCardName}>{food.name}</span>
+                                        <span className={styles.foodCardPrice}>{fmtPrice(food.price)}</span>
+                                    </div>
+                                    <div className={styles.foodCardCtrl}>
+                                        {qty > 0 ? (
+                                            <div className={styles.qtyRow}>
+                                                <button className={styles.qtyBtn}
+                                                    onClick={() => setQty(food.branchFoodId, qty - 1)}>−</button>
+                                                <span className={styles.qtyNum}>{qty}</span>
+                                                <button className={styles.qtyBtn}
+                                                    onClick={() => setQty(food.branchFoodId, qty + 1)}>+</button>
+                                            </div>
+                                        ) : (
+                                            <button className={styles.addBtn}
+                                                onClick={() => setQty(food.branchFoodId, 1)}>
+                                                + Thêm
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* ══ COL 3 — GIỎ HÀNG + NÚT XÁC NHẬN ══ */}
+            <div className={styles.colCart}>
+                <div className={styles.cartHeader}>
+                    <div className={styles.cartTitle}>
+                        Món đã chọn
+                        {data.selectedFoods.length > 0 && (
+                            <span className={styles.cartBadge}>
+                                {data.selectedFoods.reduce((s, f) => s + f.quantity, 0)}
+                            </span>
+                        )}
+                    </div>
+                    <div className={styles.cartSub}>Xem lại đơn trước khi xác nhận</div>
+                </div>
+
+                {data.selectedFoods.length === 0 ? (
+                    <div className={styles.cartEmpty}>
+                        <span className={styles.cartEmptyIcon}>🍽️</span>
+                        <p>Chưa có món nào.<br />Thêm món từ thực đơn bên cạnh.</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className={styles.cartList}>
+                            {data.selectedFoods.map(food => (
+                                <div key={food.branchFoodId} className={styles.cartItem}>
+                                    <div className={styles.ciImg}>
+                                        {getImgUrl(food.imageUrl)
+                                            ? <img src={getImgUrl(food.imageUrl)} alt={food.name}
+                                                onError={e => e.target.style.display = "none"} />
+                                            : <span>🍽️</span>
+                                        }
+                                    </div>
+                                    <div className={styles.ciInfo}>
+                                        <span className={styles.ciName}>{food.name}</span>
+                                        <span className={styles.ciPrice}>{fmtPrice(food.price)}</span>
+                                    </div>
+                                    <div className={styles.ciCtrl}>
+                                        <button className={styles.ciBtn}
+                                            onClick={() => setQty(food.branchFoodId, food.quantity - 1)}>−</button>
+                                        <span className={styles.ciQty}>{food.quantity}</span>
+                                        <button className={styles.ciBtn}
+                                            onClick={() => setQty(food.branchFoodId, food.quantity + 1)}>+</button>
+                                    </div>
+                                    <span className={styles.ciSub}>{fmtPrice(food.price * food.quantity)}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className={styles.totalRow}>
+                            <span className={styles.totalLabel}>Tổng tiền</span>
+                            <span className={styles.totalAmt}>{fmtPrice(totalFoodAmount)}</span>
+                        </div>
+
+                        <div className={styles.payOpts}>
+                            {[
+                                { val: "deposit", label: "Đặt cọc 20%",        amt: Math.floor(totalFoodAmount * 0.2) },
+                                { val: "full",    label: "Thanh toán toàn bộ", amt: Math.floor(totalFoodAmount * 0.9), badge: "−10%" },
+                            ].map(opt => (
+                                <div key={opt.val}
+                                    className={`${styles.payOpt}${data.payment === opt.val ? " " + styles.payOptActive : ""}`}
+                                    onClick={() => setData({ ...data, payment: opt.val })}>
+                                    <div className={`${styles.payRadio}${data.payment === opt.val ? " " + styles.payRadioOn : ""}`} />
+                                    <div className={styles.payInfo}>
+                                        <span className={styles.payLabel}>
+                                            {opt.label}
+                                            {opt.badge && <span className={styles.payBadge}>{opt.badge}</span>}
+                                        </span>
+                                        <span className={styles.payAmt}>{fmtPrice(opt.amt)}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+
+                <div className={styles.noteSection}>
+                    <label className={styles.noteLabel}>Ghi chú đặc biệt</label>
+                    <textarea
+                        className={styles.noteInput}
+                        rows={2}
+                        placeholder="Dị ứng thực phẩm, dịp đặc biệt, yêu cầu khác..."
+                        value={data.note}
+                        onChange={e => setData({ ...data, note: e.target.value })}
+                    />
+                </div>
+
+                <button
+                    className={styles.confirmBtnRight}
+                    disabled={!canConfirm || loading}
+                    onClick={data.selectedFoods.length > 0 ? handleBooking : handleBookingOnlyTable}
+                >
+                    {loading ? "Đang xử lý..." : "Xác nhận đặt bàn →"}
+                </button>
+            </div>
+
+            {/* ══ SUCCESS MODAL ══ */}
             {showSuccessModal && bookingSuccessInfo && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.successModal}>
                         <div className={styles.successIcon}>✅</div>
                         <h2>Đặt bàn thành công!</h2>
-                        <p>Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ của chúng tôi</p>
+                        <p>Cảm ơn bạn đã tin tưởng dịch vụ của chúng tôi</p>
                         <div className={styles.bookingInfo}>
                             <h3>Thông tin đặt bàn</h3>
-                            <div className={styles.infoRow}><span className={styles.infoLabel}>Mã đặt bàn:</span><span className={styles.infoValue}>#{bookingSuccessInfo.id}</span></div>
-                            <div className={styles.infoRow}><span className={styles.infoLabel}>Nhà hàng:</span><span className={styles.infoValue}>{bookingSuccessInfo.branchName}</span></div>
-                            <div className={styles.infoRow}><span className={styles.infoLabel}>Bàn số:</span><span className={styles.infoValue}>{bookingSuccessInfo.tableNumber}</span></div>
-                            <div className={styles.infoRow}><span className={styles.infoLabel}>Ngày giờ:</span><span className={styles.infoValue}>{bookingSuccessInfo.date} - {bookingSuccessInfo.time}</span></div>
-                            <div className={styles.infoRow}><span className={styles.infoLabel}>Khách hàng:</span><span className={styles.infoValue}>{bookingSuccessInfo.customerName}</span></div>
-                            <div className={styles.infoRow}><span className={styles.infoLabel}>Số điện thoại:</span><span className={styles.infoValue}>{bookingSuccessInfo.customerPhone}</span></div>
+                            {[
+                                ["Mã đặt bàn", `#${bookingSuccessInfo.id}`],
+                                ["Nhà hàng",   bookingSuccessInfo.branchName], // ✅ đã là string
+                                ["Bàn số",     bookingSuccessInfo.tableNumber],
+                                ["Ngày giờ",   `${bookingSuccessInfo.date} — ${bookingSuccessInfo.time}`],
+                                ["Khách hàng", bookingSuccessInfo.customerName],
+                                ["Điện thoại", bookingSuccessInfo.customerPhone],
+                            ].map(([label, value]) => (
+                                <div key={label} className={styles.infoRow}>
+                                    <span className={styles.infoLabel}>{label}</span>
+                                    <span className={styles.infoValue}>{value}</span>
+                                </div>
+                            ))}
                         </div>
                         <div className={styles.notice}>
-                            <p>📞 Chúng tôi sẽ liên hệ xác nhận với bạn trong thời gian sớm nhất</p>
+                            <p>📞 Chúng tôi sẽ liên hệ xác nhận sớm nhất</p>
                             <p>⏰ Vui lòng đến đúng giờ đã đặt</p>
                             <p>❌ Hủy bàn trước 1 tiếng nếu có thay đổi</p>
                         </div>
                         <div className={styles.modalActions}>
-                            <button onClick={() => { setShowSuccessModal(false); window.location.href = "/"; }} className={styles.homeBtn}>🏠 Về trang chủ</button>
-                            <button onClick={() => { setShowSuccessModal(false); }} className={styles.historyBtn}>📋 Xem lịch sử đặt bàn</button>
+                            <button className={styles.homeBtn}
+                                onClick={() => { setShowSuccessModal(false); window.location.href = "/"; }}>
+                                Về trang chủ
+                            </button>
+                            <button className={styles.historyBtn}
+                                onClick={() => setShowSuccessModal(false)}>
+                                Lịch sử đặt bàn
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
+        </div>
+    );
+};
 
-            <TableSelectionModal show={showModal} onClose={() => setShowModal(false)}
-                selectTable={handleSelectTable} branchId={currentBranch.id} date={data.date} time={data.time} />
+/* ── Table Card ── */
+const TableCard = ({ table, selected, onSelect, isVip = false, isGrandVip = false }) => {
+    const isSelected   = selected === table.id;
+    const isFree       = table.status === "FREE";
+    const showVip      = isVip || table.capacity >= 10;
+    const showGrandVip = isGrandVip || table.capacity >= 16;
+    const statusLabel  = table.status === "FREE" ? "Trống"
+        : table.status === "RESERVED" ? "Đã đặt" : "Có khách";
 
-            <FoodSelectionModal show={showMenuModal} onClose={() => setShowMenuModal(false)}
-                onSelectFood={handleAddMultipleFoods} branchId={currentBranch.id} selectedFoods={data.selectedFoods} />
+    let cls = styles.tableCard;
+    if (isSelected)   cls += " " + styles.tableSelected;
+    else if (!isFree) cls += " " + styles.tableUnavailable;
+    else              cls += " " + styles.tableFree;
+    if (showGrandVip) cls += " " + styles.tableGrandVip;
+    else if (showVip) cls += " " + styles.tableVip;
+
+    const label = showGrandVip || showVip ? `Phòng ${table.number}` : table.number;
+
+    return (
+        <div className={cls}
+            onClick={() => isFree && onSelect(table)}
+            title={`${showVip ? "Phòng" : "Bàn"} ${table.number} · ${table.capacity} người · ${statusLabel}`}>
+            {showGrandVip && !isSelected && <span className={styles.grandVipPill}>👑 GRAND VIP</span>}
+            {showVip && !showGrandVip && !isSelected && <span className={styles.vipPill}>VIP</span>}
+            <div className={styles.tableName}>{isSelected ? "✓" : label}</div>
+            <div className={styles.tableCap}>{table.capacity} người</div>
+            <div className={styles.tableStatus}>{isSelected ? "Đang chọn" : statusLabel}</div>
         </div>
     );
 };

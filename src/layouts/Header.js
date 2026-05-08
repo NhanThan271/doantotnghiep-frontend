@@ -1,7 +1,5 @@
-// layouts/Header.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
-import logo from '../assets/images/logo.png';
 import './Header.css';
 
 const Header = () => {
@@ -9,178 +7,230 @@ const Header = () => {
     const location = useLocation();
     const [user, setUser] = useState(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const dropdownRef = useRef(null);
 
-    // Lấy thông tin user từ localStorage
+    const selectedBranch = location.state?.branch || localStorage.getItem('selectedBranch') || 'Hồ Chí Minh';
+
+    useEffect(() => {
+        if (location.state?.branch) {
+            localStorage.setItem('selectedBranch', location.state.branch);
+        }
+    }, [location.state?.branch]);
+
     useEffect(() => {
         const userData = JSON.parse(localStorage.getItem('user'));
-        if (userData) {
-            setUser(userData);
-        }
-    }, [location.pathname]); // Cập nhật khi chuyển trang
+        if (userData) setUser(userData);
+    }, [location.pathname]);
 
-    const isActive = (path) => {
-        return location.pathname === path;
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 10);
+        window.addEventListener('scroll', onScroll);
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+                setIsDropdownOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const isActive = (path) => location.pathname === path;
+    const isCustomer = user?.roles?.some(r => r === 'ROLE_CUSTOMER' || r === 'CUSTOMER');
+
+    // ✅ Navigate thông minh: nếu đã có branch → vào thẳng form, chưa có → vào trang chọn chi nhánh
+    const handleDatBan = () => {
+        const branch = sessionStorage.getItem('currentBranch');
+        if (branch) {
+            navigate('/dat-ban-chi-tiet');
+        } else {
+            navigate('/dat-ban-dia-chi');
+        }
     };
 
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        // Không xóa savedCredentials để giữ ghi nhớ đăng nhập
         setUser(null);
         navigate('/login');
     };
 
-    // Kiểm tra xem có phải customer không
-    const isCustomer = user?.roles?.some(role =>
-        role === 'ROLE_CUSTOMER' || role === 'CUSTOMER'
-    );
+    const navLinks = [
+        { label: 'Trang chủ', path: '/home' },
+        { label: 'Thực Đơn', path: '/thuc-don' },
+        { label: 'Chương Trình', path: '/uu-dai' },
+        { label: 'Đặt bàn', path: '/dat-ban-dia-chi' },
+    ];
 
     return (
-        <nav className="navbar navbar-expand-lg gogi-navbar">
-            <div className="container">
-                {/* Logo */}
-                <a
-                    className="navbar-brand"
-                    href="/"
-                    onClick={(e) => {
-                        e.preventDefault();
-                        navigate('/');
-                    }}
-                >
-                    <img src={logo} alt="NOIR – Ẩm Thực Đương Đại" />
-                </a>
+        <header className={`noir-header${scrolled ? ' noir-header--scrolled' : ''}`}>
 
-                <button
-                    className="navbar-toggler"
-                    type="button"
-                    data-toggle="collapse"
-                    data-target="#gogiNavbar"
-                >
-                    <span className="navbar-toggler-icon"></span>
-                </button>
+            {/* ===== TOP ROW ===== */}
+            <div className="noir-header__top">
+                <div className="noir-header__top-inner">
 
-                <div className="collapse navbar-collapse" id="gogiNavbar">
-                    <ul className="navbar-nav mx-auto">
-                        <li className="nav-item">
-                            <a
-                                className={`nav-link ${isActive('/uu-dai') ? 'active' : ''}`}
-                                href="/uu-dai"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    navigate('/uu-dai');
-                                }}
-                            >
-                                Ưu Đãi
-                            </a>
-                        </li>
-                        <li className="nav-item">
-                            <a
-                                className={`nav-link ${isActive('/thuc-don') ? 'active' : ''}`}
-                                href="/thuc-don"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    navigate('/thuc-don');
-                                }}
-                            >
-                                Thực Đơn
-                            </a>
-                        </li>
-                        <li className="nav-item">
-                            <a
-                                className={`nav-link ${isActive('/dat-ban-dia-chi') ? 'active' : ''}`}
-                                href="/dat-ban-dia-chi"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    navigate('/dat-ban-dia-chi');
-                                }}
-                            >
-                                Đặt Bàn
-                            </a>
-                        </li>
-                    </ul>
+                    {/* Chọn miền — quay lại hero */}
+                    <button
+                        className="noir-chon-mien"
+                        onClick={() => navigate('/')}
+                    >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path d="M8 1L3 6l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Chọn miền
+                    </button>
 
-                    <div className="d-flex align-items-center">
+                    {/* Logo chữ cách điệu + tên chi nhánh */}
+                    <a
+                        className="noir-logo"
+                        href="/home"
+                        onClick={e => { e.preventDefault(); navigate('/home', { state: { branch: selectedBranch } }); }}
+                    >
+                        <svg className="noir-logo__svg" viewBox="0 0 260 72" xmlns="http://www.w3.org/2000/svg">
+                            <text
+                                x="130" y="58"
+                                textAnchor="middle"
+                                fontFamily="'Georgia', 'Times New Roman', serif"
+                                fontStyle="italic"
+                                fontWeight="bold"
+                                fontSize="64"
+                                fill="none"
+                                stroke="#1a2a5e"
+                                strokeWidth="1.2"
+                                letterSpacing="4"
+                            >Noir</text>
+                            <text
+                                x="130" y="58"
+                                textAnchor="middle"
+                                fontFamily="'Georgia', 'Times New Roman', serif"
+                                fontStyle="italic"
+                                fontWeight="bold"
+                                fontSize="64"
+                                fill="#1a2a5e"
+                                fillOpacity="0.08"
+                                letterSpacing="4"
+                            >Noir</text>
+                        </svg>
+                        <span className="noir-logo__branch">{selectedBranch}</span>
+                    </a>
+
+                    {/* Phải: đặt bàn + đăng nhập */}
+                    <div className="noir-header__top-right">
+
+                        {/* ✅ Nút ĐẶT BÀN — dùng handleDatBan */}
+                        <button
+                            className="noir-btn-datban"
+                            onClick={handleDatBan}
+                        >
+                            ĐẶT BÀN
+                        </button>
+
                         {user && isCustomer ? (
-                            // Hiển thị khi customer đã đăng nhập
-                            <div className="dropdown" style={{ position: 'relative' }}>
+                            <div className="noir-user" ref={dropdownRef}>
                                 <button
-                                    className="btn btn-user dropdown-toggle"
+                                    className="noir-user__btn"
                                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        background: '#f8f9fa',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '25px',
-                                        padding: '8px 16px'
-                                    }}
                                 >
-                                    <span>👤</span>
-                                    <span>Xin chào, {user.fullName || user.username}</span>
-                                    <span>▼</span>
+                                    <span className="noir-user__avatar">
+                                        {(user.fullName || user.username || 'U')[0].toUpperCase()}
+                                    </span>
+                                    <span className="noir-user__name">{user.fullName || user.username}</span>
                                 </button>
-
                                 {isDropdownOpen && (
-                                    <div
-                                        className="dropdown-menu show"
-                                        style={{
-                                            position: 'absolute',
-                                            top: '100%',
-                                            right: 0,
-                                            marginTop: '8px',
-                                            minWidth: '200px',
-                                            background: 'white',
-                                            borderRadius: '8px',
-                                            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                                            zIndex: 1000
-                                        }}
-                                    >
-                                        <button
-                                            className="dropdown-item"
-                                            onClick={() => {
-                                                navigate('/customer/profile');
-                                                setIsDropdownOpen(false);
-                                            }}
-                                            style={{ width: '100%', padding: '10px 16px', textAlign: 'left' }}
-                                        >
-                                            👤 Thông tin tài khoản
+                                    <div className="noir-dropdown">
+                                        <button className="noir-dropdown__item" onClick={() => { navigate('/customer/profile'); setIsDropdownOpen(false); }}>
+                                            Thông tin tài khoản
                                         </button>
-                                        <button
-                                            className="dropdown-item"
-                                            onClick={() => {
-                                                navigate('/customer/orders');
-                                                setIsDropdownOpen(false);
-                                            }}
-                                            style={{ width: '100%', padding: '10px 16px', textAlign: 'left' }}
-                                        >
-                                            📋 Lịch sử đặt bàn
+                                        <button className="noir-dropdown__item" onClick={() => { navigate('/customer/orders'); setIsDropdownOpen(false); }}>
+                                            Lịch sử đặt bàn
                                         </button>
-                                        <div className="dropdown-divider" style={{ margin: '8px 0', borderTop: '1px solid #eee' }}></div>
-                                        <button
-                                            className="dropdown-item text-danger"
-                                            onClick={handleLogout}
-                                            style={{ width: '100%', padding: '10px 16px', textAlign: 'left' }}
-                                        >
-                                            🚪 Đăng xuất
+                                        <div className="noir-dropdown__divider" />
+                                        <button className="noir-dropdown__item noir-dropdown__item--danger" onClick={handleLogout}>
+                                            Đăng xuất
                                         </button>
                                     </div>
                                 )}
                             </div>
                         ) : (
-                            // Hiển thị khi chưa đăng nhập hoặc không phải customer
-                            <button
-                                className="btn btn-login mr-3"
-                                onClick={() => navigate("/login")}
-                            >
-                                Đăng Nhập
-                            </button>
+                            <a className="noir-login-link" href="/login" onClick={e => { e.preventDefault(); navigate('/login'); }}>
+                                Đăng nhập
+                            </a>
                         )}
                     </div>
                 </div>
             </div>
-        </nav>
+
+            {/* ===== BOTTOM ROW — Nav links ===== */}
+            <div className="noir-header__nav">
+                <div className="noir-header__nav-inner">
+                    {navLinks.map(link => (
+                        <a
+                            key={link.path}
+                            className={`noir-nav__link${isActive(link.path) ? ' active' : ''}`}
+                            href={link.path}
+                            onClick={e => {
+                                e.preventDefault();
+                                // ✅ Nav link "Đặt bàn" cũng dùng handleDatBan
+                                if (link.path === '/dat-ban-dia-chi') {
+                                    handleDatBan();
+                                } else {
+                                    navigate(link.path, { state: { branch: selectedBranch } });
+                                }
+                            }}
+                        >
+                            {link.label}
+                        </a>
+                    ))}
+                </div>
+            </div>
+
+            {/* ===== Mobile hamburger ===== */}
+            <button
+                className={`noir-hamburger${menuOpen ? ' open' : ''}`}
+                onClick={() => setMenuOpen(!menuOpen)}
+            >
+                <span /><span /><span />
+            </button>
+
+            {menuOpen && (
+                <div className="noir-mobile-menu">
+                    <button className="noir-mobile-menu__back" onClick={() => navigate('/')}>
+                        ← Chọn miền
+                    </button>
+                    {navLinks.map(link => (
+                        <a
+                            key={link.path}
+                            className="noir-mobile-menu__link"
+                            href={link.path}
+                            onClick={e => {
+                                e.preventDefault();
+                                // ✅ Mobile nav link "Đặt bàn" cũng dùng handleDatBan
+                                if (link.path === '/dat-ban-dia-chi') {
+                                    handleDatBan();
+                                } else {
+                                    navigate(link.path, { state: { branch: selectedBranch } });
+                                }
+                                setMenuOpen(false);
+                            }}
+                        >
+                            {link.label}
+                        </a>
+                    ))}
+                    {/* ✅ Nút ĐẶT BÀN mobile — dùng handleDatBan */}
+                    <button
+                        className="noir-mobile-menu__datban"
+                        onClick={() => { handleDatBan(); setMenuOpen(false); }}
+                    >
+                        ĐẶT BÀN
+                    </button>
+                </div>
+            )}
+        </header>
     );
-}
+};
 
 export default Header;

@@ -1,0 +1,151 @@
+:root {
+    --gold: #d4af37;
+    --gold-dim: rgba(212, 175, 55, 0.6);
+    --white: #f5f5f5;
+    --bg-dark: #0f0f0f;
+}
+
+.oh-section {
+    background-color: var(--bg-dark);
+    padding: 100px 10%;
+    color: var(--white);
+    font-family: 'Playfair Display', serif; /* Hoặc font bạn đang dùng */
+}
+
+.oh-container {
+    display: flex;
+    gap: 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Cột trái */
+.oh-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.oh-eyebrow {
+    color: var(--gold);
+    letter-spacing: 4px;
+    font-size: 0.9rem;
+    margin-bottom: 30px;
+}
+
+.oh-clock-icon {
+    width: 80px;
+    height: 80px;
+    color: var(--gold-dim);
+    margin-bottom: 40px;
+}
+
+.oh-recommend {
+    font-style: italic;
+    font-size: 0.85rem;
+    color: #888;
+    max-width: 200px;
+}
+
+/* Cột phải */
+.oh-right {
+    flex: 2;
+}
+
+.oh-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+.oh-row:hover {
+    background: rgba(212, 175, 55, 0.03);
+}
+
+.oh-day-box {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.oh-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--gold);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.oh-row:hover .oh-dot {
+    opacity: 1;
+}
+
+.oh-day-vn {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.oh-day-en {
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.oh-time-box {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+.oh-note {
+    font-size: 0.75rem;
+    color: #666;
+    text-transform: lowercase;
+}
+
+.oh-time-val {
+    font-size: 1.1rem;
+    color: var(--white);
+    min-width: 120px;
+    text-align: right;
+}
+
+.oh-row--closed .oh-time-val {
+    color: #555;
+    font-size: 0.9rem;
+}
+
+/* Animation tương tự trang cũ */
+.oh-reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.8s cubic-bezier(0.215, 0.61, 0.355, 1);
+    transition-delay: var(--delay);
+}
+
+.oh-reveal--visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .oh-container {
+        flex-direction: column;
+        gap: 40px;
+    }
+    .oh-left {
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 40px;
+    }
+}

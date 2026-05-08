@@ -1,35 +1,86 @@
-import React from 'react';
-import '../assets/css/style.css';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios'; // Đảm bảo bạn đã cài axios: npm install axios
+import './Footer.css';
 
-// Footer Component
-const Footer = () => (
-    <footer className="bg-gray-900 text-gray-300 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div>
-                    <h3 className="text-white font-bold text-lg mb-4">CÔNG TY CỔ PHẦN TẬP ĐOÀN GOLDEN NOIR</h3>
-                    <p className="text-sm mb-2">Trụ sở chính: Số 69 Phố Giang Văn Minh, Phường Đội Cấn, Quận Ba Đình, Thành phố Hà Nội, Việt Nam</p>
-                    <p className="text-sm mb-2">VPGD: Tầng 9, Tòa nhà Toyota, Số 319 Trường Chinh, P.Khương Mai, Q.Thanh Xuân, TP.Hà Nội, Việt Nam.</p>
-                    <p className="text-sm mb-2">Chịu trách nhiệm nội dung: (Ông) </p>
-                    <p className="text-sm mb-2">GPĐK: 0102721191 cấp ngày 09/04/2008</p>
-                    <p className="text-sm">ĐT: 043 219 7939 Email: support.nr@gnr.com.vn</p>
-                </div>
+const Footer = () => {
+    const [branches, setBranches] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-                <div>
-                    <h3 className="text-white font-bold text-lg mb-4">HỖ TRỢ KHÁCH HÀNG</h3>
-                    <ul className="space-y-2 text-sm">
-                        <li><a href="#" className="hover:text-white transition">Điều khoản sử dụng</a></li>
-                        <li><a href="#" className="hover:text-white transition">Chính sách thanh viên</a></li>
-                        <li><a href="#" className="hover:text-white transition">Chính sách bảo mật</a></li>
-                    </ul>
-                </div>
+    useEffect(() => {
+        const fetchBranches = async () => {
+            try {
+                // Gọi API lấy danh sách chi nhánh
+                const response = await axios.get('http://localhost:8080/api/branches');
+                setBranches(response.data);
+                setLoading(false);
+            } catch (error) {
+                console.error("Lỗi khi lấy dữ liệu chi nhánh:", error);
+                setLoading(false);
+            }
+        };
 
-                <div className="text-right">
-                    <p className="text-sm">© 2011 Golden Noir., JSC. All rights reserved</p>
+        fetchBranches();
+    }, []);
+
+    return (
+        <footer className="footer-noir">
+            {/* Top Section */}
+            <div className="footer-top">
+                <div className="footer-logo">
+                    <h2 className="logo-text">Noir</h2>
+                    <span className="logo-sub">PREMIER DINING EXPERIENCE</span>
                 </div>
             </div>
-        </div>
-    </footer>
-);
+
+            <div className="footer-divider"></div>
+
+            {/* Middle Section */}
+            <div className="footer-content">
+                <div className="footer-grid">
+                    
+                    {/* Render danh sách chi nhánh từ API */}
+                    {loading ? (
+                        <p className="branch-col">Đang tải dữ liệu...</p>
+                    ) : (
+                        branches.map((branch) => (
+                            <div className="branch-col" key={branch.id}>
+                                <h4 className="branch-name">{branch.name}</h4>
+                                <p className="branch-info">
+                                    <i className="location-icon"></i> {branch.address}
+                                </p>
+                                <p className="branch-contact">
+                                    <a href={`tel:${branch.phoneNumber}`}>{branch.phoneNumber}</a>
+                                    <a href={`mailto:${branch.email || 'support@noir.vn'}`}>
+                                        {branch.email || 'support@noir.vn'}
+                                    </a>
+                                </p>
+                            </div>
+                        ))
+                    )}
+
+                    {/* Cột Hỗ trợ (Cố định) */}
+                    <div className="branch-col">
+                        <h4 className="branch-name">Hỗ trợ khách hàng</h4>
+                        <ul className="footer-links">
+                            <li><a href="#terms">Điều khoản sử dụng</a></li>
+                            <li><a href="#membership">Chính sách thành viên</a></li>
+                            <li><a href="#privacy">Chính sách bảo mật</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div className="footer-divider"></div>
+
+            {/* Bottom Section */}
+            <div className="footer-bottom">
+                <p>© {new Date().getFullYear()} GOLDEN NOIR GROUP. All rights reserved.</p>
+                <div className="legal-info">
+                    <span>GPĐK: 0102721191 cấp ngày 09/04/2008</span>
+                </div>
+            </div>
+        </footer>
+    );
+};
 
 export default Footer;
