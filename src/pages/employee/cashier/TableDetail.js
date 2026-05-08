@@ -268,12 +268,18 @@ const TableDetail = () => {
                 };
             });
 
-            socket.emit("order-items-added", {
+            socket.emit("order-updated", {
                 orderId: order.id,
-                tableNumber: entityNumber,
+                tableNumber: entityNumber,     // ← Quan trọng: số bàn/phòng
                 tableId: entity.id,
-                items: newItems,
-                timestamp: new Date().toISOString()
+                locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`, // ← Tên hiển thị
+                areaName: entity?.area || "Khu chính", items: newItems.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    quantity: item.quantity
+                })),
+                timestamp: new Date().toISOString(),
+                branchId: branchId
             });
 
             socket.emit("update-tables");
@@ -361,12 +367,19 @@ const TableDetail = () => {
                 };
             });
 
-            socket.emit("new-order", {
+            socket.emit("order-updated", {
                 orderId: newOrder.id,
                 tableNumber: entityNumber,
                 tableId: entity.id,
-                items: newItems,
-                timestamp: new Date().toISOString()
+                locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
+                areaName: entity?.area || "Khu chính",
+                items: newItems.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    quantity: item.quantity
+                })),
+                timestamp: new Date().toISOString(),
+                branchId: branchId
             });
 
             socket.emit("update-tables");
