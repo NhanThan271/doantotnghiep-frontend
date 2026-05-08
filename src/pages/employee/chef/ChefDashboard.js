@@ -13,28 +13,6 @@ const socket = io('http://localhost:3001', {
     reconnectionDelay: 1000
 });
 
-const playNotificationSound = () => {
-    try {
-        const audio = new Audio('/notification.mp3');
-        audio.onerror = () => {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator.frequency.value = 880;
-            gainNode.gain.value = 0.3;
-            oscillator.start();
-            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.5);
-            oscillator.stop(audioContext.currentTime + 0.5);
-            audioContext.resume();
-        };
-        audio.play().catch(err => console.log("Audio play failed:", err));
-    } catch (err) {
-        console.log("Sound not supported");
-    }
-};
-
 const ChefDashboard = () => {
     const [allItems, setAllItems] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -47,24 +25,106 @@ const ChefDashboard = () => {
     const [showIngredientWarning, setShowIngredientWarning] = useState(true);
     const [isSocketConnected, setIsSocketConnected] = useState(false);
     const [itemUpdating, setItemUpdating] = useState({});
-
-    // ⏰ REAL-TIME STATES
     const [realTimeClock, setRealTimeClock] = useState(new Date());
     const [currentTime, setCurrentTime] = useState(Date.now());
 
-    const audioRef = useRef(null);
+    // Debounce cho notifications
+    const lastNotificationKey = useRef('');
+    const lastNotificationTime = useRef(0);
+
+    const audioContextRef = useRef(null);
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = user?.branch?.id;
 
-    // ⏰ REAL-TIME CLOCK - Cập nhật mỗi giây
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setRealTimeClock(new Date());
-            setCurrentTime(Date.now());
-        }, 1000);
+    // ========== AUDIO SETUP ==========
+    const unlockAudio = useCallback(() => {
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            const audioContext = new AudioContextClass();
+            audioContextRef.current = audioContext;
 
-        return () => clearInterval(timer);
+            const oscillator = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            oscillator.connect(gain);
+            gain.connect(audioContext.destination);
+            gain.gain.value = 0.001;
+            oscillator.start();
+            oscillator.stop(0.01);
+
+            audioContext.resume().catch(err => {
+                console.log("Failed to unlock audio:", err);
+            });
+
+            return true;
+        } catch (err) {
+            console.log("Audio unlock error:", err);
+            return false;
+        }
     }, []);
+
+    useEffect(() => {
+        const handleUserInteraction = () => {
+            unlockAudio();
+            document.removeEventListener('click', handleUserInteraction);
+            document.removeEventListener('touchstart', handleUserInteraction);
+            document.removeEventListener('keydown', handleUserInteraction);
+        };
+
+        document.addEventListener('click', handleUserInteraction);
+        document.addEventListener('touchstart', handleUserInteraction);
+        document.addEventListener('keydown', handleUserInteraction);
+
+        return () => {
+            document.removeEventListener('click', handleUserInteraction);
+            document.removeEventListener('touchstart', handleUserInteraction);
+            document.removeEventListener('keydown', handleUserInteraction);
+        };
+    }, [unlockAudio]);
+
+    const playNotificationSound = useCallback(() => {
+        try {
+            let audioContext = audioContextRef.current;
+
+            if (!audioContext || audioContext.state === 'closed') {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContextClass();
+                audioContextRef.current = audioContext;
+            }
+
+            const now = audioContext.currentTime;
+
+            const osc1 = audioContext.createOscillator();
+            const gain1 = audioContext.createGain();
+            osc1.connect(gain1);
+            gain1.connect(audioContext.destination);
+            osc1.frequency.value = 880;
+            gain1.gain.value = 0.3;
+            osc1.start(now);
+            gain1.gain.exponentialRampToValueAtTime(0.00001, now + 0.2);
+            osc1.stop(now + 0.2);
+
+            const osc2 = audioContext.createOscillator();
+            const gain2 = audioContext.createGain();
+            osc2.connect(gain2);
+            gain2.connect(audioContext.destination);
+            osc2.frequency.value = 660;
+            gain2.gain.value = 0.3;
+            osc2.start(now + 0.15);
+            gain2.gain.exponentialRampToValueAtTime(0.00001, now + 0.35);
+            osc2.stop(now + 0.35);
+
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        } catch (err) {
+            console.log("Sound error:", err);
+        }
+    }, []);
+
+    // ========== HELPER FUNCTIONS ==========
+    const removeToast = (id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
 
     const showToast = (message, type = 'info') => {
         const id = Date.now();
@@ -72,17 +132,10 @@ const ChefDashboard = () => {
         setTimeout(() => removeToast(id), 3000);
     };
 
-    const removeToast = (id) => {
-        setToasts(prev => prev.filter(t => t.id !== id));
-    };
-
     const addNotification = (message, type = 'info') => {
         const id = Date.now();
-        setNotifications(prev => [{ id, message, type, timestamp: new Date() }, ...prev]);
-
-        setTimeout(() => {
-            setNotifications(prev => prev.filter(n => n.id !== id));
-        }, 5000);
+        const timestamp = new Date();
+        setNotifications(prev => [{ id, message, type, timestamp }, ...prev]);
 
         playNotificationSound();
 
@@ -94,55 +147,7 @@ const ChefDashboard = () => {
         }
     };
 
-    useEffect(() => {
-        if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-            Notification.requestPermission();
-        }
-    }, []);
-
-    // 📌 ĐĂNG KÝ KITCHEN ROLE
-    useEffect(() => {
-        const registerKitchen = () => {
-            if (socket.connected) {
-                socket.emit('register-role', {
-                    role: 'kitchen',
-                    userId: user?.id,
-                    branchId: branchId
-                });
-                console.log('🔪 Kitchen registered:', socket.id, 'Branch:', branchId);
-                setIsSocketConnected(true);
-            }
-        };
-
-        const handleConnect = () => {
-            console.log('✅ Socket connected:', socket.id);
-            setIsSocketConnected(true);
-            registerKitchen();
-            showToast('🟢 Kết nối real-time đã sẵn sàng', 'success');
-            fetchData();
-        };
-
-        const handleDisconnect = () => {
-            console.log('❌ Socket disconnected');
-            setIsSocketConnected(false);
-            showToast('🔴 Mất kết nối real-time, đang thử kết nối lại...', 'warning');
-        };
-
-        socket.on('connect', handleConnect);
-        socket.on('disconnect', handleDisconnect);
-
-        if (!socket.connected) {
-            socket.connect();
-        } else {
-            registerKitchen();
-        }
-
-        return () => {
-            socket.off('connect', handleConnect);
-            socket.off('disconnect', handleDisconnect);
-        };
-    }, [branchId, user?.id]);
-
+    // ========== FETCH DATA FUNCTION ==========
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
@@ -151,10 +156,10 @@ const ChefDashboard = () => {
 
             const mapped = items.map(item => ({
                 id: item.id,
-                name: item.food?.name || 'Món ăn',
+                name: item.food?.name || item.name || 'Món ăn',
                 quantity: item.quantity,
-                status: item.kitchenStatus,
-                table: item.order?.table?.number || item.order?.id || '?',
+                status: item.kitchenStatus || item.status || 'WAITING',
+                table: item.order?.table?.number || item.tableNumber || item.table?.number || item.orderId || '?',
                 createdAt: item.createdAt,
                 notes: item.notes || '',
                 orderId: item.orderId,
@@ -164,57 +169,148 @@ const ChefDashboard = () => {
             setAllItems(mapped);
             setLastUpdated(new Date());
         } catch (err) {
-            console.error(err);
+            console.error("Fetch error:", err);
             showToast('❌ Lỗi tải dữ liệu', 'error');
         } finally {
             setLoading(false);
         }
     }, []);
 
+    // ========== SPEECH FUNCTION ==========
+    const speakVietnamese = (text) => {
+        if (!('speechSynthesis' in window)) return;
+
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'vi-VN';
+        utterance.rate = 0.85;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+
+        const speak = () => {
+            const voices = window.speechSynthesis.getVoices();
+            const vietnameseVoice = voices.find(voice =>
+                voice.lang === 'vi-VN' || voice.lang === 'vi' || voice.name.includes('Vietnamese')
+            );
+
+            if (vietnameseVoice) {
+                utterance.voice = vietnameseVoice;
+            }
+
+            window.speechSynthesis.speak(utterance);
+        };
+
+        if (window.speechSynthesis.getVoices().length > 0) {
+            speak();
+        } else {
+            window.speechSynthesis.onvoiceschanged = speak;
+        }
+    };
+
+    // ========== SOCKET EVENT HANDLERS ==========
     useEffect(() => {
         const handleNewOrder = (orderData) => {
+            // Debounce - bỏ qua duplicate trong 500ms
+            const notiKey = `${orderData.orderId}_${orderData.tableNumber}_${JSON.stringify(orderData.items)}`;
+            const now = Date.now();
+
+            if (notiKey === lastNotificationKey.current && (now - lastNotificationTime.current) < 500) {
+                return;
+            }
+
+            lastNotificationKey.current = notiKey;
+            lastNotificationTime.current = now;
+
+            if (orderData.branchId && branchId && orderData.branchId !== branchId) return;
+
+            playNotificationSound();
             fetchData();
-            const tableNumber = orderData.table?.number || orderData.tableNumber;
-            const message = `📋 Đơn hàng mới từ bàn ${tableNumber}`;
-            showToast(message, 'info');
-            addNotification(message, 'order');
+
+            if (orderData.items && orderData.items.length > 0) {
+                const areaName = orderData.areaName || "Khu chính";
+                const locationName = orderData.locationName || `Bàn ${orderData.tableNumber}`;
+                const fullLocation = `${areaName} - ${locationName}`;
+                const itemDetails = orderData.items.map(item => `${item.name} x${item.quantity}`).join(', ');
+                const message = `📋 ĐƠN MỚI - ${fullLocation}: ${itemDetails}`;
+
+                showToast(message, 'info');
+                addNotification(message, 'order');
+
+                const speechText = `Đơn hàng mới tại ${areaName} ${locationName}: ${orderData.items.map(item =>
+                    `${item.name} ${item.quantity === 1 ? 'một phần' : `${item.quantity} phần`}`
+                ).join(', ')}`;
+
+                speakVietnamese(speechText);
+            }
         };
 
-        const handleItemsAdded = (data) => {
-            console.log("🆕 Món mới được thêm:", data);
-            fetchData();
-            const itemNames = data.items?.map(i => i.name).join(', ') || '';
-            const message = `➕ Thêm món cho bàn ${data.tableNumber}: ${itemNames}`;
-            showToast(message, 'info');
-            addNotification(message, 'item');
-        };
+        const handleOrderUpdated = (data) => {
+            // Debounce - bỏ qua duplicate trong 500ms
+            const notiKey = `${data.orderId}_${data.tableNumber}_${JSON.stringify(data.items)}`;
+            const now = Date.now();
 
+            if (notiKey === lastNotificationKey.current && (now - lastNotificationTime.current) < 500) {
+                return;
+            }
+
+            lastNotificationKey.current = notiKey;
+            lastNotificationTime.current = now;
+
+            if (data.branchId && branchId && data.branchId !== branchId) return;
+
+            playNotificationSound();
+            fetchData();
+
+            if (data.items && data.items.length > 0) {
+                const areaName = data.areaName || "Khu chính";
+                const locationName = data.locationName || `Bàn ${data.tableNumber}`;
+                const fullLocation = `${areaName} - ${locationName}`;
+                const itemDetails = data.items.map(item => `${item.name} x${item.quantity}`).join(', ');
+                const message = `➕ ${fullLocation}: ${itemDetails}`;
+
+                showToast(message, 'info');
+                addNotification(message, 'item');
+
+                const speechText = `Thêm món mới tại ${areaName} ${locationName}: ${data.items.map(item =>
+                    `${item.name} ${item.quantity === 1 ? 'một phần' : `${item.quantity} phần`}`
+                ).join(', ')}`;
+
+                speakVietnamese(speechText);
+            }
+        };
         const handleUpdateTables = () => {
-            console.log("🔄 Cập nhật bàn, refresh dữ liệu bếp...");
             fetchData();
         };
 
-        const handleItemUpdated = (itemData) => {
-            console.log("🍳 Cập nhật món từ bếp khác:", itemData);
+        const handleItemUpdated = () => {
             fetchData();
         };
 
         const registerKitchen = () => {
-            socket.emit('register-role', {
-                role: 'kitchen',
-                userId: user?.id,
-                branchId: branchId
-            });
-            setIsSocketConnected(true);
-            fetchData();
+            if (socket.connected) {
+                socket.emit('register-role', {
+                    role: 'kitchen',
+                    userId: user?.id,
+                    branchId: branchId
+                });
+                setIsSocketConnected(true);
+                fetchData();
+            }
         };
 
         socket.on("new-order", handleNewOrder);
-        socket.on("order-items-added", handleItemsAdded);
+        socket.on("update-order-status", handleOrderUpdated);
         socket.on("update-tables", handleUpdateTables);
         socket.on("order-item-updated", handleItemUpdated);
-        socket.on('connect', registerKitchen);
-        socket.on('disconnect', () => setIsSocketConnected(false));
+        socket.on('connect', () => {
+            setIsSocketConnected(true);
+            registerKitchen();
+        });
+        socket.on('disconnect', () => {
+            setIsSocketConnected(false);
+            showToast('🔴 Mất kết nối real-time', 'warning');
+        });
 
         if (socket.connected) {
             registerKitchen();
@@ -222,10 +318,10 @@ const ChefDashboard = () => {
 
         return () => {
             socket.off("new-order", handleNewOrder);
-            socket.off("order-items-added", handleItemsAdded);
+            socket.off("update-order-status", handleOrderUpdated);
             socket.off("update-tables", handleUpdateTables);
             socket.off("order-item-updated", handleItemUpdated);
-            socket.off('connect', registerKitchen);
+            socket.off('connect');
             socket.off('disconnect');
         };
     }, [fetchData, branchId, user?.id]);
@@ -234,12 +330,26 @@ const ChefDashboard = () => {
         fetchData();
     }, [fetchData]);
 
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setRealTimeClock(new Date());
+            setCurrentTime(Date.now());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+            Notification.requestPermission();
+        }
+    }, []);
+
+    // ========== UPDATE STATUS FUNCTION ==========
     const updateStatus = async (id, status, itemName, tableNumber) => {
         setUpdatingId(id);
         setItemUpdating(prev => ({ ...prev, [id]: true }));
 
         try {
-            // ✅ Gọi đúng API kitchen
             await kitchenAPI.updateItemStatus(id, status);
             await fetchData();
 
@@ -254,13 +364,17 @@ const ChefDashboard = () => {
 
             socket.emit("update-tables");
 
-            showToast(`✅ Đã ${status === 'PREPARING' ? 'bắt đầu nấu' : 'hoàn thành'} món ${itemName}`, 'success');
-
             if (status === 'READY') {
-                addNotification(`✅ Món ${itemName} (Bàn ${tableNumber}) đã hoàn thành!`, 'success');
+                const areaName = "Khu chính"; // Có thể lấy từ state nếu có
+                const message = `✅ Hoàn thành món ${itemName} (${areaName} - Bàn ${tableNumber})`;
+                showToast(message, 'success');
+                addNotification(message, 'success');
+
+                const speechText = `Hoàn thành món ${itemName} tại ${areaName} bàn ${tableNumber}`;
+                speakVietnamese(speechText);
             }
+
         } catch (err) {
-            console.error('Update status error:', err);
             const errorMsg = err.response?.data?.message || err.message;
             showToast(`❌ Update thất bại: ${errorMsg}`, 'error');
         } finally {
@@ -268,24 +382,26 @@ const ChefDashboard = () => {
             setItemUpdating(prev => ({ ...prev, [id]: false }));
         }
     };
-    // ⏰ HÀM LẤY THỜI GIAN REAL-TIME
+
+    // ========== HELPER FUNCTIONS ==========
     const getElapsedTime = (createdAt) => {
+        if (!createdAt) return '0 giây';
         const elapsed = Math.floor((currentTime - new Date(createdAt).getTime()) / 1000);
         const minutes = Math.floor(elapsed / 60);
         const seconds = elapsed % 60;
 
         if (minutes < 1) return `${seconds} giây`;
-        if (minutes < 60) return `${minutes} phút`;
+        if (minutes < 60) return `${minutes} phút ${seconds} giây`;
         return `${Math.floor(minutes / 60)} giờ ${minutes % 60} phút`;
     };
 
-    // ⏰ KIỂM TRA QUÁ HẠN REAL-TIME
     const isOverdue = useCallback((createdAt) => {
+        if (!createdAt) return false;
         return (currentTime - new Date(createdAt)) / 60000 > 15;
     }, [currentTime]);
 
-    // ⏰ LẤY MÀU THEO THỜI GIAN
     const getTimeColor = (createdAt) => {
+        if (!createdAt) return '#6b7280';
         const diffInMinutes = (currentTime - new Date(createdAt).getTime()) / 60000;
 
         if (diffInMinutes > 15) return '#ef4444';
@@ -294,23 +410,27 @@ const ChefDashboard = () => {
         return '#10b981';
     };
 
+    // ========== FILTER & SORT ==========
     const filtered = allItems.filter(i => {
         if (activeTab === 'WAITING') return i.status === 'WAITING';
         if (activeTab === 'PREPARING') return i.status === 'PREPARING';
         return true;
     });
 
-    // Sort với real-time
     const sortedItems = [...filtered].sort((a, b) => {
         const aDiff = (currentTime - new Date(a.createdAt).getTime()) / 60000;
         const bDiff = (currentTime - new Date(b.createdAt).getTime()) / 60000;
 
-        if ((aDiff > 15) !== (bDiff > 15)) {
-            return aDiff > 15 ? -1 : 1;
+        const aOverdue = aDiff > 15;
+        const bOverdue = bDiff > 15;
+        if (aOverdue !== bOverdue) {
+            return aOverdue ? -1 : 1;
         }
+
         if (a.status !== b.status) {
             return a.status === 'WAITING' ? -1 : 1;
         }
+
         return new Date(a.createdAt) - new Date(b.createdAt);
     });
 
@@ -323,8 +443,15 @@ const ChefDashboard = () => {
 
     const unreadCount = notifications.length;
 
+    // ========== RENDER ==========
     return (
         <div className={styles.container}>
+            {!isSocketConnected && (
+                <div className={styles.warningBanner}>
+                    ⚠️ Đang mất kết nối real-time. Đơn hàng mới có thể không hiển thị ngay!
+                </div>
+            )}
+
             {showIngredientWarning && branchId && (
                 <IngredientWarning
                     branchId={branchId}
@@ -333,59 +460,26 @@ const ChefDashboard = () => {
                 />
             )}
 
-            {/* ==================== HEADER ĐƠN GIẢN ==================== */}
             <div className={styles.header}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            marginTop: '2px'
-                        }}>
-                            <span style={{
-                                fontFamily: 'monospace',
-                                fontSize: '24px',
-                                fontWeight: 'bold',
-                                color: '#1f2937',
-                                letterSpacing: '1px'
-                            }}>
-                                {realTimeClock.toLocaleTimeString('vi-VN')}
-                            </span>
-                            <span style={{
-                                fontSize: '12px',
-                                color: '#6b7280',
-                                background: '#f3f4f6',
-                                padding: '2px 6px',
-                                borderRadius: '4px'
-                            }}>
-                                {realTimeClock.toLocaleDateString('vi-VN')}
-                            </span>
-                        </div>
+                <div className={styles.headerCenter}>
+                    <div className={styles.clock}>
+                        <Clock size={16} />
+                        <span className={styles.time}>{realTimeClock.toLocaleTimeString('vi-VN')}</span>
+                        <span className={styles.date}>{realTimeClock.toLocaleDateString('vi-VN')}</span>
                     </div>
                 </div>
 
                 <div className={styles.headerRight}>
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        background: '#f8fafc',
-                        padding: '6px 12px',
-                        borderRadius: '8px'
-                    }}>
-                        <div
-                            className={styles.notificationIcon}
-                            onClick={() => setShowNotificationPanel(!showNotificationPanel)}
-                        >
-                            <Bell size={20} />
-                            {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
-                        </div>
+                    <div
+                        className={styles.notificationBell}
+                        onClick={() => setShowNotificationPanel(!showNotificationPanel)}
+                    >
+                        <Bell size={20} />
+                        {unreadCount > 0 && <span className={styles.badge}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
                     </div>
                 </div>
             </div>
 
-            {/* NOTIFICATION PANEL */}
             {showNotificationPanel && (
                 <div className={styles.notificationPanel}>
                     <div className={styles.notificationHeader}>
@@ -398,8 +492,10 @@ const ChefDashboard = () => {
                         ) : (
                             notifications.map(noti => (
                                 <div key={noti.id} className={`${styles.notificationItem} ${styles[noti.type]}`}>
-                                    <span>{noti.message}</span>
-                                    <small>{noti.timestamp?.toLocaleTimeString()}</small>
+                                    <div className={styles.notificationMessage}>{noti.message}</div>
+                                    <div className={styles.notificationTime}>
+                                        {noti.timestamp?.toLocaleTimeString('vi-VN')}
+                                    </div>
                                 </div>
                             ))
                         )}
@@ -407,73 +503,76 @@ const ChefDashboard = () => {
                 </div>
             )}
 
-            {/* OVERVIEW STATS */}
-            <div className={styles.stats}>
-                <div className={styles.card}>
-                    <div className={styles.cardValue}>{counts.WAITING}</div>
-                    <div className={styles.cardLabel}>⏳ Chờ làm</div>
+            <div className={styles.statsGrid}>
+                <div className={`${styles.statCard} ${counts.WAITING > 0 ? styles.hasWaiting : ''}`}>
+                    <div className={styles.statValue}>{counts.WAITING}</div>
+                    <div className={styles.statLabel}>⏳ Chờ làm</div>
                 </div>
-                <div className={styles.card}>
-                    <div className={styles.cardValue}>{counts.PREPARING}</div>
-                    <div className={styles.cardLabel}>🔥 Đang nấu</div>
+                <div className={`${styles.statCard} ${counts.PREPARING > 0 ? styles.hasPreparing : ''}`}>
+                    <div className={styles.statValue}>{counts.PREPARING}</div>
+                    <div className={styles.statLabel}>🔥 Đang nấu</div>
                 </div>
-                <div className={`${styles.card} ${counts.OVERDUE > 0 ? styles.cardWarning : ''}`}>
-                    <div className={styles.cardValue}>{counts.OVERDUE}</div>
-                    <div className={styles.cardLabel}>⚠️ Quá hạn</div>
+                <div className={`${styles.statCard} ${counts.OVERDUE > 0 ? styles.hasOverdue : ''}`}>
+                    <div className={styles.statValue}>{counts.OVERDUE}</div>
+                    <div className={styles.statLabel}>⚠️ Quá hạn</div>
                 </div>
-                <div className={styles.card}>
-                    <div className={styles.cardValue}>{counts.ALL}</div>
-                    <div className={styles.cardLabel}>📋 Tổng món</div>
+                <div className={styles.statCard}>
+                    <div className={styles.statValue}>{counts.ALL}</div>
+                    <div className={styles.statLabel}>📋 Tổng món</div>
                 </div>
             </div>
 
-            {/* TABS FILTER */}
-            <div className={styles.tabs}>
-                {['ALL', 'WAITING', 'PREPARING'].map(tab => (
+            <div className={styles.tabsContainer}>
+                {[
+                    { key: 'ALL', label: '📋 Tất cả', count: counts.ALL },
+                    { key: 'WAITING', label: '⏳ Món mới', count: counts.WAITING },
+                    { key: 'PREPARING', label: '🔥 Đang làm', count: counts.PREPARING }
+                ].map(tab => (
                     <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`${styles.tab} ${activeTab === tab ? styles.activeTab : ''}`}
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`${styles.tab} ${activeTab === tab.key ? styles.activeTab : ''}`}
                     >
-                        {tab === 'ALL' ? '📋 Tất cả' : tab === 'WAITING' ? '⏳ Món mới' : '🔥 Đang làm'}
-                        <span className={styles.tabCount}>({counts[tab]})</span>
+                        {tab.label}
+                        <span className={styles.tabCount}>({tab.count})</span>
                     </button>
                 ))}
             </div>
 
-            {/* REFRESH BUTTON */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
-                <button
-                    onClick={fetchData}
-                    disabled={loading}
-                    className={styles.refreshBtn}
-                >
-                    <RefreshCw size={16} className={loading ? 'spin' : ''} />
+            <div className={styles.refreshSection}>
+                <button onClick={fetchData} disabled={loading} className={styles.refreshBtn}>
+                    <RefreshCw size={16} className={loading ? styles.spinning : ''} />
                     Làm mới
                 </button>
+                {lastUpdated && (
+                    <span className={styles.lastUpdated}>
+                        Cập nhật lúc: {lastUpdated.toLocaleTimeString('vi-VN')}
+                    </span>
+                )}
             </div>
 
-            {/* ITEMS LIST */}
             {loading ? (
-                <div className={styles.loading}>
+                <div className={styles.loadingState}>
                     <div className={styles.spinner}></div>
                     <p>Đang tải dữ liệu...</p>
                 </div>
             ) : sortedItems.length === 0 ? (
                 <div className={styles.emptyState}>
-                    <ChefHat size={48} style={{ opacity: 0.5 }} />
+                    <ChefHat size={64} className={styles.emptyIcon} />
                     <p>Không có món ăn nào trong danh sách</p>
+                    <p className={styles.emptySubtext}>Chờ đơn hàng từ quầy...</p>
                 </div>
             ) : (
-                <div className={styles.grid}>
+                <div className={styles.itemsGrid}>
                     {sortedItems.map(item => {
                         const timeColor = getTimeColor(item.createdAt);
                         const overdue = isOverdue(item.createdAt);
+                        const isUpdatingItem = itemUpdating[item.id];
 
                         return (
                             <div
                                 key={item.id}
-                                className={`${styles.item} ${overdue ? styles.overdue : ''} ${itemUpdating[item.id] ? styles.updating : ''}`}
+                                className={`${styles.orderItem} ${overdue ? styles.overdueItem : ''} ${isUpdatingItem ? styles.updatingItem : ''}`}
                             >
                                 <div className={styles.itemHeader}>
                                     <div className={styles.tableInfo}>
@@ -487,32 +586,35 @@ const ChefDashboard = () => {
                                 </div>
 
                                 <h3 className={styles.itemName}>{item.name}</h3>
-                                <p className={styles.itemQuantity}>
-                                    Số lượng: <strong>{item.quantity}</strong>
-                                </p>
 
-                                {item.notes && <p className={styles.note}>📝 {item.notes}</p>}
+                                <div className={styles.itemDetails}>
+                                    <span className={styles.itemQuantity}>
+                                        📦 Số lượng: <strong>{item.quantity}</strong>
+                                    </span>
+                                </div>
+
+                                {item.notes && <p className={styles.itemNotes}>📝 {item.notes}</p>}
 
                                 <div className={styles.itemFooter}>
-                                    <span className={`${styles.status} ${styles[item.status]}`}>
-                                        {item.status === 'WAITING' ? '⏳ Chờ làm' : '🔵 Đang nấu'}
+                                    <span className={`${styles.statusBadge} ${styles[item.status]}`}>
+                                        {item.status === 'WAITING' ? '⏳ Chờ làm' : '🔪 Đang nấu'}
                                     </span>
 
-                                    <div className={styles.actions}>
+                                    <div className={styles.actionButtons}>
                                         {item.status === 'WAITING' && (
                                             <button
                                                 className={styles.startBtn}
-                                                disabled={updatingId === item.id}
+                                                disabled={isUpdatingItem}
                                                 onClick={() => updateStatus(item.id, 'PREPARING', item.name, item.table)}
                                             >
-                                                <Play size={14} /> Bắt đầu nấu
+                                                <Play size={14} /> Bắt đầu
                                             </button>
                                         )}
 
                                         {item.status === 'PREPARING' && (
                                             <button
                                                 className={styles.completeBtn}
-                                                disabled={updatingId === item.id}
+                                                disabled={isUpdatingItem}
                                                 onClick={() => updateStatus(item.id, 'READY', item.name, item.table)}
                                             >
                                                 <Check size={14} /> Hoàn thành
@@ -526,27 +628,16 @@ const ChefDashboard = () => {
                 </div>
             )}
 
-            {/* TOAST NOTIFICATIONS */}
-            <div className={styles.toast}>
-                {toasts.map(t => (
+            <div className={styles.toastContainer}>
+                {toasts.map(toast => (
                     <ToastNotification
-                        key={t.id}
-                        message={t.message}
-                        type={t.type}
-                        onClose={() => removeToast(t.id)}
+                        key={toast.id}
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={() => removeToast(toast.id)}
                     />
                 ))}
             </div>
-
-            <style>{`
-                .spin {
-                    animation: spin 1s linear infinite;
-                }
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 };
