@@ -38,6 +38,20 @@ export default function ManagerLayout() {
             navigate('/login');
         } else {
             setUser(loggedUser);
+            // Fetch lại user để lấy imageUrl mới nhất
+            const token = localStorage.getItem('token');
+            fetch(`http://localhost:8080/api/users/${loggedUser.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data) {
+                        setUser(data);
+                        // Cập nhật localStorage luôn
+                        localStorage.setItem('user', JSON.stringify(data));
+                    }
+                })
+                .catch(() => { });
         }
     }, [navigate]);
 
@@ -273,9 +287,29 @@ export default function ManagerLayout() {
                             <>
                                 <div className={styles['user-info']}>
                                     <div className={styles['user-avatar']}>
-                                        {user.username.charAt(0).toUpperCase()}
+                                        {user.imageUrl ? (
+                                            <img
+                                                src={user.imageUrl.startsWith('http')
+                                                    ? user.imageUrl
+                                                    : `http://localhost:8080${user.imageUrl.startsWith('/') ? '' : '/'}${user.imageUrl}`}
+                                                alt={user.username}
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover',
+                                                    borderRadius: '50%'
+                                                }}
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    e.target.nextSibling.style.display = 'block';
+                                                }}
+                                            />
+                                        ) : null}
+                                        <span style={{ display: user.imageUrl ? 'none' : 'block' }}>
+                                            {user.username.charAt(0).toUpperCase()}
+                                        </span>
                                     </div>
-                                    <span className={styles['user-name']}>{user.username}</span>
+                                    <span className={styles['user-name']}>{user.fullName || user.username}</span>
                                 </div>
                                 <button onClick={handleLogout} className={styles['logout-button']}>
                                     <LogOut size={18} />

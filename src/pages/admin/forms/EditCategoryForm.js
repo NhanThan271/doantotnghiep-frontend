@@ -151,349 +151,159 @@ export default function EditCategory({ category, onClose, onSuccess, refreshCall
 
     return (
         <div className={styles['modal-backdrop']} onClick={onClose}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{
-                maxWidth: '900px',
-                height: '600px'
-            }}>
-                {/* Header */}
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '24px'
-                }}>
+            <div className={styles['modal-container']} onClick={(e) => e.stopPropagation()}>
+
+                {/* Header - Fixed */}
+                <div className={styles['modal-header']}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{
-                            width: '40px',
-                            height: '40px',
+                            width: '40px', height: '40px',
                             background: 'rgba(59, 130, 246, 0.1)',
                             borderRadius: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}>
                             <FolderOpen size={20} color="#3B82F6" />
                         </div>
                         <div>
-                            <h2 style={{
-                                fontSize: '20px',
-                                fontWeight: '700',
-                                margin: 0,
-                                color: 'var(--color-text-primary)'
-                            }}>
+                            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: 'var(--color-text-primary)' }}>
                                 Sửa danh mục
                             </h2>
-                            <p style={{
-                                fontSize: '13px',
-                                color: 'var(--color-text-secondary)',
-                                margin: '4px 0 0 0'
-                            }}>
+                            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
                                 Cập nhật thông tin danh mục
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--color-border)',
-                            background: 'transparent',
-                            color: 'var(--color-text-secondary)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                            e.currentTarget.style.borderColor = '#EF4444';
-                            e.currentTarget.style.color = '#EF4444';
-                        }}
-                        onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = 'var(--color-border)';
-                            e.currentTarget.style.color = 'var(--color-text-secondary)';
-                        }}
+                    <button onClick={onClose} style={{
+                        width: '32px', height: '32px', borderRadius: '8px',
+                        border: '1px solid var(--color-border)', background: 'transparent',
+                        color: 'var(--color-text-secondary)', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s'
+                    }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.borderColor = '#EF4444'; e.currentTarget.style.color = '#EF4444'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.color = 'var(--color-text-secondary)'; }}
                     >
                         <X size={18} />
                     </button>
                 </div>
 
-                <div>
-                    {/* Error message */}
+                {/* Body - Scrollable */}
+                <div className={styles['modal-body']}>
                     {error && (
                         <div style={{
-                            padding: '12px',
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            borderRadius: '8px',
-                            color: '#EF4444',
-                            fontSize: '14px',
-                            marginBottom: '20px'
+                            padding: '12px', background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px',
+                            color: '#EF4444', fontSize: '14px', marginBottom: '20px'
                         }}>
                             {error}
                         </div>
                     )}
 
                     {/* Image Upload */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{
-                            display: 'block',
-                            marginBottom: '8px',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            color: 'var(--color-text-primary)'
-                        }}>
+                    <div style={{ marginBottom: '24px' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: 'var(--color-text-primary)' }}>
                             Hình ảnh danh mục <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: '400' }}>(Tùy chọn)</span>
                         </label>
-
                         {imagePreview ? (
                             <div style={{ position: 'relative' }}>
-                                <img
-                                    src={imagePreview}
-                                    alt="Preview"
-                                    style={{
-                                        width: '100%',
-                                        height: '200px',
-                                        objectFit: 'cover',
-                                        borderRadius: '12px',
-                                        border: '1px solid var(--color-border)'
-                                    }}
-                                />
+                                <img src={imagePreview} alt="Preview" style={{
+                                    width: '100%', height: '200px', objectFit: 'cover',
+                                    borderRadius: '12px', border: '1px solid var(--color-border)'
+                                }} />
                                 {formData.image && (
-                                    <button
-                                        type="button"
-                                        onClick={handleRemoveImage}
-                                        style={{
-                                            position: 'absolute',
-                                            top: '8px',
-                                            right: '8px',
-                                            width: '32px',
-                                            height: '32px',
-                                            borderRadius: '8px',
-                                            background: 'rgba(239, 68, 68, 0.9)',
-                                            border: 'none',
-                                            color: '#fff',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}
-                                    >
+                                    <button type="button" onClick={handleRemoveImage} style={{
+                                        position: 'absolute', top: '8px', right: '8px',
+                                        width: '32px', height: '32px', borderRadius: '8px',
+                                        background: 'rgba(239, 68, 68, 0.9)', border: 'none',
+                                        color: '#fff', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    }}>
                                         <X size={18} />
                                     </button>
                                 )}
                                 <label style={{
-                                    position: 'absolute',
-                                    bottom: '8px',
-                                    right: '8px',
-                                    padding: '8px 12px',
-                                    background: 'rgba(0, 0, 0, 0.7)',
-                                    backdropFilter: 'blur(8px)',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px',
-                                    color: '#fff',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    transition: 'all 0.2s'
-                                }}
-                                    onMouseOver={(e) => {
-                                        e.currentTarget.style.background = 'rgba(0, 0, 0, 0.85)';
-                                    }}
-                                    onMouseOut={(e) => {
-                                        e.currentTarget.style.background = 'rgba(0, 0, 0, 0.7)';
-                                    }}
-                                >
-                                    <Upload size={14} />
-                                    Đổi ảnh
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleImageChange}
-                                        style={{ display: 'none' }}
-                                    />
+                                    position: 'absolute', bottom: '8px', right: '8px',
+                                    padding: '8px 12px', background: 'rgba(0,0,0,0.7)',
+                                    borderRadius: '8px', cursor: 'pointer', fontSize: '12px',
+                                    color: '#fff', display: 'flex', alignItems: 'center', gap: '6px'
+                                }}>
+                                    <Upload size={14} /> Đổi ảnh
+                                    <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
                                 </label>
                             </div>
                         ) : (
                             <label style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                height: '200px',
-                                border: '2px dashed var(--color-border)',
-                                borderRadius: '12px',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                background: 'var(--color-bg-dark)'
-                            }}
-                                onMouseOver={(e) => {
-                                    e.currentTarget.style.borderColor = '#3B82F6';
-                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.currentTarget.style.borderColor = 'var(--color-border)';
-                                    e.currentTarget.style.background = 'var(--color-bg-dark)';
-                                }}
-                            >
+                                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                justifyContent: 'center', height: '200px',
+                                border: '2px dashed var(--color-border)', borderRadius: '12px',
+                                cursor: 'pointer', background: 'var(--color-bg-dark)'
+                            }}>
                                 <Upload size={32} color="var(--color-text-secondary)" />
-                                <p style={{
-                                    marginTop: '12px',
-                                    fontSize: '14px',
-                                    color: 'var(--color-text-secondary)'
-                                }}>
-                                    Click để chọn ảnh mới
-                                </p>
-                                <p style={{
-                                    fontSize: '12px',
-                                    color: 'var(--color-text-secondary)',
-                                    marginTop: '4px'
-                                }}>
-                                    PNG, JPG (max 5MB)
-                                </p>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleImageChange}
-                                    style={{ display: 'none' }}
-                                />
+                                <p style={{ marginTop: '12px', fontSize: '14px', color: 'var(--color-text-secondary)' }}>Click để chọn ảnh</p>
+                                <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>PNG, JPG (max 5MB)</p>
+                                <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
                             </label>
                         )}
                     </div>
 
                     {/* Category Name */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{
-                            display: 'block',
-                            marginBottom: '8px',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            color: 'var(--color-text-primary)'
-                        }}>
+                    <div style={{ marginBottom: '24px' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: 'var(--color-text-primary)' }}>
                             Tên danh mục <span style={{ color: '#EF4444' }}>*</span>
                         </label>
                         <div style={{ position: 'relative' }}>
-                            <FolderOpen
-                                size={18}
-                                style={{
-                                    position: 'absolute',
-                                    left: '14px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: 'var(--color-text-secondary)'
-                                }}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Nhập tên danh mục"
-                                value={formData.name}
-                                onChange={(e) => handleChange('name', e.target.value)}
+                            <FolderOpen size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-secondary)' }} />
+                            <input type="text" placeholder="Nhập tên danh mục"
+                                value={formData.name} onChange={(e) => handleChange('name', e.target.value)}
                                 maxLength={50}
-                                style={{
-                                    paddingLeft: '44px'
-                                }}
+                                style={{ width: '100%', padding: '12px 16px 12px 44px', background: '#0F0F0F', borderRadius: '12px', border: '1px solid #2A2A2A', color: '#FFFFFF', fontSize: '14px', outline: 'none' }}
                             />
                         </div>
                     </div>
 
                     {/* Description */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{
-                            display: 'block',
-                            marginBottom: '8px',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            color: 'var(--color-text-primary)'
-                        }}>
+                    <div style={{ marginBottom: '0' }}>
+                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600', color: 'var(--color-text-primary)' }}>
                             Mô tả
                         </label>
                         <div style={{ position: 'relative' }}>
-                            <FileText
-                                size={18}
-                                style={{
-                                    position: 'absolute',
-                                    left: '14px',
-                                    top: '14px',
-                                    color: 'var(--color-text-secondary)'
-                                }}
-                            />
-                            <textarea
-                                placeholder="Nhập mô tả danh mục"
-                                value={formData.description}
-                                onChange={(e) => handleChange('description', e.target.value)}
+                            <FileText size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: 'var(--color-text-secondary)' }} />
+                            <textarea placeholder="Nhập mô tả danh mục"
+                                value={formData.description} onChange={(e) => handleChange('description', e.target.value)}
                                 rows={4}
-                                style={{
-                                    paddingLeft: '44px',
-                                    resize: 'vertical',
-                                    minHeight: '100px'
-                                }}
+                                style={{ width: '100%', padding: '12px 16px 12px 44px', background: '#0F0F0F', borderRadius: '12px', border: '1px solid #2A2A2A', color: '#FFFFFF', fontSize: '14px', outline: 'none' }}
                             />
                         </div>
                     </div>
+                </div>
 
-                    {/* Buttons */}
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            style={{
-                                flex: 1,
-                                padding: '12px',
-                                background: 'transparent',
-                                color: 'var(--color-text-secondary)',
-                                border: '1px solid var(--color-border)',
-                                borderRadius: '12px',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                transition: 'all 0.2s'
-                            }}
-                            onMouseOver={(e) => {
-                                e.currentTarget.style.background = 'var(--color-hover)';
-                                e.currentTarget.style.color = 'var(--color-text-primary)';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.color = 'var(--color-text-secondary)';
-                            }}
+                {/* Footer - Fixed */}
+                <div className={styles['modal-footer']}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button type="button" onClick={onClose} style={{
+                            flex: 1, padding: '12px', background: 'transparent',
+                            color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)',
+                            borderRadius: '12px', fontWeight: '600', cursor: 'pointer', fontSize: '14px'
+                        }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = 'var(--color-hover)'; e.currentTarget.style.color = 'var(--color-text-primary)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-secondary)'; }}
                         >
                             Hủy
                         </button>
-                        <button
-                            type="button"
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            style={{
-                                flex: 1,
-                                padding: '12px',
-                                background: loading
-                                    ? 'var(--color-text-secondary)'
-                                    : 'linear-gradient(135deg, #3B82F6, #2563EB)',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '12px',
-                                fontWeight: '600',
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                                fontSize: '14px',
-                                transition: 'transform 0.2s',
-                                opacity: loading ? 0.6 : 1
-                            }}
-                            onMouseOver={(e) => {
-                                if (!loading) e.currentTarget.style.transform = 'translateY(-2px)';
-                            }}
-                            onMouseOut={(e) => {
-                                e.currentTarget.style.transform = 'translateY(0)';
-                            }}
+                        <button type="button" onClick={handleSubmit} disabled={loading} style={{
+                            flex: 1, padding: '12px',
+                            background: loading ? 'var(--color-text-secondary)' : 'linear-gradient(135deg, #3B82F6, #2563EB)',
+                            color: '#fff', border: 'none', borderRadius: '12px',
+                            fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer',
+                            fontSize: '14px', opacity: loading ? 0.6 : 1
+                        }}
+                            onMouseOver={(e) => { if (!loading) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
                         >
                             {loading ? 'Đang xử lý...' : 'Cập nhật'}
                         </button>
                     </div>
                 </div>
+
             </div>
         </div>
     );
