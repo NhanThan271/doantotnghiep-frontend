@@ -147,23 +147,52 @@ const ChefDashboard = () => {
         }
     };
 
+    // Helper lấy branchId từ item
+    const getItemBranchId = useCallback((item) => {
+        return item.order?.branch?.id ||
+            item.order?.branchId ||
+            item.branchId ||
+            item.food?.branchId;
+    }, []);
+
     // ========== FETCH DATA FUNCTION ==========
     const fetchData = useCallback(async () => {
+        if (!branchId) {
+            console.log("⚠️ No branchId yet, skipping fetch");
+            return;
+        }
+
         setLoading(true);
         try {
             const res = await kitchenAPI.getQueue();
             const items = Array.isArray(res.data) ? res.data : [];
 
-            const mapped = items.map(item => ({
+            console.log(`📦 Raw API response: ${items.length} items`);
+
+            // Lọc theo branch
+            const filteredItems = items.filter(item => {
+                const itemBranchId = getItemBranchId(item);
+
+                if (itemBranchId && itemBranchId !== branchId) {
+                    console.log(`🚫 Filtered out: ${item.food?.name} (branch ${itemBranchId})`);
+                    return false;
+                }
+                return true;
+            });
+
+            console.log(`✅ After filter: ${filteredItems.length} items for branch ${branchId}`);
+
+            // Map dữ liệu
+            const mapped = filteredItems.map(item => ({
                 id: item.id,
                 name: item.food?.name || item.name || 'Món ăn',
                 quantity: item.quantity,
                 status: item.kitchenStatus || item.status || 'WAITING',
-                table: item.order?.table?.number || item.tableNumber || item.table?.number || item.orderId || '?',
+                table: item.order?.table?.number || item.tableNumber || item.order?.table?.name || '?',
                 createdAt: item.createdAt,
                 notes: item.notes || '',
-                orderId: item.orderId,
-                foodId: item.foodId
+                orderId: item.order?.id || item.orderId,
+                foodId: item.food?.id || item.foodId
             }));
 
             setAllItems(mapped);
@@ -174,7 +203,16 @@ const ChefDashboard = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [branchId, getItemBranchId]);
+
+    // Clear data khi branch thay đổi
+    useEffect(() => {
+        if (branchId) {
+            console.log(`🔄 Branch changed to: ${branchId}, clearing old data`);
+            setAllItems([]);
+            fetchData();
+        }
+    }, [branchId, fetchData]);
 
     // ========== SPEECH FUNCTION ==========
     const speakVietnamese = (text) => {
@@ -211,7 +249,6 @@ const ChefDashboard = () => {
     // ========== SOCKET EVENT HANDLERS ==========
     useEffect(() => {
         const handleNewOrder = (orderData) => {
-            // Debounce - bỏ qua duplicate trong 500ms
             const notiKey = `${orderData.orderId}_${orderData.tableNumber}_${JSON.stringify(orderData.items)}`;
             const now = Date.now();
 
@@ -246,7 +283,6 @@ const ChefDashboard = () => {
         };
 
         const handleOrderUpdated = (data) => {
-            // Debounce - bỏ qua duplicate trong 500ms
             const notiKey = `${data.orderId}_${data.tableNumber}_${JSON.stringify(data.items)}`;
             const now = Date.now();
 
@@ -279,6 +315,7 @@ const ChefDashboard = () => {
                 speakVietnamese(speechText);
             }
         };
+
         const handleUpdateTables = () => {
             fetchData();
         };
@@ -365,13 +402,10 @@ const ChefDashboard = () => {
             socket.emit("update-tables");
 
             if (status === 'READY') {
-                const areaName = "Khu chính"; // Có thể lấy từ state nếu có
+                const areaName = "Khu chính";
                 const message = `✅ Hoàn thành món ${itemName} (${areaName} - Bàn ${tableNumber})`;
                 showToast(message, 'success');
                 addNotification(message, 'success');
-
-                const speechText = `Hoàn thành món ${itemName} tại ${areaName} bàn ${tableNumber}`;
-                speakVietnamese(speechText);
             }
 
         } catch (err) {
