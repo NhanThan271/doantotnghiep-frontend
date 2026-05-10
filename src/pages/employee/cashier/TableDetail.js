@@ -270,9 +270,9 @@ const TableDetail = () => {
 
             socket.emit("order-updated", {
                 orderId: order.id,
-                tableNumber: entityNumber,     // ← Quan trọng: số bàn/phòng
+                tableNumber: entityNumber,
                 tableId: entity.id,
-                locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`, // ← Tên hiển thị
+                locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
                 areaName: entity?.area || "Khu chính", items: newItems.map(item => ({
                     id: item.id,
                     name: item.name,
@@ -282,7 +282,6 @@ const TableDetail = () => {
                 branchId: branchId
             });
 
-            socket.emit("update-tables");
             socket.emit("update-order", updatedOrder);
 
             showToast(`Đã cập nhật thêm món cho đơn hàng!`, 'success', 3000);
@@ -367,7 +366,7 @@ const TableDetail = () => {
                 };
             });
 
-            socket.emit("order-updated", {
+            socket.emit("new-order", {
                 orderId: newOrder.id,
                 tableNumber: entityNumber,
                 tableId: entity.id,
@@ -381,8 +380,6 @@ const TableDetail = () => {
                 timestamp: new Date().toISOString(),
                 branchId: branchId
             });
-
-            socket.emit("update-tables");
 
             showToast(`Đơn hàng đã được gửi đến bếp!`, 'success', 4000);
 
