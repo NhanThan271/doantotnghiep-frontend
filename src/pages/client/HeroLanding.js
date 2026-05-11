@@ -18,15 +18,15 @@ const HeroLanding = () => {
                 }
                 const data = await response.json();
 
-                // Hàm để map chính xác file ảnh trong public/images dựa trên tên chi nhánh
-                const getLocalImage = (name) => {
-                    const branchName = name.toLowerCase();
-                    if (branchName.includes('bình thạnh')) return '/images/binh-thanh.jpeg';
-                    if (branchName.includes('quận 1')) return '/images/quan-1.webp';
-                    if (branchName.includes('quận 2')) return '/images/quan-2.jpg';
-                    if (branchName.includes('quận 5')) return '/images/quan-5.jpg';
-                    if (branchName.includes('thủ đức')) return '/images/thu-duc.jpg';
-                    return '/images/qr-bank.jpg'; // Ảnh dự phòng
+                const getLocalImage = (id) => {
+                    const imageMap = {
+                        1: '/images/binh-thanh.jpeg',
+                        2: '/images/quan-1.webp',
+                        3: '/images/quan-2.jpg',
+                        4: '/images/quan-5.jpg',
+                        5: '/images/thu-duc.jpg',
+                    };
+                    return imageMap[id] || '/images/qr-bank.jpg';
                 };
 
                 const formattedData = data.map((b, index) => ({
@@ -34,8 +34,7 @@ const HeroLanding = () => {
                     label: 'Chi Nhánh',
                     num: (index + 1).toString().padStart(2, '0'),
                     name: b.name,
-                    // Sửa đường dẫn lấy từ thư mục public/images
-                    image: getLocalImage(b.name),
+                    image: getLocalImage(b.id),
                     alt: b.name,
                     menuImage: b.menuImage || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=220&fit=crop',
                 }));

@@ -59,7 +59,7 @@ export default function BranchDashboard() {
 
             const calculatedStats = {
                 branchName: branchData.name || 'Chi nhánh',
-                todayRevenue: calculateRevenue(todayOrders, 'PAID'),
+                todayRevenue: calculateRevenue(branchOrders, 'PAID'),
                 monthRevenue: calculateMonthRevenue(branchOrders),
                 todayOrders: todayOrders.length,
                 occupiedTables: countOccupiedTables(branchTables),
@@ -127,9 +127,8 @@ export default function BranchDashboard() {
 
     const filterOrdersByBranch = (orders, branchId) => {
         return orders.filter(order => {
-            // Kiểm tra qua table.branch hoặc branch trực tiếp
             const orderBranchId = order.branch?.id || order.table?.branch?.id;
-            return orderBranchId === branchId;
+            return Number(orderBranchId) === Number(branchId);
         });
     };
 
@@ -153,28 +152,42 @@ export default function BranchDashboard() {
 
     const filterTodayOrders = (orders, today) => {
         return orders.filter(order => {
-            const orderDate = order.createdAt?.split('T')[0] ||
-                order.orderDate?.split('T')[0];
+            const raw = order.createdAt || order.orderDate;
+            if (!raw) return false;
+            const orderDate = new Date(raw).toLocaleDateString('en-CA', {
+                timeZone: 'Asia/Ho_Chi_Minh'
+            });
             return orderDate === today;
         });
     };
 
     const calculateRevenue = (orders, status) => {
-        return orders
-            .filter(order => order.status === status)
-            .reduce((sum, order) => sum + parseFloat(order.totalAmount || 0), 0);
+        const today = getTodayDateString();
+        const filtered = orders.filter(order => {
+            if (order.status !== status) return false;
+            if (!order.paidAt) return false;
+            const paidDate = new Date(order.paidAt).toLocaleDateString('en-CA', {
+                timeZone: 'Asia/Ho_Chi_Minh'
+            });
+            return paidDate === today;
+        });
+        return filtered.reduce((sum, order) => sum + parseFloat(order.totalAmount || 0), 0);
     };
 
     const calculateMonthRevenue = (orders) => {
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
+        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
 
         return orders
             .filter(order => {
                 if (order.status !== 'PAID') return false;
-                const orderDate = new Date(order.createdAt || order.orderDate);
-                return orderDate.getMonth() === currentMonth &&
-                    orderDate.getFullYear() === currentYear;
+                if (!order.paidAt) return false;
+                const paidDate = new Date(
+                    new Date(order.paidAt).toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' })
+                );
+                return paidDate.getMonth() === currentMonth &&
+                    paidDate.getFullYear() === currentYear;
             })
             .reduce((sum, order) => sum + parseFloat(order.totalAmount || 0), 0);
     };
