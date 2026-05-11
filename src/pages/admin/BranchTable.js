@@ -231,7 +231,7 @@ export default function TableManagement() {
                                 onClick={() => setSelectedBranch(branch)}
                                 className={`branch-item ${selectedBranch?.id === branch.id ? 'active' : ''}`}
                             >
-                                <div className="branch-name">{branch.name}</div>
+                                <div className="branch-name1">{branch.name}</div>
                                 <div className="branch-address">{branch.address}</div>
                             </button>
                         ))}

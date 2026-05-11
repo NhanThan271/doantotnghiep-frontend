@@ -365,11 +365,15 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                     marginBottom: '24px'
                 }}>
                     <div
-                        className={styles.card}
                         style={{
                             cursor: 'pointer',
                             transition: 'all 0.2s',
-                            background: filter === 'all' ? 'rgba(212, 175, 55, 0.1)' : ''
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.2)',
+                            color: 'var(--color-text-secondary)',
+                            padding: '24px',
+                            borderRadius: '16px',
+                            boxShadow: 'var(--shadow-sm)',
                         }}
                         onClick={() => setFilter('all')}
                         onMouseEnter={(e) => {
@@ -403,11 +407,15 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                     </div>
 
                     <div
-                        className={styles.card}
                         style={{
                             cursor: 'pointer',
                             transition: 'all 0.2s',
-                            background: filter === 'active' ? 'rgba(16, 185, 129, 0.1)' : ''
+                            background: 'rgba(16, 185, 129, 0.1)',
+                            border: '1px solid rgba(16, 185, 129, 0.2)',
+                            color: 'var(--color-text-secondary)',
+                            padding: '24px',
+                            borderRadius: '16px',
+                            boxShadow: 'var(--shadow-sm)',
                         }}
                         onClick={() => setFilter('active')}
                         onMouseEnter={(e) => {
@@ -445,7 +453,12 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                         style={{
                             cursor: 'pointer',
                             transition: 'all 0.2s',
-                            background: filter === 'inactive' ? 'rgba(239, 68, 68, 0.1)' : ''
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            color: 'var(--color-text-secondary)',
+                            padding: '24px',
+                            borderRadius: '16px',
+                            boxShadow: 'var(--shadow-sm)',
                         }}
                         onClick={() => setFilter('inactive')}
                         onMouseEnter={(e) => {

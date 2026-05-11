@@ -82,7 +82,7 @@ export default function AdminLayout() {
     const menuItems = [
         { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
         { id: 'products', label: 'Quản lý Món ăn', icon: ShoppingBag },
-        { id: 'branchmenu', label: 'Phân menu cho chi nhánh', icon: MenuSquare },
+        { id: 'branchmenu', label: 'Phân menu chi nhánh', icon: MenuSquare },
         { id: 'branchtable', label: 'Quản lý Bàn', icon: Table },
         { id: 'branchroom', label: 'Quản lý Phòng', icon: DoorOpen },
         { id: 'categories', label: 'Quản lý Danh mục', icon: FolderTree },
