@@ -156,45 +156,30 @@ const ChefDashboard = () => {
     }, []);
 
     // ========== FETCH DATA FUNCTION ==========
-    const fetchData = useCallback(async () => {
-        if (!branchId) {
-            console.log("⚠️ No branchId yet, skipping fetch");
-            return;
-        }
-
-        setLoading(true);
+    const fetchData = useCallback(async (silent = false) => {
+        if (!branchId) return;
+        if (!silent) setLoading(true);
         try {
             const res = await kitchenAPI.getQueue();
             const items = Array.isArray(res.data) ? res.data : [];
 
-            console.log(`📦 Raw API response: ${items.length} items`);
+            console.log('📦 First item:', items[0]);
 
-            // Lọc theo branch
-            const filteredItems = items.filter(item => {
-                const itemBranchId = getItemBranchId(item);
+            const mapped = items
+                .filter(item => !item.branch?.id || item.branch?.id === branchId)
+                .map(item => ({
+                    id: item.id,
+                    name: item.food?.name || 'Món ăn',
+                    quantity: item.quantity || 1,
+                    status: item.kitchenStatus || 'WAITING',
+                    table: item.table?.number || '?',
+                    createdAt: item.createdAt,
+                    notes: item.notes || '',
+                    orderId: item.orderId,
+                    foodId: item.food?.id
+                }));
 
-                if (itemBranchId && itemBranchId !== branchId) {
-                    console.log(`🚫 Filtered out: ${item.food?.name} (branch ${itemBranchId})`);
-                    return false;
-                }
-                return true;
-            });
-
-            console.log(`✅ After filter: ${filteredItems.length} items for branch ${branchId}`);
-
-            // Map dữ liệu
-            const mapped = filteredItems.map(item => ({
-                id: item.id,
-                name: item.food?.name || item.name || 'Món ăn',
-                quantity: item.quantity,
-                status: item.kitchenStatus || item.status || 'WAITING',
-                table: item.order?.table?.number || item.tableNumber || item.order?.table?.name || '?',
-                createdAt: item.createdAt,
-                notes: item.notes || '',
-                orderId: item.order?.id || item.orderId,
-                foodId: item.food?.id || item.foodId
-            }));
-
+            console.log('✅ Mapped:', mapped.length, 'items');
             setAllItems(mapped);
             setLastUpdated(new Date());
         } catch (err) {
@@ -368,12 +353,11 @@ const ChefDashboard = () => {
     }, [fetchData]);
 
     useEffect(() => {
-        const timer = setInterval(() => {
-            setRealTimeClock(new Date());
-            setCurrentTime(Date.now());
+        const interval = setInterval(() => {
+            fetchData(true);
         }, 1000);
-        return () => clearInterval(timer);
-    }, []);
+        return () => clearInterval(interval);
+    }, [fetchData]);
 
     useEffect(() => {
         if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
@@ -409,7 +393,8 @@ const ChefDashboard = () => {
             }
 
         } catch (err) {
-            const errorMsg = err.response?.data?.message || err.message;
+            console.error('Update error:', err.response?.status, err.response?.data);
+            const errorMsg = err.response?.data?.message || err.response?.data || err.message;
             showToast(`❌ Update thất bại: ${errorMsg}`, 'error');
         } finally {
             setUpdatingId(null);

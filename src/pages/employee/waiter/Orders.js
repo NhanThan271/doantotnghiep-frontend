@@ -358,12 +358,32 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
         setSubmitting(true);
         try {
             if (existingOrderId) {
-                // ── THÊM VÀO ĐƠN CŨ ──
                 const body = cart.map(i => ({ foodId: i.id, quantity: i.qty, note: i.note || '' }));
                 const r = await apiFetch(`/api/customer/orders/${existingOrderId}/add-items`, {
                     method: 'POST', body: JSON.stringify(body)
                 });
                 if (!r.ok) throw new Error('Thêm món thất bại');
+
+                // Nếu đơn đang COMPLETED → chuyển về CONFIRMED
+                const orderRes = await apiFetch(`/api/customer/orders/${existingOrderId}`);
+                if (orderRes.ok) {
+                    const orderData = await orderRes.json();
+                    if (orderData.status === 'COMPLETED') {
+                        await apiFetch(`/api/customer/orders/${existingOrderId}/confirm`, { method: 'PUT' });
+                    }
+                }
+
+                socket.emit('update-order-status', {
+                    orderId: existingOrderId,
+                    branchId: branchId,
+                    areaName: seatType === 'table' ? selectedArea : 'VIP',
+                    locationName: seatType === 'table'
+                        ? `Bàn ${selectedTableNumber}`
+                        : `Phòng ${rooms.find(r => String(r.id) === String(selectedRoomId))?.number || ''}`,
+                    tableNumber: selectedTableNumber || rooms.find(r => String(r.id) === String(selectedRoomId))?.number,
+                    items: cart.map(i => ({ name: i.name, quantity: i.qty })),
+                });
+
                 toast.add('success', `Đã thêm món vào đơn #${existingOrderId}`, getLocationName());
             } else {
                 // ── TẠO ĐƠN MỚI (giữ nguyên như cũ) ──
@@ -569,7 +589,7 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
     );
 }
 
-function OrdersTab({ branchId, toast }) {
+function OrdersTab({ branchId, toast, refreshKey }) {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('all');
@@ -592,6 +612,9 @@ function OrdersTab({ branchId, toast }) {
     }, [branchId]);
 
     useEffect(() => { fetchOrders(); }, [fetchOrders]);
+    useEffect(() => {
+        if (refreshKey > 0) fetchOrders();
+    }, [refreshKey, fetchOrders]);
 
     useEffect(() => {
         if (!branchId) return;
@@ -916,6 +939,7 @@ export default function WaiterInterface() {
 
     const [kitchenNotifs, setKitchenNotifs] = useState([]);
     const [selectedExistingOrderId, setSelectedExistingOrderId] = useState(null);
+    const [ordersRefreshKey, setOrdersRefreshKey] = useState(0);
 
     useEffect(() => {
         apiFetch('/api/kitchen-orders/status?status=WAITING')
@@ -959,6 +983,9 @@ export default function WaiterInterface() {
                 `🍳 Bàn ${itemData.tableNumber}: ${itemData.itemName}`,
                 itemData.status === 'READY' ? ' Đã hoàn thành!' : ' Đang nấu...'
             );
+            if (itemData.status === 'READY') {
+                setOrdersRefreshKey(k => k + 1);
+            }
         };
 
         socket.on('order-item-updated', handleItemUpdated);
@@ -1007,7 +1034,7 @@ export default function WaiterInterface() {
             <div className="waiter-content">
                 {activeTab === 'seats' && <SeatTab branchId={branchId} onSelectSeat={handleSelectSeat} toast={toast} />}
                 {activeTab === 'order' && <OrderTab branchId={branchId} initialSeat={selectedSeat} initialSeatType={selectedSeatType} initialOrderId={selectedExistingOrderId} toast={toast} onOrderCreated={() => setActiveTab('orders')} />}
-                {activeTab === 'orders' && <OrdersTab branchId={branchId} toast={toast} />}
+                {activeTab === 'orders' && <OrdersTab branchId={branchId} toast={toast} refreshKey={ordersRefreshKey} />}
                 {activeTab === 'kitchen' && <KitchenTab toast={toast} />}
             </div>
 
