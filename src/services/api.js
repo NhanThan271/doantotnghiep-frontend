@@ -129,11 +129,9 @@ export const ingredientAPI = {
 // Thêm vào kitchenAPI
 // ✅ SỬA kitchenAPI cho đúng với backend
 export const kitchenAPI = {
-    // Lấy hàng đợi bếp - endpoint /api/kitchen/queue
-    getQueue: () => api.get('/kitchen/queue'),
+    getQueue: () => api.get('/kitchen-order-items/active'),
 
-    // ✅ SỬA: Cập nhật trạng thái món - endpoint /api/kitchen/order-items/{id}/status
-    updateItemStatus: (id, status) => api.put(`/kitchen/order-items/${id}/status?status=${status}`),
+    updateItemStatus: (id, status) => api.put(`/kitchen-order-items/${id}/status?status=${status}`),
 
     // Lấy món theo trạng thái
     getByStatus: (status) => api.get(`/kitchen/order-items/status?status=${status}`),
