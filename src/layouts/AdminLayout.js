@@ -93,7 +93,6 @@ export default function AdminLayout() {
         { id: 'promotions', label: 'Quản lý Khuyến mãi', icon: Tag },
         { id: 'branches', label: 'Quản lý Chi nhánh', icon: MapPin },
         { id: 'employees', label: 'Quản lý Nhân viên', icon: Users },
-        { id: 'billandauditsystem', label: 'Hóa đơn & Log hệ thống', icon: FileText },
         { id: 'reports', label: 'Báo cáo Tổng quan', icon: BarChart3 },
     ];
 
@@ -249,7 +248,6 @@ export default function AdminLayout() {
                     openEdit={openEditModal}
                     refreshTrigger={refreshTrigger}
                 />;
-            case 'billandauditsystem': return <BillsAndAuditSystem />;
             case 'reports': return <Reports />;
             default: return null;
         }

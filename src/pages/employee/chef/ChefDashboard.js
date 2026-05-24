@@ -353,6 +353,17 @@ const ChefDashboard = () => {
             }
         };
 
+        const handleReservationUpcoming = (data) => {
+
+            const foodList = data.foods?.map(f => `${f.foodName} x${f.quantity}`).join(', ') || '';
+            const message = ` ${data.message} | Khách: ${data.customerName} | ${data.table} - ${data.branch} | Giờ đến: ${data.time} | Món: ${foodList}`;
+
+            showToast(message, 'warning');
+            addNotification(message, 'warning');
+
+            speakVietnamese(`Chuẩn bị món cho khách ${data.customerName} tại ${data.table}, đến lúc ${data.time}`);
+        };
+
         const handleUpdateTables = () => {
             console.log('Update tables received');
             fetchData();
@@ -369,6 +380,7 @@ const ChefDashboard = () => {
         newSocket.on("update-order-status", handleOrderUpdated);
         newSocket.on("update-tables", handleUpdateTables);
         newSocket.on("order-item-updated", handleItemUpdated);
+        newSocket.on("reservation-upcoming", handleReservationUpcoming);
 
         if (newSocket.connected) {
             handleConnect();
@@ -381,6 +393,7 @@ const ChefDashboard = () => {
             newSocket.off("update-order-status", handleOrderUpdated);
             newSocket.off("update-tables", handleUpdateTables);
             newSocket.off("order-item-updated", handleItemUpdated);
+            newSocket.off("reservation-upcoming", handleReservationUpcoming);
         };
     }, [branchId, user?.id, fetchData, playNotificationSound]);
 
