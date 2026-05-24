@@ -39,6 +39,7 @@ import PaymentQR from "./pages/employee/waiter/PaymentQR";
 import HeroLanding from "./pages/client/HeroLanding";
 import Home from "./layouts/Home";
 
+import ShiftRegistration from './pages/employee/ShiftRegistration';
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (
   <>
@@ -66,6 +67,9 @@ function App() {
 
         <Route path="/payment-success" element={<PaymentSuccess />} />
         <Route path="/payment-cancel" element={<PaymentCancel />} />
+        {/* Layout riêng cho nhan vien*/}
+
+        <Route path="/employee/shift-registration" element={<ShiftRegistration />} />
 
         {/* Cashier routes - Thêm trực tiếp */}
         <Route path="/cashier" element={<CashierLayout />}>
