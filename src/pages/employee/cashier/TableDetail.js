@@ -100,21 +100,25 @@ const TableDetail = () => {
 
                 let items = [];
                 if (existingOrder.items && existingOrder.items.length > 0) {
+                    // 🔥 FIX: Lấy đúng foodId và food name
                     items = existingOrder.items.map(item => {
-                        // Lấy foodId và foodName từ nhiều nguồn
-                        const foodId = item.foodId || item.food?.id || item.id;
-                        const foodName = item.food?.name || item.foodName || item.name;
+                        // Đảm bảo lấy đúng ID
+                        const foodId = item.food?.id || item.foodId;
+                        const foodName = item.food?.name || item.foodName;
                         const product = products.find(p => p.id === foodId);
+
+                        console.log(`📦 Mapping item: foodId=${foodId}, foodName=${foodName}, product=`, product);
 
                         return {
                             id: foodId,
-                            name: product?.name || foodName || `Sản phẩm #${foodId}`,
-                            price: item.price || 0,
+                            name: product?.name || foodName || 'Unknown',
+                            price: item.price || product?.branchPrice || 0,
                             quantity: item.quantity || 0,
-                            image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
+                            image: product?.imageUrl || item.food?.imageUrl || ''
                         };
-                    }).filter(item => item.id);
+                    }).filter(item => item.id && item.name !== 'Unknown');
                 }
+                console.log("✅ Cart items sau khi map:", items);
                 setCart(items);
 
                 if (existingOrder.promotion) {
@@ -178,44 +182,41 @@ const TableDetail = () => {
         setIsUpdating(true);
 
         try {
-            console.log("🛒 Cart hiện tại:", cart);
-            console.log("📦 Order items hiện tại:", order.items);
-
+            // Lấy số lượng hiện tại từ order
             const existingQuantities = {};
             if (order.items && order.items.length > 0) {
                 order.items.forEach(item => {
-                    const foodId = item.foodId || item.food?.id;
+                    const foodId = item.food?.id || item.foodId;
                     if (foodId) {
                         existingQuantities[foodId] = item.quantity;
                     }
                 });
             }
-            console.log("📊 Existing quantities:", existingQuantities);
 
+            // Tính tổng số lượng trong cart
             const cartQuantities = {};
             cart.forEach(item => {
                 if (item.id) {
-                    cartQuantities[item.id] = item.quantity;
+                    cartQuantities[item.id] = (cartQuantities[item.id] || 0) + item.quantity;
                 }
             });
-            console.log("📊 Cart quantities:", cartQuantities);
 
+            // Tạo danh sách các phần cần thêm (mỗi phần 1 request riêng)
             const itemsToAdd = [];
             for (const [foodId, cartQty] of Object.entries(cartQuantities)) {
                 const existingQty = existingQuantities[foodId] || 0;
-                const quantityToAdd = cartQty - existingQty;  // Đây là số cần thêm mới
-
-                console.log(`🍽️ Món ${foodId}: cart=${cartQty}, existing=${existingQty}, toAdd=${quantityToAdd}`);
+                const quantityToAdd = cartQty - existingQty;
 
                 if (quantityToAdd > 0) {
-                    itemsToAdd.push({
-                        foodId: parseInt(foodId),
-                        quantity: quantityToAdd
-                    });
+                    // Thêm từng phần riêng lẻ
+                    for (let i = 0; i < quantityToAdd; i++) {
+                        itemsToAdd.push({
+                            foodId: parseInt(foodId),
+                            quantity: 1
+                        });
+                    }
                 }
             }
-
-            console.log("📦 itemsToAdd gửi lên API:", JSON.stringify(itemsToAdd, null, 2));
 
             if (itemsToAdd.length === 0) {
                 showToast("Không có món mới để thêm!", "info", 2000);
@@ -223,75 +224,86 @@ const TableDetail = () => {
                 return;
             }
 
-            const invalidItems = itemsToAdd.filter(item => !item.foodId || item.foodId <= 0);
-            if (invalidItems.length > 0) {
-                console.error("❌ Items không hợp lệ:", invalidItems);
-                showToast("Dữ liệu món ăn không hợp lệ!", "error", 3000);
-                setIsUpdating(false);
-                return;
+            showToast(`Đang thêm ${itemsToAdd.length} phần mới...`, "info", 2000);
+
+            // Gửi từng request riêng biệt với delay
+            let successCount = 0;
+            for (let i = 0; i < itemsToAdd.length; i++) {
+                const addItem = itemsToAdd[i];
+                try {
+                    await axiosClient.post(`/customer/orders/${order.id}/add-items`, [addItem]);
+                    successCount++;
+                    console.log(`✅ Đã thêm phần ${i + 1}/${itemsToAdd.length}: foodId=${addItem.foodId}`);
+
+                    // Delay 500ms giữa các request để phân biệt thời gian
+                    if (i < itemsToAdd.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                } catch (err) {
+                    console.error(`❌ Lỗi khi thêm phần ${i + 1}:`, err);
+                }
             }
 
-            const res = await axiosClient.post(`/customer/orders/${order.id}/add-items`, itemsToAdd);
-            const updatedOrder = res.data;
-
-            console.log("✅ Update thành công:", updatedOrder);
+            // Fetch lại order sau khi thêm xong
+            const refreshedOrder = await axiosClient.get(`/customer/orders/${order.id}`);
+            const updatedOrder = refreshedOrder.data;
 
             setOrder(updatedOrder);
 
-            // ✅ SỬA: Lấy tên từ food object (fix "Sản phẩm #undefined")
-            const updatedCart = (updatedOrder.items || []).map(item => {
-                const foodName = item.food?.name || item.foodName || item.name;
-                const product = products.find(p => p.id === item.foodId);
+            // Cập nhật cart từ response
+            const updatedCart = [];
+            if (updatedOrder.items && updatedOrder.items.length > 0) {
+                for (const orderItem of updatedOrder.items) {
+                    const foodId = orderItem.food?.id || orderItem.foodId;
+                    const product = products.find(p => p.id === foodId);
 
-                return {
-                    id: item.foodId,
-                    name: product?.name || foodName || `Sản phẩm #${item.foodId}`,
-                    price: item.price || 0,
-                    quantity: item.quantity || 0,
-                    image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
-                };
-            });
+                    if (foodId && product) {
+                        updatedCart.push({
+                            id: foodId,
+                            name: product.name,
+                            price: orderItem.price || product.branchPrice || 0,
+                            quantity: orderItem.quantity || 0,
+                            image: product.imageUrl || ''
+                        });
+                    }
+                }
+            }
 
-            console.log("📦 updatedCart sau khi map:", updatedCart);
             setCart(updatedCart);
 
-            const newItems = itemsToAdd.map(item => {
-                const product = products.find(p => p.id === item.foodId);
-                return {
-                    id: item.foodId,
-                    name: product?.name || `Món #${item.foodId}`,
-                    quantity: item.quantity,
+            // Emit socket cho từng item (với timestamp khác nhau)
+            for (let i = 0; i < itemsToAdd.length; i++) {
+                const addItem = itemsToAdd[i];
+                const product = products.find(p => p.id === addItem.foodId);
+
+                socket.emit("order-updated", {
                     orderId: order.id,
                     tableNumber: entityNumber,
                     tableId: entity.id,
-                    status: 'WAITING'
-                };
-            });
+                    locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
+                    areaName: entity?.area || "Khu chính",
+                    items: [{
+                        id: addItem.foodId,
+                        name: product?.name || `Món #${addItem.foodId}`,
+                        quantity: 1,
+                        orderId: order.id,
+                        tableNumber: entityNumber,
+                        tableId: entity.id,
+                        status: 'WAITING',
+                        timestamp: Date.now() + i // Mỗi item có timestamp khác nhau
+                    }],
+                    timestamp: new Date().toISOString(),
+                    branchId: branchId
+                });
 
-            socket.emit("order-updated", {
-                orderId: order.id,
-                tableNumber: entityNumber,
-                tableId: entity.id,
-                locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
-                areaName: entity?.area || "Khu chính", items: newItems.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    quantity: item.quantity
-                })),
-                timestamp: new Date().toISOString(),
-                branchId: branchId
-            });
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
 
-            socket.emit("update-order", updatedOrder);
-
-            showToast(`Đã cập nhật thêm món cho đơn hàng!`, 'success', 3000);
+            showToast(`Đã thêm thành công ${successCount} phần mới!`, 'success', 3000);
 
         } catch (err) {
             console.error("❌ Lỗi cập nhật đơn:", err);
-            console.error("Response data:", err.response?.data);
-            const errorMessage = err.response?.data || err.message;
-            alert(`Lỗi: ${errorMessage}`);
-            showToast(`Lỗi: ${errorMessage}`, "error", 5000);
+            showToast(`Lỗi: ${err.response?.data?.message || err.message}`, "error", 5000);
         } finally {
             setIsUpdating(false);
         }
@@ -306,6 +318,18 @@ const TableDetail = () => {
         setIsConfirming(true);
 
         try {
+
+            const cartMap = new Map();
+            cart.forEach(item => {
+                if (cartMap.has(item.id)) {
+                    const existing = cartMap.get(item.id);
+                    existing.quantity += item.quantity;
+                } else {
+                    cartMap.set(item.id, { ...item });
+                }
+            });
+            const finalCart = Array.from(cartMap.values());
+
             const orderData = {
                 customerName: customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`,
                 status: "PENDING",
@@ -320,39 +344,42 @@ const TableDetail = () => {
             const res = await axiosClient.post("/customer/orders", orderData);
             const newOrder = res.data;
 
-            const itemsToAdd = cart
-                .filter(item => item.id && item.quantity > 0)
-                .map(item => ({
-                    foodId: item.id,
-                    quantity: item.quantity
-                }));
-
-            console.log("📦 itemsToAdd cho đơn mới:", itemsToAdd);
+            const itemsToAdd = finalCart.map(item => ({
+                foodId: item.id,
+                quantity: item.quantity
+            }));
 
             if (itemsToAdd.length > 0) {
                 await axiosClient.post(`/customer/orders/${newOrder.id}/add-items`, itemsToAdd);
             }
 
+            // Fetch lại order để lấy thông tin đầy đủ
             const finalRes = await axiosClient.get(`/customer/orders/${newOrder.id}`);
             const finalOrder = finalRes.data;
 
+            // Cập nhật cart từ response
+            const updatedCart = [];
+            if (finalOrder.items && finalOrder.items.length > 0) {
+                for (const orderItem of finalOrder.items) {
+                    const foodId = orderItem.food?.id || orderItem.foodId;
+                    const product = products.find(p => p.id === foodId);
+
+                    if (foodId && product) {
+                        updatedCart.push({
+                            id: foodId,
+                            name: product.name,
+                            price: orderItem.price || product.branchPrice || 0,
+                            quantity: orderItem.quantity || 0,
+                            image: product.imageUrl || ''
+                        });
+                    }
+                }
+            }
+
+            setCart(updatedCart);
             setOrder(finalOrder);
 
-            // ✅ SỬA: Lấy tên từ food object (fix "Sản phẩm #undefined")
-            const updatedCart = (finalOrder.items || []).map(item => {
-                const foodName = item.food?.name || item.foodName || item.name;
-                const product = products.find(p => p.id === item.foodId);
-
-                return {
-                    id: item.foodId,
-                    name: product?.name || foodName || `Sản phẩm #${item.foodId}`,
-                    price: item.price || 0,
-                    quantity: item.quantity || 0,
-                    image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
-                };
-            });
-            setCart(updatedCart);
-
+            // Emit socket
             const newItems = itemsToAdd.map(item => {
                 const product = products.find(p => p.id === item.foodId);
                 return {
@@ -372,11 +399,7 @@ const TableDetail = () => {
                 tableId: entity.id,
                 locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
                 areaName: entity?.area || "Khu chính",
-                items: newItems.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    quantity: item.quantity
-                })),
+                items: newItems,
                 timestamp: new Date().toISOString(),
                 branchId: branchId
             });
@@ -604,22 +627,18 @@ const TableDetail = () => {
 
     // ✅ FIX 1: Đồng bộ tên sản phẩm từ products vào cart
     useEffect(() => {
-        if (products.length > 0 && cart.length > 0) {
-            let hasChange = false;
-            const updatedCart = cart.map(item => {
-                const product = products.find(p => p.id === item.id);
-                if (product && product.name !== item.name) {
-                    hasChange = true;
-                    return { ...item, name: product.name };
-                }
-                return item;
-            });
+        console.log("🛒 Current cart:", cart);
+        cart.forEach(item => {
+            console.log(`  - ${item.name}: id=${item.id}, price=${item.price}, qty=${item.quantity}`);
+        });
+    }, [cart]);
 
-            if (hasChange) {
-                console.log("🔄 Đồng bộ tên sản phẩm từ products vào cart");
-                setCart(updatedCart);
-            }
-        }
+    // Debug products
+    useEffect(() => {
+        console.log("📦 Products loaded:", products);
+        products.forEach(p => {
+            console.log(`  - ${p.name}: id=${p.id}, price=${p.branchPrice}`);
+        });
     }, [products]);
 
     // ✅ FIX 2: Tự động sửa các cart item bị thiếu id
@@ -727,7 +746,7 @@ const TableDetail = () => {
 
     const canPay = order?.status === "COMPLETED";
     const canPrint = order?.status === "COMPLETED" || order?.status === "PAID";
-    const canEdit = order && (order.status === "PENDING" || order.status === "PREPARING" || order.status === "COMPLETED");
+    const canEdit = order && (order.status !== "PAID" && order.status !== "CANCELED");
     const isNewOrder = !order;
 
     return (

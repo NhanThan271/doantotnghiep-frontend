@@ -6,12 +6,7 @@ import IngredientWarning from './IngredientWarning';
 import styles from './ChefDashboard.module.css';
 import io from 'socket.io-client';
 
-const socket = io('http://localhost:3001', {
-    autoConnect: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000
-});
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
 
 const ChefDashboard = () => {
     const [allItems, setAllItems] = useState([]);
@@ -28,11 +23,11 @@ const ChefDashboard = () => {
     const [realTimeClock, setRealTimeClock] = useState(new Date());
     const [currentTime, setCurrentTime] = useState(Date.now());
 
-    // Debounce cho notifications
     const lastNotificationKey = useRef('');
     const lastNotificationTime = useRef(0);
-
     const audioContextRef = useRef(null);
+    const socketRef = useRef(null); // Dùng ref để quản lý socket
+
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = user?.branch?.id;
 
@@ -147,15 +142,6 @@ const ChefDashboard = () => {
         }
     };
 
-    // Helper lấy branchId từ item
-    const getItemBranchId = useCallback((item) => {
-        return item.order?.branch?.id ||
-            item.order?.branchId ||
-            item.branchId ||
-            item.food?.branchId;
-    }, []);
-
-    // ========== FETCH DATA FUNCTION ==========
     const fetchData = useCallback(async (silent = false) => {
         if (!branchId) return;
         if (!silent) setLoading(true);
@@ -163,11 +149,9 @@ const ChefDashboard = () => {
             const res = await kitchenAPI.getQueue();
             const items = Array.isArray(res.data) ? res.data : [];
 
-            console.log('📦 First item:', items[0]);
-
             const mapped = items
                 .filter(item => !item.branch?.id || item.branch?.id === branchId)
-                .map(item => ({
+                .map((item, index) => ({
                     id: item.id,
                     name: item.food?.name || 'Món ăn',
                     quantity: item.quantity || 1,
@@ -176,11 +160,23 @@ const ChefDashboard = () => {
                     createdAt: item.createdAt,
                     notes: item.notes || '',
                     orderId: item.orderId,
-                    foodId: item.food?.id
+                    foodId: item.food?.id,
+                    // Thêm unique key để phân biệt
+                    uniqueKey: `${item.id}_${item.kitchenStatus}_${item.createdAt}_${index}`
                 }));
 
-            console.log('✅ Mapped:', mapped.length, 'items');
-            setAllItems(mapped);
+            // KHÔNG gộp, giữ nguyên từng item
+            // Nhưng sắp xếp theo thời gian
+            const sortedItems = [...mapped].sort((a, b) =>
+                new Date(a.createdAt) - new Date(b.createdAt)
+            );
+
+            console.log(`📊 Tổng số items: ${sortedItems.length}`);
+            sortedItems.forEach(item => {
+                console.log(`  - ${item.name}: ${item.quantity} phần (${item.status}) - ${item.createdAt}`);
+            });
+
+            setAllItems(sortedItems);
             setLastUpdated(new Date());
         } catch (err) {
             console.error("Fetch error:", err);
@@ -188,16 +184,7 @@ const ChefDashboard = () => {
         } finally {
             setLoading(false);
         }
-    }, [branchId, getItemBranchId]);
-
-    // Clear data khi branch thay đổi
-    useEffect(() => {
-        if (branchId) {
-            console.log(`🔄 Branch changed to: ${branchId}, clearing old data`);
-            setAllItems([]);
-            fetchData();
-        }
-    }, [branchId, fetchData]);
+    }, [branchId]);
 
     // ========== SPEECH FUNCTION ==========
     const speakVietnamese = (text) => {
@@ -231,9 +218,57 @@ const ChefDashboard = () => {
         }
     };
 
-    // ========== SOCKET EVENT HANDLERS ==========
-    useEffect(() => {
+    // ========== SOCKET SETUP ==========
+    const setupSocket = useCallback(() => {
+        // Đóng socket cũ nếu có
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+        }
+
+        if (!branchId) return;
+
+        // Tạo socket mới
+        const newSocket = io(SOCKET_URL, {
+            autoConnect: true,
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            transports: ['websocket', 'polling'] // Ưu tiên WebSocket
+        });
+
+        socketRef.current = newSocket;
+
+        // Handler khi kết nối thành công
+        const handleConnect = () => {
+            console.log('✅ Socket connected for branch:', branchId);
+            setIsSocketConnected(true);
+
+            // Register kitchen với branch mới
+            newSocket.emit('register-role', {
+                role: 'kitchen',
+                userId: user?.id,
+                branchId: branchId
+            });
+
+            // Fetch data ngay khi kết nối
+            fetchData();
+        };
+
+        const handleDisconnect = () => {
+            console.log('🔴 Socket disconnected');
+            setIsSocketConnected(false);
+            showToast('🔴 Mất kết nối real-time', 'warning');
+        };
+
         const handleNewOrder = (orderData) => {
+            console.log('📦 New order received:', orderData);
+
+            // Filter theo branch
+            if (orderData.branchId && branchId && orderData.branchId !== branchId) {
+                console.log('Order from different branch, ignoring');
+                return;
+            }
+
             const notiKey = `${orderData.orderId}_${orderData.tableNumber}_${JSON.stringify(orderData.items)}`;
             const now = Date.now();
 
@@ -244,10 +279,8 @@ const ChefDashboard = () => {
             lastNotificationKey.current = notiKey;
             lastNotificationTime.current = now;
 
-            if (orderData.branchId && branchId && orderData.branchId !== branchId) return;
-
             playNotificationSound();
-            fetchData();
+            fetchData(); // Fetch ngay lập tức
 
             if (orderData.items && orderData.items.length > 0) {
                 const areaName = orderData.areaName || "Khu chính";
@@ -268,6 +301,10 @@ const ChefDashboard = () => {
         };
 
         const handleOrderUpdated = (data) => {
+            console.log('🔄 Order updated:', data);
+
+            if (data.branchId && branchId && data.branchId !== branchId) return;
+
             const notiKey = `${data.orderId}_${data.tableNumber}_${JSON.stringify(data.items)}`;
             const now = Date.now();
 
@@ -277,8 +314,6 @@ const ChefDashboard = () => {
 
             lastNotificationKey.current = notiKey;
             lastNotificationTime.current = now;
-
-            if (data.branchId && branchId && data.branchId !== branchId) return;
 
             playNotificationSound();
             fetchData();
@@ -302,62 +337,67 @@ const ChefDashboard = () => {
         };
 
         const handleUpdateTables = () => {
+            console.log('🔄 Update tables received');
             fetchData();
         };
 
         const handleItemUpdated = () => {
+            console.log('🔄 Item updated received');
             fetchData();
         };
 
-        const registerKitchen = () => {
-            if (socket.connected) {
-                socket.emit('register-role', {
-                    role: 'kitchen',
-                    userId: user?.id,
-                    branchId: branchId
-                });
-                setIsSocketConnected(true);
-                fetchData();
-            }
-        };
+        // Đăng ký handlers
+        newSocket.on("connect", handleConnect);
+        newSocket.on("disconnect", handleDisconnect);
+        newSocket.on("new-order", handleNewOrder);
+        newSocket.on("update-order-status", handleOrderUpdated);
+        newSocket.on("update-tables", handleUpdateTables);
+        newSocket.on("order-item-updated", handleItemUpdated);
 
-        socket.on("new-order", handleNewOrder);
-        socket.on("update-order-status", handleOrderUpdated);
-        socket.on("update-tables", handleUpdateTables);
-        socket.on("order-item-updated", handleItemUpdated);
-        socket.on('connect', () => {
-            setIsSocketConnected(true);
-            registerKitchen();
-        });
-        socket.on('disconnect', () => {
-            setIsSocketConnected(false);
-            showToast('🔴 Mất kết nối real-time', 'warning');
-        });
-
-        if (socket.connected) {
-            registerKitchen();
+        // Nếu socket đã connected từ trước
+        if (newSocket.connected) {
+            handleConnect();
         }
 
         return () => {
-            socket.off("new-order", handleNewOrder);
-            socket.off("update-order-status", handleOrderUpdated);
-            socket.off("update-tables", handleUpdateTables);
-            socket.off("order-item-updated", handleItemUpdated);
-            socket.off('connect');
-            socket.off('disconnect');
+            newSocket.off("connect", handleConnect);
+            newSocket.off("disconnect", handleDisconnect);
+            newSocket.off("new-order", handleNewOrder);
+            newSocket.off("update-order-status", handleOrderUpdated);
+            newSocket.off("update-tables", handleUpdateTables);
+            newSocket.off("order-item-updated", handleItemUpdated);
         };
-    }, [fetchData, branchId, user?.id]);
+    }, [branchId, user?.id, fetchData, playNotificationSound]);
 
+    // Setup socket khi branchId thay đổi
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        if (branchId) {
+            console.log('🔄 Branch changed to:', branchId);
+            const cleanup = setupSocket();
+            return cleanup;
+        }
+    }, [branchId, setupSocket]);
 
+    // Không cần interval fetch nữa, chỉ dùng realtime
+    // Nhưng vẫn giữ interval để backup
     useEffect(() => {
         const interval = setInterval(() => {
-            fetchData(true);
+            // Chỉ fetch nếu socket đang disconnected
+            if (!isSocketConnected) {
+                fetchData(true);
+            }
+        }, 30000); // 30 giây backup
+        return () => clearInterval(interval);
+    }, [fetchData, isSocketConnected]);
+
+    // Clock timer
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setRealTimeClock(new Date());
+            setCurrentTime(Date.now());
         }, 1000);
         return () => clearInterval(interval);
-    }, [fetchData]);
+    }, []);
 
     useEffect(() => {
         if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
@@ -372,18 +412,23 @@ const ChefDashboard = () => {
 
         try {
             await kitchenAPI.updateItemStatus(id, status);
+
+            // Fetch data ngay lập tức
             await fetchData();
 
-            socket.emit("update-order-item-status", {
-                itemId: id,
-                status: status,
-                itemName: itemName,
-                tableNumber: tableNumber,
-                branchId: branchId,
-                timestamp: new Date().toISOString()
-            });
+            // Emit socket event
+            if (socketRef.current && socketRef.current.connected) {
+                socketRef.current.emit("update-order-item-status", {
+                    itemId: id,
+                    status: status,
+                    itemName: itemName,
+                    tableNumber: tableNumber,
+                    branchId: branchId,
+                    timestamp: new Date().toISOString()
+                });
 
-            socket.emit("update-tables");
+                socketRef.current.emit("update-tables");
+            }
 
             if (status === 'READY') {
                 const areaName = "Khu chính";
@@ -559,7 +604,7 @@ const ChefDashboard = () => {
             </div>
 
             <div className={styles.refreshSection}>
-                <button onClick={fetchData} disabled={loading} className={styles.refreshBtn}>
+                <button onClick={() => fetchData()} disabled={loading} className={styles.refreshBtn}>
                     <RefreshCw size={16} className={loading ? styles.spinning : ''} />
                     Làm mới
                 </button>
