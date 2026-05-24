@@ -100,14 +100,10 @@ const TableDetail = () => {
 
                 let items = [];
                 if (existingOrder.items && existingOrder.items.length > 0) {
-                    // 🔥 FIX: Lấy đúng foodId và food name
                     items = existingOrder.items.map(item => {
-                        // Đảm bảo lấy đúng ID
                         const foodId = item.food?.id || item.foodId;
                         const foodName = item.food?.name || item.foodName;
                         const product = products.find(p => p.id === foodId);
-
-                        console.log(`📦 Mapping item: foodId=${foodId}, foodName=${foodName}, product=`, product);
 
                         return {
                             id: foodId,
@@ -182,7 +178,6 @@ const TableDetail = () => {
         setIsUpdating(true);
 
         try {
-            // Lấy số lượng hiện tại từ order
             const existingQuantities = {};
             if (order.items && order.items.length > 0) {
                 order.items.forEach(item => {
@@ -193,7 +188,6 @@ const TableDetail = () => {
                 });
             }
 
-            // Tính tổng số lượng trong cart
             const cartQuantities = {};
             cart.forEach(item => {
                 if (item.id) {
@@ -201,14 +195,12 @@ const TableDetail = () => {
                 }
             });
 
-            // Tạo danh sách các phần cần thêm (mỗi phần 1 request riêng)
             const itemsToAdd = [];
             for (const [foodId, cartQty] of Object.entries(cartQuantities)) {
                 const existingQty = existingQuantities[foodId] || 0;
                 const quantityToAdd = cartQty - existingQty;
 
                 if (quantityToAdd > 0) {
-                    // Thêm từng phần riêng lẻ
                     for (let i = 0; i < quantityToAdd; i++) {
                         itemsToAdd.push({
                             foodId: parseInt(foodId),
@@ -226,37 +218,29 @@ const TableDetail = () => {
 
             showToast(`Đang thêm ${itemsToAdd.length} phần mới...`, "info", 2000);
 
-            // Gửi từng request riêng biệt với delay
             let successCount = 0;
             for (let i = 0; i < itemsToAdd.length; i++) {
                 const addItem = itemsToAdd[i];
                 try {
                     await axiosClient.post(`/customer/orders/${order.id}/add-items`, [addItem]);
                     successCount++;
-                    console.log(`✅ Đã thêm phần ${i + 1}/${itemsToAdd.length}: foodId=${addItem.foodId}`);
-
-                    // Delay 500ms giữa các request để phân biệt thời gian
                     if (i < itemsToAdd.length - 1) {
                         await new Promise(resolve => setTimeout(resolve, 500));
                     }
                 } catch (err) {
-                    console.error(`❌ Lỗi khi thêm phần ${i + 1}:`, err);
+                    console.error(`Lỗi khi thêm phần ${i + 1}:`, err);
                 }
             }
 
-            // Fetch lại order sau khi thêm xong
             const refreshedOrder = await axiosClient.get(`/customer/orders/${order.id}`);
             const updatedOrder = refreshedOrder.data;
-
             setOrder(updatedOrder);
 
-            // Cập nhật cart từ response
             const updatedCart = [];
             if (updatedOrder.items && updatedOrder.items.length > 0) {
                 for (const orderItem of updatedOrder.items) {
                     const foodId = orderItem.food?.id || orderItem.foodId;
                     const product = products.find(p => p.id === foodId);
-
                     if (foodId && product) {
                         updatedCart.push({
                             id: foodId,
@@ -268,20 +252,20 @@ const TableDetail = () => {
                     }
                 }
             }
-
             setCart(updatedCart);
 
-            // Emit socket cho từng item (với timestamp khác nhau)
             for (let i = 0; i < itemsToAdd.length; i++) {
                 const addItem = itemsToAdd[i];
                 const product = products.find(p => p.id === addItem.foodId);
+                const locationName = isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`;
 
                 socket.emit("order-updated", {
                     orderId: order.id,
                     tableNumber: entityNumber,
                     tableId: entity.id,
-                    locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
+                    locationName: locationName,
                     areaName: entity?.area || "Khu chính",
+                    isRoom: isRoom,
                     items: [{
                         id: addItem.foodId,
                         name: product?.name || `Món #${addItem.foodId}`,
@@ -290,7 +274,7 @@ const TableDetail = () => {
                         tableNumber: entityNumber,
                         tableId: entity.id,
                         status: 'WAITING',
-                        timestamp: Date.now() + i // Mỗi item có timestamp khác nhau
+                        timestamp: Date.now() + i
                     }],
                     timestamp: new Date().toISOString(),
                     branchId: branchId
@@ -299,10 +283,13 @@ const TableDetail = () => {
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
 
+            // 🔥 Cập nhật trạng thái bàn/phòng
+            socket.emit("update-tables");
+
             showToast(`Đã thêm thành công ${successCount} phần mới!`, 'success', 3000);
 
         } catch (err) {
-            console.error("❌ Lỗi cập nhật đơn:", err);
+            console.error("Lỗi cập nhật đơn:", err);
             showToast(`Lỗi: ${err.response?.data?.message || err.message}`, "error", 5000);
         } finally {
             setIsUpdating(false);
@@ -318,7 +305,6 @@ const TableDetail = () => {
         setIsConfirming(true);
 
         try {
-
             const cartMap = new Map();
             cart.forEach(item => {
                 if (cartMap.has(item.id)) {
@@ -353,17 +339,14 @@ const TableDetail = () => {
                 await axiosClient.post(`/customer/orders/${newOrder.id}/add-items`, itemsToAdd);
             }
 
-            // Fetch lại order để lấy thông tin đầy đủ
             const finalRes = await axiosClient.get(`/customer/orders/${newOrder.id}`);
             const finalOrder = finalRes.data;
 
-            // Cập nhật cart từ response
             const updatedCart = [];
             if (finalOrder.items && finalOrder.items.length > 0) {
                 for (const orderItem of finalOrder.items) {
                     const foodId = orderItem.food?.id || orderItem.foodId;
                     const product = products.find(p => p.id === foodId);
-
                     if (foodId && product) {
                         updatedCart.push({
                             id: foodId,
@@ -379,7 +362,6 @@ const TableDetail = () => {
             setCart(updatedCart);
             setOrder(finalOrder);
 
-            // Emit socket
             const newItems = itemsToAdd.map(item => {
                 const product = products.find(p => p.id === item.foodId);
                 return {
@@ -399,10 +381,14 @@ const TableDetail = () => {
                 tableId: entity.id,
                 locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
                 areaName: entity?.area || "Khu chính",
+                isRoom: isRoom,
                 items: newItems,
                 timestamp: new Date().toISOString(),
                 branchId: branchId
             });
+
+            // 🔥 Cập nhật trạng thái bàn/phòng
+            socket.emit("update-tables");
 
             showToast(`Đơn hàng đã được gửi đến bếp!`, 'success', 4000);
 
@@ -588,7 +574,9 @@ const TableDetail = () => {
                     <div><strong>${entityType}</strong><span>${entityType} ${entityNumber}</span></div>
                 </div>
                 <table>
-                    <thead><tr><th>Sản phẩm</th><th class="text-center">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th></tr></thead>
+                    <thead>
+                        <tr><th>Sản phẩm</th><th class="text-center">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th></tr>
+                    </thead>
                     <tbody>
                         ${cart.map(item => `
                             <tr>
@@ -625,7 +613,6 @@ const TableDetail = () => {
 
     const existingOrderFromState = state?.existingOrder;
 
-    // ✅ FIX 1: Đồng bộ tên sản phẩm từ products vào cart
     useEffect(() => {
         console.log("🛒 Current cart:", cart);
         cart.forEach(item => {
@@ -633,7 +620,6 @@ const TableDetail = () => {
         });
     }, [cart]);
 
-    // Debug products
     useEffect(() => {
         console.log("📦 Products loaded:", products);
         products.forEach(p => {
@@ -641,7 +627,6 @@ const TableDetail = () => {
         });
     }, [products]);
 
-    // ✅ FIX 2: Tự động sửa các cart item bị thiếu id
     useEffect(() => {
         if (products.length > 0 && cart.length > 0) {
             let hasChange = false;
@@ -663,13 +648,12 @@ const TableDetail = () => {
         }
     }, [products, cart]);
 
-    // ✅ FIX 3: Gộp các item trùng tên (fix 2 item "ruou" riêng biệt)
     useEffect(() => {
         if (cart.length <= 1) return;
 
         const grouped = new Map();
         cart.forEach(item => {
-            const key = item.name; // Gộp theo tên
+            const key = item.name;
             if (grouped.has(key)) {
                 const existing = grouped.get(key);
                 existing.quantity += item.quantity;
@@ -694,7 +678,6 @@ const TableDetail = () => {
         }
     }, []);
 
-    // ✅ FIX 4: Khởi tạo dữ liệu - KHÔNG phụ thuộc vào products
     useEffect(() => {
         const initialize = async () => {
             await fetchProducts();

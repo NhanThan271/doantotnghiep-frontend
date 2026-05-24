@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
+import {
+    Menu,
+    LayoutDashboard,
+    Receipt,
+    BarChart3,
+    Settings,
+    LogOut,
+    Store,
+    User,
+    Table,
+    Calendar
+} from "lucide-react";
 
 const CashierLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -16,7 +28,6 @@ const CashierLayout = () => {
         const newState = !isSidebarOpen;
         setIsSidebarOpen(newState);
 
-        // 👉 mở sidebar → đi tới trang kết ca
         if (newState) {
             navigate("/cashier/dashboard");
         }
@@ -33,7 +44,7 @@ const CashierLayout = () => {
 
             {/* SIDEBAR */}
             <div style={{
-                width: isSidebarOpen ? 230 : 0,
+                width: isSidebarOpen ? 260 : 0,
                 background: "#0b3c5d",
                 color: "white",
                 overflow: "hidden",
@@ -42,7 +53,7 @@ const CashierLayout = () => {
                 flexDirection: "column"
             }}>
                 {/* Header QUẢN LÝ CA */}
-                <div style={{ padding: "15px 15px 0 15px", fontWeight: "bold" }}>
+                <div style={{ padding: "20px 16px 10px 16px", fontWeight: "bold", fontSize: "14px", opacity: 0.8 }}>
                     QUẢN LÝ CA
                 </div>
 
@@ -50,61 +61,80 @@ const CashierLayout = () => {
                 <div
                     onClick={() => navigate("/cashier/dashboard")}
                     style={{
-                        padding: "10px 15px",
+                        padding: "12px 16px",
                         cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
                         marginTop: 10,
                         background: location.pathname === "/cashier/dashboard" ? "rgba(212,175,55,0.2)" : "transparent",
                         borderLeft: location.pathname === "/cashier/dashboard" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
-                    📊 Dashboard
+                    <LayoutDashboard size={18} color={location.pathname === "/cashier/dashboard" ? "#D4AF37" : "#ffffff"} />
+                    <span>Dashboard</span>
                 </div>
 
                 <div
                     onClick={() => navigate("/cashier/bill")}
                     style={{
-                        padding: "10px 15px",
+                        padding: "12px 16px",
                         cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
                         background: location.pathname === "/cashier/bill" ? "rgba(212,175,55,0.2)" : "transparent",
                         borderLeft: location.pathname === "/cashier/bill" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
-                    🧾 Đơn hàng
+                    <Receipt size={18} color={location.pathname === "/cashier/bill" ? "#D4AF37" : "#ffffff"} />
+                    <span>Đơn hàng</span>
                 </div>
 
                 <div
                     onClick={() => navigate("/cashier/report")}
                     style={{
-                        padding: "10px 15px",
+                        padding: "12px 16px",
                         cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
                         background: location.pathname === "/cashier/report" ? "rgba(212,175,55,0.2)" : "transparent",
                         borderLeft: location.pathname === "/cashier/report" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
-                    📈 Báo cáo
+                    <BarChart3 size={18} color={location.pathname === "/cashier/report" ? "#D4AF37" : "#ffffff"} />
+                    <span>Báo cáo</span>
                 </div>
 
                 <div
                     onClick={() => navigate("/cashier/setting")}
                     style={{
-                        padding: "10px 15px",
+                        padding: "12px 16px",
                         cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
                         background: location.pathname === "/cashier/setting" ? "rgba(212,175,55,0.2)" : "transparent",
                         borderLeft: location.pathname === "/cashier/setting" ? "3px solid #D4AF37" : "3px solid transparent"
                     }}
                 >
-                    ⚙️ Cài đặt
+                    <Settings size={18} color={location.pathname === "/cashier/setting" ? "#D4AF37" : "#ffffff"} />
+                    <span>Cài đặt</span>
                 </div>
 
                 {/* Phần thông tin và đăng xuất ở cuối sidebar */}
                 <div style={{
                     marginTop: "auto",
-                    padding: "15px",
+                    padding: "16px",
                     borderTop: "1px solid rgba(255,255,255,0.2)"
                 }}>
                     {/* Chi nhánh */}
                     <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>Chi nhánh</div>
+                        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4, display: "flex", alignItems: "center", gap: "6px" }}>
+                            <Store size={12} color="#D4AF37" />
+                            <span>Chi nhánh</span>
+                        </div>
                         <div style={{ fontWeight: "bold", fontSize: 13, color: "#D4AF37" }}>
                             {user.branch?.name || "Đang tải..."}
                         </div>
@@ -112,7 +142,10 @@ const CashierLayout = () => {
 
                     {/* Nhân viên */}
                     <div style={{ marginBottom: 15 }}>
-                        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>Nhân viên</div>
+                        <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4, display: "flex", alignItems: "center", gap: "6px" }}>
+                            <User size={12} color="#D4AF37" />
+                            <span>Nhân viên</span>
+                        </div>
                         <div style={{ fontWeight: "bold", fontSize: 13 }}>
                             {user.fullName || "Nhân viên"}
                         </div>
@@ -123,15 +156,19 @@ const CashierLayout = () => {
                         onClick={handleLogout}
                         style={{
                             width: "100%",
-                            padding: "8px 12px",
+                            padding: "10px 12px",
                             background: "rgba(220,38,38,0.3)",
                             border: "1px solid rgba(220,38,38,0.5)",
-                            borderRadius: "6px",
+                            borderRadius: "8px",
                             color: "#fca5a5",
                             cursor: "pointer",
                             fontSize: 13,
                             fontWeight: "bold",
                             textAlign: "center",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
                             transition: "all 0.2s"
                         }}
                         onMouseEnter={(e) => {
@@ -143,7 +180,8 @@ const CashierLayout = () => {
                             e.currentTarget.style.color = "#fca5a5";
                         }}
                     >
-                        🔓 Đăng xuất
+                        <LogOut size={16} color="#fca5a5" />
+                        <span>Đăng xuất</span>
                     </button>
                 </div>
             </div>
@@ -158,37 +196,40 @@ const CashierLayout = () => {
                     color: "white",
                     display: "flex",
                     alignItems: "center",
-                    padding: "0 15px",
-                    gap: 20
+                    padding: "0 20px",
+                    gap: 24
                 }}>
-                    {/* ☰ */}
+                    {/* Menu icon */}
                     <div
                         onClick={toggleSidebar}
-                        style={{ fontSize: 20, cursor: "pointer" }}
+                        style={{ fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center" }}
                     >
-                        ☰
+                        <Menu size={20} color="#ffffff" />
                     </div>
 
-                    {/* 👉 TẤT CẢ BÀN */}
-                    <span
+                    {/* Tất cả bàn */}
+                    <div
                         onClick={() => {
                             navigate("/cashier/tables");
                             setIsSidebarOpen(false);
                         }}
-                        style={{ cursor: "pointer" }}
+                        style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
                     >
-                        Tất cả bàn
-                    </span>
+                        <Table size={16} color="#D4AF37" />
+                        <span>Tất cả bàn</span>
+                    </div>
 
-                    <span
+                    {/* Đặt bàn */}
+                    <div
                         onClick={() => {
                             navigate("/cashier/booking");
                             setIsSidebarOpen(false);
                         }}
-                        style={{ cursor: "pointer" }}
+                        style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
                     >
-                        Đặt bàn
-                    </span>
+                        <Calendar size={16} color="#D4AF37" />
+                        <span>Đặt bàn</span>
+                    </div>
                 </div>
 
                 {/* CONTENT */}
