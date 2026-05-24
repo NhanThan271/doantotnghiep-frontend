@@ -195,18 +195,18 @@ const TableDetail = () => {
                 }
             });
 
+            // 🔥 SỬA: Tạo itemsToAdd gộp theo số lượng
             const itemsToAdd = [];
             for (const [foodId, cartQty] of Object.entries(cartQuantities)) {
                 const existingQty = existingQuantities[foodId] || 0;
                 const quantityToAdd = cartQty - existingQty;
 
                 if (quantityToAdd > 0) {
-                    for (let i = 0; i < quantityToAdd; i++) {
-                        itemsToAdd.push({
-                            foodId: parseInt(foodId),
-                            quantity: 1
-                        });
-                    }
+                    // GỘP: chỉ push 1 item với số lượng là quantityToAdd
+                    itemsToAdd.push({
+                        foodId: parseInt(foodId),
+                        quantity: quantityToAdd  // Không tách thành nhiều phần
+                    });
                 }
             }
 
@@ -216,19 +216,20 @@ const TableDetail = () => {
                 return;
             }
 
-            showToast(`Đang thêm ${itemsToAdd.length} phần mới...`, "info", 2000);
+            showToast(`Đang thêm ${itemsToAdd.reduce((sum, i) => sum + i.quantity, 0)} phần mới...`, "info", 2000);
 
+            // Gửi API với số lượng gộp
             let successCount = 0;
             for (let i = 0; i < itemsToAdd.length; i++) {
                 const addItem = itemsToAdd[i];
                 try {
                     await axiosClient.post(`/customer/orders/${order.id}/add-items`, [addItem]);
-                    successCount++;
+                    successCount += addItem.quantity;
                     if (i < itemsToAdd.length - 1) {
                         await new Promise(resolve => setTimeout(resolve, 500));
                     }
                 } catch (err) {
-                    console.error(`Lỗi khi thêm phần ${i + 1}:`, err);
+                    console.error(`Lỗi khi thêm món ${addItem.foodId}:`, err);
                 }
             }
 
@@ -254,10 +255,24 @@ const TableDetail = () => {
             }
             setCart(updatedCart);
 
-            for (let i = 0; i < itemsToAdd.length; i++) {
-                const addItem = itemsToAdd[i];
-                const product = products.find(p => p.id === addItem.foodId);
+            // GỘP TẤT CẢ MÓN VÀO 1 EVENT DUY NHẤT với số lượng gộp
+            if (itemsToAdd.length > 0) {
                 const locationName = isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`;
+
+                // Tạo mảng items với số lượng đã gộp
+                const allItems = itemsToAdd.map((addItem, idx) => {
+                    const prod = products.find(p => p.id === addItem.foodId);
+                    return {
+                        id: addItem.foodId,
+                        name: prod?.name || `Món #${addItem.foodId}`,
+                        quantity: addItem.quantity,  // Số lượng đã gộp
+                        orderId: order.id,
+                        tableNumber: entityNumber,
+                        tableId: entity.id,
+                        status: 'WAITING',
+                        timestamp: Date.now() + idx
+                    };
+                });
 
                 socket.emit("order-updated", {
                     orderId: order.id,
@@ -266,24 +281,12 @@ const TableDetail = () => {
                     locationName: locationName,
                     areaName: entity?.area || "Khu chính",
                     isRoom: isRoom,
-                    items: [{
-                        id: addItem.foodId,
-                        name: product?.name || `Món #${addItem.foodId}`,
-                        quantity: 1,
-                        orderId: order.id,
-                        tableNumber: entityNumber,
-                        tableId: entity.id,
-                        status: 'WAITING',
-                        timestamp: Date.now() + i
-                    }],
+                    items: allItems,
                     timestamp: new Date().toISOString(),
                     branchId: branchId
                 });
-
-                await new Promise(resolve => setTimeout(resolve, 100));
             }
 
-            // 🔥 Cập nhật trạng thái bàn/phòng
             socket.emit("update-tables");
 
             showToast(`Đã thêm thành công ${successCount} phần mới!`, 'success', 3000);
@@ -295,7 +298,6 @@ const TableDetail = () => {
             setIsUpdating(false);
         }
     };
-
     const handleConfirmOrder = async () => {
         if (cart.length === 0) {
             showToast("Vui lòng chọn món!", "warning", 2000);
