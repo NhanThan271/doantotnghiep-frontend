@@ -86,7 +86,7 @@ const PaymentSuccess = () => {
                 if (!tempBookingData) {
                     console.error("Không tìm thấy dữ liệu đặt bàn");
                     setError("Không tìm thấy dữ liệu đặt bàn");
-                    setTimeout(() => { clearSavedBranch(); navigate("/dat-ban-dia-chi"); }, 3000);
+                    setTimeout(() => { navigate("/dat-ban-dia-chi"); }, 3000);
                     return;
                 }
 
@@ -99,7 +99,7 @@ const PaymentSuccess = () => {
                 if (bookingData.orderCode !== parseInt(orderCode)) {
                     console.error("OrderCode không khớp");
                     setError("Mã giao dịch không hợp lệ");
-                    setTimeout(() => { clearSavedBranch(); navigate("/dat-ban-dia-chi"); }, 3000);
+                    setTimeout(() => { navigate("/dat-ban-dia-chi"); }, 3000);
                     return;
                 }
 
@@ -159,7 +159,6 @@ const PaymentSuccess = () => {
 
                 sessionStorage.removeItem('tempBooking');
                 sessionStorage.removeItem('pendingPayment');
-                clearSavedBranch();
 
             } catch (error) {
                 console.error("Lỗi:", error);
@@ -228,7 +227,7 @@ const PaymentSuccess = () => {
                     <h1 style={{ color: "#dc3545" }}>Có lỗi xảy ra</h1>
                     <p>{error}</p>
                     <button
-                        onClick={() => { clearSavedBranch(); navigate("/dat-ban-dia-chi"); }}
+                        onClick={() => { navigate("/dat-ban-dia-chi"); }}
                         style={{
                             marginTop: "20px",
                             padding: "10px 24px",
@@ -335,7 +334,7 @@ const PaymentSuccess = () => {
 
                 <div style={{ display: "flex", gap: "12px" }}>
                     <button
-                        onClick={() => { clearSavedBranch(); navigate("/"); }}
+                        onClick={() => { navigate("/"); }}
                         style={{
                             flex: 1,
                             padding: "12px",
@@ -351,7 +350,7 @@ const PaymentSuccess = () => {
                         🏠 Về trang chủ
                     </button>
                     <button
-                        onClick={() => { clearSavedBranch(); navigate("/dat-ban-dia-chi"); }}
+                        onClick={() => { navigate("/dat-ban-dia-chi"); }}
                         style={{
                             flex: 1,
                             padding: "12px",

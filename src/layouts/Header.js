@@ -11,7 +11,14 @@ const Header = () => {
     const [menuOpen, setMenuOpen] = useState(false);
     const dropdownRef = useRef(null);
 
-    const selectedBranch = location.state?.branch || localStorage.getItem('selectedBranch') || 'Hồ Chí Minh';
+    const selectedBranch = (() => {
+        const b = location.state?.branch;
+        if (b) {
+            if (typeof b === 'string') return b;
+            if (typeof b === 'object') return b.name || '';
+        }
+        return localStorage.getItem('selectedBranch') || 'Hồ Chí Minh';
+    })();
 
     useEffect(() => {
         if (location.state?.branch) {
