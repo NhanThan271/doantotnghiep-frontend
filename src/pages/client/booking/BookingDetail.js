@@ -25,11 +25,11 @@ const safeName = (value) => {
 const groupByCapacity = (tables) => {
     const bands = { small: [], medium: [], large: [], vip: [], grandVip: [] };
     tables.forEach(t => {
-        if (t.capacity <= 4)        bands.small.push(t);
-        else if (t.capacity <= 6)   bands.medium.push(t);
-        else if (t.capacity <= 8)   bands.large.push(t);
-        else if (t.capacity <= 15)  bands.vip.push(t);
-        else                        bands.grandVip.push(t);
+        if (t.capacity <= 4) bands.small.push(t);
+        else if (t.capacity <= 6) bands.medium.push(t);
+        else if (t.capacity <= 8) bands.large.push(t);
+        else if (t.capacity <= 15) bands.vip.push(t);
+        else bands.grandVip.push(t);
     });
     return bands;
 };
@@ -38,21 +38,21 @@ const groupByCapacity = (tables) => {
 const BookingDetail = () => {
     const { state } = useLocation();
 
-    const [loading, setLoading]   = useState(false);
-    const [errors, setErrors]     = useState({});
+    const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [bookingSuccessInfo, setBookingSuccessInfo] = useState(null);
 
     /* table map */
-    const [tableAreas, setTableAreas]       = useState([]);
-    const [activeArea, setActiveArea]       = useState(null);
+    const [tableAreas, setTableAreas] = useState([]);
+    const [activeArea, setActiveArea] = useState(null);
     const [areaTablesMap, setAreaTablesMap] = useState({});
-    const [areaLoading, setAreaLoading]     = useState(false);
+    const [areaLoading, setAreaLoading] = useState(false);
 
     /* menu */
-    const [categories, setCategories]   = useState([]);
-    const [allFoods, setAllFoods]       = useState([]);
-    const [activeCat, setActiveCat]     = useState(null);
+    const [categories, setCategories] = useState([]);
+    const [allFoods, setAllFoods] = useState([]);
+    const [activeCat, setActiveCat] = useState(null);
     const [menuLoading, setMenuLoading] = useState(true);
 
     /* form */
@@ -67,22 +67,35 @@ const BookingDetail = () => {
 
     /* ── restore branch ── */
     useEffect(() => {
+
+        const raw = sessionStorage.getItem("currentBranch");
+        console.log("RAW currentBranch:", raw);
+        console.log("PARSED:", JSON.parse(raw || "{}"));
+        window.scrollTo(0, 0);
         let cb = null;
 
-        // Bước 1: thử đọc từ sessionStorage
-        try { cb = JSON.parse(sessionStorage.getItem("currentBranch")); } catch {}
-
-        // Bước 2: fallback từ localStorage
-        if (!cb?.id) {
-            const id   = localStorage.getItem('selectedBranchId');
-            const name = localStorage.getItem('selectedBranch');
-            if (id) cb = { id: parseInt(id), name: name || '' };
+        if (state?.branch) {
+            cb = { id: state.branch.id, name: safeName(state.branch.name) };
         }
 
-        // Bước 3: đảm bảo name luôn là string
+        if (!cb?.id) {
+            try {
+                const raw = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
+                cb = { id: raw.id, name: safeName(raw.name) };
+            } catch { }
+        }
+
+        if (!cb?.id) {
+            const id = localStorage.getItem('selectedBranchId');
+            const name = localStorage.getItem('selectedBranch');
+            if (id) cb = { id: parseInt(id), name: safeName(name) };
+        }
+
         if (cb?.id) {
-            cb = { id: cb.id, name: safeName(cb.name) };
-            sessionStorage.setItem("currentBranch", JSON.stringify(cb));
+            sessionStorage.setItem("currentBranch", JSON.stringify({
+                id: cb.id,
+                name: cb.name
+            }));
         } else {
             setTimeout(() => (window.location.href = "/dat-ban-dia-chi"), 2000);
         }
@@ -98,7 +111,7 @@ const BookingDetail = () => {
                 phone: u.phone || "",
                 email: u.email || "",
             }));
-        } catch {}
+        } catch { }
     }, []);
 
     /* ── load areas ── */
@@ -109,14 +122,14 @@ const BookingDetail = () => {
             fetch(`${API}/api/tables/branch/${cb.id}/areas`)
                 .then(r => r.json())
                 .then(areas => {
-    const areaList = (areas || []).map(a => 
-        typeof a === 'string' ? a : (a.name || a.areaName || String(a))
-    );
-    setTableAreas(areaList);
-    if (areaList.length) setActiveArea(areaList[0]);
-})
+                    const areaList = (areas || [])
+                        .map(a => typeof a === 'string' ? a : (a.name || a.areaName || String(a)))
+                        .filter(a => !a.toLowerCase().includes('takeaway')); 
+                    setTableAreas(areaList);
+                    if (areaList.length) setActiveArea(areaList[0]);
+                })
                 .catch(console.error);
-        } catch {}
+        } catch { }
     }, []);
 
     /* ── load tables per area ── */
@@ -126,7 +139,7 @@ const BookingDetail = () => {
             const cb = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
             if (!cb?.id) return;
             setAreaLoading(true);
-            const res  = await fetch(`${API}/api/tables/branch/${cb.id}/area/${encodeURIComponent(area)}`);
+            const res = await fetch(`${API}/api/tables/branch/${cb.id}/area/${encodeURIComponent(area)}`);
             const json = await res.json();
             setAreaTablesMap(prev => ({
                 ...prev,
@@ -146,7 +159,7 @@ const BookingDetail = () => {
             setMenuLoading(true);
             Promise.all([
                 fetch(`${API}/api/categories`, { headers: { "Content-Type": "application/json" } }).then(r => r.json()),
-                fetch(`${API}/api/branch-foods/branch/${cb.id}`, {
+                fetch(`${API}/api/branch-foods/branch/${cb.id}/with-promotions`, {
                     headers: {
                         "Content-Type": "application/json",
                         ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
@@ -159,27 +172,49 @@ const BookingDetail = () => {
                     const active = (foods || [])
                         .filter(f => f.isActive)
                         .map(f => ({
-                            branchFoodId: f.id, id: f.id,
-                            name: f.food?.name || f.name,
-                            description: f.food?.description || "",
-                            price: f.customPrice || f.food?.price || 0,
-                            imageUrl: f.food?.imageUrl,
-                            categoryId: f.food?.category?.id,
+                            branchFoodId: f.branchFoodId,
+                            id: f.branchFoodId,
+                            name: f.name,
+                            description: f.description,
+                            price: f.finalPrice || f.branchPrice || 0,
+                            originalPrice: f.branchPrice,
+                            imageUrl: f.imageUrl,
+                            categoryId: f.categoryId,
+                            foodId: f.id,
+                            hasPromotion: f.hasPromotion,
+                            promotionName: f.promotionName,
+                            discountPercentage: f.discountPercentage,
                         }));
                     setAllFoods(active);
+
+                    const promoFood = (() => {
+                        try { return JSON.parse(sessionStorage.getItem('promoSelectedFood')); }
+                        catch { return null; }
+                    })();
+
+                    if (promoFood) {
+                        const matched = active.find(f => f.foodId === promoFood.foodId);
+                        if (matched) {
+                            setData(prev => ({
+                                ...prev,
+                                selectedFoods: [{ ...matched, quantity: 1 }]
+                            }));
+                        }
+                        sessionStorage.removeItem('promoSelectedFood');
+                    }
                 })
                 .catch(console.error)
                 .finally(() => setMenuLoading(false));
-        } catch {}
+        } catch { }
     }, []);
 
     /* ── validation ── */
-    const validateName  = v => !v?.trim() ? "Vui lòng nhập họ tên"
+    const validateName = v => !v?.trim() ? "Vui lòng nhập họ tên"
         : v.trim().length < 2 ? "Ít nhất 2 ký tự"
-        : /[0-9]/.test(v) ? "Họ tên không chứa số" : "";
+            : /[0-9]/.test(v) ? "Họ tên không chứa số" : "";
     const validatePhone = v => !v?.trim() ? "Vui lòng nhập số điện thoại"
         : !/^(0|84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-9])[0-9]{7}$/.test(v.replace(/\s/g, ""))
-        ? "SĐT không hợp lệ" : "";
+            ? "SĐT không hợp lệ" : "";
     const validateEmail = v => v?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
         ? "Email không hợp lệ" : "";
 
@@ -222,7 +257,7 @@ const BookingDetail = () => {
 
     /* ── available times ── */
     const getAvailableTimes = () => {
-        const all = ["11:00","11:30","12:00","12:30","13:00","13:30","17:00","17:30","18:00","18:30","19:00","19:30","20:00","20:30"];
+        const all = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30"];
         const today = new Date().toISOString().split("T")[0];
         if (!data.date || data.date !== today) return all;
         const now = new Date();
@@ -239,18 +274,18 @@ const BookingDetail = () => {
                 method: "PUT",
                 headers: { Authorization: `Bearer ${getAuthToken()}`, "Content-Type": "application/json" }
             });
-        } catch {}
+        } catch { }
     };
 
     /* ── booking without food ── */
     const handleBookingOnlyTable = async () => {
         const ne = validateName(data.customerName); if (ne) return alert(`❌ ${ne}`);
-        const pe = validatePhone(data.phone);       if (pe) return alert(`❌ ${pe}`);
-        const ee = validateEmail(data.email);       if (ee) return alert(`❌ ${ee}`);
+        const pe = validatePhone(data.phone); if (pe) return alert(`❌ ${pe}`);
+        const ee = validateEmail(data.email); if (ee) return alert(`❌ ${ee}`);
         setLoading(true);
         try {
             const cb = JSON.parse(sessionStorage.getItem("currentBranch"));
-            const u  = JSON.parse(localStorage.getItem("user") || "{}");
+            const u = JSON.parse(localStorage.getItem("user") || "{}");
             const res = await fetch(`${API}/api/reservations/full`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
@@ -293,12 +328,12 @@ const BookingDetail = () => {
     const handleBooking = async () => {
         if (!data.selectedFoods.length) return alert("❌ Vui lòng chọn ít nhất 1 món");
         const ne = validateName(data.customerName); if (ne) return alert(`❌ ${ne}`);
-        const pe = validatePhone(data.phone);       if (pe) return alert(`❌ ${pe}`);
-        const ee = validateEmail(data.email);       if (ee) return alert(`❌ ${ee}`);
+        const pe = validatePhone(data.phone); if (pe) return alert(`❌ ${pe}`);
+        const ee = validateEmail(data.email); if (ee) return alert(`❌ ${ee}`);
         setLoading(true);
         try {
             const cb = JSON.parse(sessionStorage.getItem("currentBranch"));
-            const u  = JSON.parse(localStorage.getItem("user") || "{}");
+            const u = JSON.parse(localStorage.getItem("user") || "{}");
             const tempOrderCode = Date.now() % 2147483647;
             const cbName = safeName(cb?.name); // ✅ FIX: luôn là string
             sessionStorage.setItem("tempBooking", JSON.stringify({
@@ -338,8 +373,9 @@ const BookingDetail = () => {
     const currentBranch = (() => {
         try {
             const cb = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
-            return { id: cb.id, name: safeName(cb.name) }; // ✅ FIX: name luôn là string
-        } catch { return {}; }
+            const name = safeName(cb.name);
+            return { id: cb.id, name };
+        } catch { return { id: null, name: '' }; }
     })();
 
     const currentTables = areaTablesMap[activeArea] || [];
@@ -448,8 +484,9 @@ const BookingDetail = () => {
                 <div className={styles.mapSection}>
                     <div className={styles.mapHeader}>
                         <div className={styles.mapTitle}>Sơ đồ bàn</div>
-                        {/* ✅ FIX: currentBranch.name đã là string qua safeName */}
-                        <div className={styles.mapSub}>{currentBranch.name} · Chọn vị trí yêu thích</div>
+                        <div className={styles.mapSub}>
+                            {String(currentBranch.name || '')} · Chọn vị trí yêu thích
+                        </div>
                     </div>
 
                     <div className={styles.floorTabs}>
@@ -547,10 +584,10 @@ const BookingDetail = () => {
 
                     <div className={styles.legend}>
                         {[
-                            { color: "#4a7fd4",                   label: "Còn trống" },
-                            { color: "#C9A84C",                   label: "Đang chọn" },
-                            { color: "rgba(223, 222, 220, 0.45)", label: "Đã đặt"    },
-                            { color: "rgba(220,38,38,0.35)",      label: "Có khách"  },
+                            { color: "#4a7fd4", label: "Còn trống" },
+                            { color: "#C9A84C", label: "Đang chọn" },
+                            { color: "rgba(223, 222, 220, 0.45)", label: "Đã đặt" },
+                            { color: "rgba(220,38,38,0.35)", label: "Có khách" },
                         ].map(l => (
                             <div key={l.label} className={styles.legendItem}>
                                 <span className={styles.legendBox} style={{ background: l.color }} />
@@ -603,6 +640,29 @@ const BookingDetail = () => {
                                     </div>
                                     <div className={styles.foodCardBody}>
                                         <span className={styles.foodCardName}>{food.name}</span>
+                                        <div style={{ minHeight: '30px', marginBottom: '2px' }}>
+                                            {food.hasPromotion && food.originalPrice ? (
+                                                <>
+                                                    <span style={{
+                                                        textDecoration: 'line-through',
+                                                        color: '#999',
+                                                        fontSize: '0.8em',
+                                                        marginRight: '4px'
+                                                    }}>
+                                                        {fmtPrice(food.originalPrice)}
+                                                    </span>
+                                                    <span style={{
+                                                        background: '#e53e3e',
+                                                        color: '#fff',
+                                                        fontSize: '0.7em',
+                                                        padding: '1px 4px',
+                                                        borderRadius: '3px'
+                                                    }}>
+                                                        -{food.discountPercentage}%
+                                                    </span>
+                                                </>
+                                            ) : null}
+                                        </div>
                                         <span className={styles.foodCardPrice}>{fmtPrice(food.price)}</span>
                                     </div>
                                     <div className={styles.foodCardCtrl}>
@@ -682,8 +742,8 @@ const BookingDetail = () => {
 
                         <div className={styles.payOpts}>
                             {[
-                                { val: "deposit", label: "Đặt cọc 20%",        amt: Math.floor(totalFoodAmount * 0.2) },
-                                { val: "full",    label: "Thanh toán toàn bộ", amt: Math.floor(totalFoodAmount * 0.9), badge: "−10%" },
+                                { val: "deposit", label: "Đặt cọc 20%", amt: Math.floor(totalFoodAmount * 0.2) },
+                                { val: "full", label: "Thanh toán toàn bộ", amt: Math.floor(totalFoodAmount * 0.9), badge: "−10%" },
                             ].map(opt => (
                                 <div key={opt.val}
                                     className={`${styles.payOpt}${data.payment === opt.val ? " " + styles.payOptActive : ""}`}
@@ -733,9 +793,9 @@ const BookingDetail = () => {
                             <h3>Thông tin đặt bàn</h3>
                             {[
                                 ["Mã đặt bàn", `#${bookingSuccessInfo.id}`],
-                                ["Nhà hàng",   bookingSuccessInfo.branchName], // ✅ đã là string
-                                ["Bàn số",     bookingSuccessInfo.tableNumber],
-                                ["Ngày giờ",   `${bookingSuccessInfo.date} — ${bookingSuccessInfo.time}`],
+                                ["Nhà hàng", bookingSuccessInfo.branchName], // ✅ đã là string
+                                ["Bàn số", bookingSuccessInfo.tableNumber],
+                                ["Ngày giờ", `${bookingSuccessInfo.date} — ${bookingSuccessInfo.time}`],
                                 ["Khách hàng", bookingSuccessInfo.customerName],
                                 ["Điện thoại", bookingSuccessInfo.customerPhone],
                             ].map(([label, value]) => (
@@ -769,17 +829,17 @@ const BookingDetail = () => {
 
 /* ── Table Card ── */
 const TableCard = ({ table, selected, onSelect, isVip = false, isGrandVip = false }) => {
-    const isSelected   = selected === table.id;
-    const isFree       = table.status === "FREE";
-    const showVip      = isVip || table.capacity >= 10;
+    const isSelected = selected === table.id;
+    const isFree = table.status === "FREE";
+    const showVip = isVip || table.capacity >= 10;
     const showGrandVip = isGrandVip || table.capacity >= 16;
-    const statusLabel  = table.status === "FREE" ? "Trống"
+    const statusLabel = table.status === "FREE" ? "Trống"
         : table.status === "RESERVED" ? "Đã đặt" : "Có khách";
 
     let cls = styles.tableCard;
-    if (isSelected)   cls += " " + styles.tableSelected;
+    if (isSelected) cls += " " + styles.tableSelected;
     else if (!isFree) cls += " " + styles.tableUnavailable;
-    else              cls += " " + styles.tableFree;
+    else cls += " " + styles.tableFree;
     if (showGrandVip) cls += " " + styles.tableGrandVip;
     else if (showVip) cls += " " + styles.tableVip;
 

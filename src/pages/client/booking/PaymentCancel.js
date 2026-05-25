@@ -6,10 +6,21 @@ const PaymentCancel = () => {
 
     useEffect(() => {
         sessionStorage.setItem('paymentCancelled', 'true');
-        const lastBranch = sessionStorage.getItem('lastBranch');
-        console.log("Thanh toán bị hủy, đang khôi phục dữ liệu...");
+
+        let branch = null;
+        try {
+            const raw = JSON.parse(sessionStorage.getItem('lastBranch') || "{}");
+            if (raw?.id) {
+                const name = typeof raw.name === 'string' ? raw.name
+                    : typeof raw.name === 'object' ? (raw.name?.name || '')
+                        : String(raw.name || '');
+                branch = { id: raw.id, name };
+                sessionStorage.setItem('currentBranch', JSON.stringify(branch));
+            }
+        } catch { }
+
         navigate('/dat-ban-chi-tiet', {
-            state: { cancelled: true, branch: lastBranch ? JSON.parse(lastBranch) : null, restoreFromCancel: true },
+            state: { cancelled: true, restoreFromCancel: true },
             replace: true
         });
     }, [navigate]);

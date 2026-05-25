@@ -76,7 +76,7 @@ const Menu = () => {
             setLoading(true);
             setError(null);
             const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/api/branch-foods/branch/${branchId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/branch-foods/branch/${branchId}/with-promotions`, {
                 headers: {
                     'Content-Type': 'application/json',
                     ...(token && { 'Authorization': `Bearer ${token}` })
@@ -88,13 +88,16 @@ const Menu = () => {
             const transformed = data
                 .filter(item => item.isActive === true)
                 .map(item => ({
-                    id: item.id,
-                    name: item.food?.name || item.name,
-                    description: item.food?.description || '',
-                    price: item.customPrice || item.food?.price || 0,
-                    imageUrl: item.food?.imageUrl,
-                    categoryId: item.food?.category?.id,
-                    categoryName: item.food?.category?.name,
+                    id: item.branchFoodId,
+                    name: item.name,
+                    description: item.description,
+                    price: item.finalPrice,
+                    originalPrice: item.branchPrice,
+                    hasPromotion: item.hasPromotion,
+                    promotionName: item.promotionName,
+                    discountPercentage: item.discountPercentage,
+                    imageUrl: item.imageUrl,
+                    categoryId: item.categoryId,
                     stockQuantity: item.stockQuantity,
                     isAvailable: item.isActive
                 }));
@@ -388,7 +391,20 @@ const Menu = () => {
                                                 {product.description && (
                                                     <p className="product-description">{product.description}</p>
                                                 )}
+                                                <div className="prmotion-badge">
+                                                    {product.hasPromotion && (
+                                                        <span className="product-discount-badge">
+                                                            -{product.discountPercentage}%
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="product-footer">
+                                                    {product.hasPromotion && (
+                                                        <span className="product-price-original"
+                                                            style={{ textDecoration: 'line-through', color: 'gray', fontSize: '0.85em' }}>
+                                                            {formatPrice(product.originalPrice)}
+                                                        </span>
+                                                    )}
                                                     <span className="product-price">{formatPrice(product.price)}</span>
                                                 </div>
                                             </div>
