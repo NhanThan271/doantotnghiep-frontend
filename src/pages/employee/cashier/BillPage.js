@@ -237,7 +237,6 @@ const BillPage = () => {
             'MOMO': '📱 Ví MoMo',
             'MOBILE': '📱 Ví MoMo',
             'BANKING': '🏦 Chuyển khoản',
-            'CARD': '💳 Thẻ ngân hàng'
         };
         return methods[method] || method;
     };
@@ -576,12 +575,6 @@ const BillPage = () => {
                                         onClick={() => setPaymentMethod('BANKING')}
                                     >
                                         🏦 Chuyển khoản
-                                    </button>
-                                    <button
-                                        className={`${styles.methodBtn} ${paymentMethod === 'CARD' ? styles.activeMethod : ''}`}
-                                        onClick={() => setPaymentMethod('CARD')}
-                                    >
-                                        💳 Thẻ ngân hàng
                                     </button>
                                 </div>
                             </div>
