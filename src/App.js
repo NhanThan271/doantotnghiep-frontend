@@ -27,19 +27,22 @@ import TablesPage from "./pages/employee/cashier/TablesPage";
 import BookingPage from "./pages/employee/cashier/BookingPage";
 import TableDetail from "./pages/employee/cashier/TableDetail";
 import Orders from "./pages/employee/waiter/Orders";
-
+import OrderDetail from "./pages/employee/waiter/OrderDetail";
+import WaiterPaymentSuccess from "./pages/employee/waiter/PaymentSuccess";
+import WaiterPaymentCancel from "./pages/employee/waiter/PaymentCancel";
 import ChefDashboard from "./pages/employee/chef/ChefDashboard";
-import PaymentSuccess from "./pages/client/booking/PaymentSuccess";
-import PaymentCancel from "./pages/client/booking/PaymentCancel";
+import ClientPaymentSuccess from "./pages/client/booking/PaymentSuccess";
+import ClientPaymentCancel from "./pages/client/booking/PaymentCancel";
 import CashierPaymentSuccess from "./pages/employee/cashier/CashierPaymentSuccess";
 import CashierPaymentCancel from "./pages/employee/cashier/CashierPaymentCancel";
 import PaymentRequest from "./pages/employee/waiter/PaymentRequest";
 import PaymentQR from "./pages/employee/waiter/PaymentQR";
-
+import KitchenMonitor from "./pages/employee/waiter/KitchenMonitor";
 import HeroLanding from "./pages/client/HeroLanding";
 import Home from "./layouts/Home";
 
 import ShiftRegistration from './pages/employee/ShiftRegistration';
+
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (
   <>
@@ -65,10 +68,11 @@ function App() {
         <Route path="/admin/*" element={<AdminLayout />} />
         <Route path="/manager/*" element={<ManagerLayout />} />
 
-        <Route path="/payment-success" element={<PaymentSuccess />} />
-        <Route path="/payment-cancel" element={<PaymentCancel />} />
-        {/* Layout riêng cho nhan vien*/}
+        {/* Client payment routes */}
+        <Route path="/payment-success" element={<ClientPaymentSuccess />} />
+        <Route path="/payment-cancel" element={<ClientPaymentCancel />} />
 
+        {/* Layout riêng cho nhan vien*/}
         <Route path="/employee/shift-registration" element={<ShiftRegistration />} />
 
         {/* Cashier routes - Thêm trực tiếp */}
@@ -82,9 +86,14 @@ function App() {
           <Route path="booking" element={<BookingPage />} />
         </Route>
 
-        {/* Route cho TableDetail */}
+        {/* Route cho TableDetail - Giữ nguyên cho cashier */}
         <Route path="/cashier/tables/:id" element={<TableDetail />} />
         <Route path="/cashier/rooms/:id" element={<TableDetail />} />
+
+        {/* Route cho OrderDetail - Dành cho waiter */}
+        <Route path="/waiter/orders/:id" element={<OrderDetail />} />
+
+        {/* Cashier payment routes */}
         <Route path="/cashier-payment-success" element={<CashierPaymentSuccess />} />
         <Route path="/cashier-payment-cancel" element={<CashierPaymentCancel />} />
 
@@ -92,8 +101,13 @@ function App() {
         <Route path="/waiter" element={<WaiterLayout />}>
           <Route path="orders" element={<Orders />} />
           <Route path="payment-requests" element={<PaymentRequest />} />
+          <Route path="/waiter/kitchen" element={<KitchenMonitor />} />
         </Route>
         <Route path="/waiter/payment-requests/:id" element={<PaymentQR />} />
+
+        {/* Waiter payment routes */}
+        <Route path="/waiter/payment-success" element={<WaiterPaymentSuccess />} />
+        <Route path="/waiter/payment-cancel" element={<WaiterPaymentCancel />} />
 
         {/* Chef routes - Thêm trực tiếp */}
         <Route path="/chef" element={<ChefLayout><ChefDashboard /></ChefLayout>} />

@@ -39,14 +39,100 @@ const STATUS_CLASS = {
 };
 
 // ─────────────────────────────────────────────
+// HELPER: GỘP MÓN ĂN (HỖ TRỢ NHIỀU CẤU TRÚC DỮ LIỆU)
+// ─────────────────────────────────────────────
+const groupOrderItems = (items) => {
+    const grouped = new Map();
+    (items || []).forEach(item => {
+        // Xử lý nhiều cấu trúc dữ liệu khác nhau
+        let foodName = '—';
+        let itemPrice = 0;
+        let itemQuantity = 1;
+        let itemNote = '';
+
+        // Trường hợp 1: item có food object
+        if (item.food) {
+            foodName = item.food.name || '—';
+            itemPrice = Number(item.price) || 0;
+            itemQuantity = item.quantity || 1;
+            itemNote = item.note || '';
+        }
+        // Trường hợp 2: item có name trực tiếp
+        else if (item.name) {
+            foodName = item.name;
+            itemPrice = Number(item.price) || 0;
+            itemQuantity = item.quantity || 1;
+            itemNote = item.note || '';
+        }
+        // Trường hợp 3: item có foodName
+        else if (item.foodName) {
+            foodName = item.foodName;
+            itemPrice = Number(item.price) || 0;
+            itemQuantity = item.quantity || 1;
+            itemNote = item.note || '';
+        }
+        // Trường hợp 4: item có branchFood
+        else if (item.branchFood) {
+            foodName = item.branchFood.food?.name || item.branchFood.name || '—';
+            itemPrice = Number(item.price) || Number(item.branchFood.price) || 0;
+            itemQuantity = item.quantity || 1;
+            itemNote = item.note || '';
+        }
+        // Trường hợp 5: item có foodId nhưng không có tên
+        else if (item.foodId) {
+            foodName = `Món #${item.foodId}`;
+            itemPrice = Number(item.price) || 0;
+            itemQuantity = item.quantity || 1;
+            itemNote = item.note || '';
+        }
+
+        const key = foodName;
+
+        if (grouped.has(key)) {
+            const existing = grouped.get(key);
+            existing.quantity += itemQuantity;
+            existing.total += (itemPrice * itemQuantity);
+            // Gộp note nếu có
+            if (itemNote && !existing.note) existing.note = itemNote;
+        } else {
+            grouped.set(key, {
+                name: foodName,
+                quantity: itemQuantity,
+                price: itemPrice,
+                total: itemPrice * itemQuantity,
+                note: itemNote
+            });
+        }
+    });
+    return Array.from(grouped.values());
+};
+
+// ─────────────────────────────────────────────
 // MODAL: HÓA ĐƠN
 // ─────────────────────────────────────────────
 function BillModal({ bill, onClose, onExport }) {
     if (!bill) return null;
+
+    // Lấy order từ bill
     const order = bill.order || {};
-    const location = order.room ? `Phòng VIP ${order.room.number}`
-        : order.table ? `Bàn ${order.table.number}`
-            : order.locationDetail || '—';
+
+    // Lấy items từ nhiều nguồn khác nhau
+    let orderItems = [];
+    if (order.items && order.items.length > 0) {
+        orderItems = order.items;
+    } else if (bill.items && bill.items.length > 0) {
+        orderItems = bill.items;
+    } else if (order.orderItems && order.orderItems.length > 0) {
+        orderItems = order.orderItems;
+    }
+
+    // Lấy vị trí
+    const location = order.room?.number ? `Phòng VIP ${order.room.number}`
+        : order.table?.number ? `Bàn ${order.table.number}`
+            : order.locationDetail || bill.locationDetail || '—';
+
+    // Gộp món
+    const groupedItems = groupOrderItems(orderItems);
 
     return (
         <div className="pr-modal-backdrop" onClick={onClose}>
@@ -58,10 +144,10 @@ function BillModal({ bill, onClose, onExport }) {
                 <div className="pr-modal-body">
                     <div className="bill-meta-grid">
                         {[
-                            ['Đơn hàng', `#${order.id}`],
+                            ['Đơn hàng', `#${order.id || bill.orderId || '—'}`],
                             ['Vị trí', location],
                             ['Thanh toán', bill.paymentMethod || '—'],
-                            ['Thời gian', fmtDate(bill.issuedAt)],
+                            ['Thời gian', fmtDate(bill.issuedAt || bill.createdAt)],
                             ['Trạng thái', bill.paymentStatus === 'PAID' ? '✔ Đã thanh toán' : bill.paymentStatus],
                         ].map(([label, val], i) => (
                             <div key={i} className="bill-meta-item">
@@ -70,23 +156,47 @@ function BillModal({ bill, onClose, onExport }) {
                             </div>
                         ))}
                     </div>
-                    <div className="bill-items-title">Chi tiết món ăn</div>
-                    <table className="bill-table">
-                        <thead><tr><th>Món</th><th className="text-center">SL</th><th className="text-right">Đơn giá</th><th className="text-right">Thành tiền</th></tr></thead>
-                        <tbody>
-                            {(order.items || []).map((item, i) => (
-                                <tr key={i}>
-                                    <td>
-                                        <div className="item-name">{item.food?.name || '—'}</div>
-                                        {item.note && <div className="item-note">📝 {item.note}</div>}
-                                    </td>
-                                    <td className="text-center">{item.quantity}</td>
-                                    <td className="text-right">{fmtPrice(item.price)}</td>
-                                    <td className="text-right">{fmtPrice(Number(item.price) * item.quantity)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+
+                    {groupedItems.length === 0 ? (
+                        <div className="bill-empty-items">
+                            <p>⚠️ Không có dữ liệu món ăn</p>
+                            <p className="bill-empty-hint">Vui lòng kiểm tra lại hóa đơn hoặc tải lại trang</p>
+                            <button
+                                className="pr-btn-refresh-small"
+                                onClick={() => window.location.reload()}
+                            >
+                                🔄 Tải lại trang
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="bill-items-title">Chi tiết món ăn</div>
+                            <table className="bill-table">
+                                <thead>
+                                    <tr>
+                                        <th>Món</th>
+                                        <th className="text-center">SL</th>
+                                        <th className="text-right">Đơn giá</th>
+                                        <th className="text-right">Thành tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {groupedItems.map((item, i) => (
+                                        <tr key={i}>
+                                            <td>
+                                                <div className="item-name">{item.name}</div>
+                                                {item.note && <div className="item-note">📝 {item.note}</div>}
+                                            </td>
+                                            <td className="text-center">{item.quantity}</td>
+                                            <td className="text-right">{fmtPrice(item.price)}</td>
+                                            <td className="text-right">{fmtPrice(item.total)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </>
+                    )}
+
                     <div className="bill-total-row">
                         <span>Tổng thanh toán</span>
                         <span className="bill-total-amount">{fmtPrice(bill.totalAmount)}</span>
@@ -174,13 +284,46 @@ export default function PaymentRequest() {
     const handleViewBill = async (orderId) => {
         setBillLoading(true);
         try {
-            const r = await apiFetch('/api/employee/bills');
-            const data = await r.json();
-            const found = Array.isArray(data) ? data.find(b => b.order?.id === orderId) : null;
-            if (!found) { toast('error', 'Chưa có hóa đơn cho đơn này'); return; }
-            setBill(found);
-        } catch { toast('error', 'Không thể tải hóa đơn'); }
-        finally { setBillLoading(false); }
+            // Lấy chi tiết order TRƯỚC để có items
+            const orderRes = await apiFetch(`/api/customer/orders/${orderId}`);
+            if (!orderRes.ok) {
+                toast('error', 'Không thể tải đơn hàng');
+                return;
+            }
+            const orderDetails = await orderRes.json();
+
+            // Lấy bill
+            const billsRes = await apiFetch('/api/employee/bills');
+            const bills = await billsRes.json();
+            const foundBill = Array.isArray(bills) ? bills.find(b => b.order?.id === orderId) : null;
+
+            if (!foundBill) {
+                toast('error', 'Chưa có hóa đơn cho đơn này');
+                return;
+            }
+
+            // Gộp dữ liệu - ƯU TIÊN items từ order details
+            const fullBill = {
+                ...foundBill,
+                order: {
+                    ...foundBill.order,
+                    id: orderDetails.id,
+                    items: orderDetails.items || [],
+                    table: orderDetails.table,
+                    room: orderDetails.room,
+                    locationDetail: orderDetails.locationDetail
+                }
+            };
+
+            setBill(fullBill);
+
+        } catch (err) {
+            console.error("Error fetching bill:", err);
+            toast('error', 'Không thể tải hóa đơn');
+        }
+        finally {
+            setBillLoading(false);
+        }
     };
 
     const handleExportBill = async () => {
@@ -212,6 +355,25 @@ export default function PaymentRequest() {
         { value: 'PAID', label: 'Đã thanh toán' },
         { value: 'CANCELED', label: 'Đã hủy' },
     ];
+
+    // Hàm render items đã gộp nhóm
+    const renderOrderItems = (items) => {
+        const groupedItems = groupOrderItems(items);
+        return (
+            <>
+                {groupedItems.slice(0, 3).map((item, i) => (
+                    <div key={i} className="pr-card-item-row">
+                        <span className="pr-card-item-name">{item.name}</span>
+                        <span className="pr-card-item-qty">×{item.quantity}</span>
+                        <span className="pr-card-item-price">{fmtPrice(item.total)}</span>
+                    </div>
+                ))}
+                {groupedItems.length > 3 && (
+                    <div className="pr-card-more">+{groupedItems.length - 3} món khác</div>
+                )}
+            </>
+        );
+    };
 
     return (
         <div className="pr-page">
@@ -246,7 +408,8 @@ export default function PaymentRequest() {
                 <div className="pr-list">
                     {filtered.map(order => {
                         const total = Number(order.totalAmount) || 0;
-                        const itemCount = (order.items || []).length;
+                        const groupedItems = groupOrderItems(order.items);
+                        const itemCount = groupedItems.length;
                         return (
                             <div key={order.id} className={`pr-card ${order.status === 'PAID' ? 'pr-card-paid' : ''}`}>
                                 <div className="pr-card-top">
@@ -264,14 +427,7 @@ export default function PaymentRequest() {
                                     <span>🍽️ {itemCount} món</span>
                                 </div>
                                 <div className="pr-card-items">
-                                    {(order.items || []).slice(0, 3).map((item, i) => (
-                                        <div key={i} className="pr-card-item-row">
-                                            <span className="pr-card-item-name">{item.food?.name || '—'}</span>
-                                            <span className="pr-card-item-qty">×{item.quantity}</span>
-                                            <span className="pr-card-item-price">{fmtPrice(Number(item.price || 0) * item.quantity)}</span>
-                                        </div>
-                                    ))}
-                                    {itemCount > 3 && <div className="pr-card-more">+{itemCount - 3} món khác</div>}
+                                    {renderOrderItems(order.items)}
                                 </div>
                                 <div className="pr-card-actions">
                                     {order.status === 'PAID' ? (

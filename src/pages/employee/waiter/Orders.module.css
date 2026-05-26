@@ -1,0 +1,144 @@
+/* Thêm vào cuối file Orders.module.css */
+
+/* Entity Buttons */
+.entityBtn {
+    padding: 10px 20px;
+    background: #d32f2f;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.entityBtn:hover {
+    background: #b71c1c;
+    transform: translateY(-2px);
+}
+
+/* Go to Button */
+.gotoBtn {
+    flex: 1;
+    padding: 10px;
+    background: #3b82f6;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: white;
+    transition: all 0.2s;
+}
+
+.gotoBtn:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+}
+
+/* Entity Modal */
+.entityModal {
+    max-width: 700px !important;
+}
+
+.entityGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.entityCard {
+    background: #f8faf5;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    border: 1px solid #e2e8e0;
+}
+
+.entityCard:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #d32f2f;
+}
+
+.entityIcon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.entityNumber {
+    font-size: 16px;
+    font-weight: bold;
+    color: #2c3e2f;
+    margin-bottom: 4px;
+}
+
+.entityArea {
+    font-size: 12px;
+    color: #8a9b8c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.entityCapacity {
+    font-size: 12px;
+    color: #8a9b8c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.entityStatus {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.entityFree {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.entityOccupied {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.entityReserved {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+/* Scrollbar cho entity grid */
+.entityGrid::-webkit-scrollbar {
+    width: 6px;
+}
+
+.entityGrid::-webkit-scrollbar-track {
+    background: #f1f3ee;
+    border-radius: 10px;
+}
+
+.entityGrid::-webkit-scrollbar-thumb {
+    background: #c1c9c0;
+    border-radius: 10px;
+}
