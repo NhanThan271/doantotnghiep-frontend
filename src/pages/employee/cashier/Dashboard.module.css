@@ -1,9 +1,8 @@
 /* Dashboard.module.css */
 .container {
-    background: white;
-    border-radius: 16px;
-    padding: 24px;
-    min-height: calc(100vh - 40px);
+    padding: 20px;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
 }
 
 /* Header */
@@ -12,37 +11,36 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
-    flex-wrap: wrap;
-    gap: 16px;
+    background: white;
+    padding: 16px 24px;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .headerLeft h2 {
     margin: 0 0 8px 0;
-    font-size: 24px;
     color: #1e3a8a;
 }
 
 .shiftStatus {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
 }
 
 .statusBadge {
-    background: #d1fae5;
-    color: #065f46;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
+    color: #10b981;
+    font-size: 14px;
+    font-weight: 500;
 }
 
 .shiftTimer {
     display: flex;
     align-items: center;
-    gap: 6px;
-    color: #5d6e5f;
-    font-size: 14px;
+    gap: 4px;
+    font-size: 13px;
+    color: #6b7280;
+    font-family: monospace;
 }
 
 .headerRight {
@@ -51,81 +49,73 @@
 }
 
 .startShiftBtn {
+    background: #10b981;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    border: none;
-    border-radius: 40px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s;
-}
-
-.startShiftBtn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    font-weight: 500;
 }
 
 .endShiftBtn {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-    border: none;
-    border-radius: 40px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.2s;
-}
-
-.endShiftBtn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    font-weight: 500;
 }
 
 .refreshBtn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
     background: #f3f4f6;
     border: 1px solid #e5e7eb;
-    border-radius: 40px;
+    padding: 8px 12px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 18px;
-    transition: all 0.2s;
-}
-
-.refreshBtn:hover {
-    background: #e5e7eb;
-    transform: rotate(180deg);
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 /* Stats Grid */
 .statsGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
     margin-bottom: 24px;
 }
 
 .statCard {
-    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    background: white;
     border-radius: 16px;
     padding: 20px;
     display: flex;
     align-items: center;
     gap: 16px;
-    color: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s;
+}
+
+.statCard:hover {
+    transform: translateY(-2px);
 }
 
 .statIcon {
+    width: 60px;
+    height: 60px;
+    background: #eff6ff;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 32px;
 }
 
@@ -134,65 +124,100 @@
 }
 
 .statTitle {
-    font-size: 13px;
-    opacity: 0.8;
-    margin-bottom: 4px;
-}
-
-.statValue {
-    font-size: 24px;
-    font-weight: 700;
-}
-
-/* Payment Breakdown */
-.paymentBreakdown {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.breakdownCard {
-    background: #f8faf5;
-    border-radius: 12px;
-    padding: 16px;
-    text-align: center;
-    border: 1px solid #e2e8e0;
-}
-
-.breakdownTitle {
     font-size: 14px;
-    color: #5d6e5f;
+    color: #6b7280;
     margin-bottom: 8px;
 }
 
-.breakdownAmount {
-    font-size: 20px;
-    font-weight: 700;
+.statValue {
+    font-size: 28px;
+    font-weight: bold;
     color: #1e3a8a;
 }
 
-/* Shift Info Card */
-.shiftInfoCard {
-    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+.statSub {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+/* Payment Methods */
+.paymentMethodsCard {
+    background: white;
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 24px;
-    color: white;
+}
+
+.paymentMethodsCard h3 {
+    margin: 0 0 16px 0;
+    color: #1e3a8a;
+}
+
+.methodsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.methodItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 12px;
+    position: relative;
+}
+
+.methodIcon {
+    font-size: 28px;
+}
+
+.methodInfo {
+    flex: 1;
+}
+
+.methodName {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.methodValue {
+    font-size: 18px;
+    font-weight: bold;
+    color: #1e3a8a;
+}
+
+.methodCount {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+.methodPercent {
+    font-size: 14px;
+    font-weight: bold;
+    color: #10b981;
+}
+
+/* Shift Info */
+.shiftInfoCard {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
 }
 
 .shiftInfoHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-    gap: 12px;
+    margin-bottom: 20px;
 }
 
 .shiftInfoHeader h3 {
     margin: 0;
-    font-size: 18px;
+    color: #1e3a8a;
 }
 
 .actionButtons {
@@ -200,78 +225,176 @@
     gap: 12px;
 }
 
-.withdrawBtn,
-.depositBtn {
+.withdrawBtn {
+    background: #fef3c7;
+    color: #d97706;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 16px;
-    background: white;
-    border: none;
-    border-radius: 40px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s;
-}
-
-.withdrawBtn {
-    color: #d97706;
-}
-
-.withdrawBtn:hover {
-    background: #fef3c7;
-    transform: translateY(-1px);
+    font-size: 13px;
 }
 
 .depositBtn {
-    color: #10b981;
-}
-
-.depositBtn:hover {
     background: #d1fae5;
-    transform: translateY(-1px);
+    color: #059669;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
 }
 
 .shiftInfoGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
 }
 
-.shiftInfoGrid div {
+.infoItem {
     display: flex;
-    gap: 8px;
-    font-size: 14px;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.shiftInfoGrid span {
-    opacity: 0.7;
+.infoLabel {
+    font-size: 12px;
+    color: #6b7280;
 }
 
-/* Two Column Layout */
-.twoColumnLayout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-bottom: 24px;
+.infoValue {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
 }
 
-.recentOrdersCard,
-.topDishesCard {
+/* Hourly Revenue */
+.hourlyRevenueCard {
     background: white;
     border-radius: 16px;
     padding: 20px;
-    border: 1px solid #e2e8e0;
+    margin-bottom: 24px;
 }
 
-.recentOrdersCard h3,
-.topDishesCard h3 {
-    margin: 0 0 16px 0;
-    font-size: 18px;
+.hourlyRevenueCard h3 {
+    margin: 0 0 20px 0;
     color: #1e3a8a;
 }
 
-/* Orders Table */
+.chartContainer {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 10px 0;
+}
+
+.chartBar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 60px;
+}
+
+.chartBarLabel {
+    font-size: 11px;
+    color: #6b7280;
+    margin-bottom: 8px;
+}
+
+.chartBarFill {
+    width: 40px;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.3s;
+    min-height: 4px;
+}
+
+.chartBarValue {
+    font-size: 11px;
+    color: #1f2937;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+/* Transactions */
+.transactionsCard {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.transactionsCard h3 {
+    margin: 0 0 16px 0;
+    color: #1e3a8a;
+}
+
+.transactionsTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.transactionsTable th {
+    text-align: left;
+    padding: 10px;
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+}
+
+.transactionsTable td {
+    padding: 10px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.withdrawText {
+    color: #d97706;
+    font-weight: 500;
+}
+
+.depositText {
+    color: #059669;
+    font-weight: 500;
+}
+
+.withdrawAmount {
+    color: #d97706;
+    font-weight: 500;
+}
+
+.depositAmount {
+    color: #059669;
+    font-weight: 500;
+}
+
+.transactionReason {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+/* Recent Orders */
+.recentOrdersCard {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.recentOrdersCard h3 {
+    margin: 0 0 16px 0;
+    color: #1e3a8a;
+}
+
+.tableWrapper {
+    overflow-x: auto;
+}
+
 .ordersTable {
     width: 100%;
     border-collapse: collapse;
@@ -279,163 +402,174 @@
 
 .ordersTable th {
     text-align: left;
-    padding: 8px 0;
-    font-size: 13px;
-    color: #6b7280;
-    font-weight: 500;
-    border-bottom: 1px solid #e2e8e0;
+    padding: 12px;
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
 }
 
 .ordersTable td {
-    padding: 10px 0;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 14px;
+    padding: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.orderId {
+    font-weight: 600;
+    color: #1e3a8a;
+}
+
+.orderAmount {
+    font-weight: 500;
+    color: #059669;
+}
+
+.paymentMethod {
+    font-size: 12px;
+    padding: 4px 8px;
+    background: #f3f4f6;
+    border-radius: 4px;
+    display: inline-block;
 }
 
 .paidBadge {
-    display: inline-block;
-    padding: 4px 10px;
+    padding: 4px 12px;
     background: #d1fae5;
-    color: #065f46;
+    color: #059669;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
+    display: inline-block;
 }
 
 .unpaidBadge {
-    display: inline-block;
-    padding: 4px 10px;
-    background: #fef3c7;
-    color: #92400e;
+    padding: 4px 12px;
+    background: #fee2e2;
+    color: #dc2626;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
+    display: inline-block;
 }
 
-/* Dishes List */
-.dishesList {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.dishItem {
-    display: flex;
+.viewBtn {
+    background: #eff6ff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px 0;
-    border-bottom: 1px solid #f0f0f0;
+    gap: 6px;
+    font-size: 12px;
+    color: #3b82f6;
 }
 
-.dishRank {
-    width: 30px;
-    height: 30px;
-    background: #f3f4f6;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    color: #d32f2f;
-}
-
-.dishName {
-    flex: 1;
-    font-weight: 500;
-}
-
-.dishQuantity {
-    color: #6b7280;
-    font-size: 13px;
-}
-
-/* No Shift Card */
+/* No Shift State */
 .noShiftCard {
-    background: #f8faf5;
-    border-radius: 20px;
-    border: 2px dashed #e2e8e0;
-    padding: 60px 24px;
+    background: white;
+    border-radius: 16px;
+    padding: 60px 20px;
     text-align: center;
 }
 
+.noShiftContent {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
 .noShiftContent h3 {
-    margin: 16px 0 8px 0;
-    color: #5d6e5f;
+    margin: 20px 0 8px;
+    color: #374151;
 }
 
 .noShiftContent p {
-    color: #9ca3af;
+    color: #6b7280;
+    margin-bottom: 24px;
 }
 
-/* Modals */
+/* Modal */
 .modalOverlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
+    z-index: 1000;
 }
 
 .modal {
     background: white;
-    border-radius: 20px;
-    width: 90%;
-    max-width: 450px;
-    padding: 24px;
+    border-radius: 16px;
+    width: 450px;
+    max-width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal h3 {
+    margin: 0;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .modalContent {
-    margin-bottom: 20px;
+    padding: 20px 24px;
 }
 
 .modalContent label {
     display: block;
-    font-weight: 500;
     margin-bottom: 8px;
+    font-weight: 500;
     color: #374151;
+}
+
+.required {
+    color: #ef4444;
 }
 
 .modalInput {
     width: 100%;
-    padding: 12px;
-    border: 2px solid #e2e8e0;
-    border-radius: 12px;
-    font-size: 16px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 14px;
 }
 
 .modalInput:focus {
     outline: none;
-    border-color: #d32f2f;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .modalInfo {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 12px;
-    padding: 10px;
+    padding: 12px;
     background: #fef3c7;
     border-radius: 8px;
-    font-size: 12px;
-    color: #92400e;
+    font-size: 13px;
+    color: #d97706;
 }
 
 .modalFooter {
     display: flex;
-    gap: 12px;
     justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px 20px;
+    border-top: 1px solid #e5e7eb;
 }
 
 .cancelBtn {
-    padding: 10px 20px;
+    padding: 8px 20px;
     background: #f3f4f6;
-    border: none;
-    border-radius: 40px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
     cursor: pointer;
 }
 
@@ -443,39 +577,36 @@
 .endShiftConfirmBtn,
 .withdrawConfirmBtn,
 .depositConfirmBtn {
-    padding: 10px 20px;
+    padding: 8px 20px;
     border: none;
-    border-radius: 40px;
+    border-radius: 8px;
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .confirmBtn {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #10b981;
     color: white;
 }
 
 .endShiftConfirmBtn {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: #ef4444;
     color: white;
 }
 
 .withdrawConfirmBtn {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: #d97706;
     color: white;
 }
 
 .depositConfirmBtn {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: #059669;
     color: white;
 }
 
 /* End Shift Summary */
 .endShiftSummary {
-    background: #f8faf5;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
+    padding: 20px 24px;
 }
 
 .summaryRow {
@@ -486,35 +617,41 @@
 
 .divider {
     height: 1px;
-    background: #e2e8e0;
+    background: #e5e7eb;
     margin: 12px 0;
 }
 
 .cashHighlight {
-    color: #d32f2f;
-    font-size: 16px;
+    color: #10b981;
+    font-size: 18px;
 }
 
 .totalHighlight {
+    color: #ef4444;
     font-size: 18px;
-    color: #10b981;
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-    .container {
-        padding: 16px;
-    }
-
+@media (max-width: 1024px) {
     .statsGrid {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .twoColumnLayout {
+    .methodsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .shiftInfoGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .statsGrid {
         grid-template-columns: 1fr;
     }
 
-    .paymentBreakdown {
+    .methodsGrid {
         grid-template-columns: 1fr;
     }
 
@@ -522,8 +659,8 @@
         grid-template-columns: 1fr;
     }
 
-    .shiftInfoHeader {
+    .header {
         flex-direction: column;
-        align-items: flex-start;
+        gap: 16px;
     }
 }

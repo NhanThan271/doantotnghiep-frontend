@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Table, Home, Users, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, PlusCircle, MapPin } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
-const API = "http://localhost:8080";
+import styles from "./TablesPage.module.css";
 
+const API = "http://localhost:8080";
 const socket = io('http://localhost:3001');
+
 const TablesPage = () => {
     const [tables, setTables] = useState([]);
     const [rooms, setRooms] = useState([]);
@@ -19,11 +21,43 @@ const TablesPage = () => {
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
 
+    // Tính thời gian đã sử dụng (từ lúc tạo order đến hiện tại)
+    const getElapsedTime = (startTime) => {
+        if (!startTime) return null;
+
+        const start = new Date(startTime);
+        const now = new Date();
+        const diffMs = now - start;
+
+        if (diffMs < 0) return null;
+
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+        if (diffHours > 0) {
+            return `${diffHours} giờ ${diffMinutes} phút`;
+        }
+        if (diffMinutes > 0) {
+            return `${diffMinutes} phút ${diffSeconds} giây`;
+        }
+        return `${diffSeconds} giây`;
+    };
+
+    // Lấy thời gian bắt đầu từ order (createdAt - thời điểm tạo đơn hàng đầu tiên)
+    const getTableStartTime = (entityId, type) => {
+        const order = existingOrders[`${type}_${entityId}`];
+        if (order) {
+            // Luôn lấy createdAt - thời điểm mở bàn
+            return order.createdAt;
+        }
+        return null;
+    };
+
     // Lấy danh sách đơn hàng đang hoạt động
     const fetchExistingOrders = async () => {
         try {
             const res = await axiosClient.get("/customer/orders");
-            // Lọc các đơn chưa thanh toán và chưa hủy
             const activeOrders = res.data.filter(o => o.status !== "PAID" && o.status !== "CANCELED");
 
             console.log("📋 Đơn hàng đang hoạt động:", activeOrders);
@@ -32,10 +66,10 @@ const TablesPage = () => {
             activeOrders.forEach(order => {
                 if (order.table) {
                     orderMap[`table_${order.table.id}`] = order;
-                    console.log(`✅ Map bàn ${order.table.id} -> order #${order.id} (${order.status})`);
+                    console.log(`✅ Map bàn ${order.table.id} -> order #${order.id} (${order.status}) - tạo lúc: ${order.createdAt}`);
                 } else if (order.room) {
                     orderMap[`room_${order.room.id}`] = order;
-                    console.log(`✅ Map phòng ${order.room.id} -> order #${order.id} (${order.status})`);
+                    console.log(`✅ Map phòng ${order.room.id} -> order #${order.id} (${order.status}) - tạo lúc: ${order.createdAt}`);
                 }
             });
             setExistingOrders(orderMap);
@@ -66,10 +100,14 @@ const TablesPage = () => {
     };
 
     const fetchTables = async () => {
+        setLoading(true);
         try {
-            let url = `${API}/api/tables/branch/${branchId}/areas`;
             if (selectedArea !== "Tất cả") {
-                url = `${API}/api/tables/branch/${branchId}/area/${selectedArea}`;
+                const response = await fetch(`${API}/api/tables/branch/${branchId}/area/${selectedArea}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setTables(data);
+                }
             } else {
                 const areasRes = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
                 const areasData = await areasRes.json();
@@ -82,13 +120,6 @@ const TablesPage = () => {
                     }
                 }
                 setTables(allTables);
-                setLoading(false);
-                return;
-            }
-            const response = await fetch(url);
-            if (response.ok) {
-                const data = await response.json();
-                setTables(data);
             }
         } catch (err) {
             console.error("Lỗi tải bàn:", err);
@@ -110,7 +141,6 @@ const TablesPage = () => {
     };
 
     useEffect(() => {
-        // Lắng nghe sự kiện cập nhật bàn từ socket
         socket.on("update-tables", () => {
             console.log("🔄 Nhận tín hiệu cập nhật bàn từ server");
             fetchTables();
@@ -131,29 +161,28 @@ const TablesPage = () => {
         }
     }, [selectedArea, branchId, activeTab]);
 
+    // Cập nhật thời gian realtime mỗi giây
+    useEffect(() => {
+        const interval = setInterval(() => {
+            // Force re-render để cập nhật thời gian
+            setExistingOrders(prev => ({ ...prev }));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
     const handleTableClick = (table) => {
         const existingOrder = existingOrders[`table_${table.id}`];
-
         console.log(`🖱️ Click bàn ${table.number}, table.id=${table.id}, existingOrder:`, existingOrder);
-
         navigate(`/cashier/tables/${table.id}`, {
-            state: {
-                table: table,
-                existingOrder: existingOrder || null
-            }
+            state: { table: table, existingOrder: existingOrder || null }
         });
     };
 
     const handleRoomClick = (room) => {
         const existingOrder = existingOrders[`room_${room.id}`];
-
         console.log(`🖱️ Click phòng ${room.number}, order:`, existingOrder);
-
         navigate(`/cashier/rooms/${room.id}`, {
-            state: {
-                room: room,
-                existingOrder: existingOrder || null
-            }
+            state: { room: room, existingOrder: existingOrder || null }
         });
     };
 
@@ -169,11 +198,6 @@ const TablesPage = () => {
         return "#ef4444";
     };
 
-    const formatTime = () => {
-        const now = new Date();
-        return now.toLocaleTimeString('vi-VN');
-    };
-
     const hasActiveOrder = (entityId, type) => {
         return !!existingOrders[`${type}_${entityId}`];
     };
@@ -181,7 +205,6 @@ const TablesPage = () => {
     const getOrderStatusText = (entityId, type) => {
         const order = existingOrders[`${type}_${entityId}`];
         if (!order) return null;
-
         const statusMap = {
             'PENDING': '⏳ Đang chờ bếp',
             'PREPARING': '🔪 Đang chuẩn bị',
@@ -191,49 +214,23 @@ const TablesPage = () => {
     };
 
     return (
-        <div style={{
-            padding: "20px",
-            minHeight: "100vh",
-            background: "linear-gradient(135deg, #f8faf5 0%, #f0f4ec 100%)"
-        }}>
-            <div style={{
-                background: "white",
-                borderRadius: "16px",
-                padding: "20px",
-                marginBottom: "20px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
-            }}>
+        <div className={styles.container}>
+            <div className={styles.header}>
                 <div>
-                    <h2 style={{ margin: 0, color: "#2c3e2f" }}>Quản lý bàn & phòng</h2>
-                    <p style={{ margin: "8px 0 0", color: "#8a9b8c", fontSize: "14px" }}>
+                    <h2 className={styles.headerTitle}>Quản lý bàn & phòng</h2>
+                    <p className={styles.headerSubtitle}>
                         Nhấp vào bàn/phòng để xem chi tiết hoặc thêm món
                     </p>
                 </div>
             </div>
 
-            <div style={{
-                display: "flex",
-                gap: "12px",
-                marginBottom: "20px"
-            }}>
+            <div className={styles.tabContainer}>
                 <button
                     onClick={() => {
                         setActiveTab("tables");
                         setSelectedArea("Tất cả");
                     }}
-                    style={{
-                        padding: "12px 24px",
-                        background: activeTab === "tables" ? "#d32f2f" : "white",
-                        color: activeTab === "tables" ? "white" : "#5d6e5f",
-                        border: "none",
-                        borderRadius: "12px",
-                        fontWeight: "bold",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        transition: "all 0.2s"
-                    }}
+                    className={`${styles.tabButton} ${activeTab === "tables" ? styles.tabButtonActive : ""}`}
                 >
                     <Table size={18} />
                     Bàn ăn ({tables.length})
@@ -243,19 +240,7 @@ const TablesPage = () => {
                         setActiveTab("rooms");
                         setSelectedArea("Tất cả");
                     }}
-                    style={{
-                        padding: "12px 24px",
-                        background: activeTab === "rooms" ? "#d32f2f" : "white",
-                        color: activeTab === "rooms" ? "white" : "#5d6e5f",
-                        border: "none",
-                        borderRadius: "12px",
-                        fontWeight: "bold",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        transition: "all 0.2s"
-                    }}
+                    className={`${styles.tabButton} ${activeTab === "rooms" ? styles.tabButtonActive : ""}`}
                 >
                     <Home size={18} />
                     Phòng VIP ({rooms.length})
@@ -263,47 +248,18 @@ const TablesPage = () => {
             </div>
 
             {activeTab === "tables" && areas.length > 0 && (
-                <div style={{
-                    background: "white",
-                    borderRadius: "12px",
-                    padding: "16px",
-                    marginBottom: "20px"
-                }}>
-                    <div
-                        onClick={() => setShowAreas(!showAreas)}
-                        style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            cursor: "pointer"
-                        }}
-                    >
-                        <span style={{ fontWeight: "bold", color: "#2c3e2f" }}>
-                            📍 Khu vực / Tầng
-                        </span>
+                <div className={styles.areaCard}>
+                    <div className={styles.areaHeader} onClick={() => setShowAreas(!showAreas)}>
+                        <span className={styles.areaTitle}>📍 Khu vực / Tầng</span>
                         {showAreas ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                     </div>
                     {showAreas && (
-                        <div style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: "10px",
-                            marginTop: "12px"
-                        }}>
+                        <div className={styles.areaContent}>
                             {areas.map(area => (
                                 <button
                                     key={area}
                                     onClick={() => setSelectedArea(area)}
-                                    style={{
-                                        padding: "8px 16px",
-                                        background: selectedArea === area ? "#d32f2f" : "#f1f3ee",
-                                        color: selectedArea === area ? "white" : "#5d6e5f",
-                                        border: "none",
-                                        borderRadius: "20px",
-                                        cursor: "pointer",
-                                        fontWeight: "500",
-                                        transition: "all 0.2s"
-                                    }}
+                                    className={`${styles.areaButton} ${selectedArea === area ? styles.areaButtonActive : ""}`}
                                 >
                                     {area === "Tất cả" ? "🏠 Tất cả" : `📍 ${area}`}
                                 </button>
@@ -316,158 +272,76 @@ const TablesPage = () => {
             {activeTab === "tables" && (
                 <>
                     {loading ? (
-                        <div style={{ textAlign: "center", padding: "60px" }}>
-                            <div style={{
-                                width: "48px",
-                                height: "48px",
-                                border: "4px solid #e2e8e0",
-                                borderTopColor: "#d32f2f",
-                                borderRadius: "50%",
-                                animation: "spin 0.8s linear infinite",
-                                margin: "0 auto 20px"
-                            }}></div>
-                            <p>Đang tải dữ liệu...</p>
+                        <div className={styles.loadingContainer}>
+                            <div className={styles.spinner}></div>
+                            <p className={styles.loadingText}>Đang tải dữ liệu...</p>
                         </div>
                     ) : tables.length === 0 ? (
-                        <div style={{
-                            textAlign: "center",
-                            padding: "60px",
-                            background: "white",
-                            borderRadius: "16px"
-                        }}>
-                            <p>Không có bàn nào trong khu vực này</p>
+                        <div className={styles.emptyState}>
+                            <p className={styles.emptyText}>Không có bàn nào trong khu vực này</p>
                         </div>
                     ) : (
-                        <div style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                            gap: "16px"
-                        }}>
+                        <div className={styles.gridContainer}>
                             {tables.map((table) => {
                                 const hasOrder = hasActiveOrder(table.id, 'table');
                                 const orderStatus = getOrderStatusText(table.id, 'table');
+                                const startTime = getTableStartTime(table.id, 'table');
+                                const elapsedTime = getElapsedTime(startTime);
+
+                                let cardClass = styles.card;
+                                if (table.status === "FREE") cardClass += ` ${styles.cardFree}`;
+                                else if (table.status === "RESERVED") cardClass += ` ${styles.cardReserved}`;
+                                else cardClass += ` ${styles.cardOccupied}`;
 
                                 return (
                                     <div
                                         key={table.id}
                                         onClick={() => handleTableClick(table)}
-                                        style={{
-                                            position: "relative",
-                                            background: table.status === "FREE"
-                                                ? "linear-gradient(135deg, #ffffff, #f8faf5)"
-                                                : table.status === "RESERVED"
-                                                    ? "#fffbeb"
-                                                    : "#fff3e0",
-                                            borderRadius: "16px",
-                                            padding: "20px",
-                                            cursor: "pointer",
-                                            transition: "all 0.2s",
-                                            boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                                            border: `2px solid ${getStatusColor(table.status)}`,
-                                            textAlign: "center"
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.transform = "translateY(-4px)";
-                                            e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.1)";
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.transform = "translateY(0)";
-                                            e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.05)";
-                                        }}
+                                        className={cardClass}
                                     >
                                         {table.status !== "FREE" && (
-                                            <div style={{
-                                                position: "absolute",
-                                                top: "8px",
-                                                right: "8px",
-                                                background: "#10b981",
-                                                color: "white",
-                                                padding: "4px 8px",
-                                                borderRadius: "20px",
-                                                fontSize: "10px",
-                                                fontWeight: "bold",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "4px"
-                                            }}>
+                                            <div className={styles.addButton}>
                                                 <PlusCircle size={10} />
                                                 Thêm món
                                             </div>
                                         )}
 
-                                        <div style={{ fontSize: "40px", marginBottom: "8px" }}>
+                                        <div className={styles.cardIcon}>
                                             {table.status === "FREE" ? "🍽️" : table.status === "RESERVED" ? "📅" : "🍜"}
                                         </div>
-                                        <div style={{
-                                            fontSize: "18px",
-                                            fontWeight: "bold",
-                                            color: "#2c3e2f"
-                                        }}>
-                                            Bàn {table.number}
-                                        </div>
+                                        <div className={styles.cardTitle}>Bàn {table.number}</div>
 
-                                        {/* ✅ HIỂN THỊ TẦNG/KHU VỰC */}
-                                        <div style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            gap: "4px",
-                                            marginTop: "4px",
-                                            fontSize: "12px",
-                                            color: "#8a9b8c"
-                                        }}>
+                                        <div className={styles.location}>
                                             <MapPin size={12} />
                                             <span>{table.area || "Khu vực chung"}</span>
                                         </div>
 
                                         {hasOrder && orderStatus && (
-                                            <div style={{
-                                                fontSize: "11px",
-                                                color: "#f59e0b",
-                                                marginTop: "4px",
-                                                fontWeight: "500"
-                                            }}>
-                                                {orderStatus}
+                                            <div className={styles.orderStatus}>{orderStatus}</div>
+                                        )}
+
+                                        <div className={styles.tableStatus}>
+                                            {table.status === "FREE" ? (
+                                                <CheckCircle size={14} color="#10b981" />
+                                            ) : table.status === "RESERVED" ? (
+                                                <Clock size={14} color="#f59e0b" />
+                                            ) : (
+                                                <XCircle size={14} color="#ef4444" />
+                                            )}
+                                            <span className={styles.statusText} style={{ color: getStatusColor(table.status) }}>
+                                                {getStatusText(table.status)}
+                                            </span>
+                                        </div>
+
+                                        {/* Hiển thị thời gian đã sử dụng từ lúc mở bàn */}
+                                        {table.status === "OCCUPIED" && (
+                                            <div className={styles.timeInfo}>
+                                                <Clock size={12} />
+                                                {elapsedTime ? `Đã dùng: ${elapsedTime}` : 'Đang cập nhật...'}
                                             </div>
                                         )}
 
-                                        <div style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            gap: "8px",
-                                            marginTop: "8px",
-                                            fontSize: "13px",
-                                            color: getStatusColor(table.status)
-                                        }}>
-                                            {table.status === "FREE" ? (
-                                                <CheckCircle size={14} />
-                                            ) : table.status === "RESERVED" ? (
-                                                <Clock size={14} />
-                                            ) : (
-                                                <XCircle size={14} />
-                                            )}
-                                            <span>{getStatusText(table.status)}</span>
-                                        </div>
-                                        {table.status !== "FREE" && table.status !== "RESERVED" && (
-                                            <div style={{
-                                                fontSize: "11px",
-                                                color: "#8a9b8c",
-                                                marginTop: "8px",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                gap: "4px"
-                                            }}>
-                                                <Clock size={12} />
-                                                {formatTime()}
-                                            </div>
-                                        )}
-                                        <div style={{
-                                            fontSize: "11px",
-                                            color: "#8a9b8c",
-                                            marginTop: "8px"
-                                        }}>
+                                        <div className={styles.capacity}>
                                             Sức chứa: {table.capacity || 4} người
                                         </div>
                                     </div>
@@ -479,139 +353,71 @@ const TablesPage = () => {
             )}
 
             {activeTab === "rooms" && (
-                <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-                    gap: "16px"
-                }}>
+                <div className={styles.gridContainer}>
                     {rooms.length === 0 ? (
-                        <div style={{
-                            textAlign: "center",
-                            padding: "60px",
-                            background: "white",
-                            borderRadius: "16px",
-                            gridColumn: "1/-1"
-                        }}>
-                            <p>Không có phòng nào</p>
+                        <div className={`${styles.emptyState} ${styles.fullWidth}`}>
+                            <p className={styles.emptyText}>Không có phòng nào</p>
                         </div>
                     ) : (
                         rooms.map((room) => {
                             const hasOrder = hasActiveOrder(room.id, 'room');
                             const orderStatus = getOrderStatusText(room.id, 'room');
+                            const startTime = getTableStartTime(room.id, 'room');
+                            const elapsedTime = getElapsedTime(startTime);
+
+                            let cardClass = styles.card;
+                            if (room.status === "FREE") cardClass += ` ${styles.cardFree}`;
+                            else if (room.status === "RESERVED") cardClass += ` ${styles.cardReserved}`;
+                            else cardClass += ` ${styles.cardOccupied}`;
 
                             return (
                                 <div
                                     key={room.id}
                                     onClick={() => handleRoomClick(room)}
-                                    style={{
-                                        position: "relative",
-                                        background: room.status === "FREE"
-                                            ? "linear-gradient(135deg, #ffffff, #f8faf5)"
-                                            : room.status === "RESERVED"
-                                                ? "#fffbeb"
-                                                : "#fff3e0",
-                                        borderRadius: "16px",
-                                        padding: "20px",
-                                        cursor: "pointer",
-                                        transition: "all 0.2s",
-                                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                                        border: `2px solid ${room.status === "FREE" ? "#10b981" : room.status === "RESERVED" ? "#f59e0b" : "#ef4444"}`,
-                                        textAlign: "center"
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.transform = "translateY(-4px)";
-                                        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.1)";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.transform = "translateY(0)";
-                                        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.05)";
-                                    }}
+                                    className={cardClass}
                                 >
                                     {room.status !== "FREE" && (
-                                        <div style={{
-                                            position: "absolute",
-                                            top: "8px",
-                                            right: "8px",
-                                            background: "#10b981",
-                                            color: "white",
-                                            padding: "4px 8px",
-                                            borderRadius: "20px",
-                                            fontSize: "10px",
-                                            fontWeight: "bold",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: "4px"
-                                        }}>
+                                        <div className={styles.addButton}>
                                             <PlusCircle size={10} />
                                             Thêm món
                                         </div>
                                     )}
 
-                                    <div style={{ fontSize: "40px", marginBottom: "8px" }}>
-                                        🏠
-                                    </div>
-                                    <div style={{
-                                        fontSize: "18px",
-                                        fontWeight: "bold",
-                                        color: "#2c3e2f"
-                                    }}>
-                                        Phòng {room.number}
-                                    </div>
+                                    <div className={styles.cardIcon}>🏠</div>
+                                    <div className={styles.cardTitle}>Phòng {room.number}</div>
 
-                                    {/* ✅ HIỂN THỊ TẦNG/KHU VỰC CHO PHÒNG */}
-                                    <div style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        gap: "4px",
-                                        marginTop: "4px",
-                                        fontSize: "12px",
-                                        color: "#8a9b8c"
-                                    }}>
+                                    <div className={styles.location}>
                                         <MapPin size={12} />
                                         <span>{room.area || "Khu vực VIP"}</span>
                                     </div>
 
                                     {hasOrder && orderStatus && (
-                                        <div style={{
-                                            fontSize: "11px",
-                                            color: "#f59e0b",
-                                            marginTop: "4px",
-                                            fontWeight: "500"
-                                        }}>
-                                            {orderStatus}
+                                        <div className={styles.orderStatus}>{orderStatus}</div>
+                                    )}
+
+                                    <div className={styles.tableStatus}>
+                                        {room.status === "FREE" ? (
+                                            <CheckCircle size={14} color="#10b981" />
+                                        ) : room.status === "RESERVED" ? (
+                                            <Clock size={14} color="#f59e0b" />
+                                        ) : (
+                                            <XCircle size={14} color="#ef4444" />
+                                        )}
+                                        <span className={styles.statusText} style={{ color: getStatusColor(room.status) }}>
+                                            {getStatusText(room.status)}
+                                        </span>
+                                    </div>
+
+                                    {/* Hiển thị thời gian đã sử dụng cho phòng từ lúc mở */}
+                                    {room.status === "OCCUPIED" && (
+                                        <div className={styles.timeInfo}>
+                                            <Clock size={12} />
+                                            {elapsedTime ? `Đã dùng: ${elapsedTime}` : 'Đang cập nhật...'}
                                         </div>
                                     )}
 
-                                    <div style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        gap: "8px",
-                                        marginTop: "8px",
-                                        fontSize: "13px",
-                                        color: room.status === "FREE" ? "#10b981" : room.status === "RESERVED" ? "#f59e0b" : "#ef4444"
-                                    }}>
-                                        {room.status === "FREE" ? (
-                                            <CheckCircle size={14} />
-                                        ) : room.status === "RESERVED" ? (
-                                            <Clock size={14} />
-                                        ) : (
-                                            <XCircle size={14} />
-                                        )}
-                                        <span>{room.status === "FREE" ? "Trống" : room.status === "RESERVED" ? "Đã đặt" : "Đã có khách"}</span>
-                                    </div>
-                                    <div style={{
-                                        fontSize: "11px",
-                                        color: "#8a9b8c",
-                                        marginTop: "8px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        gap: "4px"
-                                    }}>
-                                        <Users size={12} />
-                                        Sức chứa: {room.capacity} người
+                                    <div className={styles.capacity}>
+                                        <Users size={12} /> Sức chứa: {room.capacity} người
                                     </div>
                                 </div>
                             );
@@ -619,12 +425,6 @@ const TablesPage = () => {
                     )}
                 </div>
             )}
-
-            <style>{`
-                @keyframes spin {
-                    to { transform: rotate(360deg); }
-                }
-            `}</style>
         </div>
     );
 };
