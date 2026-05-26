@@ -350,6 +350,7 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
         }
         return `Khu ${selectedArea} - Bàn ${selectedTableNumber}`;
     };
+
     const handleSubmit = async () => {
         if (cart.length === 0) { toast.add('warning', 'Chưa có món', 'Vui lòng chọn ít nhất 1 món'); return; }
         if (seatType === 'room' && !selectedRoomId) { toast.add('warning', 'Chưa chọn phòng', ''); return; }
@@ -358,22 +359,26 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
         setSubmitting(true);
         try {
             if (existingOrderId) {
+                // THÊM MÓN VÀO ĐƠN CŨ
                 const body = cart.map(i => ({ foodId: i.id, quantity: i.qty, note: i.note || '' }));
                 const r = await apiFetch(`/api/customer/orders/${existingOrderId}/add-items`, {
                     method: 'POST', body: JSON.stringify(body)
                 });
                 if (!r.ok) throw new Error('Thêm món thất bại');
 
-                // Nếu đơn đang COMPLETED → chuyển về CONFIRMED
+                // Lấy thông tin đơn hàng hiện tại
                 const orderRes = await apiFetch(`/api/customer/orders/${existingOrderId}`);
+                let orderData = null;
                 if (orderRes.ok) {
-                    const orderData = await orderRes.json();
+                    orderData = await orderRes.json();
+                    // Nếu đơn đang COMPLETED → chuyển về CONFIRMED
                     if (orderData.status === 'COMPLETED') {
                         await apiFetch(`/api/customer/orders/${existingOrderId}/confirm`, { method: 'PUT' });
                     }
                 }
 
-                socket.emit('update-order-status', {
+                // EMIT SOCKET ĐẾN BẾP - DÙNG ĐÚNG EVENT NAME
+                socket.emit('order-updated', {
                     orderId: existingOrderId,
                     branchId: branchId,
                     areaName: seatType === 'table' ? selectedArea : 'VIP',
@@ -382,11 +387,13 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
                         : `Phòng ${rooms.find(r => String(r.id) === String(selectedRoomId))?.number || ''}`,
                     tableNumber: selectedTableNumber || rooms.find(r => String(r.id) === String(selectedRoomId))?.number,
                     items: cart.map(i => ({ name: i.name, quantity: i.qty })),
+                    timestamp: new Date().toISOString(),
+                    isRoom: seatType === 'room'
                 });
 
                 toast.add('success', `Đã thêm món vào đơn #${existingOrderId}`, getLocationName());
             } else {
-                // ── TẠO ĐƠN MỚI (giữ nguyên như cũ) ──
+                // TẠO ĐƠN MỚI (giữ nguyên)
                 const orderData = {
                     branch: { id: branchId },
                     roomType: seatType,
@@ -406,20 +413,33 @@ function OrderTab({ branchId, initialSeat, initialSeatType, toast, onOrderCreate
                 if (!r.ok) throw new Error('Tạo đơn thất bại');
                 const saved = await r.json();
                 await apiFetch(`/api/customer/orders/${saved.id}/confirm`, { method: 'PUT' });
-                socket.emit('place-order', {
+
+                // EMIT SOCKET CHO ĐƠN MỚI
+                socket.emit('new-order', {
                     ...saved,
-                    table: { number: selectedTableNumber },
+                    branchId: branchId,
+                    areaName: seatType === 'table' ? selectedArea : 'VIP',
+                    locationName: seatType === 'table' ? `Bàn ${selectedTableNumber}` : `Phòng ${rooms.find(r => String(r.id) === String(selectedRoomId))?.number || ''}`,
                     tableNumber: selectedTableNumber,
                     items: cart.map(i => ({ name: i.name, quantity: i.qty })),
+                    timestamp: new Date().toISOString(),
+                    isRoom: seatType === 'room'
                 });
+
                 toast.add('success', `Đơn #${saved.id} đã gửi bếp!`, getLocationName());
             }
-            setCart([]); setGeneralNote('');
+
+            setCart([]);
+            setGeneralNote('');
             onOrderCreated?.();
+
         } catch (e) {
             toast.add('error', 'Lỗi', e.message);
-        } finally { setSubmitting(false); }
+        } finally {
+            setSubmitting(false);
+        }
     };
+
     const filteredMenu = menu.filter(item => {
         if (selectedCat !== 'all' && item.categoryName?.toLowerCase() !== selectedCat) return false;
         if (search && !item.name?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -844,82 +864,220 @@ function OrdersTab({ branchId, toast, refreshKey }) {
 }
 
 function KitchenTab({ toast }) {
-    const [kitchenOrders, setKitchenOrders] = useState([]);
+    const [kitchenItems, setKitchenItems] = useState([]);
     const [loading, setLoading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('all');
 
-    const fetchActive = useCallback(async () => {
+    // Fetch kitchen items (chi tiết từng món)
+    const fetchActiveItems = useCallback(async () => {
         setLoading(true);
         try {
-            const r = await apiFetch('/api/kitchen-orders/active');
+            // Gọi API lấy danh sách kitchen order items
+            const r = await apiFetch('/api/kitchen-order-items/active');
             const data = await r.json();
-            setKitchenOrders(Array.isArray(data) ? data : []);
-        } catch (e) { toast.add('error', 'Lỗi', 'Không thể tải dữ liệu bếp'); }
+            console.log("Kitchen items data:", data);
+
+            // Map dữ liệu để hiển thị đúng
+            const mappedItems = (Array.isArray(data) ? data : []).map(item => {
+                // Lấy số bàn từ nhiều nguồn
+                let tableNumber = 'N/A';
+                let orderId = 'N/A';
+
+                if (item.table?.number) {
+                    tableNumber = item.table.number;
+                } else if (item.kitchenOrder?.order?.table?.number) {
+                    tableNumber = item.kitchenOrder.order.table.number;
+                }
+
+                if (item.orderId) {
+                    orderId = item.orderId;
+                } else if (item.kitchenOrder?.order?.id) {
+                    orderId = item.kitchenOrder.order.id;
+                }
+
+                // Lấy quantity
+                let quantity = item.quantity || 1;
+                if (item.kitchenOrder?.order?.items) {
+                    const orderItem = item.kitchenOrder.order.items.find(
+                        oi => oi.food?.id === item.food?.id
+                    );
+                    if (orderItem) quantity = orderItem.quantity;
+                }
+
+                return {
+                    id: item.id,
+                    kitchenStatus: item.kitchenStatus || 'WAITING',
+                    foodName: item.food?.name || 'Món ăn',
+                    quantity: quantity,
+                    tableNumber: tableNumber,
+                    orderId: orderId,
+                    note: item.notes || '',
+                    createdAt: item.createdAt || item.kitchenOrder?.order?.createdAt
+                };
+            });
+
+            setKitchenItems(mappedItems);
+        } catch (e) {
+            console.error("Lỗi tải kitchen items:", e);
+            toast.add('error', 'Lỗi', 'Không thể tải dữ liệu bếp');
+        }
         finally { setLoading(false); }
     }, []);
 
-    useEffect(() => { fetchActive(); const id = setInterval(fetchActive, 10000); return () => clearInterval(id); }, [fetchActive]);
+    useEffect(() => {
+        fetchActiveItems();
+        const id = setInterval(fetchActiveItems, 5000); // Cập nhật mỗi 5 giây
+        return () => clearInterval(id);
+    }, [fetchActiveItems]);
 
-    const filtered = kitchenOrders.filter(ko => filterStatus === 'all' || ko.kitchenStatus === filterStatus);
+    // Lắng nghe socket để cập nhật realtime
+    useEffect(() => {
+        const handleItemUpdated = (itemData) => {
+            console.log("Received order-item-updated:", itemData);
+            fetchActiveItems(); // Refresh lại danh sách
+        };
 
-    const statusColor = { WAITING: 'var(--text-muted)', PREPARING: 'var(--warning)', DONE: 'var(--success)' };
+        socket.on('order-item-updated', handleItemUpdated);
+
+        return () => {
+            socket.off('order-item-updated', handleItemUpdated);
+        };
+    }, []);
+
+    // Lọc items theo trạng thái
+    const filteredItems = kitchenItems.filter(item => {
+        if (filterStatus === 'all') return true;
+        return item.kitchenStatus === filterStatus;
+    });
+
+    const getStatusBadge = (status) => {
+        switch (status) {
+            case 'WAITING':
+                return { text: '⏳ Chờ bếp', class: 'waiting', color: '#f59e0b', bg: '#fef3c7' };
+            case 'PREPARING':
+                return { text: '🍳 Đang làm', class: 'preparing', color: '#3b82f6', bg: '#eff6ff' };
+            case 'READY':
+                return { text: '✅ Hoàn thành', class: 'done', color: '#10b981', bg: '#d1fae5' };
+            default:
+                return { text: status, class: '', color: '#6b7280', bg: '#f3f4f6' };
+        }
+    };
+
+    const stats = {
+        WAITING: kitchenItems.filter(i => i.kitchenStatus === 'WAITING').length,
+        PREPARING: kitchenItems.filter(i => i.kitchenStatus === 'PREPARING').length,
+        READY: kitchenItems.filter(i => i.kitchenStatus === 'READY').length,
+        ALL: kitchenItems.length
+    };
+
+    // Format thời gian
+    const formatTime = (dateStr) => {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    };
 
     return (
         <div>
             <div className="filter-bar">
                 <select className="filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                    <option value="all">Tất cả</option>
-                    <option value="WAITING">Chờ bếp</option>
-                    <option value="PREPARING">Đang làm</option>
-                    <option value="DONE">Xong</option>
+                    <option value="all">📋 Tất cả ({stats.ALL})</option>
+                    <option value="WAITING">⏳ Chờ bếp ({stats.WAITING})</option>
+                    <option value="PREPARING">🍳 Đang làm ({stats.PREPARING})</option>
+                    <option value="READY">✅ Hoàn thành ({stats.READY})</option>
                 </select>
-                <button className="btn btn-ghost btn-sm" onClick={fetchActive}><RefreshCw size={14} /> Làm mới</button>
+                <button className="btn btn-ghost btn-sm" onClick={fetchActiveItems}>
+                    <RefreshCw size={14} /> Làm mới
+                </button>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                    Tự cập nhật mỗi 10 giây
+                    Tự cập nhật mỗi 5 giây
                 </div>
             </div>
 
             {/* Stats */}
             <div className="stat-chips" style={{ marginBottom: 16 }}>
-                {[
-                    { label: 'Chờ bếp', status: 'WAITING', icon: '⏳', color: 'var(--text-muted)' },
-                    { label: 'Đang làm', status: 'PREPARING', icon: '🍳', color: 'var(--warning)' },
-                    { label: 'Xong', status: 'DONE', icon: '✅', color: 'var(--success)' },
-                ].map(s => (
-                    <div key={s.status} className="stat-chip" style={{ cursor: 'pointer' }} onClick={() => setFilterStatus(s.status)}>
-                        <div className="stat-chip-icon" style={{ background: `${s.color}18`, fontSize: 18 }}>{s.icon}</div>
-                        <div>
-                            <div className="stat-chip-value" style={{ color: s.color }}>
-                                {kitchenOrders.filter(k => k.kitchenStatus === s.status).length}
-                            </div>
-                            <div className="stat-chip-label">{s.label}</div>
-                        </div>
+                <div className="stat-chip" style={{ cursor: 'pointer' }} onClick={() => setFilterStatus('WAITING')}>
+                    <div className="stat-chip-icon" style={{ background: 'rgba(245,158,11,0.1)' }}>⏳</div>
+                    <div>
+                        <div className="stat-chip-value" style={{ color: '#f59e0b' }}>{stats.WAITING}</div>
+                        <div className="stat-chip-label">Chờ bếp</div>
                     </div>
-                ))}
+                </div>
+                <div className="stat-chip" style={{ cursor: 'pointer' }} onClick={() => setFilterStatus('PREPARING')}>
+                    <div className="stat-chip-icon" style={{ background: 'rgba(59,130,246,0.1)' }}>🍳</div>
+                    <div>
+                        <div className="stat-chip-value" style={{ color: '#3b82f6' }}>{stats.PREPARING}</div>
+                        <div className="stat-chip-label">Đang làm</div>
+                    </div>
+                </div>
+                <div className="stat-chip" style={{ cursor: 'pointer' }} onClick={() => setFilterStatus('READY')}>
+                    <div className="stat-chip-icon" style={{ background: 'rgba(16,185,129,0.1)' }}>✅</div>
+                    <div>
+                        <div className="stat-chip-value" style={{ color: '#10b981' }}>{stats.READY}</div>
+                        <div className="stat-chip-label">Hoàn thành</div>
+                    </div>
+                </div>
             </div>
 
-            {loading ? <div className="empty-state"><div className="spinner" style={{ margin: '0 auto' }} /></div>
-                : filtered.length === 0 ? (
-                    <div className="empty-state"><ChefHat size={40} /><p>Không có order bếp nào</p></div>
-                ) : (
-                    <div className="kitchen-list">
-                        {filtered.map(ko => (
-                            <div key={ko.id} className={`kitchen-card ${ko.kitchenStatus?.toLowerCase()}`}>
-                                <div className="kitchen-card-header">
+            {loading ? (
+                <div className="empty-state"><div className="spinner" style={{ margin: '0 auto' }} /></div>
+            ) : filteredItems.length === 0 ? (
+                <div className="empty-state">
+                    <ChefHat size={40} />
+                    <p>Không có món nào trong bếp</p>
+                </div>
+            ) : (
+                <div className="kitchen-list">
+                    {filteredItems.map(item => {
+                        const statusInfo = getStatusBadge(item.kitchenStatus);
+                        return (
+                            <div key={item.id} className={`kitchen-card ${statusInfo.class}`} style={{
+                                borderLeft: `4px solid ${statusInfo.color}`,
+                                marginBottom: 12,
+                                background: 'white',
+                                borderRadius: 8,
+                                padding: 12,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}>
+                                <div className="kitchen-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                                     <div>
-                                        <span style={{ fontWeight: 700, fontSize: 15 }}>Order #{ko.order?.id}</span>
+                                        <span style={{ fontWeight: 700, fontSize: 14 }}>Đơn #{item.orderId}</span>
                                         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                                            {ko.order?.table ? `Bàn ${ko.order.table.number}` : ko.order?.room ? `Phòng ${ko.order.room.number}` : ko.order?.locationDetail || 'N/A'}
+                                            🪑 Bàn {item.tableNumber}
                                         </div>
                                     </div>
-                                    <span className={`badge badge-${ko.kitchenStatus?.toLowerCase()}`} style={{ color: statusColor[ko.kitchenStatus] }}>
-                                        {ko.kitchenStatus === 'WAITING' ? '⏳ Chờ bếp' : ko.kitchenStatus === 'PREPARING' ? '🍳 Đang làm' : '✅ Xong'}
+                                    <span className={`badge`} style={{
+                                        color: statusInfo.color,
+                                        background: statusInfo.bg,
+                                        padding: '4px 10px',
+                                        borderRadius: 20,
+                                        fontSize: 11,
+                                        fontWeight: 500
+                                    }}>
+                                        {statusInfo.text}
                                     </span>
                                 </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <div style={{ fontWeight: 600, fontSize: 15 }}>{item.foodName}</div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>x{item.quantity}</div>
+                                    </div>
+                                    {item.note && (
+                                        <div style={{ fontSize: 11, color: '#8b5cf6', background: 'rgba(139,92,246,0.1)', padding: '4px 8px', borderRadius: 6 }}>
+                                            📝 {item.note}
+                                        </div>
+                                    )}
+                                </div>
+                                {item.createdAt && (
+                                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>
+                                        🕐 {formatTime(item.createdAt)}
+                                    </div>
+                                )}
                             </div>
-                        ))}
-                    </div>
-                )}
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }
