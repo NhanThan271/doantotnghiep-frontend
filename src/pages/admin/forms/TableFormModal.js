@@ -14,25 +14,25 @@ export default function TableFormModal({
     if (!showModal) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+        <div className="modalOverlay" onClick={onClose}>
+            <div className="modalContainer" onClick={(e) => e.stopPropagation()}>
                 {/* Modal Header */}
-                <div className="modal-header">
-                    <h2 className="modal-title">
+                <div className="modalHeader">
+                    <h2 className="modalTitle">
                         {editingTable ? 'Chỉnh sửa bàn' : 'Thêm bàn mới'}
                     </h2>
-                    <button className="btn-close" onClick={onClose}>
+                    <button className="btnClose" onClick={onClose}>
                         <X size={24} />
                     </button>
                 </div>
 
                 {/* Modal Body */}
-                <form onSubmit={onSubmit} className="modal-form">
-                    <div className="form-grid">
+                <form onSubmit={onSubmit} className="modalForm">
+                    <div className="formGrid">
 
                         {/* Loại bàn — đặt đầu tiên vì ảnh hưởng các field sau */}
-                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                            <label className="form-label">Loại bàn *</label>
+                        <div className="formGroup" style={{ gridColumn: '1 / -1' }}>
+                            <label className="formLabel">Loại bàn *</label>
                             <div style={{ display: 'flex', gap: '12px' }}>
                                 {[
                                     { value: 'PHYSICAL', label: '🪑 Bàn tại quán', desc: 'Phục vụ tại chỗ' },
@@ -77,11 +77,11 @@ export default function TableFormModal({
                         </div>
 
                         {/* Số bàn */}
-                        <div className="form-group">
-                            <label className="form-label">Số bàn *</label>
+                        <div className="formGroup">
+                            <label className="formLabel">Số bàn *</label>
                             <input
                                 type="number"
-                                className="form-input"
+                                className="formInput"
                                 value={formData.number}
                                 onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                                 placeholder="VD: 1, 2, 3..."
@@ -91,11 +91,11 @@ export default function TableFormModal({
                         </div>
 
                         {/* Sức chứa */}
-                        <div className="form-group">
-                            <label className="form-label">Sức chứa *</label>
+                        <div className="formGroup">
+                            <label className="formLabel">Sức chứa *</label>
                             <input
                                 type="number"
-                                className="form-input"
+                                className="formInput"
                                 value={formData.capacity}
                                 onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
                                 placeholder="VD: 2, 4, 6..."
@@ -106,11 +106,11 @@ export default function TableFormModal({
 
                         {/* Khu vực — chỉ hiện khi PHYSICAL */}
                         {formData.type === 'PHYSICAL' && (
-                            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                                <label className="form-label">Khu vực / Tầng *</label>
+                            <div className="formGroup" style={{ gridColumn: '1 / -1' }}>
+                                <label className="formLabel">Khu vực / Tầng *</label>
                                 <input
                                     type="text"
-                                    className="form-input"
+                                    className="formInput"
                                     value={formData.area}
                                     onChange={(e) => setFormData({ ...formData, area: e.target.value })}
                                     placeholder="VD: Tầng 1, Khu A, Ngoài trời..."
@@ -120,10 +120,10 @@ export default function TableFormModal({
                         )}
 
                         {/* Trạng thái */}
-                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                            <label className="form-label">Trạng thái</label>
+                        <div className="formGroup" style={{ gridColumn: '1 / -1' }}>
+                            <label className="formLabel">Trạng thái</label>
                             <select
-                                className="form-select"
+                                className="formSelect"
                                 value={formData.status}
                                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                             >
@@ -135,11 +135,11 @@ export default function TableFormModal({
                     </div>
 
                     {/* Form Actions */}
-                    <div className="form-actions">
-                        <button type="button" className="btn-cancel" onClick={onClose}>
+                    <div className="formActions">
+                        <button type="button" className="btnCancel" onClick={onClose}>
                             Hủy
                         </button>
-                        <button type="submit" className="btn-submit" disabled={loading}>
+                        <button type="submit" className="btnSubmit" disabled={loading}>
                             <Save size={18} />
                             {loading ? 'Đang lưu...' : (editingTable ? 'Cập nhật' : 'Tạo mới')}
                         </button>

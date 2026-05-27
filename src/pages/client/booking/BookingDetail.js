@@ -14,7 +14,7 @@ const getImgUrl = (url) => {
 const fmtPrice = (p) => p ? p.toLocaleString("vi-VN") + "đ" : "0đ";
 const isVipArea = (area) => area && area.toLowerCase().includes("vip");
 
-// ✅ FIX: helper đọc tên chi nhánh an toàn từ bất kỳ kiểu dữ liệu nào
+// FIX: helper đọc tên chi nhánh an toàn từ bất kỳ kiểu dữ liệu nào
 const safeName = (value) => {
     if (!value) return '';
     if (typeof value === 'string') return value;
@@ -55,6 +55,16 @@ const BookingDetail = () => {
     const [activeCat, setActiveCat] = useState(null);
     const [menuLoading, setMenuLoading] = useState(true);
 
+    const [rooms, setRooms] = useState([]);
+    const [roomLoading, setRoomLoading] = useState(false);
+    const [bookingMode, setBookingMode] = useState("table");
+    const ROOM_HOURS = Array.from({ length: 24 }, (_, i) =>
+        `${String(i).padStart(2, "0")}:00`
+    );
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const toDateStr = (d) => d.toISOString().split("T")[0];
     /* form */
     const [data, setData] = useState({
         date: "", time: "",
@@ -63,7 +73,28 @@ const BookingDetail = () => {
         payment: "deposit",
         selectedFoods: [],
         selectedTableId: null,
+        checkInDate: toDateStr(today),
+        checkInTime: "11:00",
+        checkOutDate: toDateStr(today),
+        checkOutTime: "11:00",
+        selectedRoomId: null, roomNumber: "", roomCapacity: "",
     });
+
+    const getRoomCheckInTimes = (dateRef) => {
+        const todayStr = new Date().toISOString().split("T")[0];
+        if (!dateRef || dateRef !== todayStr) return ROOM_HOURS;
+        const now = new Date();
+        const minHour = now.getHours() + 1;
+        return ROOM_HOURS.filter(t => parseInt(t) >= minHour);
+    };
+
+    const getRoomCheckOutTimes = (checkInDate, checkOutDate, checkInTime) => {
+        if (checkInDate && checkOutDate && checkInDate === checkOutDate) {
+            const minHour = checkInTime ? parseInt(checkInTime) + 1 : 0;
+            return ROOM_HOURS.filter(t => parseInt(t) > minHour);
+        }
+        return ROOM_HOURS;
+    };
 
     /* ── restore branch ── */
     useEffect(() => {
@@ -124,7 +155,7 @@ const BookingDetail = () => {
                 .then(areas => {
                     const areaList = (areas || [])
                         .map(a => typeof a === 'string' ? a : (a.name || a.areaName || String(a)))
-                        .filter(a => !a.toLowerCase().includes('takeaway')); 
+                        .filter(a => !a.toLowerCase().includes('takeaway'));
                     setTableAreas(areaList);
                     if (areaList.length) setActiveArea(areaList[0]);
                 })
@@ -150,6 +181,33 @@ const BookingDetail = () => {
     }, [areaTablesMap]);
 
     useEffect(() => { if (activeArea) loadTablesForArea(activeArea); }, [activeArea]);
+
+    // load rooms 
+    const loadRooms = useCallback(async (checkIn, checkOut) => {
+        const cb = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
+        if (!cb?.id || !checkIn || !checkOut) return;
+        setRoomLoading(true);
+        try {
+            const url = `${API}/api/rooms/branch/${cb.id}/available`
+                + `?checkIn=${encodeURIComponent(checkIn)}`
+                + `&checkOut=${encodeURIComponent(checkOut)}`;
+            const res = await fetch(url);
+            const json = await res.json();
+            setRooms(json || []);
+        } catch (e) { console.error(e); }
+        finally { setRoomLoading(false); }
+    }, []);
+
+    useEffect(() => {
+        if (bookingMode === "room"
+            && data.checkInDate && data.checkInTime
+            && data.checkOutDate && data.checkOutTime) {
+            loadRooms(
+                `${data.checkInDate} ${data.checkInTime}`,
+                `${data.checkOutDate} ${data.checkOutTime}`
+            );
+        }
+    }, [data.checkInDate, data.checkInTime, data.checkOutDate, data.checkOutTime, bookingMode]);
 
     /* ── load menu ── */
     useEffect(() => {
@@ -256,10 +314,11 @@ const BookingDetail = () => {
     const payable = Math.floor(totalFoodAmount * (data.payment === "full" ? 0.9 : 0.2));
 
     /* ── available times ── */
-    const getAvailableTimes = () => {
-        const all = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30"];
+    const getAvailableTimes = (dateRef) => {
+        const all = ["11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
+            "17:00", "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30"];
         const today = new Date().toISOString().split("T")[0];
-        if (!data.date || data.date !== today) return all;
+        if (!dateRef || dateRef !== today) return all;
         const now = new Date();
         return all.filter(t => {
             const [h, m] = t.split(":").map(Number);
@@ -279,26 +338,42 @@ const BookingDetail = () => {
 
     /* ── booking without food ── */
     const handleBookingOnlyTable = async () => {
-        const ne = validateName(data.customerName); if (ne) return alert(`❌ ${ne}`);
-        const pe = validatePhone(data.phone); if (pe) return alert(`❌ ${pe}`);
-        const ee = validateEmail(data.email); if (ee) return alert(`❌ ${ee}`);
+        const ne = validateName(data.customerName); if (ne) return alert(` ${ne}`);
+        const pe = validatePhone(data.phone); if (pe) return alert(` ${pe}`);
+        const ee = validateEmail(data.email); if (ee) return alert(` ${ee}`);
         setLoading(true);
         try {
             const cb = JSON.parse(sessionStorage.getItem("currentBranch"));
             const u = JSON.parse(localStorage.getItem("user") || "{}");
+            const isRoom = bookingMode === "room";
+            const body = {
+                userId: u.id || null,
+                branchId: cb?.id,
+                tableId: isRoom ? null : (data.selectedTableId || null),
+                roomId: isRoom ? data.selectedRoomId : null,
+                ...(isRoom
+                    ? {
+                        checkInTime: `${data.checkInDate} ${data.checkInTime}`,
+                        checkOutTime: `${data.checkOutDate} ${data.checkOutTime}`,
+                    }
+                    : {
+                        reservationTime: `${data.date} ${data.time}`,
+                    }),
+                customerName: data.customerName.trim(),
+                customerPhone: data.phone.replace(/\s/g, ""),
+                customerEmail: data.email || "",
+                note: data.note || "",
+                depositAmount: 0,
+                items: [],
+            };
+
             const res = await fetch(`${API}/api/reservations/full`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
-                body: JSON.stringify({
-                    userId: u.id || null, branchId: cb?.id,
-                    tableId: data.selectedTableId || null,
-                    reservationTime: `${data.date} ${data.time}`,
-                    customerName: data.customerName.trim(),
-                    customerPhone: data.phone.replace(/\s/g, ""),
-                    customerEmail: data.email || "",
-                    note: data.note || "Đặt bàn không kèm đồ ăn",
-                    depositAmount: 0, items: []
-                })
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${getAuthToken()}`
+                },
+                body: JSON.stringify(body),
             });
             const result = await res.json();
             if (res.ok) {
@@ -312,30 +387,37 @@ const BookingDetail = () => {
                     }
                     return u2;
                 });
+                const isRoom = bookingMode === "room";
                 setBookingSuccessInfo({
                     id: result.id,
-                    branchName: safeName(cb?.name), // ✅ FIX: luôn là string
-                    tableNumber: data.tableNumber, date: data.date, time: data.time,
-                    customerName: data.customerName, customerPhone: data.phone,
+                    branchName: safeName(cb?.name),
+                    label: isRoom ? "Phòng số" : "Bàn số",
+                    tableNumber: isRoom ? data.roomNumber : data.tableNumber,
+                    date: isRoom ? data.checkInDate : data.date,
+                    time: isRoom
+                        ? `${data.checkInTime} → ${data.checkOutDate} ${data.checkOutTime}`
+                        : data.time,
+                    customerName: data.customerName,
+                    customerPhone: data.phone,
                 });
                 setShowSuccessModal(true);
             } else throw new Error(result.message || JSON.stringify(result));
-        } catch (err) { alert(`❌ Đặt bàn thất bại: ${err.message}`); }
+        } catch (err) { alert(` Đặt bàn thất bại: ${err.message}`); }
         finally { setLoading(false); }
     };
 
     /* ── booking with food → PayOS ── */
     const handleBooking = async () => {
-        if (!data.selectedFoods.length) return alert("❌ Vui lòng chọn ít nhất 1 món");
-        const ne = validateName(data.customerName); if (ne) return alert(`❌ ${ne}`);
-        const pe = validatePhone(data.phone); if (pe) return alert(`❌ ${pe}`);
-        const ee = validateEmail(data.email); if (ee) return alert(`❌ ${ee}`);
+        if (!data.selectedFoods.length) return alert(" Vui lòng chọn ít nhất 1 món");
+        const ne = validateName(data.customerName); if (ne) return alert(` ${ne}`);
+        const pe = validatePhone(data.phone); if (pe) return alert(` ${pe}`);
+        const ee = validateEmail(data.email); if (ee) return alert(` ${ee}`);
         setLoading(true);
         try {
             const cb = JSON.parse(sessionStorage.getItem("currentBranch"));
             const u = JSON.parse(localStorage.getItem("user") || "{}");
             const tempOrderCode = Date.now() % 2147483647;
-            const cbName = safeName(cb?.name); // ✅ FIX: luôn là string
+            const cbName = safeName(cb?.name); // FIX: luôn là string
             sessionStorage.setItem("tempBooking", JSON.stringify({
                 userId: u.id, branchId: cb?.id,
                 tableId: data.selectedTableId || null,
@@ -353,7 +435,7 @@ const BookingDetail = () => {
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
                 body: JSON.stringify({
                     orderCode: tempOrderCode, amount: payable,
-                    description: `Dat ban ${cbName.substring(0, 10)}`.substring(0, 25), // ✅ FIX
+                    description: `Dat ban ${cbName.substring(0, 10)}`.substring(0, 25), // FIX
                     returnUrl: `${window.location.origin}/payment-success`,
                     cancelUrl: `${window.location.origin}/payment-cancel`,
                     items: data.selectedFoods.map(f => ({ name: f.name, quantity: f.quantity, price: Math.floor(f.price) })),
@@ -363,12 +445,17 @@ const BookingDetail = () => {
             if (payResult.code !== "00" || !payResult.data?.checkoutUrl)
                 throw new Error(payResult.desc || "Không thể tạo link thanh toán");
             window.location.href = payResult.data.checkoutUrl;
-        } catch (err) { alert(`❌ ${err.message}`); setLoading(false); }
+        } catch (err) { alert(` ${err.message}`); setLoading(false); }
     };
 
-    const canConfirm = data.table && data.date && data.time &&
-        data.customerName && data.phone &&
-        !validateName(data.customerName) && !validatePhone(data.phone) && !validateEmail(data.email);
+    const canConfirm = bookingMode === "table"
+        ? (data.table && data.date && data.time &&
+            data.customerName && data.phone &&
+            !validateName(data.customerName) && !validatePhone(data.phone) && !validateEmail(data.email))
+        : (data.selectedRoomId && data.checkInDate && data.checkInTime &&
+            data.checkOutDate && data.checkOutTime &&
+            data.customerName && data.phone &&
+            !validateName(data.customerName) && !validatePhone(data.phone) && !validateEmail(data.email));
 
     const currentBranch = (() => {
         try {
@@ -419,27 +506,28 @@ const BookingDetail = () => {
                     />
                     {errors.phone && <span className={styles.errMsg}>{errors.phone}</span>}
                 </div>
-
-                <div className={styles.formRow}>
-                    <div className={styles.formGroup}>
-                        <label className={styles.flabel}>Ngày</label>
-                        <input className={styles.finput} type="date"
-                            value={data.date}
-                            min={new Date().toISOString().split("T")[0]}
-                            max={new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]}
-                            onChange={e => setData({ ...data, date: e.target.value, time: "" })}
-                        />
+                {bookingMode === "table" && (
+                    <div className={styles.formRow}>
+                        <div className={styles.formGroup}>
+                            <label className={styles.flabel}>Ngày</label>
+                            <input className={styles.finput} type="date"
+                                value={data.date}
+                                min={new Date().toISOString().split("T")[0]}
+                                max={new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]}
+                                onChange={e => setData({ ...data, date: e.target.value, time: "" })}
+                            />
+                        </div>
+                        <div className={styles.formGroup}>
+                            <label className={styles.flabel}>Giờ</label>
+                            <select className={styles.finput} value={data.time}
+                                onChange={e => setData({ ...data, time: e.target.value })}
+                                disabled={!data.date}>
+                                <option value="">--:--</option>
+                                {getAvailableTimes().map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
                     </div>
-                    <div className={styles.formGroup}>
-                        <label className={styles.flabel}>Giờ</label>
-                        <select className={styles.finput} value={data.time}
-                            onChange={e => setData({ ...data, time: e.target.value })}
-                            disabled={!data.date}>
-                            <option value="">--:--</option>
-                            {getAvailableTimes().map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                    </div>
-                </div>
+                )}
 
                 <div className={styles.formGroup}>
                     <label className={styles.flabel}>Email</label>
@@ -454,148 +542,266 @@ const BookingDetail = () => {
 
                 <div className={styles.formDivider} />
 
-                <div className={styles.formGroup}>
-                    <label className={styles.flabel}>Bàn đã chọn</label>
-                    {data.table ? (
-                        <div className={styles.selectedTable}>
-                            <span className={styles.selectedDot} />
-                            <span className={styles.selectedText}>
-                                {data.tableCapacity >= 16 ? "Phòng " : "Bàn "}
-                                <strong>{data.tableNumber}</strong>
-                            </span>
-                            <span className={styles.selectedCap}>{data.tableCapacity} người</span>
-                            <button className={styles.clearBtn}
-                                onClick={() => setData(prev => ({
-                                    ...prev, table: null, tableNumber: "",
-                                    tableCapacity: "", selectedTableId: null
-                                }))}>
-                                ✕
-                            </button>
-                        </div>
-                    ) : (
-                        <div className={styles.noTable}>← Chọn bàn trên sơ đồ</div>
-                    )}
-                </div>
+                {bookingMode === "table" && (
+                    <div className={styles.formGroup}>
+                        <label className={styles.flabel}>Bàn đã chọn</label>
+                        {data.table ? (
+                            <div className={styles.selectedTable}>
+                                <span className={styles.selectedDot} />
+                                <span className={styles.selectedText}>
+                                    {data.tableCapacity >= 16 ? "Phòng " : "Bàn "}
+                                    <strong>{data.tableNumber}</strong>
+                                </span>
+                                <span className={styles.selectedCap}>{data.tableCapacity} người</span>
+                                <button className={styles.clearBtn}
+                                    onClick={() => setData(prev => ({
+                                        ...prev, table: null, tableNumber: "",
+                                        tableCapacity: "", selectedTableId: null
+                                    }))}>✕</button>
+                            </div>
+                        ) : (
+                            <div className={styles.noTable}>← Chọn bàn trên sơ đồ</div>
+                        )}
+                    </div>
+                )}
+
+                {bookingMode === "room" && (
+                    <div className={styles.formGroup}>
+                        <label className={styles.flabel}>Phòng đã chọn</label>
+                        {data.selectedRoomId ? (
+                            <div className={styles.selectedTable}>
+                                <span className={styles.selectedDot} />
+                                <span className={styles.selectedText}>
+                                    Phòng <strong>{data.roomNumber}</strong>
+                                </span>
+                                <span className={styles.selectedCap}>{data.roomCapacity} người</span>
+                                <button className={styles.clearBtn}
+                                    onClick={() => setData(prev => ({
+                                        ...prev, selectedRoomId: null, roomNumber: "",
+                                        roomCapacity: "", table: null,
+                                    }))}>✕</button>
+                            </div>
+                        ) : (
+                            <div className={styles.noTable}>← Chọn phòng bên cạnh</div>
+                        )}
+                        {data.selectedRoomId && (
+                            <div style={{ fontSize: "0.8em", color: "#888", marginTop: 4 }}>
+                                {data.checkInDate} {data.checkInTime} → {data.checkOutDate} {data.checkOutTime}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* ══ COL 2 — SƠ ĐỒ BÀN + THỰC ĐƠN ══ */}
             <div className={styles.colMid}>
 
-                <div className={styles.mapSection}>
-                    <div className={styles.mapHeader}>
-                        <div className={styles.mapTitle}>Sơ đồ bàn</div>
-                        <div className={styles.mapSub}>
-                            {String(currentBranch.name || '')} · Chọn vị trí yêu thích
+                {/* Toggle mode */}
+                <div className={styles.modeToggle}>
+                    <button
+                        className={bookingMode === "table" ? styles.modeActive : styles.modeBtn}
+                        onClick={(e) => { e.preventDefault(); setBookingMode("table") }}>
+                        Đặt bàn
+                    </button>
+                    <button
+                        className={bookingMode === "room" ? styles.modeActive : styles.modeBtn}
+                        onClick={(e) => { e.preventDefault(); setBookingMode("room") }}>
+                        Đặt phòng
+                    </button>
+                </div>
+
+                {bookingMode === "table" && (
+                    <div className={styles.mapSection}>
+                        <div className={styles.mapHeader}>
+                            <div className={styles.mapTitle}>Sơ đồ bàn</div>
+                            <div className={styles.mapSub}>
+                                {String(currentBranch.name || '')} · Chọn vị trí yêu thích
+                            </div>
+                        </div>
+
+                        <div className={styles.floorTabs}>
+                            {tableAreas.map((area, i) => (
+                                <button key={area}
+                                    className={`${styles.floorTab}${activeArea === area ? " " + styles.floorTabActive : ""}`}
+                                    onClick={() => setActiveArea(area)}>
+                                    <span className={styles.floorBadge}>
+                                        {isVipArea(area) ? "★" : `${i + 1}F`}
+                                    </span>
+                                    {area}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className={styles.tableMapWrap}>
+                            {areaLoading ? (
+                                <div className={styles.mapLoading}>
+                                    <div className={styles.spinner} />
+                                    <span>Đang tải sơ đồ...</span>
+                                </div>
+                            ) : currentTables.length === 0 ? (
+                                <div className={styles.emptyArea}>Không có bàn trong khu vực này</div>
+                            ) : (
+                                <div className={styles.tablesGrid}>
+                                    {small.length > 0 && (
+                                        <div>
+                                            <div className={styles.tableGroupLabel}>Bàn nhỏ (2–4 người)</div>
+                                            <div className={styles.tableRow}>
+                                                {small.map(t => (
+                                                    <TableCard key={t.id} table={t}
+                                                        selected={data.selectedTableId}
+                                                        onSelect={handleSelectTable}
+                                                        isVip={isVipArea(activeArea)} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {medium.length > 0 && (
+                                        <div>
+                                            <div className={styles.tableGroupLabel}>Bàn thường (6 người)</div>
+                                            <div className={styles.tableRow}>
+                                                {medium.map(t => (
+                                                    <TableCard key={t.id} table={t}
+                                                        selected={data.selectedTableId}
+                                                        onSelect={handleSelectTable}
+                                                        isVip={isVipArea(activeArea)} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {large.length > 0 && (
+                                        <div>
+                                            <div className={styles.tableGroupLabel}>Bàn lớn (8 người)</div>
+                                            <div className={styles.tableRow}>
+                                                {large.map(t => (
+                                                    <TableCard key={t.id} table={t}
+                                                        selected={data.selectedTableId}
+                                                        onSelect={handleSelectTable}
+                                                        isVip={isVipArea(activeArea)} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {vip.length > 0 && (
+                                        <div>
+                                            <div className={styles.tableGroupLabel}>★ Phòng VIP (10–15 người)</div>
+                                            <div className={styles.tableRow}>
+                                                {vip.map(t => (
+                                                    <TableCard key={t.id} table={t}
+                                                        selected={data.selectedTableId}
+                                                        onSelect={handleSelectTable}
+                                                        isVip={true} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {grandVip.length > 0 && (
+                                        <div>
+                                            <div className={styles.tableGroupLabel}>👑 Phòng VIP Lớn (16+ người)</div>
+                                            <div className={styles.tableRow}>
+                                                {grandVip.map(t => (
+                                                    <TableCard key={t.id} table={t}
+                                                        selected={data.selectedTableId}
+                                                        onSelect={handleSelectTable}
+                                                        isVip={true}
+                                                        isGrandVip={true} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={styles.legend}>
+                            {[
+                                { color: "#4a7fd4", label: "Còn trống" },
+                                { color: "#C9A84C", label: "Đang chọn" },
+                                { color: "rgba(223, 222, 220, 0.45)", label: "Đã đặt" },
+                                { color: "rgba(220,38,38,0.35)", label: "Có khách" },
+                            ].map(l => (
+                                <div key={l.label} className={styles.legendItem}>
+                                    <span className={styles.legendBox} style={{ background: l.color }} />
+                                    <span>{l.label}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
+                )}
 
-                    <div className={styles.floorTabs}>
-                        {tableAreas.map((area, i) => (
-                            <button key={area}
-                                className={`${styles.floorTab}${activeArea === area ? " " + styles.floorTabActive : ""}`}
-                                onClick={() => setActiveArea(area)}>
-                                <span className={styles.floorBadge}>
-                                    {isVipArea(area) ? "★" : `${i + 1}F`}
-                                </span>
-                                {area}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className={styles.tableMapWrap}>
-                        {areaLoading ? (
-                            <div className={styles.mapLoading}>
-                                <div className={styles.spinner} />
-                                <span>Đang tải sơ đồ...</span>
+                {/* Panel đặt phòng — chỉ hiện khi mode = room */}
+                {bookingMode === "room" && (
+                    <div className={styles.roomSection}>
+                        <div className={styles.formRow}>
+                            <div className={styles.formGroup}>
+                                <label className={styles.flabel}>Nhận phòng</label>
+                                <input type="date" className={styles.finput}
+                                    value={data.checkInDate}
+                                    min={new Date().toISOString().split("T")[0]}
+                                    onChange={e => setData({ ...data, checkInDate: e.target.value })} />
+                                <select className={styles.finput} value={data.checkInTime}
+                                    disabled={!data.checkInDate}
+                                    onChange={e => setData({ ...data, checkInTime: e.target.value })}>
+                                    <option value="">-- Giờ --</option>
+                                    {getRoomCheckInTimes(data.checkInDate).map(t =>
+                                        <option key={t} value={t}>{t}</option>)}
+                                </select>
                             </div>
-                        ) : currentTables.length === 0 ? (
-                            <div className={styles.emptyArea}>Không có bàn trong khu vực này</div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.flabel}>Trả phòng</label>
+                                <input type="date" className={styles.finput}
+                                    value={data.checkOutDate}
+                                    min={data.checkInDate || new Date().toISOString().split("T")[0]}
+                                    onChange={e => setData({ ...data, checkOutDate: e.target.value })} />
+                                <select className={styles.finput} value={data.checkOutTime}
+                                    disabled={!data.checkOutDate}
+                                    onChange={e => setData({ ...data, checkOutTime: e.target.value })}>
+                                    <option value="">-- Giờ --</option>
+                                    {getRoomCheckOutTimes(data.checkInDate, data.checkOutDate, data.checkInTime).map(t =>
+                                        <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        {roomLoading ? (
+                            <div className={styles.mapLoading}>
+                                <div className={styles.spinner} /><span>Đang tìm phòng...</span>
+                            </div>
+                        ) : rooms.length === 0 ? (
+                            <div className={styles.emptyArea}>
+                                {data.checkInDate && data.checkOutDate
+                                    ? "Không có phòng trống trong thời gian này"
+                                    : "Chọn ngày nhận/trả phòng để xem phòng trống"}
+                            </div>
                         ) : (
-                            <div className={styles.tablesGrid}>
-                                {small.length > 0 && (
-                                    <div>
-                                        <div className={styles.tableGroupLabel}>Bàn nhỏ (2–4 người)</div>
-                                        <div className={styles.tableRow}>
-                                            {small.map(t => (
-                                                <TableCard key={t.id} table={t}
-                                                    selected={data.selectedTableId}
-                                                    onSelect={handleSelectTable}
-                                                    isVip={isVipArea(activeArea)} />
-                                            ))}
+                            <div className={styles.tableRow}>
+                                {rooms.map(room => (
+                                    <div key={room.id}
+                                        className={`${styles.tableCard}
+                            ${data.selectedRoomId === room.id
+                                                ? styles.tableSelected : styles.tableFree}
+                            ${styles.tableVip}`}
+                                        onClick={() => setData({
+                                            ...data,
+                                            selectedRoomId: room.id,
+                                            roomNumber: room.number,
+                                            roomCapacity: room.capacity,
+                                            table: room.id,
+                                            date: data.checkInDate,
+                                            time: data.checkInTime,
+                                        })}>
+                                        <div className={styles.tableName}>
+                                            {data.selectedRoomId === room.id ? "✓" : `Phòng ${room.number}`}
+                                        </div>
+                                        <div className={styles.tableCap}>{room.capacity} người</div>
+                                        <div className={styles.tableStatus}>
+                                            {data.selectedRoomId === room.id ? "Đang chọn" : "Còn trống"}
                                         </div>
                                     </div>
-                                )}
-                                {medium.length > 0 && (
-                                    <div>
-                                        <div className={styles.tableGroupLabel}>Bàn thường (6 người)</div>
-                                        <div className={styles.tableRow}>
-                                            {medium.map(t => (
-                                                <TableCard key={t.id} table={t}
-                                                    selected={data.selectedTableId}
-                                                    onSelect={handleSelectTable}
-                                                    isVip={isVipArea(activeArea)} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {large.length > 0 && (
-                                    <div>
-                                        <div className={styles.tableGroupLabel}>Bàn lớn (8 người)</div>
-                                        <div className={styles.tableRow}>
-                                            {large.map(t => (
-                                                <TableCard key={t.id} table={t}
-                                                    selected={data.selectedTableId}
-                                                    onSelect={handleSelectTable}
-                                                    isVip={isVipArea(activeArea)} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {vip.length > 0 && (
-                                    <div>
-                                        <div className={styles.tableGroupLabel}>★ Phòng VIP (10–15 người)</div>
-                                        <div className={styles.tableRow}>
-                                            {vip.map(t => (
-                                                <TableCard key={t.id} table={t}
-                                                    selected={data.selectedTableId}
-                                                    onSelect={handleSelectTable}
-                                                    isVip={true} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {grandVip.length > 0 && (
-                                    <div>
-                                        <div className={styles.tableGroupLabel}>👑 Phòng VIP Lớn (16+ người)</div>
-                                        <div className={styles.tableRow}>
-                                            {grandVip.map(t => (
-                                                <TableCard key={t.id} table={t}
-                                                    selected={data.selectedTableId}
-                                                    onSelect={handleSelectTable}
-                                                    isVip={true}
-                                                    isGrandVip={true} />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                ))}
                             </div>
                         )}
                     </div>
-
-                    <div className={styles.legend}>
-                        {[
-                            { color: "#4a7fd4", label: "Còn trống" },
-                            { color: "#C9A84C", label: "Đang chọn" },
-                            { color: "rgba(223, 222, 220, 0.45)", label: "Đã đặt" },
-                            { color: "rgba(220,38,38,0.35)", label: "Có khách" },
-                        ].map(l => (
-                            <div key={l.label} className={styles.legendItem}>
-                                <span className={styles.legendBox} style={{ background: l.color }} />
-                                <span>{l.label}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                )}
 
                 <div className={styles.sectionDivider} />
 
@@ -793,8 +999,8 @@ const BookingDetail = () => {
                             <h3>Thông tin đặt bàn</h3>
                             {[
                                 ["Mã đặt bàn", `#${bookingSuccessInfo.id}`],
-                                ["Nhà hàng", bookingSuccessInfo.branchName], // ✅ đã là string
-                                ["Bàn số", bookingSuccessInfo.tableNumber],
+                                ["Nhà hàng", bookingSuccessInfo.branchName],
+                                [bookingSuccessInfo.label || "Bàn số", bookingSuccessInfo.tableNumber],
                                 ["Ngày giờ", `${bookingSuccessInfo.date} — ${bookingSuccessInfo.time}`],
                                 ["Khách hàng", bookingSuccessInfo.customerName],
                                 ["Điện thoại", bookingSuccessInfo.customerPhone],
@@ -808,7 +1014,7 @@ const BookingDetail = () => {
                         <div className={styles.notice}>
                             <p>📞 Chúng tôi sẽ liên hệ xác nhận sớm nhất</p>
                             <p>⏰ Vui lòng đến đúng giờ đã đặt</p>
-                            <p>❌ Hủy bàn trước 1 tiếng nếu có thay đổi</p>
+                            <p> Hủy bàn trước 1 tiếng nếu có thay đổi</p>
                         </div>
                         <div className={styles.modalActions}>
                             <button className={styles.homeBtn}
