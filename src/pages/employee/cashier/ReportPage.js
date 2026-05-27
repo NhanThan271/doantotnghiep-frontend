@@ -1,6 +1,8 @@
 // pages/employee/cashier/ReportPage.js
 import React, { useState, useEffect } from "react";
 import { Calendar, TrendingUp, DollarSign, Users, Coffee, Download, Filter } from "lucide-react";
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import styles from "./ReportPage.module.css";
 
 const ReportPage = () => {
@@ -12,6 +14,7 @@ const ReportPage = () => {
     const [reportData, setReportData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [allBills, setAllBills] = useState([]); // Lưu tất cả bills để export chi tiết
 
     // Tự động fetch khi reportType thay đổi
     useEffect(() => {
@@ -66,6 +69,7 @@ const ReportPage = () => {
 
             if (response.ok) {
                 let allBills = await response.json();
+                setAllBills(allBills); // Lưu để export
 
                 // Lọc theo ngày
                 const filteredBills = allBills.filter(bill => {
@@ -89,7 +93,22 @@ const ReportPage = () => {
 
                 // Thống kê top món ăn (từ order items)
                 const dishStats = {};
+                const billDetails = []; // Lưu chi tiết từng bill để export
+
                 for (const bill of filteredBills) {
+                    // Chi tiết bill
+                    const billDetail = {
+                        'Mã hóa đơn': bill.id || bill.billId,
+                        'Ngày tạo': new Date(bill.createdAt).toLocaleString('vi-VN'),
+                        'Khách hàng': bill.customerName || 'Khách lẻ',
+                        'Số điện thoại': bill.customerPhone || '',
+                        'Tổng tiền': bill.totalAmount || 0,
+                        'Phương thức': bill.paymentMethod === 'CASH' ? 'Tiền mặt' :
+                            bill.paymentMethod === 'MOMO' ? 'MoMo' : 'Chuyển khoản',
+                        'Trạng thái': bill.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chưa thanh toán'
+                    };
+                    billDetails.push(billDetail);
+
                     if (bill.order?.items) {
                         for (const item of bill.order.items) {
                             const dishName = item.foodName || item.name || 'Món ăn';
@@ -120,7 +139,8 @@ const ReportPage = () => {
                     bankingRevenue,
                     topDishes,
                     startDate,
-                    endDate
+                    endDate,
+                    billDetails // Thêm chi tiết bills
                 });
             }
         } catch (error) {
@@ -130,35 +150,188 @@ const ReportPage = () => {
         }
     };
 
-    const handleExportExcel = async () => {
+    // Hàm xuất Excel
+    const exportToExcel = () => {
+        if (!reportData) return;
+
         setExporting(true);
         try {
-            const token = localStorage.getItem('token');
-            const { startDate, endDate } = getDateRangeByType();
+            // Tạo workbook
+            const workbook = XLSX.utils.book_new();
 
-            // Gọi API export
-            const response = await fetch(`http://localhost:8080/api/cashier/export-report?startDate=${startDate}&endDate=${endDate}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            // 1. Sheet tổng quan
+            const summaryData = [
+                ['BÁO CÁO DOANH THU'],
+                [`Từ ngày: ${formatDate(reportData.startDate)}`],
+                [`Đến ngày: ${formatDate(reportData.endDate)}`],
+                [''],
+                ['THỐNG KÊ TỔNG QUAN'],
+                ['Chỉ tiêu', 'Giá trị'],
+                ['Tổng doanh thu', formatCurrency(reportData.totalRevenue)],
+                ['Số đơn hàng', reportData.totalOrders],
+                ['Trung bình mỗi đơn', formatCurrency(reportData.averageOrderValue)],
+                ['Số khách hàng', reportData.totalCustomers],
+                [''],
+                ['THỐNG KÊ THEO PHƯƠNG THỨC THANH TOÁN'],
+                ['Phương thức', 'Số lượng', 'Doanh thu', 'Tỷ lệ'],
+                ['Tiền mặt', reportData.cashCount || 0, formatCurrency(reportData.cashRevenue),
+                    `${reportData.totalRevenue > 0 ? ((reportData.cashRevenue / reportData.totalRevenue) * 100).toFixed(1) : 0}%`],
+                ['MoMo', reportData.momoCount || 0, formatCurrency(reportData.momoRevenue),
+                    `${reportData.totalRevenue > 0 ? ((reportData.momoRevenue / reportData.totalRevenue) * 100).toFixed(1) : 0}%`],
+                ['Chuyển khoản/Thẻ', reportData.bankingCount || 0, formatCurrency(reportData.bankingRevenue),
+                    `${reportData.totalRevenue > 0 ? ((reportData.bankingRevenue / reportData.totalRevenue) * 100).toFixed(1) : 0}%`],
+                [''],
+            ];
+
+            // Thêm top dishes
+            reportData.topDishes?.forEach((dish, idx) => {
+                summaryData.push([idx + 1, dish.name, dish.quantity, formatCurrency(dish.revenue)]);
             });
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `bao_cao_doanh_thu_${startDate}_den_${endDate}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            } else {
-                alert("Không thể xuất báo cáo");
+            const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+            // Set column widths
+            summarySheet['!cols'] = [{ wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }];
+            XLSX.utils.book_append_sheet(workbook, summarySheet, 'Tổng quan');
+
+            // 2. Sheet chi tiết hóa đơn
+            if (reportData.billDetails && reportData.billDetails.length > 0) {
+                const billSheetData = [
+                    ['CHI TIẾT HÓA ĐƠN'],
+                    [`Từ ngày: ${formatDate(reportData.startDate)}`],
+                    [`Đến ngày: ${formatDate(reportData.endDate)}`],
+                    [''],
+                    ['Mã hóa đơn', 'Ngày tạo', 'Khách hàng', 'Số điện thoại', 'Tổng tiền', 'Phương thức', 'Trạng thái']
+                ];
+
+                reportData.billDetails.forEach(bill => {
+                    billSheetData.push([
+                        bill['Mã hóa đơn'],
+                        bill['Ngày tạo'],
+                        bill['Khách hàng'],
+                        bill['Số điện thoại'],
+                        bill['Tổng tiền'],
+                        bill['Phương thức'],
+                        bill['Trạng thái']
+                    ]);
+                });
+
+                const billSheet = XLSX.utils.aoa_to_sheet(billSheetData);
+                billSheet['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 12 }];
+                XLSX.utils.book_append_sheet(workbook, billSheet, 'Chi tiết hóa đơn');
             }
+
+            // 3. Sheet chi tiết món ăn (nếu có order items)
+            const dishDetailData = [
+                ['CHI TIẾT MÓN ĂN THEO HÓA ĐƠN'],
+                [`Từ ngày: ${formatDate(reportData.startDate)}`],
+                [`Đến ngày: ${formatDate(reportData.endDate)}`],
+                [''],
+                ['Mã hóa đơn', 'Tên món', 'Số lượng', 'Đơn giá', 'Thành tiền']
+            ];
+
+            // Lấy chi tiết món ăn từ bills
+            const fetchDishDetails = async () => {
+                const token = localStorage.getItem('token');
+                const response = await fetch(`http://localhost:8080/api/employee/bills`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const allBills = await response.json();
+                    const { startDate, endDate } = getDateRangeByType();
+                    const filteredBills = allBills.filter(bill => {
+                        const billDate = new Date(bill.createdAt).toISOString().split('T')[0];
+                        return billDate >= startDate && billDate <= endDate && bill.paymentStatus === 'PAID';
+                    });
+
+                    filteredBills.forEach(bill => {
+                        if (bill.order?.items) {
+                            bill.order.items.forEach(item => {
+                                dishDetailData.push([
+                                    bill.id || bill.billId,
+                                    item.foodName || item.name || 'Món ăn',
+                                    item.quantity || 1,
+                                    formatCurrency(item.price || 0),
+                                    formatCurrency((item.price || 0) * (item.quantity || 1))
+                                ]);
+                            });
+                        }
+                    });
+
+                    const dishSheet = XLSX.utils.aoa_to_sheet(dishDetailData);
+                    dishSheet['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 10 }, { wch: 15 }, { wch: 15 }];
+                    XLSX.utils.book_append_sheet(workbook, dishSheet, 'Chi tiết món ăn');
+
+                    // Xuất file
+                    const fileName = `Bao_cao_doanh_thu_${reportData.startDate}_den_${reportData.endDate}.xlsx`;
+                    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+                    saveAs(blob, fileName);
+                }
+            };
+
+            if (reportData.billDetails) {
+                // Nếu đã có dữ liệu, thêm sheet món ăn
+                const addDishDetailSheet = async () => {
+                    const token = localStorage.getItem('token');
+                    const response = await fetch(`http://localhost:8080/api/employee/bills`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (response.ok) {
+                        const allBills = await response.json();
+                        const { startDate, endDate } = getDateRangeByType();
+                        const filteredBills = allBills.filter(bill => {
+                            const billDate = new Date(bill.createdAt).toISOString().split('T')[0];
+                            return billDate >= startDate && billDate <= endDate && bill.paymentStatus === 'PAID';
+                        });
+
+                        const dishData = [
+                            ['CHI TIẾT MÓN ĂN THEO HÓA ĐƠN'],
+                            [`Từ ngày: ${formatDate(reportData.startDate)}`],
+                            [`Đến ngày: ${formatDate(reportData.endDate)}`],
+                            [''],
+                            ['Mã hóa đơn', 'Tên món', 'Số lượng', 'Đơn giá', 'Thành tiền']
+                        ];
+
+                        filteredBills.forEach(bill => {
+                            if (bill.order?.items) {
+                                bill.order.items.forEach(item => {
+                                    dishData.push([
+                                        bill.id || bill.billId,
+                                        item.foodName || item.name || 'Món ăn',
+                                        item.quantity || 1,
+                                        formatCurrency(item.price || 0),
+                                        formatCurrency((item.price || 0) * (item.quantity || 1))
+                                    ]);
+                                });
+                            }
+                        });
+
+                        const dishSheet = XLSX.utils.aoa_to_sheet(dishData);
+                        dishSheet['!cols'] = [{ wch: 15 }, { wch: 30 }, { wch: 10 }, { wch: 15 }, { wch: 15 }];
+                        XLSX.utils.book_append_sheet(workbook, dishSheet, 'Chi tiết món ăn');
+
+                        // Xuất file
+                        const fileName = `Bao_cao_doanh_thu_${reportData.startDate}_den_${reportData.endDate}.xlsx`;
+                        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                        const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+                        saveAs(blob, fileName);
+                    }
+                };
+
+                addDishDetailSheet();
+            } else {
+                // Nếu không có dữ liệu chi tiết, xuất luôn
+                const fileName = `Bao_cao_doanh_thu_${reportData.startDate}_den_${reportData.endDate}.xlsx`;
+                const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+                saveAs(blob, fileName);
+            }
+
         } catch (error) {
-            console.error("Error exporting report:", error);
-            alert("Có lỗi khi xuất báo cáo");
+            console.error("Error exporting to Excel:", error);
+            alert("Có lỗi khi xuất file Excel");
         } finally {
-            setExporting(false);
+            setTimeout(() => setExporting(false), 1000);
         }
     };
 
@@ -178,12 +351,13 @@ const ReportPage = () => {
             <div className={styles.header}>
                 <h2>Báo cáo doanh thu</h2>
                 {reportData && (
-                    <button onClick={handleExportExcel} disabled={exporting} className={styles.exportBtn}>
+                    <button onClick={exportToExcel} disabled={exporting} className={styles.exportBtn}>
                         <Download size={16} /> {exporting ? "Đang xuất..." : "Xuất Excel"}
                     </button>
                 )}
             </div>
 
+            {/* Phần còn lại giữ nguyên */}
             <div className={styles.filterSection}>
                 <div className={styles.reportTypeBtns}>
                     <button className={reportType === 'daily' ? styles.activeBtn : styles.btn} onClick={() => setReportType('daily')}>
@@ -230,6 +404,7 @@ const ReportPage = () => {
                 )}
             </div>
 
+            {/* Phần hiển thị dữ liệu giữ nguyên */}
             {loading && (
                 <div className={styles.loading}>
                     <div className={styles.spinner}></div>

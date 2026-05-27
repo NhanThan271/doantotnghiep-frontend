@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
     Menu,
@@ -18,11 +18,22 @@ const CashierLayout = () => {
     const [user, setUser] = useState({});
     const navigate = useNavigate();
     const location = useLocation();
+    const contentRef = useRef(null);
 
     useEffect(() => {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
         setUser(userData);
     }, []);
+
+    // Scroll lên đầu khi route thay đổi
+    useEffect(() => {
+        if (contentRef.current) {
+            contentRef.current.scrollTo({
+                top: 0,
+                behavior: 'smooth' // Cuộn mượt mà
+            });
+        }
+    }, [location.pathname]);
 
     const toggleSidebar = () => {
         const newState = !isSidebarOpen;
@@ -37,6 +48,15 @@ const CashierLayout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         navigate('/login');
+    };
+
+    // Hàm xử lý navigation với scroll
+    const handleNavigation = (path) => {
+        navigate(path);
+        // Scroll lên đầu ngay lập tức
+        if (contentRef.current) {
+            contentRef.current.scrollTop = 0;
+        }
     };
 
     return (
@@ -59,7 +79,7 @@ const CashierLayout = () => {
 
                 {/* Menu items */}
                 <div
-                    onClick={() => navigate("/cashier/dashboard")}
+                    onClick={() => handleNavigation("/cashier/dashboard")}
                     style={{
                         padding: "12px 16px",
                         cursor: "pointer",
@@ -76,7 +96,7 @@ const CashierLayout = () => {
                 </div>
 
                 <div
-                    onClick={() => navigate("/cashier/bill")}
+                    onClick={() => handleNavigation("/cashier/bill")}
                     style={{
                         padding: "12px 16px",
                         cursor: "pointer",
@@ -92,7 +112,7 @@ const CashierLayout = () => {
                 </div>
 
                 <div
-                    onClick={() => navigate("/cashier/report")}
+                    onClick={() => handleNavigation("/cashier/report")}
                     style={{
                         padding: "12px 16px",
                         cursor: "pointer",
@@ -108,7 +128,7 @@ const CashierLayout = () => {
                 </div>
 
                 <div
-                    onClick={() => navigate("/cashier/setting")}
+                    onClick={() => handleNavigation("/cashier/setting")}
                     style={{
                         padding: "12px 16px",
                         cursor: "pointer",
@@ -210,7 +230,7 @@ const CashierLayout = () => {
                     {/* Tất cả bàn */}
                     <div
                         onClick={() => {
-                            navigate("/cashier/tables");
+                            handleNavigation("/cashier/tables");
                             setIsSidebarOpen(false);
                         }}
                         style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
@@ -222,7 +242,7 @@ const CashierLayout = () => {
                     {/* Đặt bàn */}
                     <div
                         onClick={() => {
-                            navigate("/cashier/booking");
+                            handleNavigation("/cashier/booking");
                             setIsSidebarOpen(false);
                         }}
                         style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
@@ -232,13 +252,16 @@ const CashierLayout = () => {
                     </div>
                 </div>
 
-                {/* CONTENT */}
-                <div style={{
-                    flex: 1,
-                    background: "linear-gradient(135deg,#1e3a8a,#2563eb)",
-                    padding: 20,
-                    overflowY: "auto"
-                }}>
+                {/* CONTENT - Thêm ref vào đây */}
+                <div
+                    ref={contentRef}
+                    style={{
+                        flex: 1,
+                        background: "linear-gradient(135deg,#1e3a8a,#2563eb)",
+                        padding: 20,
+                        overflowY: "auto"
+                    }}
+                >
                     <Outlet />
                 </div>
             </div>
