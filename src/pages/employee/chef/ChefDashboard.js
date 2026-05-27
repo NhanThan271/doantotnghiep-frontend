@@ -12,7 +12,8 @@ import {
     Package,
     Utensils,
     MapPin,
-    FileText
+    FileText,
+    Users
 } from 'lucide-react';
 import { kitchenAPI } from '../../../services/api';
 import ToastNotification from './ToastNotification';
@@ -36,9 +37,6 @@ const ChefDashboard = () => {
     const [itemUpdating, setItemUpdating] = useState({});
     const [realTimeClock, setRealTimeClock] = useState(new Date());
     const [currentTime, setCurrentTime] = useState(Date.now());
-
-    // Lưu thời gian mới nhất từ client (key: name_displayLocation)
-    const [latestTimes, setLatestTimes] = useState(() => new Map());
 
     const lastNotificationKey = useRef('');
     const lastNotificationTime = useRef(0);
@@ -171,9 +169,12 @@ const ChefDashboard = () => {
             const items = await response.json();
             const data = Array.isArray(items) ? items : [];
 
-            const mapped = data
+            // GỘP MÓN THEO TÊN VÀ TRẠNG THÁI
+            const groupedMap = new Map();
+
+            data
                 .filter(item => !item.branch?.id || item.branch?.id === branchId)
-                .map((item, index) => {
+                .forEach(item => {
                     let displayLocation = 'Khu vực chung';
                     let tableNumber = null;
                     if (item.table && item.table.number) {
@@ -182,55 +183,75 @@ const ChefDashboard = () => {
                     } else if (item.orderId && !displayLocation) {
                         displayLocation = `Đơn #${item.orderId}`;
                     }
-                    return {
-                        id: item.id,
-                        name: item.food?.name || 'Món ăn',
-                        quantity: item.quantity || 1,
-                        status: item.kitchenStatus || 'WAITING',
-                        displayLocation: displayLocation,
-                        createdAt: item.createdAt,
-                        notes: item.notes || '',
-                        orderId: item.orderId,
-                        foodId: item.food?.id,
-                        tableNumber: tableNumber,
-                        uniqueKey: `${item.id}_${item.kitchenStatus}_${item.createdAt}_${index}`
-                    };
+
+                    const foodName = item.food?.name || 'Món ăn';
+                    const status = item.kitchenStatus || 'WAITING';
+
+                    // Key gộp: TÊN MÓN + TRẠNG THÁI
+                    const groupKey = `${foodName}_${status}`;
+
+                    const createdAt = item.createdAt;
+
+                    if (groupedMap.has(groupKey)) {
+                        const existing = groupedMap.get(groupKey);
+                        // Cộng dồn số lượng
+                        existing.totalQuantity += (item.quantity || 1);
+                        // Thêm bàn mới nếu chưa có
+                        if (!existing.tables.includes(displayLocation)) {
+                            existing.tables.push(displayLocation);
+                        }
+
+                        // QUAN TRỌNG: LUÔN LẤY THỜI GIAN MỚI NHẤT
+                        // So sánh và cập nhật nếu item mới hơn
+                        if (new Date(createdAt) > new Date(existing.latestItemTime)) {
+                            existing.latestItemTime = createdAt;
+                            existing.displayTime = createdAt; // Thời gian hiển thị là mới nhất
+                        }
+
+                        // Lưu lại thời gian cũ nhất nếu muốn biết món đã tồn tại bao lâu
+                        if (new Date(createdAt) < new Date(existing.earliestTime)) {
+                            existing.earliestTime = createdAt;
+                        }
+
+                        // Lưu lại các ID gốc để cập nhật sau
+                        existing.originalIds.push(item.id);
+
+                        // Log để debug
+                        console.log(`📦 Gộp món: ${foodName} - Thời gian mới nhất: ${existing.displayTime}`);
+                    } else {
+                        groupedMap.set(groupKey, {
+                            key: groupKey,
+                            name: foodName,
+                            status: status,
+                            totalQuantity: item.quantity || 1,
+                            tables: [displayLocation],
+                            earliestTime: createdAt,
+                            latestItemTime: createdAt,
+                            displayTime: createdAt, // Thời gian hiển thị
+                            originalIds: [item.id],
+                            notes: item.notes,
+                        });
+                    }
                 });
 
-            // Gộp theo tên, vị trí, và trạng thái
-            const groupedMap = new Map();
-            mapped.forEach(item => {
-                const key = `${item.name}_${item.displayLocation}_${item.status}`;
-                if (groupedMap.has(key)) {
-                    const existing = groupedMap.get(key);
-                    existing.quantity += item.quantity;
-                    if (new Date(item.createdAt) > new Date(existing.createdAt)) {
-                        existing.createdAt = item.createdAt;
-                    }
-                    if (!existing.originalIds) {
-                        existing.originalIds = [existing.id];
-                    }
-                    existing.originalIds.push(item.id);
-                } else {
-                    groupedMap.set(key, { ...item, originalIds: [item.id] });
-                }
-            });
+            // Chuyển đổi Map thành mảng và sắp xếp
+            let groupedItems = Array.from(groupedMap.values()).map(group => ({
+                id: group.key,
+                name: group.name,
+                quantity: group.totalQuantity,
+                status: group.status,
+                tables: group.tables,
+                displayLocations: group.tables.join(', '),
+                createdAt: group.displayTime, // Dùng thời gian MỚI NHẤT để tính thời gian chờ
+                earliestTime: group.earliestTime,
+                latestItemTime: group.latestItemTime,
+                originalIds: group.originalIds,
+                notes: group.notes,
+                tableCount: group.tables.length,
+                hasMultipleTimes: group.earliestTime !== group.latestItemTime // Có nhiều thời gian khác nhau
+            }));
 
-            let groupedItems = Array.from(groupedMap.values());
-
-            // (Tuỳ chọn) Ghi đè thời gian bằng latestTimes nếu cần - nhưng có thể bỏ vì mỗi status đã tách
-            // Nếu vẫn muốn giữ, chỉ áp dụng cho status WAITING
-            groupedItems = groupedItems.map(item => {
-                if (item.status === 'WAITING') {
-                    const keyNoStatus = `${item.name}_${item.displayLocation}`;
-                    const clientTime = latestTimes.get(keyNoStatus);
-                    if (clientTime && new Date(clientTime) > new Date(item.createdAt)) {
-                        return { ...item, createdAt: clientTime };
-                    }
-                }
-                return item;
-            });
-
+            // Sắp xếp: Ưu tiên theo status (WAITING lên đầu) và thời gian tạo
             const sortedItems = [...groupedItems].sort((a, b) => {
                 if (a.status === 'WAITING' && b.status !== 'WAITING') return -1;
                 if (a.status !== 'WAITING' && b.status === 'WAITING') return 1;
@@ -245,7 +266,8 @@ const ChefDashboard = () => {
         } finally {
             setLoading(false);
         }
-    }, [branchId, API_BASE_URL, latestTimes]);
+    }, [branchId, API_BASE_URL]);
+
     // ========== SPEECH FUNCTION ==========
     const speakVietnamese = (text) => {
         if (!('speechSynthesis' in window)) return;
@@ -302,22 +324,6 @@ const ChefDashboard = () => {
             lastNotificationKey.current = notiKey;
             lastNotificationTime.current = now;
             playNotificationSound();
-
-            // Cập nhật thời gian client
-            if (orderData.items && orderData.timestamp) {
-                setLatestTimes(prev => {
-                    const newMap = new Map(prev);
-                    orderData.items.forEach(item => {
-                        const location = orderData.locationName || (orderData.isRoom ? `Phòng ${orderData.tableNumber}` : `Bàn ${orderData.tableNumber}`);
-                        const key = `${item.name}_${location}`;
-                        const existing = newMap.get(key);
-                        if (!existing || new Date(orderData.timestamp) > new Date(existing)) {
-                            newMap.set(key, orderData.timestamp);
-                        }
-                    });
-                    return newMap;
-                });
-            }
             fetchData();
 
             if (orderData.items?.length) {
@@ -340,22 +346,6 @@ const ChefDashboard = () => {
             lastNotificationKey.current = notiKey;
             lastNotificationTime.current = now;
             playNotificationSound();
-
-            // Cập nhật thời gian client
-            if (data.items && data.timestamp) {
-                setLatestTimes(prev => {
-                    const newMap = new Map(prev);
-                    data.items.forEach(item => {
-                        const location = data.locationName || (data.isRoom ? `Phòng ${data.tableNumber}` : `Bàn ${data.tableNumber}`);
-                        const key = `${item.name}_${location}`;
-                        const existing = newMap.get(key);
-                        if (!existing || new Date(data.timestamp) > new Date(existing)) {
-                            newMap.set(key, data.timestamp);
-                        }
-                    });
-                    return newMap;
-                });
-            }
             fetchData();
 
             if (data.items?.length) {
@@ -425,15 +415,14 @@ const ChefDashboard = () => {
         }
     }, []);
 
-    const updateStatus = async (id, status, itemName, tableNumber) => {
-        const targetItem = allItems.find(item => item.originalIds?.includes(id) || item.id === id);
-        if (!targetItem) {
-            showToast(`Không tìm thấy món ${itemName}`, 'error');
+    const updateStatus = async (itemGroup, status) => {
+        const idsToUpdate = itemGroup.originalIds;
+        if (!idsToUpdate || idsToUpdate.length === 0) {
+            showToast(`Không tìm thấy món ${itemGroup.name}`, 'error');
             return;
         }
-        const idsToUpdate = targetItem.originalIds || [id];
-        setUpdatingId(id);
-        setItemUpdating(prev => ({ ...prev, [id]: true }));
+
+        setItemUpdating(prev => ({ ...prev, [itemGroup.id]: true }));
 
         try {
             for (const originalId of idsToUpdate) {
@@ -441,11 +430,19 @@ const ChefDashboard = () => {
             }
             await fetchData();
             if (socketRef.current?.connected) {
-                socketRef.current.emit("update-order-item-status", { itemId: id, status, itemName, tableNumber, branchId, timestamp: new Date().toISOString() });
+                socketRef.current.emit("update-order-item-status", {
+                    itemId: itemGroup.id,
+                    status,
+                    itemName: itemGroup.name,
+                    tables: itemGroup.tables,
+                    branchId,
+                    timestamp: new Date().toISOString()
+                });
                 socketRef.current.emit("update-tables");
             }
             if (status === 'READY') {
-                const message = `Hoàn thành món ${itemName} - ${tableNumber}`;
+                const tableList = itemGroup.tables.join(', ');
+                const message = `Hoàn thành món ${itemGroup.name} - ${tableList}`;
                 showToast(message, 'success');
                 addNotification(message, 'success');
             }
@@ -453,8 +450,7 @@ const ChefDashboard = () => {
             const errorMsg = err.response?.data?.message || err.response?.data || err.message;
             showToast(`Update thất bại: ${errorMsg}`, 'error');
         } finally {
-            setUpdatingId(null);
-            setItemUpdating(prev => ({ ...prev, [id]: false }));
+            setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
         }
     };
 
@@ -496,11 +492,13 @@ const ChefDashboard = () => {
     };
 
     const unreadCount = notifications.length;
+
     const getStatusIcon = (status) => {
         if (status === 'WAITING') return <Clock size={12} color="#fbbf24" />;
         if (status === 'PREPARING') return <ChefHat size={12} color="#f97316" />;
         return <Check size={12} color="#10b981" />;
     };
+
     const getStatusText = (status) => {
         if (status === 'WAITING') return 'Chờ làm';
         if (status === 'PREPARING') return 'Đang nấu';
@@ -602,35 +600,72 @@ const ChefDashboard = () => {
                         const timeColor = getTimeColor(item.createdAt);
                         const overdue = isOverdue(item.createdAt);
                         const isUpdatingItem = itemUpdating[item.id];
-                        const stableKey = `${item.name}_${item.displayLocation}_${item.originalIds?.join('_') || item.id}`;
+                        const hasMultipleTimes = item.hasMultipleTimes;
+
+                        // Hiển thị danh sách bàn
+                        const tableDisplay = item.tableCount > 1
+                            ? `${item.tables.slice(0, 3).join(', ')}${item.tableCount > 3 ? ` và ${item.tableCount - 3} bàn khác` : ''}`
+                            : item.tables[0];
+
                         return (
-                            <div key={stableKey} className={`${styles.orderItem} ${overdue ? styles.overdueItem : ''} ${isUpdatingItem ? styles.updatingItem : ''}`}>
+                            <div key={item.id} className={`${styles.orderItem} ${overdue ? styles.overdueItem : ''} ${isUpdatingItem ? styles.updatingItem : ''}`}>
                                 <div className={styles.itemHeader}>
                                     <div className={styles.tableInfo}>
-                                        <span className={styles.tableBadge}><MapPin size={12} color="#10b981" /> {item.displayLocation}</span>
+                                        <div className={styles.tableBadgeGroup}>
+                                            <Users size={12} color="#10b981" />
+                                            <span className={styles.tableBadge}>{tableDisplay}</span>
+                                            {item.tableCount > 1 && (
+                                                <span className={styles.tableCount}>({item.tableCount} bàn)</span>
+                                            )}
+                                        </div>
                                         {overdue && <span className={styles.overdueBadge}>Quá hạn!</span>}
+                                        {hasMultipleTimes && (
+                                            <span className={styles.newItemBadge}>
+                                                🆕 Có món mới
+                                            </span>
+                                        )}
                                     </div>
                                     <div className={styles.timeInfo} style={{ color: timeColor }}>
-                                        <Clock size={12} /> <span>{getElapsedTime(item.createdAt)}</span>
+                                        <Clock size={12} />
+                                        <span>{getElapsedTime(item.createdAt)}</span>
+                                        {hasMultipleTimes && (
+                                            <span className={styles.newTimeLabel}>(món mới nhất)</span>
+                                        )}
                                     </div>
                                 </div>
-                                <h3 className={styles.itemName}><Utensils size={16} color="#f59e0b" /> {item.name}</h3>
+                                <h3 className={styles.itemName}>
+                                    <Utensils size={16} color="#f59e0b" /> {item.name}
+                                </h3>
                                 <div className={styles.itemDetails}>
-                                    <span className={styles.itemQuantity}><Package size={12} color="#3b82f6" /> Số lượng: <strong>{item.quantity}</strong></span>
+                                    <span className={styles.itemQuantity}>
+                                        <Package size={12} color="#3b82f6" /> Số lượng: <strong>{item.quantity}</strong>
+                                    </span>
                                 </div>
-                                {item.notes && <p className={styles.itemNotes}><FileText size={12} color="#8b5cf6" /> {item.notes}</p>}
+                                {item.notes && (
+                                    <p className={styles.itemNotes}>
+                                        <FileText size={12} color="#8b5cf6" /> {item.notes}
+                                    </p>
+                                )}
                                 <div className={styles.itemFooter}>
                                     <span className={`${styles.statusBadge} ${styles[item.status]}`}>
                                         {getStatusIcon(item.status)} {getStatusText(item.status)}
                                     </span>
                                     <div className={styles.actionButtons}>
                                         {item.status === 'WAITING' && (
-                                            <button className={styles.startBtn} disabled={isUpdatingItem} onClick={() => updateStatus(item.id, 'PREPARING', item.name, item.displayLocation)}>
+                                            <button
+                                                className={styles.startBtn}
+                                                disabled={isUpdatingItem}
+                                                onClick={() => updateStatus(item, 'PREPARING')}
+                                            >
                                                 <Play size={14} color="#ffffff" /> Bắt đầu
                                             </button>
                                         )}
                                         {item.status === 'PREPARING' && (
-                                            <button className={styles.completeBtn} disabled={isUpdatingItem} onClick={() => updateStatus(item.id, 'READY', item.name, item.displayLocation)}>
+                                            <button
+                                                className={styles.completeBtn}
+                                                disabled={isUpdatingItem}
+                                                onClick={() => updateStatus(item, 'READY')}
+                                            >
                                                 <Check size={14} color="#ffffff" /> Hoàn thành
                                             </button>
                                         )}
