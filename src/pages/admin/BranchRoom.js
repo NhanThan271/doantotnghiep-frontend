@@ -17,7 +17,7 @@ export default function RoomManagement() {
         number: '',
         capacity: '',
         area: '',
-        status: 'FREE'
+        status: 'ACTIVE'
     });
 
     const API_BASE_URL = 'http://localhost:8080';
@@ -56,9 +56,11 @@ export default function RoomManagement() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await response.json();
-            setRooms(data);
+
+            setRooms(Array.isArray(data) ? data : data.content ?? []);
         } catch (error) {
             console.error('Lỗi khi lấy phòng:', error);
+            setRooms([]);
         } finally {
             setLoading(false);
         }
@@ -66,7 +68,7 @@ export default function RoomManagement() {
 
     const handleOpenAdd = () => {
         setEditingRoom(null);
-        setFormData({ number: '', capacity: '', area: '', status: 'FREE' });
+        setFormData({ number: '', capacity: '', area: '', status: 'ACTIVE' });
         setShowModal(true);
     };
 
@@ -157,18 +159,18 @@ export default function RoomManagement() {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'FREE': return { bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)', text: '#10B981' };
-            case 'OCCUPIED': return { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#EF4444' };
-            case 'RESERVED': return { bg: 'rgba(251, 191, 36, 0.1)', border: 'rgba(251, 191, 36, 0.3)', text: '#FBBF24' };
+            case 'ACTIVE': return { bg: 'rgba(16, 185, 129, 0.1)', border: 'rgba(16, 185, 129, 0.3)', text: '#10B981' };
+            case 'RESERVED': return { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.3)', text: '#EF4444' };
+            case 'MAINTENANCE': return { bg: 'rgba(251, 191, 36, 0.1)', border: 'rgba(251, 191, 36, 0.3)', text: '#FBBF24' };
             default: return { bg: 'rgba(100, 116, 139, 0.1)', border: 'rgba(100, 116, 139, 0.3)', text: '#64748B' };
         }
     };
 
     const getStatusText = (status) => {
         switch (status) {
-            case 'FREE': return 'Trống';
-            case 'OCCUPIED': return 'Đang dùng';
+            case 'ACTIVE': return 'Hoạt động';
             case 'RESERVED': return 'Đã đặt';
+            case 'MAINTENANCE': return 'Bảo trì';
             default: return status;
         }
     };
@@ -183,8 +185,8 @@ export default function RoomManagement() {
         return matchesSearch && matchesArea;
     });
 
-    const freeCount = rooms.filter(r => r.status === 'FREE').length;
-    const occupiedCount = rooms.filter(r => r.status === 'OCCUPIED').length;
+    const activeCount = rooms.filter(r => r.status === 'ACTIVE').length;
+    const bookedCount = rooms.filter(r => r.status === 'RESERVED').length;
 
     return (
         <div className="table-management">
@@ -240,8 +242,8 @@ export default function RoomManagement() {
                                             <Grid size={24} />
                                         </div>
                                         <div>
-                                            <div className="stat-value free">{freeCount}</div>
-                                            <div className="stat-label">Phòng trống</div>
+                                            <div className="stat-value free">{activeCount}</div>
+                                            <div className="stat-label">Phòng hoạt động</div>
                                         </div>
                                     </div>
                                 </div>
@@ -252,8 +254,8 @@ export default function RoomManagement() {
                                             <Users size={24} />
                                         </div>
                                         <div>
-                                            <div className="stat-value occupied">{occupiedCount}</div>
-                                            <div className="stat-label">Đang dùng</div>
+                                            <div className="stat-value occupied">{bookedCount}</div>
+                                            <div className="stat-label">Đã đặt</div>
                                         </div>
                                     </div>
                                 </div>

@@ -29,14 +29,14 @@ const PaymentSuccess = () => {
             console.log("📥 Kết quả cập nhật bàn:", result);
 
             if (response.ok) {
-                console.log(`✅ Bàn ${tableId} đã được cập nhật thành ${status}`);
+                console.log(` Bàn ${tableId} đã được cập nhật thành ${status}`);
                 return true;
             } else {
-                console.error(`❌ Lỗi cập nhật bàn: ${response.status}`, result);
+                console.error(` Lỗi cập nhật bàn: ${response.status}`, result);
                 return false;
             }
         } catch (error) {
-            console.error("❌ Lỗi kết nối khi cập nhật bàn:", error);
+            console.error(" Lỗi kết nối khi cập nhật bàn:", error);
             return false;
         }
     };
@@ -59,14 +59,14 @@ const PaymentSuccess = () => {
             console.log("📥 Kết quả cập nhật phòng:", result);
 
             if (response.ok) {
-                console.log(`✅ Phòng ${roomId} đã được cập nhật thành ${status}`);
+                console.log(` Phòng ${roomId} đã được cập nhật thành ${status}`);
                 return true;
             } else {
-                console.error(`❌ Lỗi cập nhật phòng: ${response.status}`, result);
+                console.error(` Lỗi cập nhật phòng: ${response.status}`, result);
                 return false;
             }
         } catch (error) {
-            console.error("❌ Lỗi kết nối khi cập nhật phòng:", error);
+            console.error(" Lỗi kết nối khi cập nhật phòng:", error);
             return false;
         }
     };
@@ -133,7 +133,27 @@ const PaymentSuccess = () => {
 
                 if (!response.ok) throw new Error(result.message || "Tạo đặt bàn thất bại");
 
-                // ✅ Cập nhật trạng thái bàn HOẶC phòng thành RESERVED
+                const paymentResponse = await fetch(`${API}/api/payments/reservation/${result.id}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        paymentType: bookingData.paymentMethod === "full" ? "FULL" : "DEPOSIT",
+                        paymentMethod: "PAYOS",
+                        totalAmount: bookingData.depositAmount,
+                    })
+                });
+                const paymentResult = await paymentResponse.json();
+                console.log("📥 Payment result:", paymentResult);
+                if (!paymentResponse.ok) {
+                    console.error(" Tạo payment thất bại, email sẽ không được gửi");
+                } else {
+                    console.log(" Payment tạo thành công, email đang được gửi...");
+                }
+
+                //  Cập nhật trạng thái bàn HOẶC phòng thành RESERVED
                 if (bookingData.tableId) {
                     const updated = await updateTableStatus(bookingData.tableId, "RESERVED");
                     console.log("Kết quả cập nhật bàn:", updated ? "THÀNH CÔNG" : "THẤT BẠI");
@@ -189,7 +209,7 @@ const PaymentSuccess = () => {
                     borderRadius: "16px",
                     textAlign: "center"
                 }}>
-                    <div style={{ fontSize: "72px" }}>✅</div>
+                    <div style={{ fontSize: "72px" }}></div>
                     <h1 style={{ color: "#28a745" }}>Thanh toán thành công!</h1>
                     <p>Đang xử lý đặt bàn của bạn...</p>
                     <div style={{ marginTop: "20px", display: "flex", gap: "8px", justifyContent: "center" }}>
@@ -329,7 +349,7 @@ const PaymentSuccess = () => {
                 }}>
                     <p style={{ margin: "4px 0", fontSize: "13px", color: "#2c7a4d" }}>📞 Chúng tôi sẽ liên hệ xác nhận với bạn</p>
                     <p style={{ margin: "4px 0", fontSize: "13px", color: "#2c7a4d" }}>⏰ Vui lòng đến đúng giờ đã đặt</p>
-                    <p style={{ margin: "4px 0", fontSize: "13px", color: "#2c7a4d" }}>❌ Hủy bàn trước 1 tiếng nếu có thay đổi</p>
+                    <p style={{ margin: "4px 0", fontSize: "13px", color: "#2c7a4d" }}> Hủy bàn trước 1 tiếng nếu có thay đổi</p>
                 </div>
 
                 <div style={{ display: "flex", gap: "12px" }}>
@@ -350,7 +370,7 @@ const PaymentSuccess = () => {
                         🏠 Về trang chủ
                     </button>
                     <button
-                        onClick={() => { navigate("/dat-ban-dia-chi"); }}
+                        onClick={() => { navigate("/dat-ban-chi-tiet"); }}
                         style={{
                             flex: 1,
                             padding: "12px",

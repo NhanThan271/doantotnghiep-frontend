@@ -120,21 +120,21 @@ export default function ManagerRoomManagement() {
     }, [rooms, filterStatus, filterArea, searchTerm]);
 
     const getStatusText = (status) => {
-        const map = { FREE: 'Trống', OCCUPIED: 'Đang sử dụng', RESERVED: 'Đã đặt' };
+        const map = { ACTIVE: 'Trống', MAINTENANCE: 'Bảo trì', RESERVED: 'Đã đặt' };
         return map[status] || status;
     };
 
     const getStatusBadgeClass = (status) => {
         const map = {
-            FREE: styles.badgeSuccess,
-            OCCUPIED: styles.badgeDanger,
+            ACTIVE: styles.badgeSuccess,
+            MAINTENANCE: styles.badgeDanger,
             RESERVED: styles.badgeWarning
         };
         return map[status] || styles.badgeInactive;
     };
 
     const getStatusColor = (status) => {
-        const map = { FREE: '#10b981', OCCUPIED: '#ef4444', RESERVED: '#f59e0b' };
+        const map = { ACTIVE: '#10b981', MAINTENANCE: '#f59e0b', RESERVED: '#ef4444' };
         return map[status] || '#9ca3af';
     };
 
@@ -150,8 +150,8 @@ export default function ManagerRoomManagement() {
 
     const stats = {
         total: rooms.length,
-        free: rooms.filter(r => r.status === 'FREE').length,
-        occupied: rooms.filter(r => r.status === 'OCCUPIED').length,
+        free: rooms.filter(r => r.status === 'ACTIVE').length,
+        occupied: rooms.filter(r => r.status === 'MAINTENANCE').length,
         reserved: rooms.filter(r => r.status === 'RESERVED').length,
     };
 
@@ -244,8 +244,8 @@ export default function ManagerRoomManagement() {
                             }}
                         >
                             <option value="all">Tất cả trạng thái</option>
-                            <option value="FREE">Trống</option>
-                            <option value="OCCUPIED">Đang sử dụng</option>
+                            <option value="ACTIVE">Trống</option>
+                            <option value="MAINTENANCE">Bảo trì</option>
                             <option value="RESERVED">Đã đặt</option>
                         </select>
                         <select
@@ -361,9 +361,9 @@ export default function ManagerRoomManagement() {
                                             <Eye size={16} />
                                             Chi tiết
                                         </button>
-                                        {room.status === 'FREE' ? (
+                                        {room.status === 'ACTIVE' ? (
                                             <button
-                                                onClick={() => updateRoomStatus(room.id, 'OCCUPIED')}
+                                                onClick={() => updateRoomStatus(room.id, 'MAINTENANCE')}
                                                 className={styles.actionButtonSuccess}
                                                 style={{ flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                                             >
@@ -372,7 +372,7 @@ export default function ManagerRoomManagement() {
                                             </button>
                                         ) : (
                                             <button
-                                                onClick={() => updateRoomStatus(room.id, 'FREE')}
+                                                onClick={() => updateRoomStatus(room.id, 'ACTIVE')}
                                                 className={styles.actionButtonDanger}
                                                 style={{ flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                                             >
@@ -436,10 +436,10 @@ export default function ManagerRoomManagement() {
                             </div>
 
                             <div className={styles.modalActions}>
-                                {selectedRoom.status === 'FREE' ? (
+                                {selectedRoom.status === 'ACTIVE' ? (
                                     <button
                                         onClick={() => {
-                                            updateRoomStatus(selectedRoom.id, 'OCCUPIED');
+                                            updateRoomStatus(selectedRoom.id, 'MAINTENANCE');
                                             setShowDetailModal(false);
                                         }}
                                         className={styles.buttonSuccess}
@@ -450,7 +450,7 @@ export default function ManagerRoomManagement() {
                                 ) : (
                                     <button
                                         onClick={() => {
-                                            updateRoomStatus(selectedRoom.id, 'FREE');
+                                            updateRoomStatus(selectedRoom.id, 'ACTIVE');
                                             setShowDetailModal(false);
                                         }}
                                         className={styles.buttonDanger}
