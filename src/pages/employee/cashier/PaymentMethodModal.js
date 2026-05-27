@@ -39,13 +39,6 @@ const PaymentMethodModal = ({ show, onClose, onSelect }) => {
                         🏦 Chuyển khoản
                     </button>
 
-                    <button
-                        onClick={() => onSelect("card")}
-                        className={styles.orderBtn}
-                        style={{ background: "#6c757d" }}
-                    >
-                        💳 Thẻ
-                    </button>
                 </div>
 
                 <button
