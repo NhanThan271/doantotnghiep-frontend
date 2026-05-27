@@ -1,24 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChefHat, Package, Beaker, Hash, Plus, Trash2 } from 'lucide-react';
+import { X, ChefHat, Package, Beaker, Hash, Trash2 } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
-/**
- * EditRecipeForm - Chỉnh sửa công thức của một món ăn (nhiều nguyên liệu)
- *
- * Props:
- *   closeForm  : () => void
- *   onSave     : (updatedRecipes: Recipe[]) => void
- *   recipeData : { foodId, foodName, recipes: [{ id, ingredient: { id, name, unit }, quantityRequired }] }
- */
 export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
-    // rows = [{ recipeId, ingredientId, ingredientName, unit, quantityRequired }]
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     const API_BASE_URL = 'http://localhost:8080';
 
-    /* ---------- khởi tạo rows từ recipeData ---------- */
     useEffect(() => {
         if (recipeData?.recipes?.length) {
             setRows(
@@ -48,13 +39,17 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
     /* ---------- validate ---------- */
     const validateForm = () => {
         if (rows.length === 0) {
-            setError('Công thức phải có ít nhất một nguyên liệu');
+            const msg = 'Công thức phải có ít nhất một nguyên liệu';
+            setError(msg);
+            showToast('warning', 'Công thức trống', msg);
             return false;
         }
         for (let i = 0; i < rows.length; i++) {
             const qty = parseFloat(rows[i].quantityRequired);
             if (!rows[i].quantityRequired || isNaN(qty) || qty <= 0) {
-                setError(`Định lượng của "${rows[i].ingredientName}" không hợp lệ`);
+                const msg = `Định lượng của "${rows[i].ingredientName}" không hợp lệ`;
+                setError(msg);
+                showToast('warning', 'Định lượng không hợp lệ', msg);
                 return false;
             }
         }
@@ -98,12 +93,13 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
             const updatedRecipes = await response.json();
             console.log('Cập nhật công thức thành công:', updatedRecipes);
 
-            alert('Cập nhật công thức thành công!');
+            showToast('success', 'Cập nhật thành công!', `Công thức của <b>${recipeData?.foodName}</b> đã được lưu.`);
 
             if (onSave) onSave(updatedRecipes);
             closeForm();
         } catch (err) {
             console.error('Lỗi khi cập nhật công thức:', err);
+            showToast('error', 'Cập nhật thất bại', err.message || 'Không thể cập nhật công thức. Vui lòng thử lại!');
             setError(err.message || 'Không thể cập nhật công thức. Vui lòng thử lại!');
         } finally {
             setLoading(false);
@@ -208,7 +204,7 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                             borderRadius: '8px', marginBottom: '20px',
                         }}>
                             <p style={{ fontSize: '13px', color: '#3B82F6', margin: 0 }}>
-                                💡 <strong>Lưu ý:</strong> Việc thay đổi định lượng sẽ ảnh hưởng đến toàn bộ hệ thống.
+                                <strong>Lưu ý:</strong> Việc thay đổi định lượng sẽ ảnh hưởng đến toàn bộ hệ thống.
                                 Hãy kiểm tra kỹ trước khi lưu.
                             </p>
                         </div>

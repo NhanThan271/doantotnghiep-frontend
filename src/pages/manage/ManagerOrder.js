@@ -81,12 +81,13 @@ export default function ManagerOrderManagement() {
                     return match;
                 })
                 : data;
-
-            console.log('Filtered orders:', branchOrders);
-            console.log('Filtered count:', branchOrders.length);
-            console.log('=================================');
             setOrders(branchOrders);
             setFilteredOrders(branchOrders);
+            const sorted = [...branchOrders].sort((a, b) =>
+                new Date(b.createdAt) - new Date(a.createdAt)
+            );
+            setOrders(sorted);
+            setFilteredOrders(sorted);
         } catch (error) {
             console.error('Lỗi khi tải đơn hàng:', error);
             alert('Không thể tải đơn hàng. Vui lòng thử lại.');
@@ -171,9 +172,10 @@ export default function ManagerOrderManagement() {
             const response = await fetch(`${API_BASE_URL}/api/customer/orders/${orderId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-
-            if (!response.ok) throw new Error('Không thể tải chi tiết đơn hàng');
-            return await response.json();
+            if (!response.ok) throw new Error('...');
+            const data = await response.json();
+            console.log('ORDER DETAIL:', JSON.stringify(data, null, 2)); // ← xem structure thật
+            return data;
         } catch (error) {
             console.error('Lỗi khi tải chi tiết đơn hàng:', error);
             return null;
@@ -512,10 +514,6 @@ export default function ManagerOrderManagement() {
                                         {getStatusText(selectedOrder.status)}
                                     </span>
                                 </div>
-                                <div className={styles.infoCard}>
-                                    <p className={styles.infoLabel}>Nhân viên</p>
-                                    <p className={styles.infoValue}>{selectedOrder.employee?.name || '-'}</p>
-                                </div>
                             </div>
 
                             {/* Order Items */}
@@ -530,11 +528,19 @@ export default function ManagerOrderManagement() {
                                             <div className={styles.orderItemInfo}>
                                                 <span className={styles.itemQuantity}>{item.quantity}x</span>
                                                 <div>
-                                                    <p className={styles.itemName}>{item.product?.name}</p>
+                                                    <p className={styles.itemName}>
+                                                        {item.foodName
+                                                            ?? item.food?.name
+                                                            ?? item.branchFood?.food?.name
+                                                            ?? item.product?.name
+                                                            ?? `Món #${item.id || index + 1}`}
+                                                    </p>
                                                     <p className={styles.itemPrice}>{formatPrice(item.price)}</p>
                                                 </div>
                                             </div>
-                                            <p className={styles.itemSubtotal}>{formatPrice(item.subtotal)}</p>
+                                            <p className={styles.itemSubtotal}>
+                                                {formatPrice(item.subtotal ?? (item.price * item.quantity))}
+                                            </p>
                                         </div>
                                     ))}
                                 </div>

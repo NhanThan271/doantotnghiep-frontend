@@ -259,6 +259,7 @@ export default function AdminLayout() {
                 return <AddProductForm
                     closeForm={closeModal}
                     onSave={handleSave}
+                    existingProducts={products}
                 />;
             case 'editProduct':
                 return <EditProductForm
@@ -266,6 +267,7 @@ export default function AdminLayout() {
                     closeForm={closeModal}
                     onSave={handleSave}
                     refreshCallback={refreshCallback}
+                    existingProducts={products}
                 />;
             case 'addCategory':
                 return <AddCategoryForm

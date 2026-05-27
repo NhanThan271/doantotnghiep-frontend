@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Package, DollarSign, Hash, FolderOpen } from 'lucide-react';
+import { X, Upload, Package, DollarSign, FolderOpen } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
-export default function AddProductForm({ closeForm, onSave }) {
+export default function AddProductForm({ closeForm, onSave, existingProducts = [] }) {
     const [formData, setFormData] = useState({
         name: '',
         price: '',
@@ -13,12 +14,25 @@ export default function AddProductForm({ closeForm, onSave }) {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [existingNames, setExistingNames] = useState([]);
 
     const API_BASE_URL = 'http://localhost:8080';
 
     useEffect(() => {
         fetchCategories();
+        fetchExistingProducts();
     }, []);
+
+    const fetchExistingProducts = async () => {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE_URL}/api/foods`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            setExistingNames(data.map(p => p.name.toLowerCase()));
+        }
+    };
 
     const fetchCategories = async () => {
         try {
@@ -48,11 +62,13 @@ export default function AddProductForm({ closeForm, onSave }) {
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
                 setError('Kích thước ảnh không được vượt quá 5MB');
+                showToast('warning', 'Ảnh quá lớn', 'Kích thước ảnh không được vượt quá 5MB');
                 return;
             }
 
             if (!file.type.startsWith('image/')) {
                 setError('Vui lòng chọn file ảnh');
+                showToast('warning', 'File không hợp lệ', 'Vui lòng chọn đúng định dạng ảnh (PNG, JPG)');
                 return;
             }
 
@@ -69,10 +85,26 @@ export default function AddProductForm({ closeForm, onSave }) {
     const validateForm = () => {
         if (!formData.name.trim()) {
             setError('Vui lòng nhập tên sản phẩm');
+            showToast('warning', 'Thiếu tên sản phẩm', 'Vui lòng nhập tên sản phẩm trước khi lưu');
             return false;
         }
+
+        const isDuplicate = existingNames.includes(formData.name.trim().toLowerCase());
+        if (isDuplicate) {
+            setError(`Sản phẩm "${formData.name.trim()}" đã tồn tại trong hệ thống`);
+            showToast('error', 'Trùng tên sản phẩm!', `<b>${formData.name.trim()}</b> đã tồn tại. Hãy đặt tên khác.`, 4500);
+            return false;
+        }
+
+        if (!formData.categoryId) {
+            setError('Vui lòng chọn danh mục');
+            showToast('warning', 'Thiếu danh mục', 'Vui lòng chọn danh mục cho sản phẩm');
+            return false;
+        }
+
         if (!formData.price || formData.price <= 0) {
             setError('Vui lòng nhập giá sản phẩm hợp lệ');
+            showToast('warning', 'Giá sản phẩm không hợp lệ', 'Vui lòng nhập giá sản phẩm hợp lệ');
             return false;
         }
         return true;
@@ -117,7 +149,7 @@ export default function AddProductForm({ closeForm, onSave }) {
             const newProduct = await response.json();
             console.log('Thêm sản phẩm thành công:', newProduct);
 
-            alert('Thêm sản phẩm thành công!');
+            showToast('success', 'Thêm thành công!', `Sản phẩm <b>${formData.name.trim()}</b> đã được tạo.`);
 
             if (onSave) {
                 onSave(newProduct, 'product');
@@ -127,6 +159,7 @@ export default function AddProductForm({ closeForm, onSave }) {
         } catch (err) {
             console.error('Lỗi khi thêm sản phẩm:', err);
             setError(err.message || 'Không thể thêm sản phẩm. Vui lòng thử lại!');
+            showToast('error', 'Thêm thất bại', err.message || 'Không thể thêm sản phẩm. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -446,7 +479,8 @@ export default function AddProductForm({ closeForm, onSave }) {
                                         value={formData.price}
                                         onChange={(e) => handleChange('price', e.target.value)}
                                         min="0"
-                                        step="1000"
+                                        step="1"
+                                        onInvalid={(e) => e.preventDefault()}
                                         style={{
                                             width: '100%',
                                             padding: '12px 16px 12px 44px',
