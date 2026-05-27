@@ -1,6 +1,11 @@
 // pages/employee/cashier/Dashboard.js
 import React, { useState, useEffect } from "react";
-import { Play, StopCircle, Clock, AlertCircle, RefreshCw, Eye, Plus, Minus } from "lucide-react";
+import {
+    Play, StopCircle, Clock, AlertCircle, RefreshCw, Eye, Plus, Minus,
+    DollarSign, Receipt, CreditCard, TrendingUp, Users, Calendar,
+    Wallet, History, BarChart3, Coffee, Phone, Building2,
+    ArrowUpCircle, ArrowDownCircle, CheckCircle, XCircle, FileText
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import styles from "./Dashboard.module.css";
 
@@ -85,9 +90,9 @@ const Dashboard = () => {
                     .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
 
                 const methods = [
-                    { name: 'Tiền mặt', value: cashRevenue, count: todayBills.filter(b => b.paymentMethod === 'CASH').length, icon: '💵' },
-                    { name: 'MoMo', value: momoRevenue, count: todayBills.filter(b => b.paymentMethod === 'MOMO').length, icon: '📱' },
-                    { name: 'Chuyển khoản', value: bankingRevenue, count: todayBills.filter(b => b.paymentMethod === 'BANKING').length, icon: '🏦' }
+                    { name: 'Tiền mặt', value: cashRevenue, count: todayBills.filter(b => b.paymentMethod === 'CASH').length, icon: <DollarSign size={20} />, color: '#10b981' },
+                    { name: 'MoMo', value: momoRevenue, count: todayBills.filter(b => b.paymentMethod === 'MOMO').length, icon: <Phone size={20} />, color: '#8b5cf6' },
+                    { name: 'Chuyển khoản', value: bankingRevenue, count: todayBills.filter(b => b.paymentMethod === 'BANKING').length, icon: <Building2 size={20} />, color: '#3b82f6' }
                 ];
 
                 setPaymentMethods(methods);
@@ -318,10 +323,19 @@ const Dashboard = () => {
 
     const getPaymentMethodIcon = (method) => {
         switch (method) {
-            case 'CASH': return '💵';
-            case 'MOMO': return '📱';
-            case 'BANKING': return '🏦';
-            default: return '💰';
+            case 'CASH': return <DollarSign size={14} />;
+            case 'MOMO': return <Phone size={14} />;
+            case 'BANKING': return <Building2 size={14} />;
+            default: return <CreditCard size={14} />;
+        }
+    };
+
+    const getPaymentMethodName = (method) => {
+        switch (method) {
+            case 'CASH': return 'Tiền mặt';
+            case 'MOMO': return 'MoMo';
+            case 'BANKING': return 'Chuyển khoản';
+            default: return method || '--';
         }
     };
 
@@ -361,7 +375,7 @@ const Dashboard = () => {
             {/* Stats Cards */}
             <div className={styles.statsGrid}>
                 <div className={styles.statCard}>
-                    <div className={styles.statIcon}>💰</div>
+                    <div className={styles.statIcon}><DollarSign size={24} /></div>
                     <div className={styles.statInfo}>
                         <div className={styles.statTitle}>Doanh thu hôm nay</div>
                         <div className={styles.statValue}>{formatCurrency(stats.todayRevenue)}</div>
@@ -369,7 +383,7 @@ const Dashboard = () => {
                     </div>
                 </div>
                 <div className={styles.statCard}>
-                    <div className={styles.statIcon}>🧾</div>
+                    <div className={styles.statIcon}><Receipt size={24} /></div>
                     <div className={styles.statInfo}>
                         <div className={styles.statTitle}>Đơn chờ thanh toán</div>
                         <div className={styles.statValue}>{stats.pendingOrders}</div>
@@ -377,7 +391,7 @@ const Dashboard = () => {
                     </div>
                 </div>
                 <div className={styles.statCard}>
-                    <div className={styles.statIcon}>💵</div>
+                    <div className={styles.statIcon}><DollarSign size={24} /></div>
                     <div className={styles.statInfo}>
                         <div className={styles.statTitle}>Tiền mặt</div>
                         <div className={styles.statValue}>{formatCurrency(stats.cashRevenue)}</div>
@@ -385,7 +399,7 @@ const Dashboard = () => {
                     </div>
                 </div>
                 <div className={styles.statCard}>
-                    <div className={styles.statIcon}>📱</div>
+                    <div className={styles.statIcon}><CreditCard size={24} /></div>
                     <div className={styles.statInfo}>
                         <div className={styles.statTitle}>Chuyển khoản</div>
                         <div className={styles.statValue}>{formatCurrency(stats.momoRevenue + stats.bankingRevenue)}</div>
@@ -396,11 +410,11 @@ const Dashboard = () => {
 
             {/* Payment Methods Breakdown */}
             <div className={styles.paymentMethodsCard}>
-                <h3>💳 Phương thức thanh toán</h3>
+                <h3><CreditCard size={18} /> Phương thức thanh toán</h3>
                 <div className={styles.methodsGrid}>
                     {paymentMethods.map((method, index) => (
                         <div key={index} className={styles.methodItem}>
-                            <div className={styles.methodIcon}>{method.icon}</div>
+                            <div className={styles.methodIcon} style={{ color: method.color }}>{method.icon}</div>
                             <div className={styles.methodInfo}>
                                 <div className={styles.methodName}>{method.name}</div>
                                 <div className={styles.methodValue}>{formatCurrency(method.value)}</div>
@@ -419,47 +433,47 @@ const Dashboard = () => {
                 <>
                     <div className={styles.shiftInfoCard}>
                         <div className={styles.shiftInfoHeader}>
-                            <h3>📊 Ca làm việc hiện tại</h3>
+                            <h3><History size={18} /> Ca làm việc hiện tại</h3>
                             <div className={styles.actionButtons}>
                                 <button onClick={() => { setCashAction('withdraw'); setShowCashModal(true); }} className={styles.withdrawBtn}>
-                                    <Minus size={14} /> Rút tiền
+                                    <ArrowUpCircle size={14} /> Rút tiền
                                 </button>
                                 <button onClick={() => { setCashAction('deposit'); setShowCashModal(true); }} className={styles.depositBtn}>
-                                    <Plus size={14} /> Nộp tiền
+                                    <ArrowDownCircle size={14} /> Nộp tiền
                                 </button>
                             </div>
                         </div>
                         <div className={styles.shiftInfoGrid}>
                             <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>🕐 Bắt đầu:</span>
+                                <span className={styles.infoLabel}><Clock size={14} /> Bắt đầu:</span>
                                 <span className={styles.infoValue}>{formatDateTime(currentShift?.startTime)}</span>
                             </div>
                             <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>👤 Thu ngân:</span>
+                                <span className={styles.infoLabel}><Users size={14} /> Thu ngân:</span>
                                 <span className={styles.infoValue}>{user?.fullName || "---"}</span>
                             </div>
                             <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>💰 Quỹ đầu ca:</span>
+                                <span className={styles.infoLabel}><Wallet size={14} /> Quỹ đầu ca:</span>
                                 <span className={styles.infoValue}>{formatCurrency(currentShift?.floatAmount)}</span>
                             </div>
                             <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>📈 Doanh thu:</span>
+                                <span className={styles.infoLabel}><TrendingUp size={14} /> Doanh thu:</span>
                                 <span className={styles.infoValue}>{formatCurrency(currentShift?.revenue)}</span>
                             </div>
                             <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>💵 Tiền mặt:</span>
+                                <span className={styles.infoLabel}><DollarSign size={14} /> Tiền mặt:</span>
                                 <span className={styles.infoValue}>{formatCurrency(currentShift?.currentCash)}</span>
                             </div>
                             <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>🆔 Mã ca:</span>
+                                <span className={styles.infoLabel}><FileText size={14} /> Mã ca:</span>
                                 <span className={styles.infoValue}>#{currentShift?.id}</span>
                             </div>
                             <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>📊 Số đơn:</span>
+                                <span className={styles.infoLabel}><Receipt size={14} /> Số đơn:</span>
                                 <span className={styles.infoValue}>{currentShift?.orderCount || 0} đơn</span>
                             </div>
                             <div className={styles.infoItem}>
-                                <span className={styles.infoLabel}>🔄 Rút/Nộp:</span>
+                                <span className={styles.infoLabel}><History size={14} /> Rút/Nộp:</span>
                                 <span className={styles.infoValue}>{formatCurrency(currentShift?.totalCashFlow || 0)}</span>
                             </div>
                         </div>
@@ -467,7 +481,7 @@ const Dashboard = () => {
 
                     {/* Hourly Revenue Chart */}
                     <div className={styles.hourlyRevenueCard}>
-                        <h3>📈 Doanh thu theo giờ</h3>
+                        <h3><BarChart3 size={18} /> Doanh thu theo giờ</h3>
                         <div className={styles.chartContainer}>
                             {hourlyRevenue.map((data) => (
                                 <div key={data.hour} className={styles.chartBar}>
@@ -488,7 +502,7 @@ const Dashboard = () => {
                     {/* Cash Transactions */}
                     {cashTransactions.length > 0 && (
                         <div className={styles.transactionsCard}>
-                            <h3>📋 Lịch sử giao dịch tiền mặt</h3>
+                            <h3><History size={18} /> Lịch sử giao dịch tiền mặt</h3>
                             <div className={styles.transactionsList}>
                                 <table className={styles.transactionsTable}>
                                     <thead>
@@ -504,7 +518,8 @@ const Dashboard = () => {
                                             <tr key={index}>
                                                 <td>
                                                     <span className={tx.type === 'withdraw' ? styles.withdrawText : styles.depositText}>
-                                                        {tx.type === 'withdraw' ? '📤 Rút tiền' : '📥 Nộp tiền'}
+                                                        {tx.type === 'withdraw' ? <ArrowUpCircle size={12} /> : <ArrowDownCircle size={12} />}
+                                                        {tx.type === 'withdraw' ? ' Rút tiền' : ' Nộp tiền'}
                                                     </span>
                                                 </td>
                                                 <td>{formatDateTime(tx.createdAt)}</td>
@@ -522,7 +537,7 @@ const Dashboard = () => {
 
                     {/* Recent Orders */}
                     <div className={styles.recentOrdersCard}>
-                        <h3>🔄 Đơn hàng gần đây</h3>
+                        <h3><Receipt size={18} /> Đơn hàng gần đây</h3>
                         <div className={styles.tableWrapper}>
                             <table className={styles.ordersTable}>
                                 <thead>
@@ -545,12 +560,13 @@ const Dashboard = () => {
                                             <td className={styles.orderAmount}>{formatCurrency(order.totalAmount)}</td>
                                             <td>
                                                 <span className={styles.paymentMethod}>
-                                                    {getPaymentMethodIcon(order.paymentMethod)} {order.paymentMethod || '--'}
+                                                    {getPaymentMethodIcon(order.paymentMethod)} {getPaymentMethodName(order.paymentMethod)}
                                                 </span>
                                             </td>
                                             <td>
                                                 <span className={order.paymentStatus === 'paid' ? styles.paidBadge : styles.unpaidBadge}>
-                                                    {order.paymentStatus === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                                                    {order.paymentStatus === 'paid' ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                                                    {order.paymentStatus === 'paid' ? ' Đã thanh toán' : ' Chưa thanh toán'}
                                                 </span>
                                             </td>
                                             <td>
@@ -566,7 +582,7 @@ const Dashboard = () => {
                     </div>
                 </>
             ) : (
-                /* No Shift State - Chỉ hiển thị thông báo, không có nút bắt đầu ca nữa */
+                /* No Shift State */
                 <div className={styles.noShiftCard}>
                     <div className={styles.noShiftContent}>
                         <AlertCircle size={64} color="#9ca3af" />
@@ -580,9 +596,9 @@ const Dashboard = () => {
             {showStartShiftModal && (
                 <div className={styles.modalOverlay} onClick={() => setShowStartShiftModal(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                        <h3>🚀 Bắt đầu ca làm việc</h3>
+                        <h3><Play size={18} /> Bắt đầu ca làm việc</h3>
                         <div className={styles.modalContent}>
-                            <label>💰 Nhập quỹ đầu ca <span className={styles.required}>*</span></label>
+                            <label><Wallet size={14} /> Nhập quỹ đầu ca <span className={styles.required}>*</span></label>
                             <input
                                 type="number"
                                 placeholder="Ví dụ: 2000000"
@@ -610,35 +626,35 @@ const Dashboard = () => {
             {showEndShiftModal && currentShift && (
                 <div className={styles.modalOverlay} onClick={() => setShowEndShiftModal(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                        <h3>🏁 Kết thúc ca làm việc</h3>
+                        <h3><StopCircle size={18} /> Kết thúc ca làm việc</h3>
                         <div className={styles.endShiftSummary}>
                             <div className={styles.summaryRow}>
-                                <span>💰 Quỹ đầu ca:</span>
+                                <span><Wallet size={14} /> Quỹ đầu ca:</span>
                                 <strong>{formatCurrency(currentShift?.floatAmount)}</strong>
                             </div>
                             <div className={styles.summaryRow}>
-                                <span>📈 Doanh thu:</span>
+                                <span><TrendingUp size={14} /> Doanh thu:</span>
                                 <strong>{formatCurrency(currentShift?.revenue)}</strong>
                             </div>
                             <div className={styles.summaryRow}>
-                                <span>📊 Số đơn:</span>
+                                <span><Receipt size={14} /> Số đơn:</span>
                                 <strong>{currentShift?.orderCount || 0} đơn</strong>
                             </div>
                             <div className={styles.summaryRow}>
-                                <span>🔄 Tổng rút/nộp:</span>
+                                <span><History size={14} /> Tổng rút/nộp:</span>
                                 <strong>{formatCurrency(currentShift?.totalCashFlow || 0)}</strong>
                             </div>
                             <div className={styles.summaryRow}>
-                                <span>💳 Thanh toán khác:</span>
+                                <span><CreditCard size={14} /> Thanh toán khác:</span>
                                 <strong>{formatCurrency((currentShift?.revenue || 0) - (currentShift?.cashRevenue || 0))}</strong>
                             </div>
                             <div className={styles.divider}></div>
                             <div className={styles.summaryRow}>
-                                <span>💰 Tiền mặt hiện tại:</span>
+                                <span><DollarSign size={14} /> Tiền mặt hiện tại:</span>
                                 <strong className={styles.cashHighlight}>{formatCurrency(currentShift?.currentCash)}</strong>
                             </div>
                             <div className={styles.summaryRow}>
-                                <span>📌 Tổng tiền phải nộp:</span>
+                                <span><TrendingUp size={14} /> Tổng tiền phải nộp:</span>
                                 <strong className={styles.totalHighlight}>
                                     {formatCurrency((currentShift?.currentCash || 0) - (currentShift?.floatAmount || 0))}
                                 </strong>
@@ -658,9 +674,11 @@ const Dashboard = () => {
             {showCashModal && (
                 <div className={styles.modalOverlay} onClick={() => setShowCashModal(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                        <h3>{cashAction === 'withdraw' ? '📤 Rút tiền từ quỹ' : '📥 Nộp tiền vào quỹ'}</h3>
+                        <h3>{cashAction === 'withdraw' ? <ArrowUpCircle size={18} /> : <ArrowDownCircle size={18} />}
+                            {cashAction === 'withdraw' ? ' Rút tiền từ quỹ' : ' Nộp tiền vào quỹ'}
+                        </h3>
                         <div className={styles.modalContent}>
-                            <label>💰 Số tiền <span className={styles.required}>*</span></label>
+                            <label><DollarSign size={14} /> Số tiền <span className={styles.required}>*</span></label>
                             <input
                                 type="number"
                                 placeholder="Nhập số tiền"
@@ -669,7 +687,7 @@ const Dashboard = () => {
                                 className={styles.modalInput}
                                 autoFocus
                             />
-                            <label>📝 Lý do</label>
+                            <label><FileText size={14} /> Lý do</label>
                             <input
                                 type="text"
                                 placeholder="Nhập lý do (không bắt buộc)"

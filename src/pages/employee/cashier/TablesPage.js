@@ -218,9 +218,6 @@ const TablesPage = () => {
             <div className={styles.header}>
                 <div>
                     <h2 className={styles.headerTitle}>Quản lý bàn & phòng</h2>
-                    <p className={styles.headerSubtitle}>
-                        Nhấp vào bàn/phòng để xem chi tiết hoặc thêm món
-                    </p>
                 </div>
             </div>
 
