@@ -215,6 +215,8 @@ export default function InventoryManagement() {
     const [exportDetail, setExportDetail] = useState(null);
     const [historyTab, setHistoryTab] = useState('export'); // 'export' | 'import'
 
+    const [deletingWh, setDeletingWh] = useState(null);
+
     const fetchRequests = useCallback(async () => {
         const r = await apiFetch('/api/inventory-requests');
         if (!r.ok) return;
@@ -227,6 +229,18 @@ export default function InventoryManagement() {
         }));
         setRequestItems(map);
     }, []);
+
+    const deleteWarehouse = async (id) => {
+        const r = await apiFetch(`/api/warehouses/${id}`, { method: 'DELETE' });
+        if (r.ok) {
+            addToast({ type: 'success', title: 'Đã xóa kho', message: '' });
+            fetchWarehouses();
+        } else {
+            const msg = await r.text();
+            addToast({ type: 'error', title: 'Xóa thất bại', message: msg });
+        }
+        setDeletingWh(null);
+    };
 
     const fetchExportHistory = useCallback(async () => {
         const r = await apiFetch('/api/warehouse-exports');
@@ -455,11 +469,23 @@ export default function InventoryManagement() {
                                 border: '1px solid var(--color-border)', borderRadius: 10, padding: 12
                             }}>
                                 {warehouses.map(w => (
-                                    <div key={w.id} className="branch-button" style={{ cursor: 'default' }}>
-                                        <Warehouse size={18} color="#667eea" />
-                                        <div>
-                                            <div style={{ color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: 14 }}>{w.name}</div>
+                                    <div key={w.id} className="branch-button" style={{ cursor: 'default', justifyContent: 'space-between' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <Warehouse size={18} color="#667eea" />
+                                            <div style={{ color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: 14 }}>
+                                                {w.name}
+                                            </div>
                                         </div>
+                                        <button
+                                            onClick={() => setDeletingWh(w)}
+                                            style={{
+                                                background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                                                borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: '#ef4444',
+                                                display: 'flex', alignItems: 'center', gap: 4, fontSize: 12
+                                            }}
+                                        >
+                                            <X size={12} /> Xóa
+                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -977,21 +1003,26 @@ export default function InventoryManagement() {
                                         <span className="modal-timeline-item-value">{exportDetail.export?.branch?.name || '—'}</span>
                                     </div>
                                     <div className="modal-timeline-divider" />
-                                    {(selectedReq.status === 'RECEIVED' || selectedReq.status === 'APPROVED') && selectedReq.approvedBy && (
-                                        <>
-                                            <div className="modal-timeline-divider" />
-                                            <div className="modal-timeline-item">
-                                                <span className="modal-timeline-item-label"><CheckCircle size={13} /> Người duyệt</span>
-                                                <span className="modal-timeline-item-value">{selectedReq.approvedBy?.fullName}</span>
-                                            </div>
-                                        </>
-                                    )}
-                                    {selectedReq.status === 'RECEIVED' && selectedReq.receivedBy && (
+                                    {(exportDetail.export?.status === 'RECEIVED' || exportDetail.export?.status === 'APPROVED')
+                                        && exportDetail.export?.approvedBy && (
+                                            <>
+                                                <div className="modal-timeline-divider" />
+                                                <div className="modal-timeline-item">
+                                                    <span className="modal-timeline-item-label"><CheckCircle size={13} /> Người duyệt</span>
+                                                    <span className="modal-timeline-item-value">
+                                                        {exportDetail.export?.approvedBy?.fullName}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        )}
+                                    {exportDetail.export?.status === 'RECEIVED' && exportDetail.export?.receivedBy && (
                                         <>
                                             <div className="modal-timeline-divider" />
                                             <div className="modal-timeline-item">
                                                 <span className="modal-timeline-item-label"><Check size={13} /> Người nhận hàng</span>
-                                                <span className="modal-timeline-item-value">{selectedReq.receivedBy?.fullName}</span>
+                                                <span className="modal-timeline-item-value">
+                                                    {exportDetail.export?.receivedBy?.fullName}
+                                                </span>
                                             </div>
                                         </>
                                     )}
@@ -1086,6 +1117,45 @@ export default function InventoryManagement() {
                                     }}
                                 >
                                     <XCircle size={15} /> Xác nhận từ chối
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {deletingWh && (
+                <div className="modal-overlay" onClick={() => setDeletingWh(null)}>
+                    <div className="modal-content" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">Xác nhận xóa kho</h2>
+                            <button className="modal-close" onClick={() => setDeletingWh(null)}>
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 20 }}>
+                                Bạn có chắc muốn xóa kho <strong>"{deletingWh.name}"</strong>?
+                                <br />
+                                <span style={{ color: '#ef4444', fontSize: 13 }}>
+                                    Kho phải không còn hàng tồn mới xóa được.
+                                </span>
+                            </p>
+                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'stretch' }}>
+                                <button
+                                    style={{ width: 'auto', padding: '10px 20px', borderRadius: 8 }}
+                                    onClick={() => setDeletingWh(null)}
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    style={{
+                                        padding: '10px 20px', border: 'none', borderRadius: 8,
+                                        background: '#ef4444', color: '#fff', cursor: 'pointer',
+                                        fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6
+                                    }}
+                                    onClick={() => deleteWarehouse(deletingWh.id)}
+                                >
+                                    <X size={15} /> Xác nhận xóa
                                 </button>
                             </div>
                         </div>

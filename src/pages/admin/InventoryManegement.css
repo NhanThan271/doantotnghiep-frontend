@@ -114,6 +114,19 @@
     gap: 16px;
 }
 
+.stat-card.received {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%) !important;
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.stat-icon.received {
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.stat-number.received {
+    color: #6366f1;
+}
+
 .stat-icon {
     width: 40px;
     height: 40px;

@@ -1725,6 +1725,19 @@ tbody tr:hover {
     background: #991b1b;
     border-color: #ef4444;
 }
+.buttonDangerFull {
+    background: #7f1d1d;
+    color: #f87171;
+    border: 1px solid #dc2626;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 600;
+}
+.buttonDangerFull:hover {
+    background: #991b1b;
+    border-color: #ef4444;
+}
 
 /* Modal Styles */
 .modalOverlay {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Package, DollarSign, Hash, FolderOpen } from 'lucide-react';
+import { X, Upload, Package, DollarSign, FolderOpen } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
-export default function EditProductForm({ product, closeForm, onSave, refreshCallback }) {
+export default function EditProductForm({ product, closeForm, onSave, refreshCallback, existingProducts = [] }) {
     const [formData, setFormData] = useState({
         name: '',
         price: '',
@@ -60,11 +61,13 @@ export default function EditProductForm({ product, closeForm, onSave, refreshCal
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
                 setError('Kích thước ảnh không được vượt quá 5MB');
+                showToast('warning', 'Ảnh quá lớn', 'Kích thước ảnh không được vượt quá 5MB');
                 return;
             }
 
             if (!file.type.startsWith('image/')) {
                 setError('Vui lòng chọn file ảnh');
+                showToast('warning', 'File không hợp lệ', 'Vui lòng chọn đúng định dạng ảnh (PNG, JPG)');
                 return;
             }
 
@@ -81,10 +84,19 @@ export default function EditProductForm({ product, closeForm, onSave, refreshCal
     const validateForm = () => {
         if (!formData.name.trim()) {
             setError('Vui lòng nhập tên sản phẩm');
+            showToast('warning', 'Thiếu tên sản phẩm', 'Vui lòng nhập tên sản phẩm trước khi lưu');
             return false;
         }
+
+        if (!formData.categoryId) {
+            setError('Vui lòng chọn danh mục');
+            showToast('warning', 'Thiếu danh mục', 'Vui lòng chọn danh mục cho sản phẩm');
+            return false;
+        }
+
         if (!formData.price || formData.price <= 0) {
             setError('Vui lòng nhập giá sản phẩm hợp lệ');
+            showToast('warning', 'Giá sản phẩm không hợp lệ', 'Vui lòng nhập giá sản phẩm lớn hơn 0');
             return false;
         }
         return true;
@@ -127,11 +139,11 @@ export default function EditProductForm({ product, closeForm, onSave, refreshCal
             }
 
             const updatedProduct = await response.json();
-            console.log('✅ Cập nhật sản phẩm thành công:', updatedProduct);
+            console.log('Cập nhật sản phẩm thành công:', updatedProduct);
 
-            alert('Cập nhật sản phẩm thành công!');
+            showToast('success', 'Cập nhật thành công!', `Sản phẩm <b>${formData.name.trim()}</b> đã được cập nhật.`);
 
-            // ✅ GỌI CALLBACK ĐỂ REFRESH DANH SÁCH
+            // GỌI CALLBACK ĐỂ REFRESH DANH SÁCH
             if (refreshCallback && typeof refreshCallback === 'function') {
                 console.log('🔄 Đang refresh danh sách sản phẩm...');
                 refreshCallback();
@@ -144,8 +156,9 @@ export default function EditProductForm({ product, closeForm, onSave, refreshCal
 
             closeForm();
         } catch (err) {
-            console.error('❌ Lỗi khi cập nhật sản phẩm:', err);
+            console.error(' Lỗi khi cập nhật sản phẩm:', err);
             setError(err.message || 'Không thể cập nhật sản phẩm. Vui lòng thử lại!');
+            showToast('error', 'Cập nhật thất bại', err.message || 'Không thể cập nhật sản phẩm. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -490,7 +503,8 @@ export default function EditProductForm({ product, closeForm, onSave, refreshCal
                                     value={formData.price}
                                     onChange={(e) => handleChange('price', e.target.value)}
                                     min="0"
-                                    step="1000"
+                                    step="1"
+                                    onInvalid={(e) => e.preventDefault()}
                                     style={{
                                         paddingLeft: '44px'
                                     }}

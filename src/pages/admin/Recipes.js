@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Edit2, Search, ChefHat, Trash2, Plus, ChevronDown, ChevronUp, TrendingUp, AlertCircle, FlaskConical } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import { showToast } from '../../hooks/useToast';
 
 export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
     const [recipes, setRecipes] = useState([]);
@@ -57,12 +58,12 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                     })
                 )
             );
-            alert('Xóa công thức thành công!');
+            showToast('success', 'Đã xóa!', 'Công thức đã được xóa thành công.')
             fetchRecipes();
             setExpandedFoodId(null);
         } catch (err) {
             console.error('Lỗi xóa:', err);
-            alert('Xóa thất bại, vui lòng thử lại.');
+            showToast('error', 'Xóa thất bại', 'Vui lòng thử lại.');
         }
     };
 
@@ -79,6 +80,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
         }
         groupedRecipes[foodId].ingredients.push({
             id: r.id,
+            ingredientId: r.ingredient?.id,
             name: r.ingredient?.name,
             quantity: r.quantityRequired,
             unit: r.ingredient?.unit
@@ -401,7 +403,22 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <div style={{ display: 'flex', gap: '8px' }} onClick={e => e.stopPropagation()}>
                                             <button
-                                                onClick={() => openEdit('Recipe', group, fetchRecipes)}
+                                                onClick={() => {
+                                                    const recipeData = {
+                                                        foodId: group.food.id,
+                                                        foodName: group.food.name,
+                                                        recipes: group.ingredients.map(ing => ({
+                                                            id: ing.id,
+                                                            ingredient: {
+                                                                id: ing.ingredientId,
+                                                                name: ing.name,
+                                                                unit: ing.unit,
+                                                            },
+                                                            quantityRequired: ing.quantity,
+                                                        }))
+                                                    };
+                                                    openEdit('Recipe', recipeData, fetchRecipes);
+                                                }}
                                                 style={{
                                                     padding: '8px 16px',
                                                     background: 'rgba(59, 130, 246, 0.15)',

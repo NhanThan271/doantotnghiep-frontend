@@ -42,6 +42,7 @@ import HeroLanding from "./pages/client/HeroLanding";
 import Home from "./layouts/Home";
 import TuyenDung from './pages/client/TuyenDung';
 import ShiftRegistration from './pages/client/ShiftRegistration';
+import '@tabler/icons-webfont/dist/tabler-icons.min.css';
 
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (

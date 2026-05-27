@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChefHat, Package, Beaker, Hash, Plus, Trash2 } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function AddRecipeForm({ closeForm, onSave }) {
     const [productId, setProductId] = useState('');
@@ -68,25 +69,34 @@ export default function AddRecipeForm({ closeForm, onSave }) {
 
     const validateForm = () => {
         if (!productId) {
-            setError('Vui lòng chọn sản phẩm');
+            const msg = 'Vui lòng chọn sản phẩm';
+            setError(msg);
+            showToast('warning', 'Thiếu thông tin', msg);
             return false;
         }
         for (let i = 0; i < ingredientItems.length; i++) {
             const item = ingredientItems[i];
             if (!item.ingredientId) {
-                setError(`Vui lòng chọn nguyên liệu cho dòng ${i + 1}`);
+                const msg = `Vui lòng chọn nguyên liệu cho dòng ${i + 1}`;
+                setError(msg);
+                showToast('warning', 'Thiếu thông tin', msg);
                 return false;
             }
             if (!item.quantityRequired || parseFloat(item.quantityRequired) <= 0) {
-                setError(`Vui lòng nhập định lượng hợp lệ cho dòng ${i + 1}`);
+                const msg = `Vui lòng nhập định lượng hợp lệ cho dòng ${i + 1}`;
+                setError(msg);
+                showToast('warning', 'Định lượng không hợp lệ', msg);
                 return false;
             }
         }
         // Kiểm tra trùng nguyên liệu
         const ids = ingredientItems.map(i => i.ingredientId);
-        const hasDupe = ids.some((id, idx) => ids.indexOf(id) !== idx);
-        if (hasDupe) {
-            setError('Có nguyên liệu bị trùng lặp, vui lòng kiểm tra lại');
+        const dupeIndex = ids.findIndex((id, idx) => ids.indexOf(id) !== idx);
+        if (dupeIndex !== -1) {
+            const dupeName = ingredients.find(ing => ing.id === parseInt(ids[dupeIndex]))?.name || 'Không rõ';
+            const msg = `Nguyên liệu <b>${dupeName}</b> bị trùng lặp, vui lòng kiểm tra lại`;
+            setError(`Nguyên liệu "${dupeName}" bị trùng lặp`);
+            showToast('error', 'Trùng nguyên liệu!', msg, 4500);
             return false;
         }
         return true;
@@ -127,14 +137,15 @@ export default function AddRecipeForm({ closeForm, onSave }) {
             const newRecipes = await response.json();
             console.log('OK:', newRecipes);
 
-            alert('Thêm công thức thành công!');
+            showToast('success', 'Thêm thành công!', 'Công thức đã được thêm thành công.');
             if (onSave) onSave(newRecipes);
 
             closeForm();
 
         } catch (err) {
             console.error(err);
-            setError(err.message);
+            setError(err.message || 'Đã có lỗi xảy ra, vui lòng thử lại.');
+            showToast('error', 'Thêm thất bại', err.message || 'Đã có lỗi xảy ra, vui lòng thử lại.');
         } finally {
             setLoading(false);
         }
