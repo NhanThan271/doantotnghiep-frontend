@@ -40,8 +40,8 @@ import PaymentQR from "./pages/employee/waiter/PaymentQR";
 import KitchenMonitor from "./pages/employee/waiter/KitchenMonitor";
 import HeroLanding from "./pages/client/HeroLanding";
 import Home from "./layouts/Home";
-
-import ShiftRegistration from './pages/employee/ShiftRegistration';
+import TuyenDung from './pages/client/TuyenDung';
+import ShiftRegistration from './pages/client/ShiftRegistration';
 
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (
@@ -72,9 +72,6 @@ function App() {
         <Route path="/payment-success" element={<ClientPaymentSuccess />} />
         <Route path="/payment-cancel" element={<ClientPaymentCancel />} />
 
-        {/* Layout riêng cho nhan vien*/}
-        <Route path="/employee/shift-registration" element={<ShiftRegistration />} />
-
         {/* Cashier routes - Thêm trực tiếp */}
         <Route path="/cashier" element={<CashierLayout />}>
           <Route index element={<Dashboard />} />
@@ -101,7 +98,7 @@ function App() {
         <Route path="/waiter" element={<WaiterLayout />}>
           <Route path="orders" element={<Orders />} />
           <Route path="payment-requests" element={<PaymentRequest />} />
-          <Route path="/waiter/kitchen" element={<KitchenMonitor />} />
+          <Route path="kitchen" element={<KitchenMonitor />} />
         </Route>
         <Route path="/waiter/payment-requests/:id" element={<PaymentQR />} />
 
@@ -118,6 +115,10 @@ function App() {
         <Route path="/thuc-don" element={<PublicLayout><Menu /></PublicLayout>} />
         <Route path="/dat-ban-chi-tiet" element={<PublicLayout><BookingDetail /></PublicLayout>} />
         <Route path="/dat-ban-dia-chi" element={<PublicLayout><RestaurantLocation /></PublicLayout>} />
+        <Route path="/tuyen-dung" element={<PublicLayout><TuyenDung /></PublicLayout>} />
+
+        {/* Đăng ký ca làm (dành cho nhân viên) */}
+        <Route path="/shift-registration" element={<ShiftRegistration />} />
       </Routes>
     </>
   );

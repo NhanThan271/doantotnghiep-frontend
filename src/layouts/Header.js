@@ -70,6 +70,7 @@ const Header = () => {
         { label: 'Trang chủ', path: '/home' },
         { label: 'Thực Đơn', path: '/thuc-don' },
         { label: 'Chương Trình', path: '/uu-dai' },
+        { label: 'Tuyển dụng', path: '/tuyen-dung' },
         { label: 'Đặt bàn', path: '/dat-ban-dia-chi' },
     ];
 
@@ -127,14 +128,6 @@ const Header = () => {
 
                     {/* Phải: đặt bàn + đăng nhập */}
                     <div className="noir-header__top-right">
-
-                        {/* ✅ Nút ĐẶT BÀN — dùng handleDatBan */}
-                        <button
-                            className="noir-btn-datban"
-                            onClick={handleDatBan}
-                        >
-                            ĐẶT BÀN
-                        </button>
 
                         {user && isCustomer ? (
                             <div className="noir-user" ref={dropdownRef}>

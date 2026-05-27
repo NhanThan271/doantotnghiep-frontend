@@ -17,7 +17,7 @@ import {
     Bell
 } from "lucide-react";
 import axios from "axios";
-import "./ShiftRegistration.css";
+
 
 const ShiftRegistration = () => {
     const navigate = useNavigate();
