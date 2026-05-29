@@ -338,7 +338,7 @@ const ChefDashboard = () => {
                         groupedMap.set(groupKey, {
                             key: groupKey,
                             name: foodName,
-                            foodId: item.food?.id,  // 🆕 LƯU FOOD ID
+                            foodId: item.food?.id,
                             status: status,
                             totalQuantity: item.quantity || 1,
                             tables: [displayLocation],
@@ -355,14 +355,15 @@ const ChefDashboard = () => {
             let groupedItems = Array.from(groupedMap.values()).map(group => ({
                 id: group.key,
                 name: group.name,
-                foodId: group.foodId,              // 🆕 THIẾU DÒNG NÀY
+                foodId: group.foodId,
                 quantity: group.totalQuantity,
                 status: group.status,
                 tables: group.tables,
                 displayLocations: group.tables.join(', '),
-                createdAt: group.displayTime,
+                createdAt: group.earliestTime,        // 👈 Dùng earliestTime để hiển thị thời gian chờ lâu nhất
                 earliestTime: group.earliestTime,
                 latestItemTime: group.latestItemTime,
+                displayTime: group.displayTime,
                 originalIds: group.originalIds,
                 notes: group.notes,
                 tableCount: group.tables.length,
@@ -545,7 +546,6 @@ const ChefDashboard = () => {
         try {
             // ========== TRỪ NGUYÊN LIỆU KHI BẮT ĐẦU NẤU ==========
             if (status === 'PREPARING' && branchId) {
-                // 🔥 LẤY FOOD ID TRỰC TIẾP TỪ ITEM GROUP
                 const foodId = itemGroup.foodId;
 
                 if (foodId) {
@@ -782,7 +782,7 @@ const ChefDashboard = () => {
                                         {overdue && <span className={styles.overdueBadge}>Quá hạn!</span>}
                                         {hasMultipleTimes && (
                                             <span className={styles.newItemBadge}>
-                                                🆕 Có món mới
+                                                🆕 Món mới thêm
                                             </span>
                                         )}
                                     </div>
@@ -790,7 +790,7 @@ const ChefDashboard = () => {
                                         <Clock size={12} />
                                         <span>{getElapsedTime(item.createdAt)}</span>
                                         {hasMultipleTimes && (
-                                            <span className={styles.newTimeLabel}>(món mới nhất)</span>
+                                            <span className={styles.newTimeLabel}>(mới nhất: {getElapsedTime(item.displayTime)})</span>
                                         )}
                                     </div>
                                 </div>

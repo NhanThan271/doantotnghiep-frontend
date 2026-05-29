@@ -91,7 +91,7 @@ const TableDetail = () => {
                 if (isRoom) {
                     return o.room?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED";
                 }
-                return o.table?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED";
+                return o.table?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED" && o.status !== "COMPLETED";
             });
 
             if (existingOrder) {
