@@ -158,6 +158,125 @@ const ChefDashboard = () => {
         }
     };
 
+    // ========== DEDUCT INGREDIENTS FUNCTION ==========
+    const deductIngredientsForItem = async (foodId, quantity, branchId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const warnings = [];
+            let hasError = false;
+
+            // 1. Lấy công thức món ăn
+            const recipeResponse = await fetch(`${API_BASE_URL}/api/recipes/food/${foodId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!recipeResponse.ok) {
+                if (recipeResponse.status === 403) {
+                    warnings.push('⚠️ Không có quyền truy cập công thức món ăn');
+                } else {
+                    console.warn('⚠️ Không thể lấy công thức, bỏ qua trừ nguyên liệu');
+                }
+                return { success: true, warnings };
+            }
+
+            const recipes = await recipeResponse.json();
+
+            if (!recipes || recipes.length === 0) {
+                return { success: true, warnings: null };
+            }
+
+            // 2. Lấy danh sách nguyên liệu của chi nhánh
+            const ingredientsResponse = await fetch(`${API_BASE_URL}/api/branch-ingredients/branch/${branchId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!ingredientsResponse.ok) {
+                warnings.push('⚠️ Không thể kiểm tra kho nguyên liệu');
+                return { success: true, warnings };
+            }
+
+            const branchIngredients = await ingredientsResponse.json();
+
+            // 3. Trừ từng nguyên liệu
+            for (const recipe of recipes) {
+                const ingredientId = recipe.ingredient?.id;
+                const ingredientName = recipe.ingredient?.name || 'Không xác định';
+                const unit = recipe.ingredient?.unit || '';
+                const requiredPerItem = recipe.quantityRequired || 0;
+                const totalRequired = requiredPerItem * quantity;
+
+                if (totalRequired === 0) continue;
+
+                // Tìm nguyên liệu trong kho
+                const branchIngredient = branchIngredients.find(
+                    bi => bi.ingredient?.id === ingredientId
+                );
+
+                if (!branchIngredient) {
+                    warnings.push(`⚠️ Không tìm thấy "${ingredientName}" trong kho`);
+                    continue;
+                }
+
+                const currentQuantity = branchIngredient.quantity || 0;
+                const newQuantity = currentQuantity - totalRequired;
+
+                // Cảnh báo nếu không đủ nguyên liệu
+                if (newQuantity < 0) {
+                    hasError = true;
+                    warnings.push(`❌ KHÔNG ĐỦ "${ingredientName}": cần ${totalRequired}${unit}, hiện có ${currentQuantity}${unit}`);
+                    continue;
+                }
+
+                // Cảnh báo nếu sắp hết (dưới 10 đơn vị)
+                if (newQuantity < 10) {
+                    warnings.push(`⚠️ "${ingredientName}" sắp hết: còn ${newQuantity.toFixed(2)}${unit}`);
+                }
+
+                // Gọi API cập nhật số lượng
+                try {
+                    const updateResponse = await fetch(
+                        `${API_BASE_URL}/api/branch-ingredients/${branchIngredient.id}?quantity=${newQuantity}`,
+                        {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+
+                    if (!updateResponse.ok) {
+                        if (updateResponse.status === 403) {
+                            warnings.push(`⚠️ Không có quyền cập nhật "${ingredientName}"`);
+                        } else {
+                            warnings.push(`⚠️ Lỗi cập nhật "${ingredientName}"`);
+                        }
+                    } else {
+                        console.log(`✅ Đã trừ ${totalRequired}${unit} ${ingredientName} (còn ${newQuantity.toFixed(2)}${unit})`);
+                    }
+                } catch (updateError) {
+                    console.warn(`Lỗi cập nhật ${ingredientName}:`, updateError);
+                    warnings.push(`⚠️ Lỗi kết nối khi cập nhật "${ingredientName}"`);
+                }
+            }
+
+            return {
+                success: !hasError,
+                hasError,
+                warnings: warnings.length > 0 ? warnings : null
+            };
+
+        } catch (error) {
+            console.error('Lỗi trừ nguyên liệu:', error);
+            return {
+                success: false,
+                hasError: true,
+                error: error.message,
+                warnings: [`❌ Lỗi hệ thống: ${error.message}`]
+            };
+        }
+    };
+
     const fetchData = useCallback(async (silent = false) => {
         if (!branchId) return;
         if (!silent) setLoading(true);
@@ -202,13 +321,11 @@ const ChefDashboard = () => {
                         }
 
                         // QUAN TRỌNG: LUÔN LẤY THỜI GIAN MỚI NHẤT
-                        // So sánh và cập nhật nếu item mới hơn
                         if (new Date(createdAt) > new Date(existing.latestItemTime)) {
                             existing.latestItemTime = createdAt;
-                            existing.displayTime = createdAt; // Thời gian hiển thị là mới nhất
+                            existing.displayTime = createdAt;
                         }
 
-                        // Lưu lại thời gian cũ nhất nếu muốn biết món đã tồn tại bao lâu
                         if (new Date(createdAt) < new Date(existing.earliestTime)) {
                             existing.earliestTime = createdAt;
                         }
@@ -216,18 +333,18 @@ const ChefDashboard = () => {
                         // Lưu lại các ID gốc để cập nhật sau
                         existing.originalIds.push(item.id);
 
-                        // Log để debug
                         console.log(`📦 Gộp món: ${foodName} - Thời gian mới nhất: ${existing.displayTime}`);
                     } else {
                         groupedMap.set(groupKey, {
                             key: groupKey,
                             name: foodName,
+                            foodId: item.food?.id,  // 🆕 LƯU FOOD ID
                             status: status,
                             totalQuantity: item.quantity || 1,
                             tables: [displayLocation],
                             earliestTime: createdAt,
                             latestItemTime: createdAt,
-                            displayTime: createdAt, // Thời gian hiển thị
+                            displayTime: createdAt,
                             originalIds: [item.id],
                             notes: item.notes,
                         });
@@ -238,17 +355,18 @@ const ChefDashboard = () => {
             let groupedItems = Array.from(groupedMap.values()).map(group => ({
                 id: group.key,
                 name: group.name,
+                foodId: group.foodId,              // 🆕 THIẾU DÒNG NÀY
                 quantity: group.totalQuantity,
                 status: group.status,
                 tables: group.tables,
                 displayLocations: group.tables.join(', '),
-                createdAt: group.displayTime, // Dùng thời gian MỚI NHẤT để tính thời gian chờ
+                createdAt: group.displayTime,
                 earliestTime: group.earliestTime,
                 latestItemTime: group.latestItemTime,
                 originalIds: group.originalIds,
                 notes: group.notes,
                 tableCount: group.tables.length,
-                hasMultipleTimes: group.earliestTime !== group.latestItemTime // Có nhiều thời gian khác nhau
+                hasMultipleTimes: group.earliestTime !== group.latestItemTime
             }));
 
             // Sắp xếp: Ưu tiên theo status (WAITING lên đầu) và thời gian tạo
@@ -425,10 +543,52 @@ const ChefDashboard = () => {
         setItemUpdating(prev => ({ ...prev, [itemGroup.id]: true }));
 
         try {
+            // ========== TRỪ NGUYÊN LIỆU KHI BẮT ĐẦU NẤU ==========
+            if (status === 'PREPARING' && branchId) {
+                // 🔥 LẤY FOOD ID TRỰC TIẾP TỪ ITEM GROUP
+                const foodId = itemGroup.foodId;
+
+                if (foodId) {
+                    console.log(`🔍 [PREPARING] Trừ nguyên liệu: ${itemGroup.name}, FoodID=${foodId}, SL=${itemGroup.quantity}, Branch=${branchId}`);
+
+                    const deductResult = await deductIngredientsForItem(
+                        foodId,
+                        itemGroup.quantity,
+                        branchId
+                    );
+
+                    if (deductResult.warnings) {
+                        deductResult.warnings.forEach(warning => {
+                            if (warning.includes('❌')) {
+                                showToast(warning, 'error');
+                                addNotification(warning, 'error');
+                            } else {
+                                showToast(warning, 'warning');
+                            }
+                        });
+                    }
+
+                    if (deductResult.hasError) {
+                        showToast('🚫 Không đủ nguyên liệu! Vui lòng kiểm tra kho.', 'error');
+                        addNotification('🚫 Bắt đầu thất bại: Không đủ nguyên liệu cho ' + itemGroup.name, 'error');
+                        setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
+                        return;
+                    }
+
+                    console.log('✅ Trừ nguyên liệu thành công');
+                } else {
+                    console.warn('⚠️ Không có foodId trong itemGroup, bỏ qua trừ nguyên liệu');
+                    console.log('ItemGroup:', itemGroup);
+                }
+            }
+
+            // ========== CẬP NHẬT TRẠNG THÁI ==========
             for (const originalId of idsToUpdate) {
                 await kitchenAPI.updateItemStatus(originalId, status);
             }
+
             await fetchData();
+
             if (socketRef.current?.connected) {
                 socketRef.current.emit("update-order-item-status", {
                     itemId: itemGroup.id,
@@ -440,15 +600,17 @@ const ChefDashboard = () => {
                 });
                 socketRef.current.emit("update-tables");
             }
-            if (status === 'READY') {
-                const tableList = itemGroup.tables.join(', ');
-                const message = `Hoàn thành món ${itemGroup.name} - ${tableList}`;
-                showToast(message, 'success');
-                addNotification(message, 'success');
+
+            const tableList = itemGroup.tables.join(', ');
+            if (status === 'PREPARING') {
+                showToast(`🔪 Bắt đầu nấu: ${itemGroup.name} (SL: ${itemGroup.quantity}) - ${tableList}`, 'success');
+            } else if (status === 'READY') {
+                showToast(`✅ Hoàn thành: ${itemGroup.name} (SL: ${itemGroup.quantity}) - ${tableList}`, 'success');
             }
+
         } catch (err) {
             const errorMsg = err.response?.data?.message || err.response?.data || err.message;
-            showToast(`Update thất bại: ${errorMsg}`, 'error');
+            showToast(`Lỗi: ${errorMsg}`, 'error');
         } finally {
             setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
         }
@@ -602,7 +764,6 @@ const ChefDashboard = () => {
                         const isUpdatingItem = itemUpdating[item.id];
                         const hasMultipleTimes = item.hasMultipleTimes;
 
-                        // Hiển thị danh sách bàn
                         const tableDisplay = item.tableCount > 1
                             ? `${item.tables.slice(0, 3).join(', ')}${item.tableCount > 3 ? ` và ${item.tableCount - 3} bàn khác` : ''}`
                             : item.tables[0];

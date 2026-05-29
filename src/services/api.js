@@ -53,14 +53,11 @@ export const categoryAPI = {
 
 // Branch Food API
 export const branchFoodAPI = {
-    // Lấy danh sách món theo chi nhánh và category
     getByBranchAndCategory: (branchId, categoryId) => {
         return api.get(`/branch-foods/branch/${branchId}?categoryId=${categoryId}`);
     },
-
-    // Lấy danh sách món theo chi nhánh (không filter)
     getByBranch: (branchId) => {
-        return api.get(`/branch-foods/branch/${branchId}`); // SỬA: dùng api.get
+        return api.get(`/branch-foods/branch/${branchId}`);
     },
 };
 
@@ -112,10 +109,7 @@ export const tableAPI = {
 };
 
 export const branchIngredientAPI = {
-    // Lấy nguyên liệu theo chi nhánh
     getByBranch: (branchId) => api.get(`/branch-ingredients/branch/${branchId}`),
-
-    // Cập nhật số lượng
     updateQuantity: (id, quantity) => api.put(`/branch-ingredients/${id}?quantity=${quantity}`),
 };
 
@@ -126,18 +120,19 @@ export const ingredientAPI = {
     search: (keyword) => api.get(`/ingredients/search?keyword=${keyword}`),
 };
 
-// Thêm vào kitchenAPI
-// ✅ SỬA kitchenAPI cho đúng với backend
+// SỬA kitchenAPI - Gọi đúng API KitchenOrderItem
 export const kitchenAPI = {
+    // Fetch data từ KitchenOrderItem
     getQueue: () => api.get('/kitchen-order-items/active'),
 
+    // 🔥 SỬA: Gọi đúng API KitchenOrderItem (không phải kitchen/order-items)
     updateItemStatus: (id, status) => api.put(`/kitchen-order-items/${id}/status?status=${status}`),
 
     // Lấy món theo trạng thái
-    getByStatus: (status) => api.get(`/kitchen/order-items/status?status=${status}`),
+    getByStatus: (status) => api.get(`/kitchen-order-items/status?status=${status}`),
 
     // Lấy tất cả món
-    getAllItems: () => api.get('/kitchen/order-items'),
+    getAllItems: () => api.get('/kitchen-order-items'),
 
     // Kiểm tra nguyên liệu
     checkIngredients: async (branchId, foodId, quantity) => {
