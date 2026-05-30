@@ -1,4 +1,4 @@
-// OrderDetail.js - Full code with branch info
+// OrderDetail.js - Full code with branch info and socket fix
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, ShoppingCart, Users, Plus, Minus, Trash2, Printer, Tag, X, Percent, DollarSign } from "lucide-react";
@@ -125,7 +125,8 @@ const OrderDetail = () => {
                             name: product?.name || foodName || `Sản phẩm #${foodId}`,
                             price: item.price || 0,
                             quantity: item.quantity || 0,
-                            image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
+                            image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || '',
+                            kitchenStatus: item.kitchenStatus || 'WAITING'
                         };
                     }).filter(item => item.id);
                 }
@@ -165,7 +166,8 @@ const OrderDetail = () => {
                 name: product.name,
                 price: price,
                 quantity: 1,
-                image: product.imageUrl?.startsWith("http") ? product.imageUrl : `${API_BASE_URL}/${product.imageUrl}`
+                image: product.imageUrl?.startsWith("http") ? product.imageUrl : `${API_BASE_URL}/${product.imageUrl}`,
+                kitchenStatus: 'WAITING'
             }]);
         }
     };
@@ -267,7 +269,8 @@ const OrderDetail = () => {
                         name: product?.name || item.food?.name || `Sản phẩm #${foodId}`,
                         price: item.price || 0,
                         quantity: item.quantity || 0,
-                        image: product?.imageUrl || ''
+                        image: product?.imageUrl || '',
+                        kitchenStatus: item.kitchenStatus || 'WAITING'
                     };
                 });
                 setCart(updatedCart);
@@ -365,7 +368,8 @@ const OrderDetail = () => {
                         name: product?.name || item.food?.name || `Sản phẩm #${foodId}`,
                         price: item.price || 0,
                         quantity: item.quantity || 0,
-                        image: product?.imageUrl || ''
+                        image: product?.imageUrl || '',
+                        kitchenStatus: 'WAITING'
                     };
                 });
                 setCart(updatedCart);
@@ -533,7 +537,9 @@ const OrderDetail = () => {
                     <div><strong>${entityType}</strong><span>${entityType} ${entityNumber}</span></div>
                 </div>
                 <table>
-                    <thead><tr><th>Sản phẩm</th><th class="text-center">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th></tr></thead>
+                    <thead>
+                        <tr><th>Sản phẩm</th><th class="text-center">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th></tr>
+                    </thead>
                     <tbody>
                         ${cart.map(item => `
                             <tr>
@@ -570,7 +576,7 @@ const OrderDetail = () => {
 
     const existingOrderFromState = state?.existingOrder;
 
-    // FIX 1
+    // Fix 1: Update cart when products load
     useEffect(() => {
         if (products.length > 0 && cart.length > 0) {
             let hasChange = false;
@@ -588,7 +594,7 @@ const OrderDetail = () => {
         }
     }, [products]);
 
-    // FIX 2
+    // Fix 2: Fix missing IDs
     useEffect(() => {
         if (products.length > 0 && cart.length > 0) {
             let hasChange = false;
@@ -608,7 +614,7 @@ const OrderDetail = () => {
         }
     }, [products, cart]);
 
-    // FIX 3
+    // Fix 3: Merge duplicate items
     useEffect(() => {
         if (cart.length <= 1) return;
         const grouped = {};
@@ -639,7 +645,7 @@ const OrderDetail = () => {
         }
     }, []);
 
-    // FIX 4
+    // Fix 4: Initialize data
     useEffect(() => {
         const initialize = async () => {
             await fetchProducts();
@@ -668,7 +674,8 @@ const OrderDetail = () => {
                             name: product?.name || item.food?.name || `Sản phẩm #${foodId}`,
                             price: item.price || 0,
                             quantity: item.quantity || 0,
-                            image: product?.imageUrl || ''
+                            image: product?.imageUrl || '',
+                            kitchenStatus: item.kitchenStatus || 'WAITING'
                         };
                     }).filter(item => item.id);
                 }
@@ -686,6 +693,178 @@ const OrderDetail = () => {
         };
         processExistingOrder();
     }, [products, existingOrderFromState, entity]);
+
+    // ========== SOCKET LISTENERS - FIXED ==========
+    useEffect(() => {
+        // Register when connecting
+        const handleConnect = () => {
+            console.log("✅ Socket connected - OrderDetail");
+            socket.emit("register-role", {
+                role: "waiter",
+                userId: JSON.parse(localStorage.getItem('user') || '{}')?.id,
+                branchId: branchId
+            });
+        };
+
+        const handleDisconnect = () => {
+            console.log("❌ Socket disconnected - OrderDetail");
+        };
+
+        socket.on("connect", handleConnect);
+        socket.on("disconnect", handleDisconnect);
+
+        socket.on("new-order", (data) => {
+            console.log("📦 Nhận new-order:", data);
+        });
+
+        socket.on("update-order-status", (data) => {
+            console.log("🔄 Nhận update-order-status:", data);
+
+            if (data.branchId && branchId && data.branchId !== branchId) return;
+
+            if (order && order.id === data.orderId) {
+                const fetchUpdatedOrder = async () => {
+                    try {
+                        const res = await axiosClient.get(`/customer/orders/${order.id}`);
+                        setOrder(res.data);
+
+                        if (res.data.items && res.data.items.length > 0) {
+                            const updatedCart = res.data.items.map(item => {
+                                const foodId = item.foodId || item.food?.id || item.id;
+                                const product = products.find(p => p.id === foodId);
+                                return {
+                                    id: foodId,
+                                    name: product?.name || item.food?.name || `Sản phẩm #${foodId}`,
+                                    price: item.price || 0,
+                                    quantity: item.quantity || 0,
+                                    image: product?.imageUrl || '',
+                                    kitchenStatus: item.kitchenStatus || 'WAITING'
+                                };
+                            });
+                            setCart(updatedCart);
+
+                            const snapshot = {};
+                            updatedCart.forEach(item => { snapshot[item.id] = item.quantity; });
+                            confirmedCartRef.current = snapshot;
+                            setConfirmedCart(snapshot);
+                        }
+
+                        showToast(
+                            `🔔 Đơn hàng #${order.id} đã chuyển trạng thái: ${data.newStatus || data.status}`,
+                            'info',
+                            3000
+                        );
+                    } catch (err) {
+                        console.error("Lỗi fetch order:", err);
+                    }
+                };
+                fetchUpdatedOrder();
+            }
+        });
+
+        // ===== QUAN TRỌNG: LISTENER CHO update-order-item-status =====
+        socket.on("update-order-item-status", (data) => {
+            console.log("🍳🍳🍳 [OrderDetail] Nhận update-order-item-status từ bếp:", data);
+
+            // Kiểm tra branchId
+            if (data.branchId && branchId && data.branchId !== branchId) {
+                console.log("⏭ Bỏ qua - khác branchId");
+                return;
+            }
+
+            if (!order || !data.items || data.items.length === 0) {
+                console.log("⏭ Bỏ qua - không có order hoặc items");
+                return;
+            }
+
+            // Kiểm tra xem có item nào trong order hiện tại không
+            const orderItemIds = order.items?.map(item =>
+                item.foodId || item.food?.id || item.id
+            ) || [];
+
+            const hasRelevantItem = data.items.some(id =>
+                orderItemIds.includes(parseInt(id))
+            );
+
+            if (!hasRelevantItem) {
+                console.log("⏭ Bỏ qua - không có món liên quan đến order hiện tại");
+                return;
+            }
+
+            console.log("✅ Cập nhật trạng thái món trong order...");
+
+            // Cập nhật trạng thái món trong order
+            if (order.items) {
+                const updatedItems = order.items.map(item => {
+                    const foodId = item.foodId || item.food?.id || item.id;
+                    if (data.items.includes(parseInt(foodId))) {
+                        console.log(`🔄 Cập nhật món ${item.food?.name || item.name} từ ${item.kitchenStatus} → ${data.status}`);
+                        return { ...item, kitchenStatus: data.status };
+                    }
+                    return item;
+                });
+
+                setOrder(prev => prev ? { ...prev, items: updatedItems } : prev);
+
+                // Cập nhật cart để hiển thị trạng thái
+                setCart(prevCart =>
+                    prevCart.map(item => {
+                        const foodId = parseInt(item.id);
+                        if (data.items.includes(foodId)) {
+                            return { ...item, kitchenStatus: data.status };
+                        }
+                        return item;
+                    })
+                );
+            }
+
+            // Hiển thị thông báo cho phục vụ
+            let statusText, toastType;
+            switch (data.status) {
+                case 'PREPARING':
+                    statusText = '🔪 ĐANG NẤU';
+                    toastType = 'info';
+                    break;
+                case 'READY':
+                    statusText = '✅ HOÀN THÀNH';
+                    toastType = 'success';
+                    break;
+                default:
+                    statusText = `📋 ${data.status}`;
+                    toastType = 'info';
+            }
+
+            const tableInfo = data.tables?.join(', ') || '';
+
+            showToast(
+                `${statusText}: ${data.itemName} - ${tableInfo}`,
+                toastType,
+                5000
+            );
+
+            console.log(`🔔 Đã hiển thị thông báo: ${statusText} - ${data.itemName}`);
+        });
+        // ===== HẾT LISTENER QUAN TRỌNG =====
+
+        socket.on("update-tables", () => {
+            console.log("🔄 Nhận update-tables");
+        });
+
+        // If socket already connected on mount, register immediately
+        if (socket.connected) {
+            handleConnect();
+        }
+
+        // Cleanup
+        return () => {
+            socket.off("connect", handleConnect);
+            socket.off("disconnect", handleDisconnect);
+            socket.off("new-order");
+            socket.off("update-order-status");
+            socket.off("update-order-item-status");
+            socket.off("update-tables");
+        };
+    }, [order, branchId, products]); // products added to dependencies
 
     // Payment URL handler
     useEffect(() => {
@@ -726,6 +905,16 @@ const OrderDetail = () => {
     const canEdit = order && order.status !== "PAID" && order.status !== "CANCELED";
     const isNewOrder = !order;
 
+    // Hàm lấy màu và text cho kitchenStatus
+    const getKitchenStatusInfo = (status) => {
+        switch (status) {
+            case 'WAITING': return { color: '#fbbf24', text: '⏳ Chờ nấu' };
+            case 'PREPARING': return { color: '#f97316', text: '🔪 Đang nấu' };
+            case 'READY': return { color: '#10b981', text: '✅ Đã xong' };
+            default: return { color: '#9ca3af', text: '📋 ' + status };
+        }
+    };
+
     return (
         <div className={styles.container}>
             <div className={styles.header}>
@@ -745,7 +934,13 @@ const OrderDetail = () => {
             </div>
 
             <div className={styles.customerSection}>
-                <input type="text" className={styles.customerInput} placeholder="Tên khách hàng (tùy chọn)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                <input
+                    type="text"
+                    className={styles.customerInput}
+                    placeholder="Tên khách hàng (tùy chọn)"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                />
             </div>
 
             {order?.status !== "PAID" && (
@@ -783,8 +978,16 @@ const OrderDetail = () => {
                     <div className={styles.productsGrid}>
                         {loading ? <div className={styles.loading}>Đang tải...</div> : filteredProducts.map(product => (
                             <div key={product.id} className={styles.productCard} onClick={() => addToCart(product)}>
-                                <img src={product.imageUrl?.startsWith("http") ? product.imageUrl : `${API_BASE_URL}/${product.imageUrl}`} alt={product.name} className={styles.productImage} onError={(e) => { e.target.src = "/default-food.jpg"; }} />
-                                <div className={styles.productInfo}><h4>{product.name}</h4><p className={styles.productPrice}>{(product.finalPrice || product.branchPrice || product.originalPrice || 0).toLocaleString('vi-VN')}đ</p></div>
+                                <img
+                                    src={product.imageUrl?.startsWith("http") ? product.imageUrl : `${API_BASE_URL}/${product.imageUrl}`}
+                                    alt={product.name}
+                                    className={styles.productImage}
+                                    onError={(e) => { e.target.src = "/default-food.jpg"; }}
+                                />
+                                <div className={styles.productInfo}>
+                                    <h4>{product.name}</h4>
+                                    <p className={styles.productPrice}>{(product.finalPrice || product.branchPrice || product.originalPrice || 0).toLocaleString('vi-VN')}đ</p>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -801,27 +1004,75 @@ const OrderDetail = () => {
                     {cart.length === 0 ? <p className={styles.emptyCart}>Chưa có món nào</p> : (
                         <>
                             <div className={styles.cartList}>
-                                {cart.map((item, index) => (
-                                    <div key={`${item.id}_${index}`} className={styles.cartItem}>
-                                        <div className={styles.cartItemInfo}><span className={styles.cartItemName}>{item.name}</span><span className={styles.cartItemPrice}>{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span></div>
-                                        {order?.status !== "PAID" && (
-                                            <div className={styles.cartItemControls}>
-                                                <button onClick={() => updateQuantity(item.id, -1)} className={styles.qtyBtn}><Minus size={14} /></button>
-                                                <span className={styles.qty}>{item.quantity}</span>
-                                                <button onClick={() => updateQuantity(item.id, 1)} className={styles.qtyBtn}><Plus size={14} /></button>
-                                                <button onClick={() => removeFromCart(item.id)} className={styles.removeBtn}><Trash2 size={14} /></button>
+                                {cart.map((item, index) => {
+                                    const statusInfo = getKitchenStatusInfo(item.kitchenStatus || 'WAITING');
+                                    return (
+                                        <div key={`${item.id}_${index}`} className={styles.cartItem}>
+                                            <div className={styles.cartItemInfo}>
+                                                <span className={styles.cartItemName}>
+                                                    {item.name}
+                                                    {item.kitchenStatus && (
+                                                        <span style={{
+                                                            fontSize: '11px',
+                                                            marginLeft: '6px',
+                                                            color: statusInfo.color,
+                                                            fontWeight: '600'
+                                                        }}>
+                                                            {statusInfo.text}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className={styles.cartItemPrice}>{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
                                             </div>
-                                        )}
-                                    </div>
-                                ))}
+                                            {order?.status !== "PAID" && (
+                                                <div className={styles.cartItemControls}>
+                                                    <button onClick={() => updateQuantity(item.id, -1)} className={styles.qtyBtn}><Minus size={14} /></button>
+                                                    <span className={styles.qty}>{item.quantity}</span>
+                                                    <button onClick={() => updateQuantity(item.id, 1)} className={styles.qtyBtn}><Plus size={14} /></button>
+                                                    <button onClick={() => removeFromCart(item.id)} className={styles.removeBtn}><Trash2 size={14} /></button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                             <div className={styles.cartFooter}>
-                                {discount > 0 && (<><div className={styles.totalRow}><span>Tạm tính:</span><span>{originalTotal.toLocaleString('vi-VN')}đ</span></div><div className={styles.discountRow}><span>Giảm giá:</span><span>-{discount.toLocaleString('vi-VN')}đ</span></div></>)}
-                                <div className={styles.totalRow}><span>Tổng cộng:</span><span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span></div>
-                                {canEdit && cart.length > 0 && <button className={styles.updateBtn} onClick={handleUpdateOrder} disabled={isUpdating}>{isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}</button>}
-                                {isNewOrder && cart.length > 0 && <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>{isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}</button>}
-                                {canPrint && <button className={styles.printBtn} onClick={printBill}><Printer size={18} /> In hóa đơn</button>}
-                                {canPay && <button className={styles.payBtn} onClick={handlePayOSPayment} disabled={processingPayment}>{processingPayment ? "Đang xử lý..." : "Thanh toán PayOS"}</button>}
+                                {discount > 0 && (
+                                    <>
+                                        <div className={styles.totalRow}>
+                                            <span>Tạm tính:</span>
+                                            <span>{originalTotal.toLocaleString('vi-VN')}đ</span>
+                                        </div>
+                                        <div className={styles.discountRow}>
+                                            <span>Giảm giá:</span>
+                                            <span>-{discount.toLocaleString('vi-VN')}đ</span>
+                                        </div>
+                                    </>
+                                )}
+                                <div className={styles.totalRow}>
+                                    <span>Tổng cộng:</span>
+                                    <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
+                                </div>
+                                {canEdit && cart.length > 0 && (
+                                    <button className={styles.updateBtn} onClick={handleUpdateOrder} disabled={isUpdating}>
+                                        {isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}
+                                    </button>
+                                )}
+                                {isNewOrder && cart.length > 0 && (
+                                    <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>
+                                        {isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}
+                                    </button>
+                                )}
+                                {canPrint && (
+                                    <button className={styles.printBtn} onClick={printBill}>
+                                        <Printer size={18} /> In hóa đơn
+                                    </button>
+                                )}
+                                {canPay && (
+                                    <button className={styles.payBtn} onClick={handlePayOSPayment} disabled={processingPayment}>
+                                        {processingPayment ? "Đang xử lý..." : "Thanh toán PayOS"}
+                                    </button>
+                                )}
                             </div>
                         </>
                     )}
@@ -831,21 +1082,55 @@ const OrderDetail = () => {
             {showPromotionModal && (
                 <div className={styles.modalOverlay} onClick={() => setShowPromotionModal(false)}>
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-                        <div className={styles.modalHeader}><h3>Chọn mã khuyến mãi</h3><button onClick={() => setShowPromotionModal(false)} className={styles.modalClose}><X size={24} /></button></div>
-                        <div className={`${styles.promoOption} ${!selectedPromotion ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(null); setShowPromotionModal(false); }}><div>Không sử dụng mã giảm giá</div></div>
-                        {promotions.length === 0 ? <div className={styles.emptyPromo}>Không có mã khuyến mãi nào</div> : promotions.map((promo) => (
-                            <div key={promo.id} className={`${styles.promoOption} ${selectedPromotion?.id === promo.id ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(promo); setShowPromotionModal(false); showToast(`Đã áp dụng mã ${promo.name}`, 'success', 2000); }}>
-                                <div className={styles.promoIcon}>{promo.discountPercentage ? <Percent size={20} /> : <DollarSign size={20} />}</div>
-                                <div className={styles.promoInfo}><div className={styles.promoName}>{promo.name}</div>{promo.description && <div className={styles.promoDesc}>{promo.description}</div>}{promo.endDate && <div className={styles.promoDate}>Hạn đến: {new Date(promo.endDate).toLocaleDateString('vi-VN')}</div>}</div>
-                                <div className={styles.promoValue}>{promo.discountPercentage && `-${promo.discountPercentage}%`}{promo.discountAmount && `-${promo.discountAmount.toLocaleString('vi-VN')}đ`}</div>
-                            </div>
-                        ))}
+                        <div className={styles.modalHeader}>
+                            <h3>Chọn mã khuyến mãi</h3>
+                            <button onClick={() => setShowPromotionModal(false)} className={styles.modalClose}><X size={24} /></button>
+                        </div>
+                        <div className={`${styles.promoOption} ${!selectedPromotion ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(null); setShowPromotionModal(false); }}>
+                            <div>Không sử dụng mã giảm giá</div>
+                        </div>
+                        {promotions.length === 0 ? (
+                            <div className={styles.emptyPromo}>Không có mã khuyến mãi nào</div>
+                        ) : (
+                            promotions.map((promo) => (
+                                <div
+                                    key={promo.id}
+                                    className={`${styles.promoOption} ${selectedPromotion?.id === promo.id ? styles.selected : ''}`}
+                                    onClick={() => {
+                                        setSelectedPromotion(promo);
+                                        setShowPromotionModal(false);
+                                        showToast(`Đã áp dụng mã ${promo.name}`, 'success', 2000);
+                                    }}
+                                >
+                                    <div className={styles.promoIcon}>
+                                        {promo.discountPercentage ? <Percent size={20} /> : <DollarSign size={20} />}
+                                    </div>
+                                    <div className={styles.promoInfo}>
+                                        <div className={styles.promoName}>{promo.name}</div>
+                                        {promo.description && <div className={styles.promoDesc}>{promo.description}</div>}
+                                        {promo.endDate && <div className={styles.promoDate}>Hạn đến: {new Date(promo.endDate).toLocaleDateString('vi-VN')}</div>}
+                                    </div>
+                                    <div className={styles.promoValue}>
+                                        {promo.discountPercentage && `-${promo.discountPercentage}%`}
+                                        {promo.discountAmount && `-${promo.discountAmount.toLocaleString('vi-VN')}đ`}
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             )}
 
             <div className={styles.toastContainer}>
-                {toasts.map((toast) => <ToastNotification key={toast.id} message={toast.message} type={toast.type} duration={toast.duration} onClose={() => removeToast(toast.id)} />)}
+                {toasts.map((toast) => (
+                    <ToastNotification
+                        key={toast.id}
+                        message={toast.message}
+                        type={toast.type}
+                        duration={toast.duration}
+                        onClose={() => removeToast(toast.id)}
+                    />
+                ))}
             </div>
         </div>
     );

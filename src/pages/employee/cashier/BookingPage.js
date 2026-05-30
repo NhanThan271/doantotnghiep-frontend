@@ -932,10 +932,38 @@ const BookingPage = () => {
 
                                 return (
                                     <div key={table.id} className={`${styles.card} ${isOccupied ? styles.occupied : ""} ${isReserved ? styles.reserved : ""}`}>
+                                        {/* ===== NÚT SỬA TRẠNG THÁI ===== */}
                                         {canEditStatus && (
                                             <button
                                                 onClick={(e) => openStatusModal(table, "table", e)}
-                                                className={styles.editBtn}
+                                                style={{
+                                                    position: "absolute",
+                                                    top: "8px",
+                                                    right: "8px",
+                                                    background: "white",
+                                                    border: "1px solid #e2e8e0",
+                                                    borderRadius: "8px",
+                                                    padding: "5px 10px",
+                                                    cursor: "pointer",
+                                                    fontSize: "11px",
+                                                    fontWeight: 500,
+                                                    color: "#5d6e5f",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "4px",
+                                                    transition: "all 0.2s",
+                                                    zIndex: 2
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.background = "#f0f4ec";
+                                                    e.currentTarget.style.borderColor = "#d32f2f";
+                                                    e.currentTarget.style.color = "#d32f2f";
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.background = "white";
+                                                    e.currentTarget.style.borderColor = "#e2e8e0";
+                                                    e.currentTarget.style.color = "#5d6e5f";
+                                                }}
                                                 title="Chỉnh sửa trạng thái"
                                             >
                                                 <Edit2 size={12} /> Sửa
@@ -961,19 +989,13 @@ const BookingPage = () => {
                                         </div>
 
                                         {isFree && (
-                                            <button
-                                                onClick={() => openBookingModal(table, "table")}
-                                                className={styles.bookBtn}
-                                            >
+                                            <button onClick={() => openBookingModal(table, "table")} className={styles.bookBtn}>
                                                 <Calendar size={14} /> Đặt bàn
                                             </button>
                                         )}
 
                                         {isReserved && (
-                                            <button
-                                                onClick={(e) => handleCheckIn(table, "table", e)}
-                                                className={styles.checkinBtn}
-                                            >
+                                            <button onClick={(e) => handleCheckIn(table, "table", e)} className={styles.checkinBtn}>
                                                 <CheckCircle size={12} /> Check-in
                                             </button>
                                         )}
@@ -993,7 +1015,7 @@ const BookingPage = () => {
                             <p>Không có phòng nào</p>
                         </div>
                     ) : (
-                        rooms.map((room) => {
+                        rooms.map((room) => {  // ← BỎ CẶP {} THỪA
                             const hasOrder = hasActiveOrder(room.id, 'room');
                             const orderStatus = getOrderStatusText(room.id, 'room');
                             const isFree = room.status === "FREE";
@@ -1002,10 +1024,38 @@ const BookingPage = () => {
 
                             return (
                                 <div key={room.id} className={`${styles.card} ${isOccupied ? styles.occupied : ""} ${isReserved ? styles.reserved : ""}`}>
+                                    {/* NÚT SỬA TRẠNG THÁI */}
                                     {canEditStatus && (
                                         <button
                                             onClick={(e) => openStatusModal(room, "room", e)}
-                                            className={styles.editBtn}
+                                            style={{
+                                                position: "absolute",
+                                                top: "8px",
+                                                right: "8px",
+                                                background: "white",
+                                                border: "1px solid #e2e8e0",
+                                                borderRadius: "8px",
+                                                padding: "5px 10px",
+                                                cursor: "pointer",
+                                                fontSize: "11px",
+                                                fontWeight: 500,
+                                                color: "#5d6e5f",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "4px",
+                                                transition: "all 0.2s",
+                                                zIndex: 2
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = "#f0f4ec";
+                                                e.currentTarget.style.borderColor = "#d32f2f";
+                                                e.currentTarget.style.color = "#d32f2f";
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = "white";
+                                                e.currentTarget.style.borderColor = "#e2e8e0";
+                                                e.currentTarget.style.color = "#5d6e5f";
+                                            }}
                                             title="Chỉnh sửa trạng thái"
                                         >
                                             <Edit2 size={12} /> Sửa
@@ -1033,19 +1083,13 @@ const BookingPage = () => {
                                     </div>
 
                                     {isFree && (
-                                        <button
-                                            onClick={() => openBookingModal(room, "room")}
-                                            className={styles.bookBtn}
-                                        >
+                                        <button onClick={() => openBookingModal(room, "room")} className={styles.bookBtn}>
                                             <Calendar size={14} /> Đặt phòng
                                         </button>
                                     )}
 
                                     {isReserved && (
-                                        <button
-                                            onClick={(e) => handleCheckIn(room, "room", e)}
-                                            className={styles.checkinBtn}
-                                        >
+                                        <button onClick={(e) => handleCheckIn(room, "room", e)} className={styles.checkinBtn}>
                                             <CheckCircle size={12} /> Check-in
                                         </button>
                                     )}
@@ -1055,7 +1099,6 @@ const BookingPage = () => {
                     )}
                 </div>
             )}
-
             {/* Reservations Tab - Danh sách đặt bàn đang chờ */}
             {activeTab === "reservations" && (
                 <div style={{

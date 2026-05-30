@@ -8,16 +8,18 @@ import {
     CheckCircle,
     XCircle,
     AlertCircle,
-    ChevronLeft,
     Moon,
     Sun,
     Cloud,
     Star,
     History,
-    Bell
+    Bell,
+    LayoutList,
+    CalendarDays,
+    ChevronLeft,
+    ChevronRight
 } from "lucide-react";
 import axios from "axios";
-
 
 const ShiftRegistration = () => {
     const navigate = useNavigate();
@@ -29,15 +31,18 @@ const ShiftRegistration = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
     const [registeredShifts, setRegisteredShifts] = useState([]);
-    const [activeTab, setActiveTab] = useState("register"); // register, history
+    const [activeTab, setActiveTab] = useState("register"); // register, history, calendar
+    const [viewMode, setViewMode] = useState("list"); // list, calendar
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [filterStatus, setFilterStatus] = useState("ALL"); // ALL, PENDING, APPROVED, REJECTED
 
     // Danh sách ca làm
     const shifts = [
-        { id: "MORNING", name: "Ca sáng", time: "06:00 - 11:00", icon: <Sun size={20} />, color: "#f59e0b", bg: "#fffbeb" },
-        { id: "MIDDAY", name: "Ca trưa", time: "11:00 - 14:00", icon: <Cloud size={20} />, color: "#3b82f6", bg: "#eff6ff" },
-        { id: "AFTERNOON", name: "Ca chiều", time: "14:00 - 17:00", icon: <Sun size={20} />, color: "#f97316", bg: "#fff7ed" },
-        { id: "EVENING", name: "Ca tối", time: "17:00 - 22:00", icon: <Moon size={20} />, color: "#8b5cf6", bg: "#f5f3ff" },
-        { id: "FULL", name: "Ca full", time: "08:00 - 22:00", icon: <Star size={20} />, color: "#ec4899", bg: "#fdf2f8" }
+        { id: "MORNING", name: "Ca sáng", time: "06:00 - 11:00", icon: <Sun size={20} />, color: "#f59e0b", bg: "#fffbeb", shortName: "Sáng" },
+        { id: "MIDDAY", name: "Ca trưa", time: "11:00 - 14:00", icon: <Cloud size={20} />, color: "#3b82f6", bg: "#eff6ff", shortName: "Trưa" },
+        { id: "AFTERNOON", name: "Ca chiều", time: "14:00 - 17:00", icon: <Sun size={20} />, color: "#f97316", bg: "#fff7ed", shortName: "Chiều" },
+        { id: "EVENING", name: "Ca tối", time: "17:00 - 22:00", icon: <Moon size={20} />, color: "#8b5cf6", bg: "#f5f3ff", shortName: "Tối" },
+        { id: "FULL", name: "Ca full", time: "08:00 - 22:00", icon: <Star size={20} />, color: "#ec4899", bg: "#fdf2f8", shortName: "Full" }
     ];
 
     useEffect(() => {
@@ -111,7 +116,6 @@ const ShiftRegistration = () => {
                 setSelectedBranch("");
                 fetchRegisteredShifts(user.id);
 
-                // Tự động chuyển sang tab lịch sử sau 2 giây
                 setTimeout(() => {
                     setActiveTab("history");
                     setMessage({ type: "", text: "" });
@@ -146,18 +150,74 @@ const ShiftRegistration = () => {
         return date.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' });
     };
 
+    // Lấy dữ liệu cho calendar
+    const getShiftsByDate = () => {
+        const shiftsByDate = {};
+        registeredShifts.forEach(shift => {
+            const date = shift.date;
+            if (!shiftsByDate[date]) {
+                shiftsByDate[date] = [];
+            }
+            shiftsByDate[date].push(shift);
+        });
+        return shiftsByDate;
+    };
+
+    // Lọc theo trạng thái
+    const getFilteredShifts = () => {
+        if (filterStatus === "ALL") return registeredShifts;
+        return registeredShifts.filter(shift => shift.status === filterStatus);
+    };
+
+    // Tạo dữ liệu cho calendar tháng
+    const getCalendarDays = () => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const firstDayOfMonth = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        const startDate = new Date(firstDayOfMonth);
+        startDate.setDate(firstDayOfMonth.getDate() - firstDayOfMonth.getDay());
+        const endDate = new Date(lastDayOfMonth);
+        endDate.setDate(lastDayOfMonth.getDate() + (6 - lastDayOfMonth.getDay()));
+
+        const days = [];
+        const currentDate = new Date(startDate);
+
+        while (currentDate <= endDate) {
+            const dateStr = currentDate.toISOString().split('T')[0];
+            const shiftsOfDay = registeredShifts.filter(shift => shift.date === dateStr);
+            const isCurrentMonth = currentDate.getMonth() === month;
+
+            days.push({
+                date: new Date(currentDate),
+                dateStr,
+                isCurrentMonth,
+                shifts: shiftsOfDay,
+                isToday: dateStr === new Date().toISOString().split('T')[0]
+            });
+
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        return days;
+    };
+
+    const changeMonth = (increment) => {
+        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + increment, 1));
+    };
+
     const minDate = new Date().toISOString().split('T')[0];
     const maxDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const shiftsByDate = getShiftsByDate();
+    const filteredShifts = getFilteredShifts();
+    const calendarDays = getCalendarDays();
 
     return (
         <div className="shift-registration-page">
             <div className="container">
                 {/* Header */}
                 <div className="page-header">
-                    <button className="back-btn" onClick={() => navigate(-1)}>
-                        <ChevronLeft size={20} />
-                        Quay lại
-                    </button>
                     <div className="header-title">
                         <Calendar size={28} />
                         <h1>Đăng ký ca làm</h1>
@@ -174,7 +234,7 @@ const ShiftRegistration = () => {
                         className={`tab ${activeTab === "register" ? "active" : ""}`}
                         onClick={() => setActiveTab("register")}
                     >
-                        <Calendar size={16} />
+                        <Bell size={16} />
                         Đăng ký mới
                     </button>
                     <button
@@ -182,7 +242,14 @@ const ShiftRegistration = () => {
                         onClick={() => setActiveTab("history")}
                     >
                         <History size={16} />
-                        Lịch sử đăng ký
+                        Lịch sử
+                    </button>
+                    <button
+                        className={`tab ${activeTab === "calendar" ? "active" : ""}`}
+                        onClick={() => setActiveTab("calendar")}
+                    >
+                        <CalendarDays size={16} />
+                        Lịch làm việc
                     </button>
                 </div>
 
@@ -290,17 +357,45 @@ const ShiftRegistration = () => {
                     {/* Tab Lịch sử */}
                     {activeTab === "history" && (
                         <div className="history-section">
-                            {registeredShifts.length === 0 ? (
+                            {/* Filter buttons */}
+                            <div className="filter-buttons">
+                                <button
+                                    className={`filter-btn ${filterStatus === "ALL" ? "active" : ""}`}
+                                    onClick={() => setFilterStatus("ALL")}
+                                >
+                                    Tất cả
+                                </button>
+                                <button
+                                    className={`filter-btn ${filterStatus === "PENDING" ? "active" : ""}`}
+                                    onClick={() => setFilterStatus("PENDING")}
+                                >
+                                    Chờ duyệt
+                                </button>
+                                <button
+                                    className={`filter-btn ${filterStatus === "APPROVED" ? "active" : ""}`}
+                                    onClick={() => setFilterStatus("APPROVED")}
+                                >
+                                    Đã duyệt
+                                </button>
+                                <button
+                                    className={`filter-btn ${filterStatus === "REJECTED" ? "active" : ""}`}
+                                    onClick={() => setFilterStatus("REJECTED")}
+                                >
+                                    Từ chối
+                                </button>
+                            </div>
+
+                            {filteredShifts.length === 0 ? (
                                 <div className="empty-state">
                                     <Calendar size={48} />
-                                    <p>Chưa có đăng ký ca làm nào</p>
+                                    <p>Không có đăng ký ca làm nào</p>
                                     <button onClick={() => setActiveTab("register")} className="empty-btn">
                                         Đăng ký ngay
                                     </button>
                                 </div>
                             ) : (
                                 <div className="history-list">
-                                    {registeredShifts.map((item, index) => {
+                                    {filteredShifts.map((item, index) => {
                                         const status = getStatusBadge(item.status);
                                         const shift = shifts.find(s => s.id === item.shiftId);
                                         return (
@@ -326,6 +421,94 @@ const ShiftRegistration = () => {
                                     })}
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Tab Lịch làm việc - Calendar View */}
+                    {activeTab === "calendar" && (
+                        <div className="calendar-section">
+                            {/* Calendar Header */}
+                            <div className="calendar-header">
+                                <button onClick={() => changeMonth(-1)} className="month-nav">
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <h2>
+                                    {currentMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+                                </h2>
+                                <button onClick={() => changeMonth(1)} className="month-nav">
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+
+                            {/* Legend */}
+                            <div className="calendar-legend">
+                                <div className="legend-item">
+                                    <span className="legend-color pending"></span>
+                                    <span>Chờ duyệt</span>
+                                </div>
+                                <div className="legend-item">
+                                    <span className="legend-color approved"></span>
+                                    <span>Đã duyệt</span>
+                                </div>
+                                <div className="legend-item">
+                                    <span className="legend-color rejected"></span>
+                                    <span>Từ chối</span>
+                                </div>
+                            </div>
+
+                            {/* Calendar Grid */}
+                            <div className="calendar-grid">
+                                {/* Weekday headers */}
+                                {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(day => (
+                                    <div key={day} className="calendar-weekday">
+                                        {day}
+                                    </div>
+                                ))}
+
+                                {/* Calendar days */}
+                                {calendarDays.map((day, index) => {
+                                    const hasPending = day.shifts.some(s => s.status === 'PENDING');
+                                    const hasApproved = day.shifts.some(s => s.status === 'APPROVED');
+                                    const hasRejected = day.shifts.some(s => s.status === 'REJECTED');
+
+                                    return (
+                                        <div
+                                            key={index}
+                                            className={`calendar-day ${!day.isCurrentMonth ? 'other-month' : ''} ${day.isToday ? 'today' : ''}`}
+                                        >
+                                            <div className="calendar-day-number">{day.date.getDate()}</div>
+                                            <div className="calendar-day-shifts">
+                                                {day.shifts.map((shift, idx) => {
+                                                    const shiftInfo = shifts.find(s => s.id === shift.shiftId);
+                                                    const status = getStatusBadge(shift.status);
+                                                    return (
+                                                        <div
+                                                            key={idx}
+                                                            className="calendar-shift-item"
+                                                            style={{ background: status.bg, color: status.color }}
+                                                            title={`${shiftInfo?.name || shift.shiftName} - ${status.text}`}
+                                                        >
+                                                            <span className="shift-short">{shiftInfo?.shortName || shift.shiftName?.substring(0, 2)}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                            {day.shifts.length > 0 && (
+                                                <div className="calendar-day-status">
+                                                    {hasPending && <span className="status-dot pending" title="Có ca chờ duyệt"></span>}
+                                                    {hasApproved && <span className="status-dot approved" title="Có ca đã duyệt"></span>}
+                                                    {hasRejected && <span className="status-dot rejected" title="Có ca bị từ chối"></span>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Chi tiết khi click vào ngày (có thể thêm sau) */}
+                            <div className="calendar-note">
+                                <small>💡 Di chuột vào ô để xem chi tiết ca làm</small>
+                            </div>
                         </div>
                     )}
                 </div>
