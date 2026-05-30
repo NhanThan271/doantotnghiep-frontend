@@ -92,16 +92,16 @@ const HeroLanding = () => {
                             fontFamily="'Georgia', serif"
                             fontStyle="italic"
                             fontWeight="bold"
-                            fontSize="110"
+                            fontSize="90"
                             fill="none"
                             stroke="#C9A84C"
                             strokeWidth="1.5"
                             letterSpacing="8"
                         >
-                            Noir
+                            La Costa
                         </text>
                         <text
-                            x="50%" y="95"
+                            x="50%" y="85"
                             textAnchor="middle"
                             fontFamily="'Georgia', serif"
                             fontStyle="italic"
@@ -111,7 +111,7 @@ const HeroLanding = () => {
                             fillOpacity="0.12"
                             letterSpacing="8"
                         >
-                            Noir
+                            La Costa
                         </text>
                     </svg>
 
@@ -166,7 +166,7 @@ const HeroLanding = () => {
             </div>
 
             <div className="hero-footer">
-                <span>© Noir – Ẩm Thực Đương Đại. All rights reserved.</span>
+                <span>© La Costa – Ẩm Thực Đương Đại. All rights reserved.</span>
                 <span>Nhà hàng cao cấp với trải nghiệm ẩm thực đỉnh cao, giá cả hợp lý</span>
             </div>
         </>

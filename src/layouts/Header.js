@@ -98,30 +98,30 @@ const Header = () => {
                         href="/home"
                         onClick={e => { e.preventDefault(); navigate('/home', { state: { branch: selectedBranch } }); }}
                     >
-                        <svg className="noir-logo__svg" viewBox="0 0 260 72" xmlns="http://www.w3.org/2000/svg">
+                        <svg className="noir-logo__svg" viewBox="0 0 300 80" xmlns="http://www.w3.org/2000/svg">
                             <text
-                                x="130" y="58"
+                                x="150" y="56"
                                 textAnchor="middle"
                                 fontFamily="'Georgia', 'Times New Roman', serif"
                                 fontStyle="italic"
                                 fontWeight="bold"
-                                fontSize="64"
+                                fontSize="56"
                                 fill="none"
                                 stroke="#1a2a5e"
                                 strokeWidth="1.2"
-                                letterSpacing="4"
-                            >Noir</text>
+                                letterSpacing="3"
+                            >La Costa</text>
                             <text
-                                x="130" y="58"
+                                x="150" y="56"
                                 textAnchor="middle"
                                 fontFamily="'Georgia', 'Times New Roman', serif"
                                 fontStyle="italic"
                                 fontWeight="bold"
-                                fontSize="64"
+                                fontSize="56"
                                 fill="#1a2a5e"
                                 fillOpacity="0.08"
-                                letterSpacing="4"
-                            >Noir</text>
+                                letterSpacing="3"
+                            >La Costa</text>
                         </svg>
                         <span className="noir-logo__branch">{selectedBranch}</span>
                     </a>
