@@ -170,7 +170,6 @@
 .branch-menu-popup {
     position: absolute;
     top: 140px;
-    /* dưới chữ Noir */
     left: 50%;
     transform: translateX(-50%) translateY(10px);
     width: 85%;
@@ -337,7 +336,7 @@
     }
 
     .branch-name {
-        font-size: 22px;
+        font-size: 28px;
         white-space: normal;
     }
 
