@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Edit2, Trash2, Package } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import { showToast } from '../../hooks/useToast';
 
 export default function Categories({ openAdd, openEdit, refreshTrigger }) {
     const [categories, setCategories] = useState([]);
     const API_BASE_URL = 'http://localhost:8080';
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const fetchCategories = () => {
         const token = localStorage.getItem('token');
@@ -31,19 +33,25 @@ export default function Categories({ openAdd, openEdit, refreshTrigger }) {
     }, [refreshTrigger]);
 
     const handleDelete = (id) => {
+        setDeleteConfirm(id);
+    };
+    const confirmDelete = () => {
         const token = localStorage.getItem('token');
-        if (window.confirm('Bạn có chắc muốn xóa danh mục này không?')) {
-            fetch(`${API_BASE_URL}/api/categories/${id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` }
+        fetch(`${API_BASE_URL}/api/categories/${deleteConfirm}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('Xóa thất bại');
+                showToast('success', 'Xóa thành công!', 'Danh mục đã được xóa.');
+                setDeleteConfirm(null);
+                fetchCategories();
             })
-                .then(res => {
-                    if (!res.ok) throw new Error('Xóa thất bại');
-                    alert('Xóa danh mục thành công!');
-                    fetchCategories();
-                })
-                .catch(err => console.error(err));
-        }
+            .catch(err => {
+                console.error(err);
+                showToast('error', 'Xóa thất bại', 'Không thể xóa danh mục. Vui lòng thử lại!');
+                setDeleteConfirm(null);
+            });
     };
 
     // Hàm xử lý URL hình ảnh
@@ -243,6 +251,49 @@ export default function Categories({ openAdd, openEdit, refreshTrigger }) {
                     </tbody>
                 </table>
             </div>
+            {deleteConfirm && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                }}>
+                    <div style={{
+                        background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '16px',
+                        padding: '28px', width: '380px', textAlign: 'center',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                    }}>
+                        <div style={{
+                            width: '56px', height: '56px', background: 'rgba(239,68,68,0.1)',
+                            borderRadius: '50%', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', margin: '0 auto 16px'
+                        }}>
+                            <Trash2 size={24} color="#EF4444" />
+                        </div>
+                        <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+                            Xác nhận xóa
+                        </h3>
+                        <p style={{ color: '#B8B8B8', fontSize: '14px', marginBottom: '24px' }}>
+                            Bạn có chắc muốn xóa danh mục này? Hành động này không thể hoàn tác!
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button onClick={() => setDeleteConfirm(null)} style={{
+                                flex: 1, padding: '12px', background: 'transparent',
+                                border: '1px solid #2a2a2a', borderRadius: '10px',
+                                color: '#B8B8B8', cursor: 'pointer', fontWeight: '600'
+                            }}>
+                                Hủy
+                            </button>
+                            <button onClick={confirmDelete} style={{
+                                flex: 1, padding: '12px',
+                                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                                border: 'none', borderRadius: '10px',
+                                color: '#fff', cursor: 'pointer', fontWeight: '600'
+                            }}>
+                                Xóa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
