@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Plus, Edit2, Trash2, Users, Grid, Search, Layers, DoorOpen } from 'lucide-react';
 import RoomFormModal from '../admin/forms/RoomFormModal';
 import './BranchTable.css';
+import { showToast } from '../../hooks/useToast';
 
 export default function RoomManagement() {
     const [branches, setBranches] = useState([]);
@@ -12,6 +13,7 @@ export default function RoomManagement() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterArea, setFilterArea] = useState('all');
     const [loading, setLoading] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const [formData, setFormData] = useState({
         number: '',
@@ -137,24 +139,27 @@ export default function RoomManagement() {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Bạn có chắc muốn xóa phòng này?')) return;
+    const handleDelete = (id) => {
+        setDeleteConfirm(id);
+    };
+    const confirmDelete = async () => {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/rooms/${deleteConfirm}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+        })
 
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/rooms/${id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` }
+            .then(res => {
+                if (!res.ok) throw new Error('Xóa thất bại');
+                showToast('success', 'Xóa thành công!', 'Phòng đã được xóa.');
+                setDeleteConfirm(null);
+                fetchRooms();
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('error', 'Xóa thất bại', 'Không thể xóa phòng. Vui lòng thử lại!');
+                setDeleteConfirm(null);
             });
-
-            if (!response.ok) throw new Error('Delete failed');
-
-            alert('Xóa phòng thành công!');
-            fetchRooms();
-        } catch (error) {
-            console.error('Error deleting room:', error);
-            alert('Không thể xóa phòng. Vui lòng thử lại!');
-        }
     };
 
     const getStatusColor = (status) => {
@@ -390,6 +395,50 @@ export default function RoomManagement() {
                 onClose={() => setShowModal(false)}
                 onSubmit={handleSubmit}
             />
+
+            {deleteConfirm && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                }}>
+                    <div style={{
+                        background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '16px',
+                        padding: '28px', width: '380px', textAlign: 'center',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                    }}>
+                        <div style={{
+                            width: '56px', height: '56px', background: 'rgba(239,68,68,0.1)',
+                            borderRadius: '50%', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', margin: '0 auto 16px'
+                        }}>
+                            <Trash2 size={24} color="#EF4444" />
+                        </div>
+                        <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+                            Xác nhận xóa
+                        </h3>
+                        <p style={{ color: '#B8B8B8', fontSize: '14px', marginBottom: '24px' }}>
+                            Bạn có chắc muốn xóa phòng này? Hành động này không thể hoàn tác!
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button onClick={() => setDeleteConfirm(null)} style={{
+                                flex: 1, padding: '12px', background: 'transparent',
+                                border: '1px solid #2a2a2a', borderRadius: '10px',
+                                color: '#B8B8B8', cursor: 'pointer', fontWeight: '600'
+                            }}>
+                                Hủy
+                            </button>
+                            <button onClick={confirmDelete} style={{
+                                flex: 1, padding: '12px',
+                                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                                border: 'none', borderRadius: '10px',
+                                color: '#fff', cursor: 'pointer', fontWeight: '600'
+                            }}>
+                                Xóa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Edit2, Trash2, Users, Mail, Phone, Briefcase, UserCheck, UserX, Building2, ChevronDown } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
 import StaffPositionForm from './forms/StaffPositionForm';
+import { showToast } from '../../hooks/useToast';
 
 const POSITION_MAP = {
     WAITER: { label: 'Phục vụ', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' },
@@ -19,6 +20,7 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
     const [selectedBranch, setSelectedBranch] = useState('all'); // all hoặc branch ID
     const [expandedEmpId, setExpandedEmpId] = useState(null);
     const [positionForm, setPositionForm] = useState(null);
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
     const API_BASE_URL = 'http://localhost:8080';
 
     // Fetch chi nhánh
@@ -107,11 +109,14 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
         }
     }, [refreshTrigger]);
 
-    const handleDelete = (id, name) => {
-        if (!window.confirm(`Bạn có chắc muốn xóa nhân viên "${name}" không?`)) return;
+    const handleDelete = (id) => {
+        setDeleteConfirm(id);
+    };
+
+    const confirmDelete = () => {
 
         const token = localStorage.getItem('token');
-        fetch(`${API_BASE_URL}/api/users/${id}`, {
+        fetch(`${API_BASE_URL}/api/users/${deleteConfirm}`, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -120,12 +125,14 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
         })
             .then(res => {
                 if (!res.ok) throw new Error('Xóa thất bại');
-                alert('Xóa nhân viên thành công!');
+                showToast('success', 'Xóa thành công!', 'Nhân viên đã được xóa.');
+                setDeleteConfirm(null);
                 fetchEmployees();
             })
             .catch(err => {
                 console.error(err);
-                alert('Không thể xóa nhân viên. Vui lòng thử lại!');
+                showToast('error', 'Xóa thất bại', 'Không thể xóa nhân viên. Vui lòng thử lại!');
+                setDeleteConfirm(null);
             });
     };
 
@@ -808,6 +815,50 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                     100% { transform: rotate(360deg); }
                 }
             `}</style>
+
+            {deleteConfirm && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                }}>
+                    <div style={{
+                        background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '16px',
+                        padding: '28px', width: '380px', textAlign: 'center',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                    }}>
+                        <div style={{
+                            width: '56px', height: '56px', background: 'rgba(239,68,68,0.1)',
+                            borderRadius: '50%', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', margin: '0 auto 16px'
+                        }}>
+                            <Trash2 size={24} color="#EF4444" />
+                        </div>
+                        <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+                            Xác nhận xóa
+                        </h3>
+                        <p style={{ color: '#B8B8B8', fontSize: '14px', marginBottom: '24px' }}>
+                            Bạn có chắc muốn xóa nhân viên này? Hành động này không thể hoàn tác!
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button onClick={() => setDeleteConfirm(null)} style={{
+                                flex: 1, padding: '12px', background: 'transparent',
+                                border: '1px solid #2a2a2a', borderRadius: '10px',
+                                color: '#B8B8B8', cursor: 'pointer', fontWeight: '600'
+                            }}>
+                                Hủy
+                            </button>
+                            <button onClick={confirmDelete} style={{
+                                flex: 1, padding: '12px',
+                                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                                border: 'none', borderRadius: '10px',
+                                color: '#fff', cursor: 'pointer', fontWeight: '600'
+                            }}>
+                                Xóa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Edit2, Search, Grid, List, TrendingUp, AlertCircle, ShoppingBag } from 'lucide-react';
+import { Edit2, Search, Grid, List, TrendingUp, AlertCircle, ShoppingBag, Trash2 } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import { showToast } from '../../hooks/useToast';
 
 export default function Ingredients({ openAdd, openEdit, refreshTrigger }) {
     const [ingredients, setIngredients] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [viewMode, setViewMode] = useState('table');
+    const [disableConfirm, setDisableConfirm] = useState(null);
     const API_BASE_URL = 'http://localhost:8080';
 
     const fetchIngredients = () => {
@@ -32,29 +34,34 @@ export default function Ingredients({ openAdd, openEdit, refreshTrigger }) {
         }
     }, [refreshTrigger]);
 
-    const handleDisable = (id, currentStatus) => {
-        const token = localStorage.getItem('token');
-        const action = currentStatus ? 'vô hiệu hóa' : 'kích hoạt';
-
-        if (window.confirm(`Bạn có chắc muốn ${action} nguyên liệu này không?`)) {
-            // Gọi API update với isActive đảo ngược
-            fetch(`${API_BASE_URL}/api/ingredients/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ isActive: !currentStatus })
-            })
-                .then(res => {
-                    if (!res.ok) throw new Error('Cập nhật thất bại');
-                    alert(`${action.charAt(0).toUpperCase() + action.slice(1)} nguyên liệu thành công!`);
-                    fetchIngredients();
-                })
-                .catch(err => console.error(err));
-        }
+    const handleDisable = (id) => {
+        setDisableConfirm(id);
     };
+    const confirmDisable = () => {
+        const item = ingredients.find(i => i.id === disableConfirm);
+        if (!item) return;
+        const currentStatus = item.isActive;
+        const action = currentStatus ? 'vô hiệu hóa' : 'kích hoạt';
+        const token = localStorage.getItem('token');
 
+        fetch(`${API_BASE_URL}/api/ingredients/${disableConfirm}/status`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ isActive: !currentStatus })
+        })
+            .then(res => {
+                if (res.ok) {
+                    showToast('success', 'Thành công', `Nguyên liệu đã được ${action} thành công`);
+                    fetchIngredients();
+                } else {
+                    showToast('error', 'Lỗi', `Không thể ${action} nguyên liệu. Vui lòng thử lại.`);
+                }
+                setDisableConfirm(null);
+            });
+    };
     // Filter logic
     const filteredIngredients = ingredients.filter(item => {
         const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -737,6 +744,59 @@ export default function Ingredients({ openAdd, openEdit, refreshTrigger }) {
                     }
                 }
             `}</style>
+
+            {disableConfirm && (() => {
+                const item = ingredients.find(i => i.id === disableConfirm);
+                const isActive = item?.isActive;
+                return (
+                    <div style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                    }}>
+                        <div style={{
+                            background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '16px',
+                            padding: '28px', width: '380px', textAlign: 'center',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                        }}>
+                            <div style={{
+                                width: '56px', height: '56px',
+                                background: isActive ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)',
+                                borderRadius: '50%', display: 'flex', alignItems: 'center',
+                                justifyContent: 'center', margin: '0 auto 16px'
+                            }}>
+                                <AlertCircle size={24} color={isActive ? '#EF4444' : '#10B981'} />
+                            </div>
+                            <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+                                {isActive ? 'Xác nhận vô hiệu hóa' : 'Xác nhận kích hoạt'}
+                            </h3>
+                            <p style={{ color: '#B8B8B8', fontSize: '14px', marginBottom: '24px' }}>
+                                {isActive
+                                    ? 'Bạn có chắc muốn vô hiệu hóa nguyên liệu này không?'
+                                    : 'Bạn có chắc muốn kích hoạt lại nguyên liệu này không?'}
+                            </p>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button onClick={() => setDisableConfirm(null)} style={{
+                                    flex: 1, padding: '12px', background: 'transparent',
+                                    border: '1px solid #2a2a2a', borderRadius: '10px',
+                                    color: '#B8B8B8', cursor: 'pointer', fontWeight: '600'
+                                }}>
+                                    Hủy
+                                </button>
+                                <button onClick={confirmDisable} style={{
+                                    flex: 1, padding: '12px',
+                                    background: isActive
+                                        ? 'linear-gradient(135deg, #EF4444, #DC2626)'
+                                        : 'linear-gradient(135deg, #10B981, #059669)',
+                                    border: 'none', borderRadius: '10px',
+                                    color: '#fff', cursor: 'pointer', fontWeight: '600'
+                                }}>
+                                    {isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }
