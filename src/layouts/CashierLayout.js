@@ -128,6 +128,22 @@ const CashierLayout = () => {
                 </div>
 
                 <div
+                    onClick={() => handleNavigation("/cashier/shift")}
+                    style={{
+                        padding: "12px 16px",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        background: location.pathname === "/cashier/shift" ? "rgba(212,175,55,0.2)" : "transparent",
+                        borderLeft: location.pathname === "/cashier/shift" ? "3px solid #D4AF37" : "3px solid transparent"
+                    }}
+                >
+                    <BarChart3 size={18} color={location.pathname === "/cashier/shift" ? "#D4AF37" : "#ffffff"} />
+                    <span>Ca làm việc</span>
+                </div>
+
+                <div
                     onClick={() => handleNavigation("/cashier/setting")}
                     style={{
                         padding: "12px 16px",

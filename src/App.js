@@ -82,6 +82,7 @@ function App() {
           <Route path="setting" element={<SettingPage />} />
           <Route path="tables" element={<TablesPage />} />
           <Route path="booking" element={<BookingPage />} />
+          <Route path="shift" element={<ShiftRegistration />} />
         </Route>
 
         {/* Route cho TableDetail - Giữ nguyên cho cashier */}

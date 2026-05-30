@@ -158,6 +158,9 @@ const ChefDashboard = () => {
             });
         }
     };
+    const clearAllNotifications = () => {
+        setNotifications([]);
+    };
 
     // ========== DEDUCT INGREDIENTS FUNCTION ==========
     const deductIngredientsForItem = async (foodId, quantity, branchId) => {
@@ -558,6 +561,13 @@ const ChefDashboard = () => {
     const updateStatus = async (itemGroup, status) => {
         const idsToUpdate = itemGroup.originalIds;
 
+        console.log("🔧 [ChefDashboard] updateStatus called:", {
+            itemName: itemGroup.name,
+            status: status,
+            idsToUpdate: idsToUpdate,
+            branchId: branchId
+        });
+
         if (!idsToUpdate || idsToUpdate.length === 0) {
             showToast(`Không tìm thấy món ${itemGroup.name}`, 'error');
             return;
@@ -575,7 +585,6 @@ const ChefDashboard = () => {
                         branchId
                     );
 
-                    // ===== HIỂN THỊ WARNINGS =====
                     if (deductResult.warnings && deductResult.warnings.length > 0) {
                         deductResult.warnings.forEach(warning => {
                             if (warning.includes('❌')) {
@@ -587,18 +596,18 @@ const ChefDashboard = () => {
                         });
                     }
 
-                    // ===== NẾU CÓ LỖI (KHÔNG ĐỦ NGUYÊN LIỆU) → DỪNG =====
                     if (deductResult.hasError) {
                         showToast('🚫 Không đủ nguyên liệu! Vui lòng kiểm tra kho.', 'error');
                         addNotification('🚫 Không đủ nguyên liệu cho: ' + itemGroup.name, 'error');
                         setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
-                        return; // ← DỪNG, không cập nhật trạng thái
+                        return;
                     }
                 }
             }
 
             // Cập nhật TẤT CẢ item
             for (const originalId of idsToUpdate) {
+                console.log(`📝 [ChefDashboard] Updating item ${originalId} to status ${status}`);
                 await kitchenAPI.updateItemStatus(originalId, status);
             }
 
@@ -608,16 +617,27 @@ const ChefDashboard = () => {
 
             await fetchData();
 
+            // ===== EMIT SOCKET - THÊM LOG =====
+            console.log("🔌 [ChefDashboard] Socket connected status:", socketRef.current?.connected);
+
             if (socketRef.current?.connected) {
-                socketRef.current.emit("update-order-item-status", {
-                    items: idsToUpdate,
-                    status,
+                const emitData = {
+                    items: idsToUpdate.map(id => parseInt(id)), // Đảm bảo là number
+                    status: status,
                     itemName: itemGroup.name,
                     tables: itemGroup.tables,
-                    branchId,
+                    branchId: branchId,
                     timestamp: new Date().toISOString()
-                });
+                };
+
+                console.log("📤 [ChefDashboard] Emitting update-order-item-status:", JSON.stringify(emitData, null, 2));
+                socketRef.current.emit("update-order-item-status", emitData);
+                console.log("✅ [ChefDashboard] Emitted update-order-item-status successfully");
+
                 socketRef.current.emit("update-tables");
+                console.log("✅ [ChefDashboard] Emitted update-tables");
+            } else {
+                console.log("❌ [ChefDashboard] Socket NOT connected! Cannot emit event.");
             }
 
             showToast(
@@ -626,6 +646,7 @@ const ChefDashboard = () => {
             );
 
         } catch (err) {
+            console.error("❌ [ChefDashboard] Error in updateStatus:", err);
             showToast(`Lỗi: ${err.message}`, 'error');
         } finally {
             setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
@@ -710,21 +731,54 @@ const ChefDashboard = () => {
                 </div>
             </div>
             {showNotificationPanel && (
-                <div className={styles.notificationPanel}>
-                    <div className={styles.notificationHeader}>
-                        <h4>Thông báo</h4>
-                        <button onClick={() => setNotifications([])}><X size={16} color="#9ca3af" /> Xóa tất cả</button>
-                    </div>
-                    <div className={styles.notificationList}>
-                        {notifications.length === 0 ? <p className={styles.noNotification}>Chưa có thông báo</p> :
-                            notifications.map(noti => (
-                                <div key={noti.id} className={`${styles.notificationItem} ${styles[noti.type]}`}>
-                                    <div className={styles.notificationMessage}>{noti.message}</div>
-                                    <div className={styles.notificationTime}>{noti.timestamp?.toLocaleTimeString('vi-VN')}</div>
+                <>
+                    {/* Overlay để click ra ngoài đóng panel */}
+                    <div
+                        className={styles.notificationOverlay}
+                        onClick={() => setShowNotificationPanel(false)}
+                    />
+                    <div className={styles.notificationPanel}>
+                        <div className={styles.notificationHeader}>
+                            <h4>🔔 Thông báo ({notifications.length})</h4>
+                            <div className={styles.headerButtons}>
+                                {notifications.length > 0 && (
+                                    <button
+                                        className={styles.clearAllBtn}
+                                        onClick={clearAllNotifications}
+                                        title="Xóa tất cả thông báo"
+                                    >
+                                        <X size={14} /> Xóa tất cả
+                                    </button>
+                                )}
+                                <button
+                                    className={styles.closePanelBtn}
+                                    onClick={() => setShowNotificationPanel(false)}
+                                    title="Đóng"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                        <div className={styles.notificationList}>
+                            {notifications.length === 0 ? (
+                                <div className={styles.noNotification}>
+                                    <p>Chưa có thông báo</p>
                                 </div>
-                            ))}
+                            ) : (
+                                notifications.map(noti => (
+                                    <div key={noti.id} className={`${styles.notificationItem} ${styles[noti.type]}`}>
+                                        <div className={styles.notificationContent}>
+                                            <div className={styles.notificationMessage}>{noti.message}</div>
+                                            <div className={styles.notificationTime}>
+                                                {noti.timestamp?.toLocaleTimeString('vi-VN')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
-                </div>
+                </>
             )}
             <div className={styles.statsGrid}>
                 <div className={`${styles.statCard} ${counts.WAITING > 0 ? styles.hasWaiting : ''}`}>
