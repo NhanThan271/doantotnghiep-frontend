@@ -1,5 +1,4 @@
-/* OrderDetail.module.css */
-
+/* OrderDetail.module.css - Full CSS */
 .container {
     min-height: 100vh;
     background: linear-gradient(135deg, #f8faf5 0%, #f0f4ec 100%);
@@ -204,6 +203,7 @@
 .content {
     display: flex;
     gap: 20px;
+    align-items: flex-start;
 }
 
 /* Products Grid */
@@ -212,6 +212,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 16px;
+    padding-right: 400px;
 }
 
 .productCard {
@@ -266,23 +267,25 @@
 /* Cart Sidebar */
 .cartSidebar {
     width: 380px;
+    min-width: 380px;
     background: white;
     border-radius: 16px;
     padding: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 180px);
-    position: sticky;
+    position: fixed;
     top: 20px;
+    right: 20px;
+    max-height: calc(100vh - 40px);
+    overflow: hidden;
+    z-index: 100;
 }
 
 .cartSidebar h3 {
-    margin: 0 0 16px 0;
+    margin: 0;
     color: #2c3e2f;
     font-size: 18px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #f1f3ee;
 }
 
 .emptyCart {
@@ -295,7 +298,7 @@
     flex: 1;
     overflow-y: auto;
     margin-bottom: 16px;
-    max-height: 400px;
+    min-height: 100px;
 }
 
 .cartItem {
@@ -377,6 +380,7 @@
 .cartFooter {
     border-top: 2px solid #f1f3ee;
     padding-top: 16px;
+    flex-shrink: 0;
 }
 
 .totalRow {
@@ -626,20 +630,70 @@
     z-index: 9999;
 }
 
+/* Cart Header with Back Button */
+.cartHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f1f3ee;
+}
+
+.cartBackBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f1f3ee;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #5d6e5f;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.cartBackBtn:hover {
+    background: #e2e8e0;
+    transform: translateX(-2px);
+}
+
 /* Responsive */
+@media (max-width: 1200px) {
+    .productsGrid {
+        padding-right: 0;
+    }
+
+    .cartSidebar {
+        position: static;
+        width: 100%;
+        min-width: unset;
+        max-height: 500px;
+        margin-top: 20px;
+    }
+
+    .content {
+        flex-direction: column;
+    }
+}
+
 @media (max-width: 1024px) {
     .content {
         flex-direction: column;
     }
 
     .cartSidebar {
-        width: 100%;
-        max-height: 500px;
         position: static;
+        width: 100%;
+        min-width: unset;
+        max-height: 500px;
     }
 
     .productsGrid {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        padding-right: 0;
     }
 }
 
@@ -661,6 +715,7 @@
     .productsGrid {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 12px;
+        padding-right: 0;
     }
 
     .categoryTabs {
@@ -675,6 +730,9 @@
 
     .cartSidebar {
         padding: 16px;
+        position: static;
+        width: 100%;
+        min-width: unset;
     }
 
     .productImage {

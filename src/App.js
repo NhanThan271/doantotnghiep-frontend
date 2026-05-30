@@ -41,7 +41,7 @@ import KitchenMonitor from "./pages/employee/waiter/KitchenMonitor";
 import HeroLanding from "./pages/client/HeroLanding";
 import Home from "./layouts/Home";
 import TuyenDung from './pages/client/TuyenDung';
-import ShiftRegistration from './pages/client/ShiftRegistration';
+import ShiftRegistration from './pages/employee/ShiftRegistration';
 import '@tabler/icons-webfont/dist/tabler-icons.min.css';
 
 // Layout wrapper cho trang công khai
