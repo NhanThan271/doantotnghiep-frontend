@@ -341,6 +341,13 @@ export default function ManagerRoomManagement() {
                                                 Sức chứa: {room.capacity} người
                                             </span>
                                         </div>
+                                        {room.roomFee != null && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                                <span style={{ fontSize: '14px', color: '#059669', fontWeight: '600' }}>
+                                                    Giá phòng: {Number(room.roomFee).toLocaleString('vi-VN')}đ / lượt
+                                                </span>
+                                            </div>
+                                        )}
                                         {room.updatedAt && (
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <Clock size={14} style={{ color: '#9ca3af' }} />
@@ -420,6 +427,14 @@ export default function ManagerRoomManagement() {
                                     <p className={styles.infoValue}>{selectedRoom.capacity} người</p>
                                 </div>
                                 <div className={styles.infoCard}>
+                                    <p className={styles.infoLabel}>Giá phòng</p>
+                                    <p className={styles.infoValue} style={{ color: '#059669', fontWeight: '600' }}>
+                                        {selectedRoom.roomFee != null
+                                            ? `${Number(selectedRoom.roomFee).toLocaleString('vi-VN')}đ`
+                                            : '-'}
+                                    </p>
+                                </div>
+                                <div className={styles.infoCard}>
                                     <p className={styles.infoLabel}>Trạng thái</p>
                                     <span className={getStatusBadgeClass(selectedRoom.status)}>
                                         {getStatusText(selectedRoom.status)}
@@ -457,19 +472,6 @@ export default function ManagerRoomManagement() {
                                     >
                                         <X size={20} />
                                         Đóng phòng
-                                    </button>
-                                )}
-                                {selectedRoom.status !== 'RESERVED' && (
-                                    <button
-                                        onClick={() => {
-                                            updateRoomStatus(selectedRoom.id, 'RESERVED');
-                                            setShowDetailModal(false);
-                                        }}
-                                        className={styles.actionButtonPrimary}
-                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}
-                                    >
-                                        <Clock size={20} />
-                                        Đặt phòng
                                     </button>
                                 )}
                             </div>

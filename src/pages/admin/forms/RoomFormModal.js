@@ -74,6 +74,20 @@ export default function RoomFormModal({
                         </div>
 
                         <div className="formGroup">
+                            <label className="formLabel">Giá phòng (VNĐ) *</label>
+                            <input
+                                type="number"
+                                className="formInput"
+                                value={formData.roomFee}
+                                onChange={(e) => setFormData({ ...formData, roomFee: e.target.value })}
+                                placeholder="VD: 500000, 1000000..."
+                                required
+                                min="0"
+                                step="1000"
+                            />
+                        </div>
+
+                        <div className="formGroup">
                             <label className="formLabel">Trạng thái</label>
                             <select
                                 className="formSelect"

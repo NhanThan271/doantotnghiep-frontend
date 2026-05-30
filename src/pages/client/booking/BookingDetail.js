@@ -61,6 +61,7 @@ const BookingDetail = () => {
     const ROOM_HOURS = Array.from({ length: 24 }, (_, i) =>
         `${String(i).padStart(2, "0")}:00`
     );
+    const [availableTableIds, setAvailableTableIds] = useState(null);
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
@@ -74,10 +75,17 @@ const BookingDetail = () => {
         selectedFoods: [],
         selectedTableId: null,
         checkInDate: toDateStr(today),
-        checkInTime: "11:00",
+        checkInTime: "",
         checkOutDate: toDateStr(today),
-        checkOutTime: "11:00",
+        checkOutTime: "",
         selectedRoomId: null, roomNumber: "", roomCapacity: "",
+    });
+
+    const [roomDates, setRoomDates] = useState({
+        checkInDate: toDateStr(today),
+        checkInTime: "",
+        checkOutDate: toDateStr(today),
+        checkOutTime: "",
     });
 
     const getRoomCheckInTimes = (dateRef) => {
@@ -182,7 +190,6 @@ const BookingDetail = () => {
 
     useEffect(() => { if (activeArea) loadTablesForArea(activeArea); }, [activeArea]);
 
-    // load rooms 
     const loadRooms = useCallback(async (checkIn, checkOut) => {
         const cb = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
         if (!cb?.id || !checkIn || !checkOut) return;
@@ -193,19 +200,42 @@ const BookingDetail = () => {
                 + `&checkOut=${encodeURIComponent(checkOut)}`;
             const res = await fetch(url);
             const json = await res.json();
-            setRooms(json || []);
-        } catch (e) { console.error(e); }
-        finally { setRoomLoading(false); }
+            const list = Array.isArray(json) ? json : [];
+            setRooms(list);
+        } catch (e) {
+            console.error(e);
+            setRooms([]);
+        } finally { setRoomLoading(false); }
     }, []);
 
     useEffect(() => {
         if (bookingMode === "room"
+            && roomDates.checkInDate && roomDates.checkInTime
+            && roomDates.checkOutDate && roomDates.checkOutTime) {
+
+            const checkIn = `${roomDates.checkInDate} ${roomDates.checkInTime}`;
+            const checkOut = `${roomDates.checkOutDate} ${roomDates.checkOutTime}`;
+            if (checkOut <= checkIn) return;
+
+            loadRooms(checkIn, checkOut);
+        }
+    }, [roomDates.checkInDate, roomDates.checkInTime,
+    roomDates.checkOutDate, roomDates.checkOutTime, bookingMode]);
+
+    useEffect(() => {
+        if (bookingMode === "table"
             && data.checkInDate && data.checkInTime
             && data.checkOutDate && data.checkOutTime) {
-            loadRooms(
-                `${data.checkInDate} ${data.checkInTime}`,
-                `${data.checkOutDate} ${data.checkOutTime}`
-            );
+            const cb = JSON.parse(sessionStorage.getItem("currentBranch") || "{}");
+            if (!cb?.id) return;
+            fetch(`${API}/api/tables/branch/${cb.id}/available`
+                + `?checkIn=${encodeURIComponent(`${data.checkInDate} ${data.checkInTime}`)}`
+                + `&checkOut=${encodeURIComponent(`${data.checkOutDate} ${data.checkOutTime}`)}`)
+                .then(r => r.json())
+                .then(list => setAvailableTableIds(new Set((list || []).map(t => t.id))))
+                .catch(console.error);
+        } else {
+            setAvailableTableIds(null);
         }
     }, [data.checkInDate, data.checkInTime, data.checkOutDate, data.checkOutTime, bookingMode]);
 
@@ -310,8 +340,10 @@ const BookingDetail = () => {
     const getQty = (id) => data.selectedFoods.find(f => f.branchFoodId === id)?.quantity || 0;
 
     /* ── totals ── */
+    const roomFeeAmount = bookingMode === "room" ? Number(data.roomFee || 0) : 0;
     const totalFoodAmount = data.selectedFoods.reduce((s, f) => s + f.price * f.quantity, 0);
-    const payable = Math.floor(totalFoodAmount * (data.payment === "full" ? 0.9 : 0.2));
+    const grandTotal = totalFoodAmount + roomFeeAmount;
+    const payable = Math.floor(grandTotal * (data.payment === "full" ? 0.9 : 0.2));
 
     /* ── available times ── */
     const getAvailableTimes = (dateRef) => {
@@ -338,32 +370,37 @@ const BookingDetail = () => {
 
     /* ── booking without food ── */
     const handleBookingOnlyTable = async () => {
+        const isRoom = bookingMode === "room";
         const ne = validateName(data.customerName); if (ne) return alert(` ${ne}`);
         const pe = validatePhone(data.phone); if (pe) return alert(` ${pe}`);
         const ee = validateEmail(data.email); if (ee) return alert(` ${ee}`);
+        if (!data.checkInDate || !data.checkInTime || !data.checkOutDate || !data.checkOutTime) {
+            return alert(isRoom
+                ? "Vui lòng chọn đầy đủ thời gian nhận/trả phòng"
+                : "Vui lòng chọn ngày và giờ nhận/trả bàn");
+        }
+
+        const depositAmt = isRoom ? Math.floor(roomFeeAmount * 0.2) : 0;
         setLoading(true);
         try {
             const cb = JSON.parse(sessionStorage.getItem("currentBranch"));
             const u = JSON.parse(localStorage.getItem("user") || "{}");
-            const isRoom = bookingMode === "room";
             const body = {
                 userId: u.id || null,
                 branchId: cb?.id,
                 tableId: isRoom ? null : (data.selectedTableId || null),
                 roomId: isRoom ? data.selectedRoomId : null,
-                ...(isRoom
-                    ? {
-                        checkInTime: `${data.checkInDate} ${data.checkInTime}`,
-                        checkOutTime: `${data.checkOutDate} ${data.checkOutTime}`,
-                    }
-                    : {
-                        reservationTime: `${data.date} ${data.time}`,
-                    }),
+                checkInTime: isRoom
+                    ? `${roomDates.checkInDate} ${roomDates.checkInTime}`
+                    : `${data.checkInDate} ${data.checkInTime}`,
+                checkOutTime: isRoom
+                    ? `${roomDates.checkOutDate} ${roomDates.checkOutTime}`
+                    : `${data.checkOutDate} ${data.checkOutTime}`,
                 customerName: data.customerName.trim(),
                 customerPhone: data.phone.replace(/\s/g, ""),
                 customerEmail: data.email || "",
                 note: data.note || "",
-                depositAmount: 0,
+                depositAmount: depositAmt,
                 items: [],
             };
 
@@ -387,16 +424,15 @@ const BookingDetail = () => {
                     }
                     return u2;
                 });
-                const isRoom = bookingMode === "room";
                 setBookingSuccessInfo({
                     id: result.id,
                     branchName: safeName(cb?.name),
                     label: isRoom ? "Phòng số" : "Bàn số",
                     tableNumber: isRoom ? data.roomNumber : data.tableNumber,
-                    date: isRoom ? data.checkInDate : data.date,
+                    date: data.checkInDate,
                     time: isRoom
                         ? `${data.checkInTime} → ${data.checkOutDate} ${data.checkOutTime}`
-                        : data.time,
+                        : data.checkInTime,
                     customerName: data.customerName,
                     customerPhone: data.phone,
                 });
@@ -405,7 +441,13 @@ const BookingDetail = () => {
         } catch (err) { alert(` Đặt bàn thất bại: ${err.message}`); }
         finally { setLoading(false); }
     };
-
+    const toCheckOut = (dateStr, timeStr) => {
+        const [h, m] = timeStr.split(":").map(Number);
+        const out = m + 1 >= 60
+            ? `${dateStr} ${String(h + 1).padStart(2, "0")}:00`
+            : `${dateStr} ${String(h).padStart(2, "0")}:${String(m + 1).padStart(2, "0")}`;
+        return out;
+    };
     /* ── booking with food → PayOS ── */
     const handleBooking = async () => {
         if (!data.selectedFoods.length) return alert(" Vui lòng chọn ít nhất 1 món");
@@ -421,7 +463,9 @@ const BookingDetail = () => {
             sessionStorage.setItem("tempBooking", JSON.stringify({
                 userId: u.id, branchId: cb?.id,
                 tableId: data.selectedTableId || null,
-                reservationTime: `${data.date} ${data.time}`, depositAmount: payable,
+                checkInTime: `${data.date} ${data.time}`,
+                checkOutTime: toCheckOut(data.date, data.time),
+                depositAmount: payable,
                 customerName: data.customerName.trim(), customerPhone: data.phone.replace(/\s/g, ""),
                 customerEmail: data.email || "", note: data.note || "",
                 items: data.selectedFoods.map(f => ({ branchFoodId: f.branchFoodId, quantity: f.quantity })),
@@ -448,12 +492,73 @@ const BookingDetail = () => {
         } catch (err) { alert(` ${err.message}`); setLoading(false); }
     };
 
+    const handleRoomOnlyPayment = async () => {
+        const ne = validateName(data.customerName); if (ne) return alert(ne);
+        const pe = validatePhone(data.phone); if (pe) return alert(pe);
+        const ee = validateEmail(data.email); if (ee) return alert(ee);
+        if (!roomDates.checkInDate || !roomDates.checkInTime || !roomDates.checkOutDate || !roomDates.checkOutTime)
+            return alert("Vui lòng chọn đầy đủ thời gian nhận/trả phòng");
+
+        const depositAmt = Math.floor(roomFeeAmount * (data.payment === "full" ? 0.9 : 0.2));
+
+        setLoading(true);
+        try {
+            const cb = JSON.parse(sessionStorage.getItem("currentBranch"));
+            const u = JSON.parse(localStorage.getItem("user") || "{}");
+            const cbName = safeName(cb?.name);
+            const tempOrderCode = Date.now() % 2147483647;
+
+            sessionStorage.setItem("tempBooking", JSON.stringify({
+                userId: u.id, branchId: cb?.id,
+                tableId: null,
+                roomId: data.selectedRoomId,
+                checkInTime: `${roomDates.checkInDate} ${roomDates.checkInTime}`,
+                checkOutTime: `${roomDates.checkOutDate} ${roomDates.checkOutTime}`,
+                depositAmount: depositAmt,
+                customerName: data.customerName.trim(),
+                customerPhone: data.phone.replace(/\s/g, ""),
+                customerEmail: data.email || "",
+                note: data.note || "",
+                items: [],
+                selectedFoods: [],
+                paymentMethod: data.payment,
+                orderCode: tempOrderCode,
+                roomNumber: data.roomNumber,
+            }));
+
+            sessionStorage.setItem("lastBranch", JSON.stringify({ id: cb?.id, name: cbName }));
+
+            const payRes = await fetch(`${API}/api/payos/create`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${getAuthToken()}` },
+                body: JSON.stringify({
+                    orderCode: tempOrderCode,
+                    amount: depositAmt,
+                    description: `Dat phong ${data.roomNumber}`.substring(0, 25),
+                    returnUrl: `${window.location.origin}/payment-success`,
+                    cancelUrl: `${window.location.origin}/payment-cancel`,
+                    items: [{
+                        name: `Phòng ${data.roomNumber}`,
+                        quantity: 1,
+                        price: Math.floor(roomFeeAmount)
+                    }],
+                }),
+            });
+
+            const payResult = await payRes.json();
+            if (payResult.code !== "00" || !payResult.data?.checkoutUrl)
+                throw new Error(payResult.desc || "Không thể tạo link thanh toán");
+            window.location.href = payResult.data.checkoutUrl;
+        } catch (err) { alert(err.message); setLoading(false); }
+    };
+
     const canConfirm = bookingMode === "table"
-        ? (data.table && data.date && data.time &&
+        ? (data.table && data.checkInDate && data.checkInTime &&
+            data.checkOutDate && data.checkOutTime &&
             data.customerName && data.phone &&
             !validateName(data.customerName) && !validatePhone(data.phone) && !validateEmail(data.email))
-        : (data.selectedRoomId && data.checkInDate && data.checkInTime &&
-            data.checkOutDate && data.checkOutTime &&
+        : (data.selectedRoomId && roomDates.checkInDate && roomDates.checkInTime &&
+            roomDates.checkOutDate && roomDates.checkOutTime &&
             data.customerName && data.phone &&
             !validateName(data.customerName) && !validatePhone(data.phone) && !validateEmail(data.email));
 
@@ -509,21 +614,32 @@ const BookingDetail = () => {
                 {bookingMode === "table" && (
                     <div className={styles.formRow}>
                         <div className={styles.formGroup}>
-                            <label className={styles.flabel}>Ngày</label>
-                            <input className={styles.finput} type="date"
-                                value={data.date}
+                            <label className={styles.flabel}>Nhận bàn</label>
+                            <input type="date" className={styles.finput}
+                                value={data.checkInDate}
                                 min={new Date().toISOString().split("T")[0]}
                                 max={new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]}
-                                onChange={e => setData({ ...data, date: e.target.value, time: "" })}
-                            />
+                                onChange={e => setData({ ...data, checkInDate: e.target.value, checkInTime: "" })} />
+                            <select className={styles.finput} value={data.checkInTime}
+                                disabled={!data.checkInDate}
+                                onChange={e => setData({ ...data, checkInTime: e.target.value })}>
+                                <option value="">-- Giờ --</option>
+                                {getAvailableTimes(data.checkInDate).map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
                         </div>
                         <div className={styles.formGroup}>
-                            <label className={styles.flabel}>Giờ</label>
-                            <select className={styles.finput} value={data.time}
-                                onChange={e => setData({ ...data, time: e.target.value })}
-                                disabled={!data.date}>
-                                <option value="">--:--</option>
-                                {getAvailableTimes().map(t => <option key={t} value={t}>{t}</option>)}
+                            <label className={styles.flabel}>Trả bàn</label>
+                            <input type="date" className={styles.finput}
+                                value={data.checkOutDate}
+                                min={data.checkInDate || new Date().toISOString().split("T")[0]}
+                                max={new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]}
+                                onChange={e => setData({ ...data, checkOutDate: e.target.value })} />
+                            <select className={styles.finput} value={data.checkOutTime}
+                                disabled={!data.checkOutDate}
+                                onChange={e => setData({ ...data, checkOutTime: e.target.value })}>
+                                <option value="">-- Giờ --</option>
+                                {getRoomCheckOutTimes(data.checkInDate, data.checkOutDate, data.checkInTime).map(t =>
+                                    <option key={t} value={t}>{t}</option>)}
                             </select>
                         </div>
                     </div>
@@ -586,7 +702,7 @@ const BookingDetail = () => {
                         )}
                         {data.selectedRoomId && (
                             <div style={{ fontSize: "0.8em", color: "#888", marginTop: 4 }}>
-                                {data.checkInDate} {data.checkInTime} → {data.checkOutDate} {data.checkOutTime}
+                                {roomDates.checkInDate} {roomDates.checkInTime} → {roomDates.checkOutDate} {roomDates.checkOutTime}
                             </div>
                         )}
                     </div>
@@ -605,7 +721,22 @@ const BookingDetail = () => {
                     </button>
                     <button
                         className={bookingMode === "room" ? styles.modeActive : styles.modeBtn}
-                        onClick={(e) => { e.preventDefault(); setBookingMode("room") }}>
+                        onClick={(e) => {
+                            e.preventDefault(); setBookingMode("room"); setRooms([]); setRoomDates({
+                                checkInDate: toDateStr(today),
+                                checkInTime: "",
+                                checkOutDate: toDateStr(today),
+                                checkOutTime: "",
+                            });
+
+                            setData(prev => ({
+                                ...prev,
+                                selectedRoomId: null,
+                                roomNumber: "",
+                                roomCapacity: "",
+                                roomFee: 0,
+                            }));
+                        }}>
                         Đặt phòng
                     </button>
                 </div>
@@ -650,7 +781,8 @@ const BookingDetail = () => {
                                                     <TableCard key={t.id} table={t}
                                                         selected={data.selectedTableId}
                                                         onSelect={handleSelectTable}
-                                                        isVip={isVipArea(activeArea)} />
+                                                        isVip={isVipArea(activeArea)}
+                                                        availableTableIds={availableTableIds} />
                                                 ))}
                                             </div>
                                         </div>
@@ -663,7 +795,8 @@ const BookingDetail = () => {
                                                     <TableCard key={t.id} table={t}
                                                         selected={data.selectedTableId}
                                                         onSelect={handleSelectTable}
-                                                        isVip={isVipArea(activeArea)} />
+                                                        isVip={isVipArea(activeArea)}
+                                                        availableTableIds={availableTableIds} />
                                                 ))}
                                             </div>
                                         </div>
@@ -676,7 +809,8 @@ const BookingDetail = () => {
                                                     <TableCard key={t.id} table={t}
                                                         selected={data.selectedTableId}
                                                         onSelect={handleSelectTable}
-                                                        isVip={isVipArea(activeArea)} />
+                                                        isVip={isVipArea(activeArea)}
+                                                        availableTableIds={availableTableIds} />
                                                 ))}
                                             </div>
                                         </div>
@@ -689,7 +823,8 @@ const BookingDetail = () => {
                                                     <TableCard key={t.id} table={t}
                                                         selected={data.selectedTableId}
                                                         onSelect={handleSelectTable}
-                                                        isVip={true} />
+                                                        isVip={true}
+                                                        availableTableIds={availableTableIds} />
                                                 ))}
                                             </div>
                                         </div>
@@ -703,7 +838,8 @@ const BookingDetail = () => {
                                                         selected={data.selectedTableId}
                                                         onSelect={handleSelectTable}
                                                         isVip={true}
-                                                        isGrandVip={true} />
+                                                        isGrandVip={true}
+                                                        availableTableIds={availableTableIds} />
                                                 ))}
                                             </div>
                                         </div>
@@ -735,28 +871,28 @@ const BookingDetail = () => {
                             <div className={styles.formGroup}>
                                 <label className={styles.flabel}>Nhận phòng</label>
                                 <input type="date" className={styles.finput}
-                                    value={data.checkInDate}
+                                    value={roomDates.checkInDate}
                                     min={new Date().toISOString().split("T")[0]}
-                                    onChange={e => setData({ ...data, checkInDate: e.target.value })} />
-                                <select className={styles.finput} value={data.checkInTime}
-                                    disabled={!data.checkInDate}
-                                    onChange={e => setData({ ...data, checkInTime: e.target.value })}>
+                                    onChange={e => setRoomDates({ ...roomDates, checkInDate: e.target.value, checkInTime: "" })} />
+                                <select className={styles.finput} value={roomDates.checkInTime}
+                                    disabled={!roomDates.checkInDate}
+                                    onChange={e => setRoomDates({ ...roomDates, checkInTime: e.target.value })}>
                                     <option value="">-- Giờ --</option>
-                                    {getRoomCheckInTimes(data.checkInDate).map(t =>
+                                    {getRoomCheckInTimes(roomDates.checkInDate).map(t =>
                                         <option key={t} value={t}>{t}</option>)}
                                 </select>
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.flabel}>Trả phòng</label>
                                 <input type="date" className={styles.finput}
-                                    value={data.checkOutDate}
-                                    min={data.checkInDate || new Date().toISOString().split("T")[0]}
-                                    onChange={e => setData({ ...data, checkOutDate: e.target.value })} />
-                                <select className={styles.finput} value={data.checkOutTime}
-                                    disabled={!data.checkOutDate}
-                                    onChange={e => setData({ ...data, checkOutTime: e.target.value })}>
+                                    value={roomDates.checkOutDate}
+                                    min={roomDates.checkInDate || new Date().toISOString().split("T")[0]}
+                                    onChange={e => setRoomDates({ ...roomDates, checkOutDate: e.target.value })} />
+                                <select className={styles.finput} value={roomDates.checkOutTime}
+                                    disabled={!roomDates.checkOutDate}
+                                    onChange={e => setRoomDates({ ...roomDates, checkOutTime: e.target.value })}>
                                     <option value="">-- Giờ --</option>
-                                    {getRoomCheckOutTimes(data.checkInDate, data.checkOutDate, data.checkInTime).map(t =>
+                                    {getRoomCheckOutTimes(roomDates.checkInDate, roomDates.checkOutDate, roomDates.checkInTime).map(t =>
                                         <option key={t} value={t}>{t}</option>)}
                                 </select>
                             </div>
@@ -767,8 +903,8 @@ const BookingDetail = () => {
                                 <div className={styles.spinner} /><span>Đang tìm phòng...</span>
                             </div>
                         ) : rooms.length === 0 ? (
-                            <div className={styles.emptyArea}>
-                                {data.checkInDate && data.checkOutDate
+                            <div className={styles.emptyArea1}>
+                                {roomDates.checkInTime && roomDates.checkOutTime
                                     ? "Không có phòng trống trong thời gian này"
                                     : "Chọn ngày nhận/trả phòng để xem phòng trống"}
                             </div>
@@ -785,6 +921,7 @@ const BookingDetail = () => {
                                             selectedRoomId: room.id,
                                             roomNumber: room.number,
                                             roomCapacity: room.capacity,
+                                            roomFee: room.roomFee || 0,
                                             table: room.id,
                                             date: data.checkInDate,
                                             time: data.checkInTime,
@@ -793,6 +930,11 @@ const BookingDetail = () => {
                                             {data.selectedRoomId === room.id ? "✓" : `Phòng ${room.number}`}
                                         </div>
                                         <div className={styles.tableCap}>{room.capacity} người</div>
+                                        {room.roomFee != null && (
+                                            <div className={styles.tableStatus} style={{ color: '#10b981', fontWeight: 600 }}>
+                                                {Number(room.roomFee).toLocaleString('vi-VN')}đ
+                                            </div>
+                                        )}
                                         <div className={styles.tableStatus}>
                                             {data.selectedRoomId === room.id ? "Đang chọn" : "Còn trống"}
                                         </div>
@@ -912,6 +1054,37 @@ const BookingDetail = () => {
                     <div className={styles.cartEmpty}>
                         <span className={styles.cartEmptyIcon}>🍽️</span>
                         <p>Chưa có món nào.<br />Thêm món từ thực đơn bên cạnh.</p>
+                        {bookingMode === "room" && roomFeeAmount > 0 && (
+                            <div style={{ marginTop: 16, width: '100%' }}>
+                                <div className={styles.totalRow}>
+                                    <span className={styles.totalLabel} style={{ fontSize: '13px', color: '#6b7280' }}>
+                                        Phí phòng
+                                    </span>
+                                    <span className={styles.totalAmt} style={{ fontSize: '14px', color: '#10b981' }}>
+                                        {fmtPrice(roomFeeAmount)}
+                                    </span>
+                                </div>
+                                <div className={styles.payOpts}>
+                                    {[
+                                        { val: "deposit", label: "Đặt cọc 20%", amt: Math.floor(roomFeeAmount * 0.2) },
+                                        { val: "full", label: "Thanh toán toàn bộ", amt: Math.floor(roomFeeAmount * 0.9), badge: "−10%" },
+                                    ].map(opt => (
+                                        <div key={opt.val}
+                                            className={`${styles.payOpt}${data.payment === opt.val ? " " + styles.payOptActive : ""}`}
+                                            onClick={() => setData({ ...data, payment: opt.val })}>
+                                            <div className={`${styles.payRadio}${data.payment === opt.val ? " " + styles.payRadioOn : ""}`} />
+                                            <div className={styles.payInfo}>
+                                                <span className={styles.payLabel}>
+                                                    {opt.label}
+                                                    {opt.badge && <span className={styles.payBadge}>{opt.badge}</span>}
+                                                </span>
+                                                <span className={styles.payAmt}>{fmtPrice(opt.amt)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <>
@@ -941,15 +1114,26 @@ const BookingDetail = () => {
                             ))}
                         </div>
 
+                        {bookingMode === "room" && roomFeeAmount > 0 && (
+                            <div className={styles.totalRow} style={{ borderTop: 'none', paddingTop: 0 }}>
+                                <span className={styles.totalLabel} style={{ fontSize: '13px', color: '#6b7280' }}>
+                                    Phí phòng
+                                </span>
+                                <span className={styles.totalAmt} style={{ fontSize: '14px', color: '#10b981' }}>
+                                    {fmtPrice(roomFeeAmount)}
+                                </span>
+                            </div>
+                        )}
+
                         <div className={styles.totalRow}>
                             <span className={styles.totalLabel}>Tổng tiền</span>
-                            <span className={styles.totalAmt}>{fmtPrice(totalFoodAmount)}</span>
+                            <span className={styles.totalAmt}>{fmtPrice(grandTotal)}</span>
                         </div>
 
                         <div className={styles.payOpts}>
                             {[
-                                { val: "deposit", label: "Đặt cọc 20%", amt: Math.floor(totalFoodAmount * 0.2) },
-                                { val: "full", label: "Thanh toán toàn bộ", amt: Math.floor(totalFoodAmount * 0.9), badge: "−10%" },
+                                { val: "deposit", label: "Đặt cọc 20%", amt: Math.floor(grandTotal * 0.2) },
+                                { val: "full", label: "Thanh toán toàn bộ", amt: Math.floor(grandTotal * 0.9), badge: "−10%" },
                             ].map(opt => (
                                 <div key={opt.val}
                                     className={`${styles.payOpt}${data.payment === opt.val ? " " + styles.payOptActive : ""}`}
@@ -982,7 +1166,15 @@ const BookingDetail = () => {
                 <button
                     className={styles.confirmBtnRight}
                     disabled={!canConfirm || loading}
-                    onClick={data.selectedFoods.length > 0 ? handleBooking : handleBookingOnlyTable}
+                    onClick={() => {
+                        if (bookingMode === "room" && roomFeeAmount > 0 && data.selectedFoods.length === 0) {
+                            handleRoomOnlyPayment();
+                        } else if (data.selectedFoods.length > 0) {
+                            handleBooking();
+                        } else {
+                            handleBookingOnlyTable();
+                        }
+                    }}
                 >
                     {loading ? "Đang xử lý..." : "Xác nhận đặt bàn →"}
                 </button>
@@ -1034,13 +1226,18 @@ const BookingDetail = () => {
 };
 
 /* ── Table Card ── */
-const TableCard = ({ table, selected, onSelect, isVip = false, isGrandVip = false }) => {
+const TableCard = ({ table, selected, onSelect, isVip = false, isGrandVip = false, availableTableIds = null }) => {
     const isSelected = selected === table.id;
-    const isFree = table.status === "FREE";
+    const isFree = availableTableIds
+        ? availableTableIds.has(table.id)
+        : table.status === "FREE";
     const showVip = isVip || table.capacity >= 10;
     const showGrandVip = isGrandVip || table.capacity >= 16;
-    const statusLabel = table.status === "FREE" ? "Trống"
-        : table.status === "RESERVED" ? "Đã đặt" : "Có khách";
+    const statusLabel = isSelected ? "Đang chọn"
+        : isFree ? "Trống"
+            : availableTableIds
+                ? "Đã có đặt"
+                : "Có khách";
 
     let cls = styles.tableCard;
     if (isSelected) cls += " " + styles.tableSelected;
@@ -1053,13 +1250,13 @@ const TableCard = ({ table, selected, onSelect, isVip = false, isGrandVip = fals
 
     return (
         <div className={cls}
-            onClick={() => isFree && onSelect(table)}
+            onClick={() => isFree && !isSelected && onSelect(table)}
             title={`${showVip ? "Phòng" : "Bàn"} ${table.number} · ${table.capacity} người · ${statusLabel}`}>
             {showGrandVip && !isSelected && <span className={styles.grandVipPill}>👑 GRAND VIP</span>}
             {showVip && !showGrandVip && !isSelected && <span className={styles.vipPill}>VIP</span>}
             <div className={styles.tableName}>{isSelected ? "✓" : label}</div>
             <div className={styles.tableCap}>{table.capacity} người</div>
-            <div className={styles.tableStatus}>{isSelected ? "Đang chọn" : statusLabel}</div>
+            <div className={styles.tableStatus}>{statusLabel}</div>
         </div>
     );
 };
