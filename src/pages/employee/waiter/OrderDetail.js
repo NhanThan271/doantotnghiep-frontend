@@ -729,9 +729,6 @@ const OrderDetail = () => {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <button className={styles.backBtn} onClick={() => navigate('/waiter/orders')}>
-                    <ArrowLeft size={24} />
-                </button>
                 <div className={styles.tableInfo}>
                     <h1>{entityType} {entityNumber}</h1>
                     <div className={`${entity?.status === "FREE" ? styles.available : styles.occupied}`}>

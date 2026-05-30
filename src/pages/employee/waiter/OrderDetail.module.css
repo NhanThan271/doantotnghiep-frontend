@@ -298,7 +298,6 @@
     flex: 1;
     overflow-y: auto;
     margin-bottom: 16px;
-    min-height: 100px;
 }
 
 .cartItem {
