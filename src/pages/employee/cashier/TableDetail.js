@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+// TableDetail.js - Full code
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, ShoppingCart, Users, Plus, Minus, Trash2, Printer, Tag, X, Percent, DollarSign } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
@@ -39,6 +40,9 @@ const TableDetail = () => {
     const [isConfirming, setIsConfirming] = useState(false);
     const [showCashModal, setShowCashModal] = useState(false);
     const [processingPayment, setProcessingPayment] = useState(false);
+    const confirmedCartRef = useRef({});
+    const [confirmedCart, setConfirmedCart] = useState({});
+    const [branchInfo, setBranchInfo] = useState(null);
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
     const API_BASE_URL = 'http://localhost:8080';
@@ -84,6 +88,22 @@ const TableDetail = () => {
         }
     }, []);
 
+    const fetchBranchInfo = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE_URL}/api/branches/${branchId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setBranchInfo(data);
+                console.log("📋 Branch info:", data);
+            }
+        } catch (err) {
+            console.error("Lỗi tải thông tin chi nhánh:", err);
+        }
+    };
+
     const checkExistingOrder = async () => {
         try {
             const res = await axiosClient.get("/customer/orders");
@@ -91,7 +111,7 @@ const TableDetail = () => {
                 if (isRoom) {
                     return o.room?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED";
                 }
-                return o.table?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED" && o.status !== "COMPLETED";
+                return o.table?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED";
             });
 
             if (existingOrder) {
@@ -101,7 +121,6 @@ const TableDetail = () => {
                 let items = [];
                 if (existingOrder.items && existingOrder.items.length > 0) {
                     items = existingOrder.items.map(item => {
-                        // Lấy foodId và foodName từ nhiều nguồn
                         const foodId = item.foodId || item.food?.id || item.id;
                         const foodName = item.food?.name || item.foodName || item.name;
                         const product = products.find(p => p.id === foodId);
@@ -117,6 +136,11 @@ const TableDetail = () => {
                 }
                 setCart(items);
 
+                const snapshot = {};
+                items.forEach(item => { snapshot[item.id] = item.quantity; });
+                confirmedCartRef.current = snapshot;
+                setConfirmedCart(snapshot);
+
                 if (existingOrder.promotion) {
                     setSelectedPromotion(existingOrder.promotion);
                 }
@@ -127,12 +151,17 @@ const TableDetail = () => {
     };
 
     const addToCart = (product) => {
-        const existing = cart.find(item => item.id === product.id);
         const price = product.finalPrice || product.branchPrice || product.originalPrice || 0;
 
-        if (existing) {
-            setCart(cart.map(item =>
-                item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        const existingIndex = cart.findIndex(item =>
+            parseInt(item.id) === parseInt(product.id)
+        );
+
+        if (existingIndex >= 0) {
+            setCart(cart.map((item, index) =>
+                index === existingIndex
+                    ? { ...item, quantity: item.quantity + 1 }
+                    : item
             ));
         } else {
             setCart([...cart, {
@@ -147,17 +176,19 @@ const TableDetail = () => {
     };
 
     const updateQuantity = (id, delta) => {
-        setCart(cart.map(item => {
-            if (item.id === id) {
-                const newQty = item.quantity + delta;
-                return newQty > 0 ? { ...item, quantity: newQty } : null;
-            }
-            return item;
-        }).filter(Boolean));
+        setCart(prevCart => {
+            return prevCart.map(item => {
+                if (parseInt(item.id) === parseInt(id)) {
+                    const newQty = item.quantity + delta;
+                    return newQty > 0 ? { ...item, quantity: newQty } : null;
+                }
+                return item;
+            }).filter(Boolean);
+        });
     };
 
     const removeFromCart = (id) => {
-        setCart(cart.filter(item => item.id !== id));
+        setCart(prevCart => prevCart.filter(item => parseInt(item.id) !== parseInt(id)));
     };
 
     const originalTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -169,91 +200,88 @@ const TableDetail = () => {
 
     const finalTotal = originalTotal - discount;
 
+    const hasNewItems = useMemo(() => {
+        if (!order) return cart.length > 0;
+        return true;
+    }, [cart, order]);
+
     const handleUpdateOrder = async () => {
         if (cart.length === 0) {
             showToast("Vui lòng chọn món!", "warning", 2000);
             return;
         }
 
+        const orderItemMap = {};
+        if (order.items && order.items.length > 0) {
+            order.items.forEach(item => {
+                const foodId = item.foodId || item.food?.id;
+                if (foodId) {
+                    orderItemMap[parseInt(foodId)] = (orderItemMap[parseInt(foodId)] || 0) + (item.quantity || 0);
+                }
+            });
+        }
+
+        const groupedCart = {};
+        cart.forEach(item => {
+            const foodId = parseInt(item.id);
+            if (!foodId) return;
+            if (groupedCart[foodId]) {
+                groupedCart[foodId].quantity += item.quantity;
+                if (item.price > groupedCart[foodId].price) {
+                    groupedCart[foodId].price = item.price;
+                }
+            } else {
+                groupedCart[foodId] = { ...item };
+            }
+        });
+
+        const mergedCart = Object.values(groupedCart);
+
+        const itemsToAdd = [];
+        mergedCart.forEach(item => {
+            const foodId = parseInt(item.id);
+            if (!foodId) return;
+            const orderQty = orderItemMap[foodId] || 0;
+            const quantityToAdd = item.quantity - orderQty;
+            if (quantityToAdd > 0) {
+                itemsToAdd.push({ foodId, quantity: quantityToAdd });
+            }
+        });
+
+        if (itemsToAdd.length === 0) {
+            showToast("Chưa có món mới để cập nhật! Hãy thêm món vào giỏ hàng.", "info", 3000);
+            return;
+        }
+
         setIsUpdating(true);
 
         try {
-            console.log("🛒 Cart hiện tại:", cart);
-            console.log("📦 Order items hiện tại:", order.items);
+            await axiosClient.post(`/customer/orders/${order.id}/add-items`, itemsToAdd);
 
-            const existingQuantities = {};
-            if (order.items && order.items.length > 0) {
-                order.items.forEach(item => {
-                    const foodId = item.foodId || item.food?.id;
-                    if (foodId) {
-                        existingQuantities[foodId] = item.quantity;
-                    }
-                });
-            }
-            console.log("📊 Existing quantities:", existingQuantities);
-
-            const cartQuantities = {};
-            cart.forEach(item => {
-                if (item.id) {
-                    cartQuantities[item.id] = item.quantity;
-                }
-            });
-            console.log("📊 Cart quantities:", cartQuantities);
-
-            const itemsToAdd = [];
-            for (const [foodId, cartQty] of Object.entries(cartQuantities)) {
-                const existingQty = existingQuantities[foodId] || 0;
-                const quantityToAdd = cartQty - existingQty;  // Đây là số cần thêm mới
-
-                console.log(`🍽️ Món ${foodId}: cart=${cartQty}, existing=${existingQty}, toAdd=${quantityToAdd}`);
-
-                if (quantityToAdd > 0) {
-                    itemsToAdd.push({
-                        foodId: parseInt(foodId),
-                        quantity: quantityToAdd
-                    });
-                }
-            }
-
-            console.log("📦 itemsToAdd gửi lên API:", JSON.stringify(itemsToAdd, null, 2));
-
-            if (itemsToAdd.length === 0) {
-                showToast("Không có món mới để thêm!", "info", 2000);
-                setIsUpdating(false);
-                return;
-            }
-
-            const invalidItems = itemsToAdd.filter(item => !item.foodId || item.foodId <= 0);
-            if (invalidItems.length > 0) {
-                console.error("❌ Items không hợp lệ:", invalidItems);
-                showToast("Dữ liệu món ăn không hợp lệ!", "error", 3000);
-                setIsUpdating(false);
-                return;
-            }
-
-            const res = await axiosClient.post(`/customer/orders/${order.id}/add-items`, itemsToAdd);
-            const updatedOrder = res.data;
-
-            console.log("✅ Update thành công:", updatedOrder);
+            const getRes = await axiosClient.get(`/customer/orders/${order.id}`);
+            const updatedOrder = getRes.data;
 
             setOrder(updatedOrder);
 
-            // ✅ SỬA: Lấy tên từ food object (fix "Sản phẩm #undefined")
-            const updatedCart = (updatedOrder.items || []).map(item => {
-                const foodName = item.food?.name || item.foodName || item.name;
-                const product = products.find(p => p.id === item.foodId);
+            if (updatedOrder.items && updatedOrder.items.length > 0) {
+                const updatedCart = updatedOrder.items.map(item => {
+                    const foodId = item.foodId || item.food?.id || item.id;
+                    const product = products.find(p => p.id === foodId);
+                    return {
+                        id: foodId,
+                        name: product?.name || item.food?.name || `Sản phẩm #${foodId}`,
+                        price: item.price || 0,
+                        quantity: item.quantity || 0,
+                        image: product?.imageUrl || ''
+                    };
+                });
+                setCart(updatedCart);
 
-                return {
-                    id: item.foodId,
-                    name: product?.name || foodName || `Sản phẩm #${item.foodId}`,
-                    price: item.price || 0,
-                    quantity: item.quantity || 0,
-                    image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
-                };
-            });
-
-            console.log("📦 updatedCart sau khi map:", updatedCart);
-            setCart(updatedCart);
+                const snapshot = {};
+                updatedCart.forEach(item => { snapshot[item.id] = item.quantity; });
+                confirmedCartRef.current = snapshot;
+                setConfirmedCart(snapshot);
+            }
 
             const newItems = itemsToAdd.map(item => {
                 const product = products.find(p => p.id === item.foodId);
@@ -273,7 +301,8 @@ const TableDetail = () => {
                 tableNumber: entityNumber,
                 tableId: entity.id,
                 locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
-                areaName: entity?.area || "Khu chính", items: newItems.map(item => ({
+                areaName: entity?.area || "Khu chính",
+                items: newItems.map(item => ({
                     id: item.id,
                     name: item.name,
                     quantity: item.quantity
@@ -282,16 +311,11 @@ const TableDetail = () => {
                 branchId: branchId
             });
 
-            socket.emit("update-order", updatedOrder);
-
-            showToast(`Đã cập nhật thêm món cho đơn hàng!`, 'success', 3000);
+            showToast(`Đã thêm ${itemsToAdd.reduce((sum, i) => sum + i.quantity, 0)} món vào đơn!`, 'success', 3000);
 
         } catch (err) {
             console.error("❌ Lỗi cập nhật đơn:", err);
-            console.error("Response data:", err.response?.data);
-            const errorMessage = err.response?.data || err.message;
-            alert(`Lỗi: ${errorMessage}`);
-            showToast(`Lỗi: ${errorMessage}`, "error", 5000);
+            showToast(`Lỗi: ${err.response?.data?.message || err.message}`, "error", 5000);
         } finally {
             setIsUpdating(false);
         }
@@ -327,8 +351,6 @@ const TableDetail = () => {
                     quantity: item.quantity
                 }));
 
-            console.log("📦 itemsToAdd cho đơn mới:", itemsToAdd);
-
             if (itemsToAdd.length > 0) {
                 await axiosClient.post(`/customer/orders/${newOrder.id}/add-items`, itemsToAdd);
             }
@@ -336,22 +358,29 @@ const TableDetail = () => {
             const finalRes = await axiosClient.get(`/customer/orders/${newOrder.id}`);
             const finalOrder = finalRes.data;
 
+            console.log("✅ Final order:", finalOrder);
+
             setOrder(finalOrder);
 
-            // ✅ SỬA: Lấy tên từ food object (fix "Sản phẩm #undefined")
-            const updatedCart = (finalOrder.items || []).map(item => {
-                const foodName = item.food?.name || item.foodName || item.name;
-                const product = products.find(p => p.id === item.foodId);
+            if (finalOrder.items && finalOrder.items.length > 0) {
+                const updatedCart = finalOrder.items.map(item => {
+                    const foodId = item.foodId || item.food?.id || item.id;
+                    const product = products.find(p => p.id === foodId);
+                    return {
+                        id: foodId,
+                        name: product?.name || item.food?.name || `Sản phẩm #${foodId}`,
+                        price: item.price || 0,
+                        quantity: item.quantity || 0,
+                        image: product?.imageUrl || ''
+                    };
+                });
+                setCart(updatedCart);
 
-                return {
-                    id: item.foodId,
-                    name: product?.name || foodName || `Sản phẩm #${item.foodId}`,
-                    price: item.price || 0,
-                    quantity: item.quantity || 0,
-                    image: product?.imageUrl || item.food?.imageUrl || item.foodImageUrl || ''
-                };
-            });
-            setCart(updatedCart);
+                const snapshot = {};
+                updatedCart.forEach(item => { snapshot[item.id] = item.quantity; });
+                confirmedCartRef.current = snapshot;
+                setConfirmedCart(snapshot);
+            }
 
             const newItems = itemsToAdd.map(item => {
                 const product = products.find(p => p.id === item.foodId);
@@ -508,6 +537,8 @@ const TableDetail = () => {
                 setOrder(null);
                 setCart([]);
                 setSelectedPromotion(null);
+                confirmedCartRef.current = {};
+                setConfirmedCart({});
 
                 socket.emit("update-tables");
                 showToast(`Thanh toán thành công!`, 'success', 4000);
@@ -525,6 +556,10 @@ const TableDetail = () => {
     };
 
     const printBill = () => {
+        const branchName = branchInfo?.name || 'LA COSTA RESTAURANT';
+        const branchAddress = branchInfo?.address || '123 Đường ABC, Quận XYZ, TP.HCM';
+        const branchPhone = branchInfo?.phone || '0123 456 789';
+
         const billContent = `
         <!DOCTYPE html>
         <html>
@@ -555,9 +590,9 @@ const TableDetail = () => {
         <body>
             <div class="bill-container">
                 <div class="header">
-                    <h1>☕ CAFE SHOP</h1>
-                    <p>123 Đường ABC, Quận XYZ, TP.HCM</p>
-                    <p>Hotline: 0123 456 789</p>
+                    <h1>${branchName}</h1>
+                    <p>${branchAddress}</p>
+                    <p>Hotline: ${branchPhone}</p>
                 </div>
                 <div class="bill-info">
                     <div><strong>HÓA ĐƠN</strong><span>${new Date().toLocaleString('vi-VN')}</span></div>
@@ -602,7 +637,7 @@ const TableDetail = () => {
 
     const existingOrderFromState = state?.existingOrder;
 
-    // ✅ FIX 1: Đồng bộ tên sản phẩm từ products vào cart
+    // FIX 1: Đồng bộ tên sản phẩm từ products vào cart
     useEffect(() => {
         if (products.length > 0 && cart.length > 0) {
             let hasChange = false;
@@ -622,7 +657,7 @@ const TableDetail = () => {
         }
     }, [products]);
 
-    // ✅ FIX 2: Tự động sửa các cart item bị thiếu id
+    // FIX 2: Tự động sửa các cart item bị thiếu id
     useEffect(() => {
         if (products.length > 0 && cart.length > 0) {
             let hasChange = false;
@@ -644,28 +679,6 @@ const TableDetail = () => {
         }
     }, [products, cart]);
 
-    // ✅ FIX 3: Gộp các item trùng tên (fix 2 item "ruou" riêng biệt)
-    useEffect(() => {
-        if (cart.length <= 1) return;
-
-        const grouped = new Map();
-        cart.forEach(item => {
-            const key = item.name; // Gộp theo tên
-            if (grouped.has(key)) {
-                const existing = grouped.get(key);
-                existing.quantity += item.quantity;
-            } else {
-                grouped.set(key, { ...item });
-            }
-        });
-
-        const mergedCart = Array.from(grouped.values());
-        if (mergedCart.length !== cart.length) {
-            console.log("🔄 Đã gộp các món trùng tên:", mergedCart);
-            setCart(mergedCart);
-        }
-    }, [cart]);
-
     useEffect(() => {
         const paymentCancelled = sessionStorage.getItem('paymentCancelled');
         if (paymentCancelled === 'true') {
@@ -675,11 +688,39 @@ const TableDetail = () => {
         }
     }, []);
 
-    // ✅ FIX 4: Khởi tạo dữ liệu - KHÔNG phụ thuộc vào products
+    // FIX 3: Gộp các item trùng id trong cart
+    useEffect(() => {
+        if (cart.length <= 1) return;
+
+        const grouped = {};
+        cart.forEach(item => {
+            const key = parseInt(item.id);
+            if (!key) return;
+
+            if (grouped[key]) {
+                grouped[key].quantity += item.quantity;
+                if (item.price > grouped[key].price) {
+                    grouped[key].price = item.price;
+                }
+            } else {
+                grouped[key] = { ...item };
+            }
+        });
+
+        const mergedCart = Object.values(grouped);
+
+        if (mergedCart.length !== cart.length) {
+            console.log("🔄 FIX 3: Gộp cart:", mergedCart);
+            setCart(mergedCart);
+        }
+    }, [cart]);
+
+    // FIX 4: Khởi tạo dữ liệu
     useEffect(() => {
         const initialize = async () => {
             await fetchProducts();
             await fetchPromotions();
+            await fetchBranchInfo();
         };
 
         if (entity) {
@@ -692,6 +733,11 @@ const TableDetail = () => {
             if (products.length === 0) return;
 
             if (existingOrderFromState) {
+                if (existingOrderFromState.status === "PAID" ||
+                    existingOrderFromState.status === "CANCELED") {
+                    return;
+                }
+
                 setOrder(existingOrderFromState);
                 setCustomerName(existingOrderFromState.customerName || "");
 
@@ -711,8 +757,12 @@ const TableDetail = () => {
                         };
                     }).filter(item => item.id);
                 }
-                console.log("📦 Cart items sau khi map:", items);
                 setCart(items);
+
+                const snapshot = {};
+                items.forEach(item => { snapshot[item.id] = item.quantity; });
+                confirmedCartRef.current = snapshot;
+                setConfirmedCart(snapshot);
 
                 if (existingOrderFromState.promotion) {
                     setSelectedPromotion(existingOrderFromState.promotion);
@@ -727,15 +777,12 @@ const TableDetail = () => {
 
     const canPay = order?.status === "COMPLETED";
     const canPrint = order?.status === "COMPLETED" || order?.status === "PAID";
-    const canEdit = order && (order.status === "PENDING" || order.status === "PREPARING" || order.status === "COMPLETED");
+    const canEdit = order && order.status !== "PAID" && order.status !== "CANCELED";
     const isNewOrder = !order;
 
     return (
         <div className={styles.container}>
             <div className={styles.header}>
-                <button className={styles.backBtn} onClick={() => navigate(-1)}>
-                    <ArrowLeft size={24} />
-                </button>
                 <div className={styles.tableInfo}>
                     <h1>{entityType} {entityNumber}</h1>
                     <div className={`${entity?.status === "FREE" ? styles.available : styles.occupied}`}>
@@ -875,19 +922,25 @@ const TableDetail = () => {
                     </div>
                 )}
 
-                <div className={styles.cartSidebar} style={{
-                    width: order?.status !== "PAID" ? '380px' : '100%',
-                    maxWidth: order?.status !== "PAID" ? '380px' : '600px',
-                    margin: '0 auto'
-                }}>
-                    <h3>🛒 Đơn hàng</h3>
+                <div className={styles.cartSidebar}>
+                    <div className={styles.cartHeader}>
+                        <h3>🛒 Đơn hàng</h3>
+
+                        <button
+                            className={styles.cartBackBtn}
+                            onClick={() => navigate(-1)}
+                        >
+                            <ArrowLeft size={18} />
+                            Quay về
+                        </button>
+                    </div>
                     {cart.length === 0 ? (
                         <p className={styles.emptyCart}>Chưa có món nào</p>
                     ) : (
                         <>
                             <div className={styles.cartList}>
                                 {cart.map((item, index) => (
-                                    <div key={item.id || item.name || index} className={styles.cartItem}>
+                                    <div key={`${item.id}_${index}`} className={styles.cartItem}>
                                         <div className={styles.cartItemInfo}>
                                             <span className={styles.cartItemName}>{item.name}</span>
                                             <span className={styles.cartItemPrice}>
@@ -940,16 +993,12 @@ const TableDetail = () => {
                                         onClick={handleUpdateOrder}
                                         disabled={isUpdating}
                                     >
-                                        {isUpdating ? "Đang cập nhật..." : "Cập nhật thêm món"}
+                                        {isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}
                                     </button>
                                 )}
 
-                                {(isNewOrder || (order && order.status === "COMPLETED")) && cart.length > 0 && (
-                                    <button
-                                        className={styles.orderBtn}
-                                        onClick={handleConfirmOrder}
-                                        disabled={isConfirming}
-                                    >
+                                {isNewOrder && cart.length > 0 && (
+                                    <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>
                                         {isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}
                                     </button>
                                 )}
@@ -961,11 +1010,7 @@ const TableDetail = () => {
                                 )}
 
                                 {canPay && (
-                                    <button
-                                        className={styles.payBtn}
-                                        onClick={() => setShowPaymentMethodModal(true)}
-                                        disabled={processingPayment}
-                                    >
+                                    <button className={styles.payBtn} onClick={() => setShowPaymentMethodModal(true)} disabled={processingPayment}>
                                         {processingPayment ? "Đang xử lý..." : "Thanh toán"}
                                     </button>
                                 )}

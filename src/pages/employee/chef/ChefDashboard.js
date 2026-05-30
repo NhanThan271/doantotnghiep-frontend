@@ -46,6 +46,7 @@ const ChefDashboard = () => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = user?.branch?.id;
     const API_BASE_URL = 'http://localhost:8080';
+    const knownItemIdsRef = useRef(new Map());
 
     // ========== AUDIO SETUP ==========
     const unlockAudio = useCallback(() => {
@@ -138,7 +139,7 @@ const ChefDashboard = () => {
     };
 
     const showToast = (message, type = 'info') => {
-        const id = Date.now();
+        const id = Date.now() + Math.random(); // ← Thêm Math.random() để tránh trùng
         setToasts(prev => [...prev, { id, message, type }]);
         setTimeout(() => removeToast(id), 3000);
     };
@@ -165,7 +166,6 @@ const ChefDashboard = () => {
             const warnings = [];
             let hasError = false;
 
-            // 1. Lấy công thức món ăn
             const recipeResponse = await fetch(`${API_BASE_URL}/api/recipes/food/${foodId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -176,28 +176,27 @@ const ChefDashboard = () => {
                 } else {
                     console.warn('⚠️ Không thể lấy công thức, bỏ qua trừ nguyên liệu');
                 }
-                return { success: true, warnings };
+                return { success: true, warnings, hasError: false };
             }
 
             const recipes = await recipeResponse.json();
 
             if (!recipes || recipes.length === 0) {
-                return { success: true, warnings: null };
+                return { success: true, warnings: null, hasError: false };
             }
 
-            // 2. Lấy danh sách nguyên liệu của chi nhánh
             const ingredientsResponse = await fetch(`${API_BASE_URL}/api/branch-ingredients/branch/${branchId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (!ingredientsResponse.ok) {
                 warnings.push('⚠️ Không thể kiểm tra kho nguyên liệu');
-                return { success: true, warnings };
+                return { success: true, warnings, hasError: false };
             }
 
             const branchIngredients = await ingredientsResponse.json();
 
-            // 3. Trừ từng nguyên liệu
+            // ===== KIỂM TRA TRƯỚC: Có đủ tất cả nguyên liệu không? =====
             for (const recipe of recipes) {
                 const ingredientId = recipe.ingredient?.id;
                 const ingredientName = recipe.ingredient?.name || 'Không xác định';
@@ -207,7 +206,6 @@ const ChefDashboard = () => {
 
                 if (totalRequired === 0) continue;
 
-                // Tìm nguyên liệu trong kho
                 const branchIngredient = branchIngredients.find(
                     bi => bi.ingredient?.id === ingredientId
                 );
@@ -218,21 +216,45 @@ const ChefDashboard = () => {
                 }
 
                 const currentQuantity = branchIngredient.quantity || 0;
-                const newQuantity = currentQuantity - totalRequired;
 
-                // Cảnh báo nếu không đủ nguyên liệu
-                if (newQuantity < 0) {
+                if (currentQuantity < totalRequired) {
                     hasError = true;
                     warnings.push(`❌ KHÔNG ĐỦ "${ingredientName}": cần ${totalRequired}${unit}, hiện có ${currentQuantity}${unit}`);
-                    continue;
                 }
+            }
 
-                // Cảnh báo nếu sắp hết (dưới 10 đơn vị)
+            // ===== NẾU CÓ LỖI → DỪNG, KHÔNG TRỪ GÌ CẢ =====
+            if (hasError) {
+                return {
+                    success: false,
+                    hasError: true,
+                    warnings
+                };
+            }
+
+            // ===== ĐỦ TẤT CẢ → TIẾN HÀNH TRỪ =====
+            for (const recipe of recipes) {
+                const ingredientId = recipe.ingredient?.id;
+                const ingredientName = recipe.ingredient?.name || 'Không xác định';
+                const unit = recipe.ingredient?.unit || '';
+                const requiredPerItem = recipe.quantityRequired || 0;
+                const totalRequired = requiredPerItem * quantity;
+
+                if (totalRequired === 0) continue;
+
+                const branchIngredient = branchIngredients.find(
+                    bi => bi.ingredient?.id === ingredientId
+                );
+
+                if (!branchIngredient) continue;
+
+                const currentQuantity = branchIngredient.quantity || 0;
+                const newQuantity = currentQuantity - totalRequired;
+
                 if (newQuantity < 10) {
                     warnings.push(`⚠️ "${ingredientName}" sắp hết: còn ${newQuantity.toFixed(2)}${unit}`);
                 }
 
-                // Gọi API cập nhật số lượng
                 try {
                     const updateResponse = await fetch(
                         `${API_BASE_URL}/api/branch-ingredients/${branchIngredient.id}?quantity=${newQuantity}`,
@@ -261,8 +283,8 @@ const ChefDashboard = () => {
             }
 
             return {
-                success: !hasError,
-                hasError,
+                success: true,
+                hasError: false,
                 warnings: warnings.length > 0 ? warnings : null
             };
 
@@ -288,90 +310,89 @@ const ChefDashboard = () => {
             const items = await response.json();
             const data = Array.isArray(items) ? items : [];
 
-            // GỘP MÓN THEO TÊN VÀ TRẠNG THÁI
             const groupedMap = new Map();
 
-            data
-                .filter(item => !item.branch?.id || item.branch?.id === branchId)
-                .forEach(item => {
-                    let displayLocation = 'Khu vực chung';
-                    let tableNumber = null;
-                    if (item.table && item.table.number) {
-                        displayLocation = `Bàn ${item.table.number}`;
-                        tableNumber = item.table.number;
-                    } else if (item.orderId && !displayLocation) {
-                        displayLocation = `Đơn #${item.orderId}`;
+            data.forEach(item => {
+                if (item.branch?.id && item.branch.id !== branchId) return;
+
+                const foodId = item.food?.id;
+                const status = item.kitchenStatus || 'WAITING';
+                const key = `${foodId}_${status}`;
+
+                let displayLocation = 'Khu vực chung';
+                if (item.table && item.table.number) {
+                    displayLocation = `Bàn ${item.table.number}`;
+                } else if (item.orderId) {
+                    displayLocation = `Đơn #${item.orderId}`;
+                }
+
+                // Kiểm tra item mới
+                const isNewItem = !knownItemIdsRef.current.has(item.id);
+                knownItemIdsRef.current.set(item.id, true);
+
+                // Lấy thời gian cho item
+                let itemCreatedAt;
+                if (isNewItem) {
+                    itemCreatedAt = new Date().toISOString();
+                } else {
+                    itemCreatedAt = item.createdAt || new Date().toISOString();
+                }
+
+                if (groupedMap.has(key)) {
+                    const existing = groupedMap.get(key);
+                    existing.quantity += 1;
+                    existing.originalIds.push(item.id);
+
+                    if (!existing.tables.includes(displayLocation)) {
+                        existing.tables.push(displayLocation);
+                        existing.tableCount++;
+                        existing.displayLocations = existing.tables.join(', ');
                     }
 
-                    const foodName = item.food?.name || 'Món ăn';
-                    const status = item.kitchenStatus || 'WAITING';
+                    if (isNewItem) {
+                        existing.latestItemTime = itemCreatedAt;
+                        existing.isNewlyAdded = true;
+                    }
+                    // KHÔNG đổi createdAt
 
-                    // Key gộp: TÊN MÓN + TRẠNG THÁI
-                    const groupKey = `${foodName}_${status}`;
+                } else {
+                    // ===== LẤY THỜI GIAN ĐÃ LƯU CHO GROUP NÀY =====
+                    const savedTime = knownItemIdsRef.current.get(`group_${key}`);
 
-                    const createdAt = item.createdAt;
-
-                    if (groupedMap.has(groupKey)) {
-                        const existing = groupedMap.get(groupKey);
-                        // Cộng dồn số lượng
-                        existing.totalQuantity += (item.quantity || 1);
-                        // Thêm bàn mới nếu chưa có
-                        if (!existing.tables.includes(displayLocation)) {
-                            existing.tables.push(displayLocation);
-                        }
-
-                        // QUAN TRỌNG: LUÔN LẤY THỜI GIAN MỚI NHẤT
-                        if (new Date(createdAt) > new Date(existing.latestItemTime)) {
-                            existing.latestItemTime = createdAt;
-                            existing.displayTime = createdAt;
-                        }
-
-                        if (new Date(createdAt) < new Date(existing.earliestTime)) {
-                            existing.earliestTime = createdAt;
-                        }
-
-                        // Lưu lại các ID gốc để cập nhật sau
-                        existing.originalIds.push(item.id);
-
-                        console.log(`📦 Gộp món: ${foodName} - Thời gian mới nhất: ${existing.displayTime}`);
+                    let groupCreatedAt;
+                    if (savedTime) {
+                        // Đã lưu → dùng lại thời gian cũ
+                        groupCreatedAt = savedTime;
                     } else {
-                        groupedMap.set(groupKey, {
-                            key: groupKey,
-                            name: foodName,
-                            foodId: item.food?.id,
-                            status: status,
-                            totalQuantity: item.quantity || 1,
-                            tables: [displayLocation],
-                            earliestTime: createdAt,
-                            latestItemTime: createdAt,
-                            displayTime: createdAt,
-                            originalIds: [item.id],
-                            notes: item.notes,
-                        });
+                        // Chưa lưu → tạo mới
+                        groupCreatedAt = isNewItem
+                            ? new Date().toISOString()
+                            : (item.createdAt || new Date().toISOString());
+                        // LƯU LẠI
+                        knownItemIdsRef.current.set(`group_${key}`, groupCreatedAt);
                     }
-                });
 
-            // Chuyển đổi Map thành mảng và sắp xếp
-            let groupedItems = Array.from(groupedMap.values()).map(group => ({
-                id: group.key,
-                name: group.name,
-                foodId: group.foodId,
-                quantity: group.totalQuantity,
-                status: group.status,
-                tables: group.tables,
-                displayLocations: group.tables.join(', '),
-                createdAt: group.earliestTime,        // 👈 Dùng earliestTime để hiển thị thời gian chờ lâu nhất
-                earliestTime: group.earliestTime,
-                latestItemTime: group.latestItemTime,
-                displayTime: group.displayTime,
-                originalIds: group.originalIds,
-                notes: group.notes,
-                tableCount: group.tables.length,
-                hasMultipleTimes: group.earliestTime !== group.latestItemTime
-            }));
+                    groupedMap.set(key, {
+                        id: item.id,
+                        name: item.food?.name || 'Món ăn',
+                        foodId: foodId,
+                        quantity: 1,
+                        status: status,
+                        tables: [displayLocation],
+                        displayLocations: displayLocation,
+                        createdAt: groupCreatedAt,
+                        latestItemTime: itemCreatedAt,
+                        originalIds: [item.id],
+                        notes: item.notes || '',
+                        tableCount: 1,
+                        isNewlyAdded: isNewItem && status === 'WAITING'
+                    });
+                }
+            });
 
-            // Sắp xếp: Ưu tiên theo status (WAITING lên đầu) và thời gian tạo
-            const sortedItems = [...groupedItems].sort((a, b) => {
+            const processedItems = Array.from(groupedMap.values());
+
+            const sortedItems = [...processedItems].sort((a, b) => {
                 if (a.status === 'WAITING' && b.status !== 'WAITING') return -1;
                 if (a.status !== 'WAITING' && b.status === 'WAITING') return 1;
                 return new Date(a.createdAt) - new Date(b.createdAt);
@@ -536,6 +557,7 @@ const ChefDashboard = () => {
 
     const updateStatus = async (itemGroup, status) => {
         const idsToUpdate = itemGroup.originalIds;
+
         if (!idsToUpdate || idsToUpdate.length === 0) {
             showToast(`Không tìm thấy món ${itemGroup.name}`, 'error');
             return;
@@ -544,20 +566,17 @@ const ChefDashboard = () => {
         setItemUpdating(prev => ({ ...prev, [itemGroup.id]: true }));
 
         try {
-            // ========== TRỪ NGUYÊN LIỆU KHI BẮT ĐẦU NẤU ==========
             if (status === 'PREPARING' && branchId) {
                 const foodId = itemGroup.foodId;
-
                 if (foodId) {
-                    console.log(`🔍 [PREPARING] Trừ nguyên liệu: ${itemGroup.name}, FoodID=${foodId}, SL=${itemGroup.quantity}, Branch=${branchId}`);
-
                     const deductResult = await deductIngredientsForItem(
                         foodId,
                         itemGroup.quantity,
                         branchId
                     );
 
-                    if (deductResult.warnings) {
+                    // ===== HIỂN THỊ WARNINGS =====
+                    if (deductResult.warnings && deductResult.warnings.length > 0) {
                         deductResult.warnings.forEach(warning => {
                             if (warning.includes('❌')) {
                                 showToast(warning, 'error');
@@ -568,30 +587,30 @@ const ChefDashboard = () => {
                         });
                     }
 
+                    // ===== NẾU CÓ LỖI (KHÔNG ĐỦ NGUYÊN LIỆU) → DỪNG =====
                     if (deductResult.hasError) {
                         showToast('🚫 Không đủ nguyên liệu! Vui lòng kiểm tra kho.', 'error');
-                        addNotification('🚫 Bắt đầu thất bại: Không đủ nguyên liệu cho ' + itemGroup.name, 'error');
+                        addNotification('🚫 Không đủ nguyên liệu cho: ' + itemGroup.name, 'error');
                         setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
-                        return;
+                        return; // ← DỪNG, không cập nhật trạng thái
                     }
-
-                    console.log('✅ Trừ nguyên liệu thành công');
-                } else {
-                    console.warn('⚠️ Không có foodId trong itemGroup, bỏ qua trừ nguyên liệu');
-                    console.log('ItemGroup:', itemGroup);
                 }
             }
 
-            // ========== CẬP NHẬT TRẠNG THÁI ==========
+            // Cập nhật TẤT CẢ item
             for (const originalId of idsToUpdate) {
                 await kitchenAPI.updateItemStatus(originalId, status);
             }
+
+            // Xóa thời gian đã lưu của group cũ
+            const oldKey = `${itemGroup.foodId}_${itemGroup.status}`;
+            knownItemIdsRef.current.delete(`group_${oldKey}`);
 
             await fetchData();
 
             if (socketRef.current?.connected) {
                 socketRef.current.emit("update-order-item-status", {
-                    itemId: itemGroup.id,
+                    items: idsToUpdate,
                     status,
                     itemName: itemGroup.name,
                     tables: itemGroup.tables,
@@ -601,16 +620,13 @@ const ChefDashboard = () => {
                 socketRef.current.emit("update-tables");
             }
 
-            const tableList = itemGroup.tables.join(', ');
-            if (status === 'PREPARING') {
-                showToast(`🔪 Bắt đầu nấu: ${itemGroup.name} (SL: ${itemGroup.quantity}) - ${tableList}`, 'success');
-            } else if (status === 'READY') {
-                showToast(`✅ Hoàn thành: ${itemGroup.name} (SL: ${itemGroup.quantity}) - ${tableList}`, 'success');
-            }
+            showToast(
+                `${status === 'PREPARING' ? '🔪 Bắt đầu nấu' : '✅ Hoàn thành'}: ${itemGroup.name} (SL: ${itemGroup.quantity}) - ${itemGroup.displayLocations}`,
+                'success'
+            );
 
         } catch (err) {
-            const errorMsg = err.response?.data?.message || err.response?.data || err.message;
-            showToast(`Lỗi: ${errorMsg}`, 'error');
+            showToast(`Lỗi: ${err.message}`, 'error');
         } finally {
             setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
         }
@@ -762,7 +778,6 @@ const ChefDashboard = () => {
                         const timeColor = getTimeColor(item.createdAt);
                         const overdue = isOverdue(item.createdAt);
                         const isUpdatingItem = itemUpdating[item.id];
-                        const hasMultipleTimes = item.hasMultipleTimes;
 
                         const tableDisplay = item.tableCount > 1
                             ? `${item.tables.slice(0, 3).join(', ')}${item.tableCount > 3 ? ` và ${item.tableCount - 3} bàn khác` : ''}`
@@ -780,18 +795,13 @@ const ChefDashboard = () => {
                                             )}
                                         </div>
                                         {overdue && <span className={styles.overdueBadge}>Quá hạn!</span>}
-                                        {hasMultipleTimes && (
-                                            <span className={styles.newItemBadge}>
-                                                🆕 Món mới thêm
-                                            </span>
+                                        {item.isNewlyAdded && (
+                                            <span className={styles.newItemBadge}>🆕 Món mới thêm</span>
                                         )}
                                     </div>
                                     <div className={styles.timeInfo} style={{ color: timeColor }}>
                                         <Clock size={12} />
                                         <span>{getElapsedTime(item.createdAt)}</span>
-                                        {hasMultipleTimes && (
-                                            <span className={styles.newTimeLabel}>(mới nhất: {getElapsedTime(item.displayTime)})</span>
-                                        )}
                                     </div>
                                 </div>
                                 <h3 className={styles.itemName}>
