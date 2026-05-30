@@ -70,7 +70,7 @@ export default function RoomManagement() {
 
     const handleOpenAdd = () => {
         setEditingRoom(null);
-        setFormData({ number: '', capacity: '', area: '', status: 'ACTIVE' });
+        setFormData({ number: '', capacity: '', area: '', roomFee: '', status: 'ACTIVE' });
         setShowModal(true);
     };
 
@@ -80,6 +80,7 @@ export default function RoomManagement() {
             number: room.number,
             capacity: room.capacity,
             area: room.area || '',
+            roomFee: room.roomFee || '',
             status: room.status
         });
         setShowModal(true);
@@ -88,8 +89,8 @@ export default function RoomManagement() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!formData.number || !formData.capacity || !formData.area) {
-            alert('Vui lòng nhập đầy đủ thông tin (bao gồm cả khu vực/tầng)');
+        if (!formData.number || !formData.capacity || !formData.area || !formData.roomFee) {
+            alert('Vui lòng nhập đầy đủ thông tin (bao gồm cả khu vực/tầng và giá phòng)');
             return;
         }
 
@@ -103,7 +104,8 @@ export default function RoomManagement() {
                 // PUT /api/rooms/{id}?capacity=...&area=...
                 const params = new URLSearchParams({
                     capacity: parseInt(formData.capacity),
-                    area: formData.area.trim()
+                    area: formData.area.trim(),
+                    roomFee: parseFloat(formData.roomFee)
                 });
                 response = await fetch(`${API_BASE_URL}/api/rooms/${editingRoom.id}?${params}`, {
                     method: 'PUT',
@@ -115,7 +117,8 @@ export default function RoomManagement() {
                     branchId: selectedBranch.id,
                     number: parseInt(formData.number),
                     capacity: parseInt(formData.capacity),
-                    area: formData.area.trim()
+                    area: formData.area.trim(),
+                    roomFee: parseFloat(formData.roomFee)
                 });
                 response = await fetch(`${API_BASE_URL}/api/rooms?${params}`, {
                     method: 'POST',
@@ -356,6 +359,12 @@ export default function RoomManagement() {
                                                     <Users size={18} color="#8B5CF6" />
                                                     <span className="capacity-text">
                                                         Sức chứa: {room.capacity} người
+                                                    </span>
+                                                </div>
+
+                                                <div className="table-capacity">
+                                                    <span style={{ fontSize: '13px', color: '#10B981', fontWeight: '600' }}>
+                                                        Giá phòng:{Number(room.roomFee).toLocaleString('vi-VN')} đ
                                                     </span>
                                                 </div>
 

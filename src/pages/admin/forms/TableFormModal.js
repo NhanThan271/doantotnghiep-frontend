@@ -128,8 +128,6 @@ export default function TableFormModal({
                                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                             >
                                 <option value="FREE">Trống</option>
-                                <option value="OCCUPIED">Đang dùng</option>
-                                <option value="RESERVED">Đã đặt</option>
                             </select>
                         </div>
                     </div>
