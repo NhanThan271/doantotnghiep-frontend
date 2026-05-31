@@ -336,6 +336,16 @@
     margin-top: 20px;
 }
 
+.table-wrapper1 {
+    background: #f3f4f6;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    color: var(--color-text-secondary);
+    overflow: hidden;
+    margin-top: 20px;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
