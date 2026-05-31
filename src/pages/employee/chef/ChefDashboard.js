@@ -11,11 +11,10 @@ import {
     Loader2,
     Package,
     Utensils,
-    MapPin,
-    FileText,
-    Users
+    Users,
+    FileText
 } from 'lucide-react';
-import { kitchenAPI } from '../../../services/api';
+import axiosClient from '../../../api/axiosClient';
 import ToastNotification from './ToastNotification';
 import IngredientWarning from './IngredientWarning';
 import styles from './ChefDashboard.module.css';
@@ -23,7 +22,6 @@ import io from 'socket.io-client';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
 
-// Key lưu trong localStorage
 const CHEF_NOTIFICATIONS_KEY = 'chef_notifications';
 
 const ChefDashboard = () => {
@@ -32,9 +30,7 @@ const ChefDashboard = () => {
     const [activeTab, setActiveTab] = useState('ALL');
     const [lastUpdated, setLastUpdated] = useState(null);
     const [toasts, setToasts] = useState([]);
-    const [updatingId, setUpdatingId] = useState(null);
 
-    // ===== NOTIFICATIONS VỚI LOCALSTORAGE =====
     const [notifications, setNotifications] = useState(() => {
         try {
             const saved = localStorage.getItem(CHEF_NOTIFICATIONS_KEY);
@@ -48,7 +44,6 @@ const ChefDashboard = () => {
         return [];
     });
 
-    // Lưu notifications vào localStorage mỗi khi thay đổi
     useEffect(() => {
         try {
             localStorage.setItem(CHEF_NOTIFICATIONS_KEY, JSON.stringify(notifications));
@@ -71,7 +66,6 @@ const ChefDashboard = () => {
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = user?.branch?.id;
-    const API_BASE_URL = 'http://localhost:8080';
     const knownItemIdsRef = useRef(new Map());
 
     // ========== AUDIO SETUP ==========
@@ -164,13 +158,13 @@ const ChefDashboard = () => {
         setToasts(prev => prev.filter(t => t.id !== id));
     };
 
-    const showToast = (message, type = 'info') => {
+    const showToast = useCallback((message, type = 'info') => {
         const id = Date.now() + Math.random();
         setToasts(prev => [...prev, { id, message, type }]);
         setTimeout(() => removeToast(id), 3000);
-    };
+    }, []);
 
-    const addNotification = (message, type = 'info') => {
+    const addNotification = useCallback((message, type = 'info') => {
         const id = Date.now() + Math.random();
         const timestamp = new Date();
         setNotifications(prev => [{ id, message, type, timestamp }, ...prev].slice(0, 50));
@@ -183,49 +177,30 @@ const ChefDashboard = () => {
                 icon: '/logo192.png'
             });
         }
-    };
+    }, [playNotificationSound]);
 
-    const clearAllNotifications = () => {
+    const clearAllNotifications = useCallback(() => {
         setNotifications([]);
         localStorage.removeItem(CHEF_NOTIFICATIONS_KEY);
-    };
+    }, []);
 
     // ========== DEDUCT INGREDIENTS FUNCTION ==========
     const deductIngredientsForItem = async (foodId, quantity, branchId) => {
         try {
-            const token = localStorage.getItem('token');
             const warnings = [];
             let hasError = false;
 
-            const recipeResponse = await fetch(`${API_BASE_URL}/api/recipes/food/${foodId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!recipeResponse.ok) {
-                if (recipeResponse.status === 403) {
-                    warnings.push('⚠️ Không có quyền truy cập công thức món ăn');
-                } else {
-                    console.warn('⚠️ Không thể lấy công thức, bỏ qua trừ nguyên liệu');
-                }
-                return { success: true, warnings, hasError: false };
-            }
-
-            const recipes = await recipeResponse.json();
+            const recipeResponse = await axiosClient.get(`/recipes/food/${foodId}`);
+            const recipes = recipeResponse.data;
 
             if (!recipes || recipes.length === 0) {
                 return { success: true, warnings: null, hasError: false };
             }
 
-            const ingredientsResponse = await fetch(`${API_BASE_URL}/api/branch-ingredients/branch/${branchId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!ingredientsResponse.ok) {
-                warnings.push('⚠️ Không thể kiểm tra kho nguyên liệu');
-                return { success: true, warnings, hasError: false };
-            }
-
-            const branchIngredients = await ingredientsResponse.json();
+            const ingredientsResponse = await axiosClient.get(
+                `/branch-ingredients/branch/${branchId}`
+            );
+            const branchIngredients = ingredientsResponse.data;
 
             for (const recipe of recipes) {
                 const ingredientId = recipe.ingredient?.id;
@@ -249,7 +224,9 @@ const ChefDashboard = () => {
 
                 if (currentQuantity < totalRequired) {
                     hasError = true;
-                    warnings.push(`❌ KHÔNG ĐỦ "${ingredientName}": cần ${totalRequired}${unit}, hiện có ${currentQuantity}${unit}`);
+                    warnings.push(
+                        `❌ KHÔNG ĐỦ "${ingredientName}": cần ${totalRequired}${unit}, hiện có ${currentQuantity}${unit}`
+                    );
                 }
             }
 
@@ -276,53 +253,54 @@ const ChefDashboard = () => {
                 const newQuantity = currentQuantity - totalRequired;
 
                 if (newQuantity < 10) {
-                    warnings.push(`⚠️ "${ingredientName}" sắp hết: còn ${newQuantity.toFixed(2)}${unit}`);
-                }
-
-                try {
-                    const updateResponse = await fetch(
-                        `${API_BASE_URL}/api/branch-ingredients/${branchIngredient.id}?quantity=${newQuantity}`,
-                        {
-                            method: 'PUT',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json'
-                            }
-                        }
+                    warnings.push(
+                        `⚠️ "${ingredientName}" sắp hết: còn ${newQuantity.toFixed(2)}${unit}`
                     );
-
-                    if (!updateResponse.ok) {
-                        if (updateResponse.status === 403) {
-                            warnings.push(`⚠️ Không có quyền cập nhật "${ingredientName}"`);
-                        } else {
-                            warnings.push(`⚠️ Lỗi cập nhật "${ingredientName}"`);
-                        }
-                    } else {
-                        console.log(`✅ Đã trừ ${totalRequired}${unit} ${ingredientName} (còn ${newQuantity.toFixed(2)}${unit})`);
-                    }
-                } catch (updateError) {
-                    console.warn(`Lỗi cập nhật ${ingredientName}:`, updateError);
-                    warnings.push(`⚠️ Lỗi kết nối khi cập nhật "${ingredientName}"`);
                 }
+
+                await axiosClient.put(
+                    `/branch-ingredients/${branchIngredient.id}?quantity=${newQuantity}`
+                );
+
+                console.log(
+                    `✅ Đã trừ ${totalRequired}${unit} ${ingredientName} (còn ${newQuantity.toFixed(2)}${unit})`
+                );
             }
 
-            return { success: true, hasError: false, warnings: warnings.length > 0 ? warnings : null };
+            return {
+                success: true,
+                hasError: false,
+                warnings: warnings.length > 0 ? warnings : null
+            };
 
         } catch (error) {
             console.error('Lỗi trừ nguyên liệu:', error);
-            return { success: false, hasError: true, error: error.message, warnings: [`❌ Lỗi hệ thống: ${error.message}`] };
+
+            if (error.response?.status === 403) {
+                return {
+                    success: true,
+                    hasError: false,
+                    warnings: ['⚠️ Không có quyền truy cập công thức món ăn']
+                };
+            }
+
+            return {
+                success: false,
+                hasError: true,
+                error: error.message,
+                warnings: [`❌ Lỗi hệ thống: ${error.message}`]
+            };
         }
     };
 
+    // ========== FETCH DATA ==========
     const fetchData = useCallback(async (silent = false) => {
         if (!branchId) return;
         if (!silent) setLoading(true);
+
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE_URL}/api/kitchen-order-items/active`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const items = await response.json();
+            const response = await axiosClient.get('/kitchen-order-items/active');
+            const items = response.data;
             const data = Array.isArray(items) ? items : [];
 
             const groupedMap = new Map();
@@ -409,14 +387,16 @@ const ChefDashboard = () => {
             setLastUpdated(new Date());
         } catch (err) {
             console.error("Fetch error:", err);
-            showToast('Lỗi tải dữ liệu', 'error');
+            if (!silent) {
+                showToast('Lỗi tải dữ liệu', 'error');
+            }
         } finally {
             setLoading(false);
         }
-    }, [branchId, API_BASE_URL]);
+    }, [branchId, showToast]);
 
     // ========== SPEECH FUNCTION ==========
-    const speakVietnamese = (text) => {
+    const speakVietnamese = useCallback((text) => {
         if (!('speechSynthesis' in window)) return;
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
@@ -433,9 +413,13 @@ const ChefDashboard = () => {
             if (vietnameseVoice) utterance.voice = vietnameseVoice;
             window.speechSynthesis.speak(utterance);
         };
-        if (window.speechSynthesis.getVoices().length > 0) speak();
-        else window.speechSynthesis.onvoiceschanged = speak;
-    };
+
+        if (window.speechSynthesis.getVoices().length > 0) {
+            speak();
+        } else {
+            window.speechSynthesis.onvoiceschanged = speak;
+        }
+    }, []);
 
     // ========== SOCKET SETUP ==========
     const setupSocket = useCallback(() => {
@@ -454,9 +438,14 @@ const ChefDashboard = () => {
         const handleConnect = () => {
             console.log('Socket connected for branch:', branchId);
             setIsSocketConnected(true);
-            newSocket.emit('register-role', { role: 'kitchen', userId: user?.id, branchId: branchId });
+            newSocket.emit('register-role', {
+                role: 'kitchen',
+                userId: user?.id,
+                branchId: branchId
+            });
             fetchData();
         };
+
         const handleDisconnect = () => {
             console.log('Socket disconnected');
             setIsSocketConnected(false);
@@ -465,44 +454,60 @@ const ChefDashboard = () => {
 
         const handleNewOrder = (orderData) => {
             if (orderData.branchId && branchId && orderData.branchId !== branchId) return;
+
             const notiKey = `${orderData.orderId}_${orderData.tableNumber}_${JSON.stringify(orderData.items)}`;
             const now = Date.now();
             if (notiKey === lastNotificationKey.current && (now - lastNotificationTime.current) < 500) return;
+
             lastNotificationKey.current = notiKey;
             lastNotificationTime.current = now;
+
             playNotificationSound();
             fetchData();
 
             if (orderData.items?.length) {
                 const areaName = orderData.areaName || "Khu chính";
-                const locationName = orderData.locationName || (orderData.isRoom ? `Phòng ${orderData.tableNumber}` : `Bàn ${orderData.tableNumber}`);
+                const locationName = orderData.locationName ||
+                    (orderData.isRoom ? `Phòng ${orderData.tableNumber}` : `Bàn ${orderData.tableNumber}`);
                 const itemDetails = orderData.items.map(item => `${item.name} x${item.quantity}`).join(', ');
                 const message = `ĐƠN MỚI - ${areaName} - ${locationName}: ${itemDetails}`;
+
                 showToast(message, 'info');
                 addNotification(message, 'order');
-                const speechText = `Đơn hàng mới tại ${areaName} ${locationName}: ${orderData.items.map(item => `${item.name} ${item.quantity === 1 ? 'một phần' : `${item.quantity} phần`}`).join(', ')}`;
+
+                const speechText = `Đơn hàng mới tại ${areaName} ${locationName}: ${orderData.items.map(item =>
+                    `${item.name} ${item.quantity === 1 ? 'một phần' : `${item.quantity} phần`}`
+                ).join(', ')}`;
                 speakVietnamese(speechText);
             }
         };
 
         const handleOrderUpdated = (data) => {
             if (data.branchId && branchId && data.branchId !== branchId) return;
+
             const notiKey = `${data.orderId}_${data.tableNumber}_${JSON.stringify(data.items)}`;
             const now = Date.now();
             if (notiKey === lastNotificationKey.current && (now - lastNotificationTime.current) < 500) return;
+
             lastNotificationKey.current = notiKey;
             lastNotificationTime.current = now;
+
             playNotificationSound();
             fetchData();
 
             if (data.items?.length) {
                 const areaName = data.areaName || "Khu chính";
-                const locationName = data.locationName || (data.isRoom ? `Phòng ${data.tableNumber}` : `Bàn ${data.tableNumber}`);
+                const locationName = data.locationName ||
+                    (data.isRoom ? `Phòng ${data.tableNumber}` : `Bàn ${data.tableNumber}`);
                 const itemDetails = data.items.map(item => `${item.name} x${item.quantity}`).join(', ');
                 const message = `THÊM MÓN - ${areaName} - ${locationName}: ${itemDetails}`;
+
                 showToast(message, 'info');
                 addNotification(message, 'item');
-                const speechText = `Thêm món mới tại ${areaName} ${locationName}: ${data.items.map(item => `${item.name} ${item.quantity === 1 ? 'một phần' : `${item.quantity} phần`}`).join(', ')}`;
+
+                const speechText = `Thêm món mới tại ${areaName} ${locationName}: ${data.items.map(item =>
+                    `${item.name} ${item.quantity === 1 ? 'một phần' : `${item.quantity} phần`}`
+                ).join(', ')}`;
                 speakVietnamese(speechText);
             }
         };
@@ -510,32 +515,35 @@ const ChefDashboard = () => {
         const handleReservationUpcoming = (data) => {
             const foodList = data.foods?.map(f => `${f.foodName} x${f.quantity}`).join(', ') || '';
             const message = `📅 ${data.message} | Khách: ${data.customerName} | ${data.table} - ${data.branch} | Giờ đến: ${data.time} | Món: ${foodList}`;
+
             showToast(message, 'warning');
             addNotification(message, 'warning');
             speakVietnamese(`Chuẩn bị món cho khách ${data.customerName} tại ${data.table}, đến lúc ${data.time}`);
         };
+
         const handleUpdateTables = () => fetchData();
         const handleItemUpdated = () => fetchData();
 
         newSocket.on("connect", handleConnect);
         newSocket.on("disconnect", handleDisconnect);
         newSocket.on("new-order", handleNewOrder);
-        newSocket.on("update-order-status", handleOrderUpdated);
+        newSocket.on("order-updated", handleOrderUpdated);
         newSocket.on("update-tables", handleUpdateTables);
         newSocket.on("order-item-updated", handleItemUpdated);
         newSocket.on("reservation-upcoming", handleReservationUpcoming);
 
         if (newSocket.connected) handleConnect();
+
         return () => {
             newSocket.off("connect", handleConnect);
             newSocket.off("disconnect", handleDisconnect);
             newSocket.off("new-order", handleNewOrder);
-            newSocket.off("update-order-status", handleOrderUpdated);
+            newSocket.off("order-updated", handleOrderUpdated);
             newSocket.off("update-tables", handleUpdateTables);
             newSocket.off("order-item-updated", handleItemUpdated);
             newSocket.off("reservation-upcoming", handleReservationUpcoming);
         };
-    }, [branchId, user?.id, fetchData, playNotificationSound]);
+    }, [branchId, user?.id, fetchData, playNotificationSound, showToast, addNotification, speakVietnamese]);
 
     useEffect(() => {
         if (branchId) return setupSocket();
@@ -562,6 +570,7 @@ const ChefDashboard = () => {
         }
     }, []);
 
+    // ========== UPDATE STATUS ==========
     const updateStatus = async (itemGroup, status) => {
         const idsToUpdate = itemGroup.originalIds;
 
@@ -576,7 +585,12 @@ const ChefDashboard = () => {
             if (status === 'PREPARING' && branchId) {
                 const foodId = itemGroup.foodId;
                 if (foodId) {
-                    const deductResult = await deductIngredientsForItem(foodId, itemGroup.quantity, branchId);
+                    const deductResult = await deductIngredientsForItem(
+                        foodId,
+                        itemGroup.quantity,
+                        branchId
+                    );
+
                     if (deductResult.warnings && deductResult.warnings.length > 0) {
                         deductResult.warnings.forEach(warning => {
                             if (warning.includes('❌')) {
@@ -587,9 +601,13 @@ const ChefDashboard = () => {
                             }
                         });
                     }
+
                     if (deductResult.hasError) {
                         showToast('🚫 Không đủ nguyên liệu!', 'error');
-                        addNotification('🚫 Không đủ nguyên liệu cho: ' + itemGroup.name, 'error');
+                        addNotification(
+                            '🚫 Không đủ nguyên liệu cho: ' + itemGroup.name,
+                            'error'
+                        );
                         setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
                         return;
                     }
@@ -597,7 +615,9 @@ const ChefDashboard = () => {
             }
 
             for (const originalId of idsToUpdate) {
-                await kitchenAPI.updateItemStatus(originalId, status);
+                await axiosClient.put(
+                    `/kitchen-order-items/${originalId}/status?status=${status}`
+                );
             }
 
             const oldKey = `${itemGroup.foodId}_${itemGroup.status}`;
@@ -616,6 +636,10 @@ const ChefDashboard = () => {
                 };
                 socketRef.current.emit("update-order-item-status", emitData);
 
+                const statusMessage = status === 'PREPARING'
+                    ? `🔪 Bắt đầu nấu: ${itemGroup.name} (SL: ${itemGroup.quantity})`
+                    : `✅ Hoàn thành: ${itemGroup.name} (SL: ${itemGroup.quantity})`;
+
                 const waiterData = {
                     items: idsToUpdate.map(id => parseInt(id)),
                     status: status,
@@ -625,28 +649,28 @@ const ChefDashboard = () => {
                     tables: itemGroup.tables,
                     branchId: branchId,
                     timestamp: new Date().toISOString(),
-                    message: status === 'PREPARING'
-                        ? `🔪 Bắt đầu nấu: ${itemGroup.name} (SL: ${itemGroup.quantity})`
-                        : `✅ Hoàn thành: ${itemGroup.name} (SL: ${itemGroup.quantity})`
+                    message: statusMessage
                 };
                 socketRef.current.emit("kitchen-item-status-changed", waiterData);
                 socketRef.current.emit("update-tables");
             }
 
-            showToast(
-                `${status === 'PREPARING' ? '🔪 Bắt đầu nấu' : '✅ Hoàn thành'}: ${itemGroup.name} (SL: ${itemGroup.quantity}) - ${itemGroup.displayLocations}`,
-                'success'
-            );
+            const toastMessage = status === 'PREPARING'
+                ? `🔪 Bắt đầu nấu: ${itemGroup.name} (SL: ${itemGroup.quantity}) - ${itemGroup.displayLocations}`
+                : `✅ Hoàn thành: ${itemGroup.name} (SL: ${itemGroup.quantity}) - ${itemGroup.displayLocations}`;
+
+            showToast(toastMessage, 'success');
 
         } catch (err) {
             console.error("❌ Error in updateStatus:", err);
-            showToast(`Lỗi: ${err.message}`, 'error');
+            showToast(`Lỗi: ${err.response?.data?.message || err.message}`, 'error');
         } finally {
             setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
         }
     };
 
-    const getElapsedTime = (createdAt) => {
+    // ========== TIME HELPERS ==========
+    const getElapsedTime = useCallback((createdAt) => {
         if (!createdAt) return '0 giây';
         const elapsed = Math.floor((currentTime - new Date(createdAt).getTime()) / 1000);
         const minutes = Math.floor(elapsed / 60);
@@ -654,104 +678,134 @@ const ChefDashboard = () => {
         if (minutes < 1) return `${seconds} giây`;
         if (minutes < 60) return `${minutes} phút ${seconds} giây`;
         return `${Math.floor(minutes / 60)} giờ ${minutes % 60} phút`;
-    };
+    }, [currentTime]);
 
     const isOverdue = useCallback((createdAt) => {
         if (!createdAt) return false;
         return (currentTime - new Date(createdAt)) / 60000 > 15;
     }, [currentTime]);
 
-    const getTimeColor = (createdAt) => {
+    const getTimeColor = useCallback((createdAt) => {
         if (!createdAt) return '#6b7280';
         const diffInMinutes = (currentTime - new Date(createdAt).getTime()) / 60000;
         if (diffInMinutes > 15) return '#ef4444';
         if (diffInMinutes > 10) return '#f59e0b';
         if (diffInMinutes > 5) return '#fbbf24';
         return '#10b981';
-    };
+    }, [currentTime]);
 
-    // ===== FILTER - THÊM READY =====
+    // ===== FILTER - Chỉ hiện WAITING và PREPARING =====
     const filtered = allItems.filter(i => {
+        // Luôn lọc bỏ READY/COMPLETED
+        if (i.status === 'READY' || i.status === 'COMPLETED') return false;
+
         if (activeTab === 'WAITING') return i.status === 'WAITING';
         if (activeTab === 'PREPARING') return i.status === 'PREPARING';
-        if (activeTab === 'READY') return i.status === 'READY';
-        return true;
+        return true; // ALL (chỉ còn WAITING và PREPARING)
     });
 
-    // ===== COUNTS - THÊM READY =====
+    // ===== COUNTS - Không tính READY =====
     const counts = {
-        ALL: allItems.length,
+        ALL: allItems.filter(i => i.status !== 'READY' && i.status !== 'COMPLETED').length,
         WAITING: allItems.filter(i => i.status === 'WAITING').length,
         PREPARING: allItems.filter(i => i.status === 'PREPARING').length,
-        READY: allItems.filter(i => i.status === 'READY').length,
-        OVERDUE: allItems.filter(i => isOverdue(i.createdAt)).length
+        OVERDUE: allItems.filter(i => i.status !== 'READY' && i.status !== 'COMPLETED' && isOverdue(i.createdAt)).length
     };
 
     const unreadCount = notifications.length;
 
-    const getStatusIcon = (status) => {
-        if (status === 'WAITING') return <Clock size={12} color="#fbbf24" />;
-        if (status === 'PREPARING') return <ChefHat size={12} color="#f97316" />;
-        if (status === 'READY') return <Check size={12} color="#10b981" />;
-        return <Check size={12} color="#10b981" />;
-    };
-
-    const getStatusText = (status) => {
-        if (status === 'WAITING') return 'Chờ làm';
-        if (status === 'PREPARING') return 'Đang nấu';
-        if (status === 'READY') return 'Hoàn thành';
-        return 'Hoàn thành';
-    };
-
+    // ========== RENDER ==========
     return (
         <div className={styles.container}>
+            {/* Socket Disconnected Warning */}
             {!isSocketConnected && (
                 <div className={styles.warningBanner}>
                     <AlertCircle size={16} color="#fbbf24" />
                     <span>Đang mất kết nối real-time. Đơn hàng mới có thể không hiển thị ngay!</span>
                 </div>
             )}
+
+            {/* Ingredient Warning */}
             {showIngredientWarning && branchId && (
-                <IngredientWarning branchId={branchId} onClose={() => setShowIngredientWarning(false)} autoRefresh={true} />
+                <IngredientWarning
+                    branchId={branchId}
+                    onClose={() => setShowIngredientWarning(false)}
+                    autoRefresh={true}
+                />
             )}
+
+            {/* Header */}
             <div className={styles.header}>
                 <div className={styles.headerCenter}>
                     <div className={styles.clock}>
                         <Clock size={16} color="#ffffff" />
-                        <span className={styles.time}>{realTimeClock.toLocaleTimeString('vi-VN')}</span>
-                        <span className={styles.date}>{realTimeClock.toLocaleDateString('vi-VN')}</span>
+                        <span className={styles.time}>
+                            {realTimeClock.toLocaleTimeString('vi-VN')}
+                        </span>
+                        <span className={styles.date}>
+                            {realTimeClock.toLocaleDateString('vi-VN')}
+                        </span>
                     </div>
                 </div>
                 <div className={styles.headerRight}>
-                    <div className={styles.notificationBell} onClick={() => setShowNotificationPanel(!showNotificationPanel)}>
+                    <div
+                        className={styles.notificationBell}
+                        onClick={() => setShowNotificationPanel(!showNotificationPanel)}
+                    >
                         <Bell size={20} color="#ffffff" />
-                        {unreadCount > 0 && <span className={styles.badge}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
+                        {unreadCount > 0 && (
+                            <span className={styles.badge}>
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Notification Panel */}
             {showNotificationPanel && (
                 <>
-                    <div className={styles.notificationOverlay} onClick={() => setShowNotificationPanel(false)} />
+                    <div
+                        className={styles.notificationOverlay}
+                        onClick={() => setShowNotificationPanel(false)}
+                    />
                     <div className={styles.notificationPanel}>
                         <div className={styles.notificationHeader}>
                             <h4>🔔 Thông báo ({notifications.length})</h4>
                             <div className={styles.headerButtons}>
                                 {notifications.length > 0 && (
-                                    <button className={styles.clearAllBtn} onClick={clearAllNotifications} title="Xóa tất cả thông báo">
+                                    <button
+                                        className={styles.clearAllBtn}
+                                        onClick={clearAllNotifications}
+                                        title="Xóa tất cả thông báo"
+                                    >
                                         <X size={14} /> Xóa tất cả
                                     </button>
                                 )}
-                                <button className={styles.closePanelBtn} onClick={() => setShowNotificationPanel(false)} title="Đóng">✕</button>
+                                <button
+                                    className={styles.closePanelBtn}
+                                    onClick={() => setShowNotificationPanel(false)}
+                                    title="Đóng"
+                                >
+                                    ✕
+                                </button>
                             </div>
                         </div>
                         <div className={styles.notificationList}>
                             {notifications.length === 0 ? (
-                                <div className={styles.noNotification}><p>Chưa có thông báo</p></div>
+                                <div className={styles.noNotification}>
+                                    <p>Chưa có thông báo</p>
+                                </div>
                             ) : (
                                 notifications.map(noti => (
-                                    <div key={noti.id} className={`${styles.notificationItem} ${styles[noti.type] || ''}`}>
+                                    <div
+                                        key={noti.id}
+                                        className={`${styles.notificationItem} ${styles[noti.type] || ''}`}
+                                    >
                                         <div className={styles.notificationContent}>
-                                            <div className={styles.notificationMessage}>{noti.message}</div>
+                                            <div className={styles.notificationMessage}>
+                                                {noti.message}
+                                            </div>
                                             <div className={styles.notificationTime}>
                                                 {noti.timestamp?.toLocaleTimeString('vi-VN')}
                                             </div>
@@ -763,43 +817,77 @@ const ChefDashboard = () => {
                     </div>
                 </>
             )}
+
+            {/* Stats Grid - Chỉ 3 card */}
             <div className={styles.statsGrid}>
                 <div className={`${styles.statCard} ${counts.WAITING > 0 ? styles.hasWaiting : ''}`}>
                     <div className={styles.statValue}>{counts.WAITING}</div>
-                    <div className={styles.statLabel}><Clock size={14} color="#fbbf24" /> Chờ làm</div>
+                    <div className={styles.statLabel}>
+                        <Clock size={14} color="#fbbf24" /> Chờ làm
+                    </div>
                 </div>
                 <div className={`${styles.statCard} ${counts.PREPARING > 0 ? styles.hasPreparing : ''}`}>
                     <div className={styles.statValue}>{counts.PREPARING}</div>
-                    <div className={styles.statLabel}><ChefHat size={14} color="#f97316" /> Đang nấu</div>
+                    <div className={styles.statLabel}>
+                        <ChefHat size={14} color="#f97316" /> Đang nấu
+                    </div>
                 </div>
-                <div className={`${styles.statCard} ${counts.READY > 0 ? styles.hasReady : ''}`}>
-                    <div className={styles.statValue}>{counts.READY}</div>
-                    <div className={styles.statLabel}><Check size={14} color="#10b981" /> Hoàn thành</div>
+                <div className={`${styles.statCard} ${counts.OVERDUE > 0 ? styles.hasOverdue : ''}`}>
+                    <div className={styles.statValue} style={{ color: counts.OVERDUE > 0 ? '#ef4444' : '#1e293b' }}>
+                        {counts.OVERDUE}
+                    </div>
+                    <div className={styles.statLabel}>
+                        <AlertCircle size={14} color="#ef4444" /> Quá hạn
+                    </div>
                 </div>
                 <div className={styles.statCard}>
                     <div className={styles.statValue}>{counts.ALL}</div>
-                    <div className={styles.statLabel}><Package size={14} color="#3b82f6" /> Tổng món</div>
+                    <div className={styles.statLabel}>
+                        <Package size={14} color="#3b82f6" /> Tổng món
+                    </div>
                 </div>
             </div>
-            {/* ===== TABS - THÊM HOÀN THÀNH ===== */}
+
+            {/* Tabs - Chỉ 3 tab: Tất cả, Món mới, Đang làm */}
             <div className={styles.tabsContainer}>
                 {[
-                    { key: 'ALL', label: 'Tất cả', icon: <Package size={14} color="#3b82f6" />, count: counts.ALL },
-                    { key: 'WAITING', label: 'Món mới', icon: <Clock size={14} color="#fbbf24" />, count: counts.WAITING },
-                    { key: 'PREPARING', label: 'Đang làm', icon: <ChefHat size={14} color="#f97316" />, count: counts.PREPARING },
-                    { key: 'READY', label: 'Hoàn thành', icon: <Check size={14} color="#10b981" />, count: counts.READY }
+                    { key: 'ALL', label: 'Tất cả', icon: <Package size={14} color="#3b82f6" />, count: counts.ALL, color: '#3b82f6' },
+                    { key: 'WAITING', label: 'Món mới', icon: <Clock size={14} color="#fbbf24" />, count: counts.WAITING, color: '#fbbf24' },
+                    { key: 'PREPARING', label: 'Đang làm', icon: <ChefHat size={14} color="#f97316" />, count: counts.PREPARING, color: '#f97316' }
                 ].map(tab => (
-                    <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`${styles.tab} ${activeTab === tab.key ? styles.activeTab : ''}`}>
-                        {tab.icon} <span>{tab.label}</span> <span className={styles.tabCount}>({tab.count})</span>
+                    <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`${styles.tab} ${activeTab === tab.key ? styles.activeTab : ''}`}
+                        style={{
+                            borderColor: activeTab === tab.key ? tab.color : 'transparent'
+                        }}
+                    >
+                        {tab.icon}
+                        <span>{tab.label}</span>
+                        <span className={styles.tabCount}>({tab.count})</span>
                     </button>
                 ))}
             </div>
+
+            {/* Refresh Section */}
             <div className={styles.refreshSection}>
-                <button onClick={() => fetchData()} disabled={loading} className={styles.refreshBtn}>
-                    <RefreshCw size={16} color="#ffffff" className={loading ? styles.spinning : ''} /> Làm mới
+                <button
+                    onClick={() => fetchData()}
+                    disabled={loading}
+                    className={styles.refreshBtn}
+                >
+                    <RefreshCw size={16} color="#ffffff" className={loading ? styles.spinning : ''} />
+                    Làm mới
                 </button>
-                {lastUpdated && <span className={styles.lastUpdated}>Cập nhật lúc: {lastUpdated.toLocaleTimeString('vi-VN')}</span>}
+                {lastUpdated && (
+                    <span className={styles.lastUpdated}>
+                        Cập nhật lúc: {lastUpdated.toLocaleTimeString('vi-VN')}
+                    </span>
+                )}
             </div>
+
+            {/* Content */}
             {loading ? (
                 <div className={styles.loadingState}>
                     <Loader2 size={48} color="#3b82f6" className={styles.spinner} />
@@ -823,17 +911,24 @@ const ChefDashboard = () => {
                             : item.tables[0];
 
                         return (
-                            <div key={item.id} className={`${styles.orderItem} ${overdue ? styles.overdueItem : ''} ${isUpdatingItem ? styles.updatingItem : ''}`}>
+                            <div
+                                key={item.id}
+                                className={`${styles.orderItem} ${overdue ? styles.overdueItem : ''} ${isUpdatingItem ? styles.updatingItem : ''}`}
+                            >
                                 <div className={styles.itemHeader}>
                                     <div className={styles.tableInfo}>
                                         <div className={styles.tableBadgeGroup}>
                                             <Users size={12} color="#10b981" />
                                             <span className={styles.tableBadge}>{tableDisplay}</span>
                                             {item.tableCount > 1 && (
-                                                <span className={styles.tableCount}>({item.tableCount} bàn)</span>
+                                                <span className={styles.tableCount}>
+                                                    ({item.tableCount} bàn)
+                                                </span>
                                             )}
                                         </div>
-                                        {overdue && <span className={styles.overdueBadge}>Quá hạn!</span>}
+                                        {overdue && (
+                                            <span className={styles.overdueBadge}>Quá hạn!</span>
+                                        )}
                                         {item.isNewlyAdded && (
                                             <span className={styles.newItemBadge}>🆕 Món mới thêm</span>
                                         )}
@@ -843,31 +938,48 @@ const ChefDashboard = () => {
                                         <span>{getElapsedTime(item.createdAt)}</span>
                                     </div>
                                 </div>
+
                                 <h3 className={styles.itemName}>
                                     <Utensils size={16} color="#f59e0b" /> {item.name}
                                 </h3>
+
                                 <div className={styles.itemDetails}>
                                     <span className={styles.itemQuantity}>
-                                        <Package size={12} color="#3b82f6" /> Số lượng: <strong>{item.quantity}</strong>
+                                        <Package size={12} color="#3b82f6" />
+                                        Số lượng: <strong>{item.quantity}</strong>
                                     </span>
                                 </div>
+
                                 {item.notes && (
                                     <p className={styles.itemNotes}>
                                         <FileText size={12} color="#8b5cf6" /> {item.notes}
                                     </p>
                                 )}
+
                                 <div className={styles.itemFooter}>
                                     <span className={`${styles.statusBadge} ${styles[item.status] || ''}`}>
-                                        {getStatusIcon(item.status)} {getStatusText(item.status)}
+                                        {item.status === 'WAITING' ? (
+                                            <><Clock size={12} color="#fbbf24" /> Chờ làm</>
+                                        ) : (
+                                            <><ChefHat size={12} color="#f97316" /> Đang nấu</>
+                                        )}
                                     </span>
                                     <div className={styles.actionButtons}>
                                         {item.status === 'WAITING' && (
-                                            <button className={styles.startBtn} disabled={isUpdatingItem} onClick={() => updateStatus(item, 'PREPARING')}>
+                                            <button
+                                                className={styles.startBtn}
+                                                disabled={isUpdatingItem}
+                                                onClick={() => updateStatus(item, 'PREPARING')}
+                                            >
                                                 <Play size={14} color="#ffffff" /> Bắt đầu
                                             </button>
                                         )}
                                         {item.status === 'PREPARING' && (
-                                            <button className={styles.completeBtn} disabled={isUpdatingItem} onClick={() => updateStatus(item, 'READY')}>
+                                            <button
+                                                className={styles.completeBtn}
+                                                disabled={isUpdatingItem}
+                                                onClick={() => updateStatus(item, 'READY')}
+                                            >
                                                 <Check size={14} color="#ffffff" /> Hoàn thành
                                             </button>
                                         )}
@@ -878,8 +990,17 @@ const ChefDashboard = () => {
                     })}
                 </div>
             )}
+
+            {/* Toast Notifications */}
             <div className={styles.toastContainer}>
-                {toasts.map(toast => <ToastNotification key={toast.id} message={toast.message} type={toast.type} onClose={() => removeToast(toast.id)} />)}
+                {toasts.map(toast => (
+                    <ToastNotification
+                        key={toast.id}
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={() => removeToast(toast.id)}
+                    />
+                ))}
             </div>
         </div>
     );

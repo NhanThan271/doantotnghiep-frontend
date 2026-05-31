@@ -73,7 +73,7 @@ function App() {
         <Route path="/payment-success" element={<ClientPaymentSuccess />} />
         <Route path="/payment-cancel" element={<ClientPaymentCancel />} />
 
-        {/* Cashier routes - Thêm trực tiếp */}
+        {/* ==================== CASHIER ROUTES ==================== */}
         <Route path="/cashier" element={<CashierLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
@@ -89,27 +89,38 @@ function App() {
         <Route path="/cashier/tables/:id" element={<TableDetail />} />
         <Route path="/cashier/rooms/:id" element={<TableDetail />} />
 
-        {/* Route cho OrderDetail - Dành cho waiter */}
-        <Route path="/waiter/orders/:id" element={<OrderDetail />} />
-
         {/* Cashier payment routes */}
         <Route path="/cashier-payment-success" element={<CashierPaymentSuccess />} />
         <Route path="/cashier-payment-cancel" element={<CashierPaymentCancel />} />
 
-        {/* Waiter Routes - Thêm trực tiếp */}
+        {/* ==================== WAITER ROUTES ==================== */}
         <Route path="/waiter" element={<WaiterLayout />}>
           <Route path="orders" element={<Orders />} />
           <Route path="payment-requests" element={<PaymentRequest />} />
           <Route path="kitchen" element={<KitchenMonitor />} />
+          <Route path="shift" element={<ShiftRegistration />} />
         </Route>
+
+        {/* Route cho OrderDetail - Dành cho waiter */}
+        <Route path="/waiter/orders/:id" element={<OrderDetail />} />
         <Route path="/waiter/payment-requests/:id" element={<PaymentQR />} />
 
         {/* Waiter payment routes */}
         <Route path="/waiter/payment-success" element={<WaiterPaymentSuccess />} />
         <Route path="/waiter/payment-cancel" element={<WaiterPaymentCancel />} />
 
-        {/* Chef routes - Thêm trực tiếp */}
-        <Route path="/chef" element={<ChefLayout><ChefDashboard /></ChefLayout>} />
+        {/* ==================== CHEF ROUTES ==================== */}
+        {/* FIX: Thêm index route và đảm bảo path đúng */}
+        <Route path="/chef" element={<ChefLayout />}>
+          <Route index element={<ChefDashboard />} />
+          <Route path="dashboard" element={<ChefDashboard />} />
+          <Route path="shift" element={<ShiftRegistration />} />
+        </Route>
+
+        {/* ==================== MANAGER ROUTES ==================== */}
+        <Route path="/manager" element={<ManagerLayout />}>
+          <Route path="shift" element={<ShiftRegistration />} />
+        </Route>
 
         {/* Trang công khai với Header + Footer */}
         <Route path="/home" element={<PublicLayout><Home /></PublicLayout>} />
@@ -119,7 +130,7 @@ function App() {
         <Route path="/dat-ban-dia-chi" element={<PublicLayout><RestaurantLocation /></PublicLayout>} />
         <Route path="/tuyen-dung" element={<PublicLayout><TuyenDung /></PublicLayout>} />
 
-        {/* Đăng ký ca làm (dành cho nhân viên) */}
+        {/* ==================== SHIFT REGISTRATION ĐỘC LẬP ==================== */}
         <Route path="/shift-registration" element={<ShiftRegistration />} />
       </Routes>
     </>

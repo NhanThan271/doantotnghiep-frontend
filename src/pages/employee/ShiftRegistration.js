@@ -1,518 +1,951 @@
-// src/pages/employee/ShiftRegistration.js
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-    Calendar,
-    Clock,
-    User,
-    CheckCircle,
-    XCircle,
-    AlertCircle,
-    Moon,
-    Sun,
-    Cloud,
-    Star,
-    History,
-    Bell,
-    LayoutList,
-    CalendarDays,
-    ChevronLeft,
-    ChevronRight
-} from "lucide-react";
-import axios from "axios";
+    Container, Row, Col, Card, Button, Badge, Spinner,
+    Alert, Modal, Form, ListGroup, Tabs, Tab
+} from 'react-bootstrap';
+import { Calendar, momentLocalizer } from 'react-big-calendar';
+import moment from 'moment';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import 'moment/locale/vi';
+import { showToast } from '../../hooks/useToast';
+import axiosClient from '../../api/axiosClient';
+import './ShiftRegistration.css';
 
+moment.locale('vi');
+const localizer = momentLocalizer(moment);
+
+// ========== HELPER FUNCTIONS ==========
+const formatTime = (time) => {
+    if (!time) return 'N/A';
+    return time.substring(0, 5);
+};
+
+const formatCurrency = (amount) => {
+    if (!amount) return '0đ';
+    return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
+};
+
+// ========== SKELETON LOADING ==========
+const ShiftSkeleton = () => (
+    <div className="skeleton-loading">
+        {[1, 2, 3].map(i => (
+            <div key={i} className="skeleton-item mb-3 p-3">
+                <div className="skeleton-line skeleton-line-long"></div>
+                <div className="skeleton-line skeleton-line-short"></div>
+            </div>
+        ))}
+    </div>
+);
+
+// ========== STAT CARD ==========
+const StatCard = ({ icon, label, value, variant }) => (
+    <Card className={`stat-card ${variant} fade-in-up`}>
+        <Card.Body>
+            <div className="d-flex justify-content-between align-items-center">
+                <div>
+                    <div className="stat-label">{label}</div>
+                    <div className="stat-value">{value}</div>
+                </div>
+                <i className={`ti ti-${icon} stat-icon`}></i>
+            </div>
+        </Card.Body>
+    </Card>
+);
+
+// ========== MAIN COMPONENT ==========
 const ShiftRegistration = () => {
-    const navigate = useNavigate();
+    // ===== LẤY USER TỪ LOCALSTORAGE =====
     const [user, setUser] = useState(null);
-    const [selectedShift, setSelectedShift] = useState("");
-    const [selectedDate, setSelectedDate] = useState("");
-    const [selectedBranch, setSelectedBranch] = useState("");
-    const [branches, setBranches] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState({ type: "", text: "" });
-    const [registeredShifts, setRegisteredShifts] = useState([]);
-    const [activeTab, setActiveTab] = useState("register"); // register, history, calendar
-    const [viewMode, setViewMode] = useState("list"); // list, calendar
-    const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [filterStatus, setFilterStatus] = useState("ALL"); // ALL, PENDING, APPROVED, REJECTED
-
-    // Danh sách ca làm
-    const shifts = [
-        { id: "MORNING", name: "Ca sáng", time: "06:00 - 11:00", icon: <Sun size={20} />, color: "#f59e0b", bg: "#fffbeb", shortName: "Sáng" },
-        { id: "MIDDAY", name: "Ca trưa", time: "11:00 - 14:00", icon: <Cloud size={20} />, color: "#3b82f6", bg: "#eff6ff", shortName: "Trưa" },
-        { id: "AFTERNOON", name: "Ca chiều", time: "14:00 - 17:00", icon: <Sun size={20} />, color: "#f97316", bg: "#fff7ed", shortName: "Chiều" },
-        { id: "EVENING", name: "Ca tối", time: "17:00 - 22:00", icon: <Moon size={20} />, color: "#8b5cf6", bg: "#f5f3ff", shortName: "Tối" },
-        { id: "FULL", name: "Ca full", time: "08:00 - 22:00", icon: <Star size={20} />, color: "#ec4899", bg: "#fdf2f8", shortName: "Full" }
-    ];
 
     useEffect(() => {
-        const userData = JSON.parse(localStorage.getItem('user') || '{}');
-        if (!userData || !userData.id) {
-            navigate('/login');
-            return;
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+            try {
+                setUser(JSON.parse(savedUser));
+            } catch (e) {
+                console.error('Lỗi parse user:', e);
+            }
         }
-        setUser(userData);
-        fetchBranches();
-        fetchRegisteredShifts(userData.id);
     }, []);
 
-    const fetchBranches = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get("http://localhost:8080/api/branches", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setBranches(response.data);
-        } catch (err) {
-            console.error("Lỗi tải chi nhánh:", err);
-        }
-    };
+    // ===== STATE =====
+    const [staffId, setStaffId] = useState(null);
+    const [staffInfo, setStaffInfo] = useState(null);
+    const [shifts, setShifts] = useState([]);
+    const [staffShifts, setStaffShifts] = useState([]);
+    const [shiftSchedules, setShiftSchedules] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [viewMode, setViewMode] = useState('calendar');
+    const [currentMonth, setCurrentMonth] = useState(new Date());
 
-    const fetchRegisteredShifts = async (userId) => {
-        try {
-            const token = localStorage.getItem('token');
-            const response = await axios.get(`http://localhost:8080/api/shift-registrations/user/${userId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setRegisteredShifts(response.data);
-        } catch (err) {
-            console.error("Lỗi tải lịch sử đăng ký:", err);
-        }
-    };
+    // Modal states
+    const [showRegisterModal, setShowRegisterModal] = useState(false);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [selectedSchedule, setSelectedSchedule] = useState(null);
+    const [selectedStaffShift, setSelectedStaffShift] = useState(null);
+    const [registeringShiftId, setRegisteringShiftId] = useState(null);
+    const [cancellingShiftId, setCancellingShiftId] = useState(null);
 
-    const handleRegister = async (e) => {
-        e.preventDefault();
+    // Stats
+    const [monthlyStats, setMonthlyStats] = useState(null);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-        if (!selectedShift || !selectedDate || !selectedBranch) {
-            setMessage({ type: "error", text: "Vui lòng điền đầy đủ thông tin!" });
+    // Preloaded data
+    const [allMonthShifts, setAllMonthShifts] = useState([]);
+    const [allMonthSchedules, setAllMonthSchedules] = useState([]);
+    const [preloading, setPreloading] = useState(false);
+
+    // Cache
+    const cacheRef = useRef({});
+    const CACHE_DURATION = 5 * 60 * 1000; // 5 phút
+
+    // ===== API CALLS =====
+
+    // Lấy staff ID từ user
+    useEffect(() => {
+        const fetchStaffInfo = async () => {
+            if (!user?.id) return;
+            try {
+                const res = await axiosClient.get(`/staff/user/${user.id}`);
+                setStaffId(res.data.id);
+                setStaffInfo(res.data);
+            } catch (err) {
+                console.error('Lỗi lấy thông tin nhân viên:', err);
+                setError('Không thể lấy thông tin nhân viên. Vui lòng đăng nhập lại.');
+            }
+        };
+        fetchStaffInfo();
+    }, [user]);
+
+    // Lấy danh sách ca làm
+    useEffect(() => {
+        const fetchShifts = async () => {
+            try {
+                const res = await axiosClient.get('/shifts');
+                setShifts(res.data);
+            } catch (err) {
+                console.error('Lỗi lấy danh sách ca:', err);
+            }
+        };
+        fetchShifts();
+    }, []);
+
+    // Preload data cả tháng
+    const preloadMonthData = useCallback(async (date) => {
+        if (!staffId || !staffInfo?.branch?.id) return;
+
+        const monthKey = moment(date).format('YYYY-MM');
+        const cached = cacheRef.current[monthKey];
+
+        if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+            setAllMonthShifts(cached.data.shifts || []);
+            setAllMonthSchedules(cached.data.schedules || []);
             return;
         }
 
-        setIsLoading(true);
-        setMessage({ type: "", text: "" });
+        setPreloading(true);
+        try {
+            const [shiftsRes, schedulesRes] = await Promise.all([
+                axiosClient.get(`/staff-shifts/staff/${staffId}`).catch(() => ({ data: [] })),
+                axiosClient.get(`/shift-schedules/branch/${staffInfo.branch.id}`).catch(() => ({ data: [] }))
+            ]);
+
+            setAllMonthShifts(shiftsRes.data || []);
+            setAllMonthSchedules(schedulesRes.data || []);
+
+            cacheRef.current[monthKey] = {
+                data: {
+                    shifts: shiftsRes.data || [],
+                    schedules: schedulesRes.data || []
+                },
+                timestamp: Date.now()
+            };
+
+        } catch (err) {
+            console.error('Lỗi preload:', err);
+        } finally {
+            setPreloading(false);
+        }
+    }, [staffId, staffInfo]);
+
+    // Preload khi component mount
+    useEffect(() => {
+        preloadMonthData(new Date());
+    }, [preloadMonthData]);
+
+    // Xử lý khi chọn ngày - CỰC NHANH (dùng data đã preload)
+    const handleDateSelect = useCallback((date) => {
+        setSelectedDate(date);
+
+        const dateStr = moment(date).format('YYYY-MM-DD');
+
+        // Lọc từ data đã preload (gần như instant)
+        const dayShifts = allMonthShifts.filter(
+            s => moment(s.workDay).format('YYYY-MM-DD') === dateStr
+        );
+        const daySchedules = allMonthSchedules.filter(
+            s => moment(s.workDay).format('YYYY-MM-DD') === dateStr
+        );
+
+        setStaffShifts(dayShifts);
+        setShiftSchedules(daySchedules);
+
+        // Nếu chưa có data, fetch riêng ngày đó
+        if (daySchedules.length === 0 && staffInfo?.branch?.id) {
+            fetchShiftSchedulesByDate(date);
+        }
+
+        setShowRegisterModal(true);
+    }, [allMonthShifts, allMonthSchedules, staffInfo]);
+
+    // Fetch shift schedules theo ngày (fallback)
+    const fetchShiftSchedulesByDate = useCallback(async (date) => {
+        setLoading(true);
+        try {
+            const formattedDate = moment(date).format('YYYY-MM-DD');
+            const res = await axiosClient.get('/shift-schedules/work-day', {
+                params: { workDay: formattedDate }
+            });
+            setShiftSchedules(res.data);
+        } catch (err) {
+            console.error('Lỗi lấy lịch làm việc:', err);
+            showToast('error', 'Lỗi', 'Không thể tải lịch làm việc');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Lấy thống kê hàng tháng
+    const fetchMonthlyStats = useCallback(async () => {
+        if (!staffId) return;
 
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.post("http://localhost:8080/api/shift-registrations", {
-                userId: user.id,
-                fullName: user.fullName,
-                phone: user.phone,
-                shiftId: selectedShift,
-                shiftName: shifts.find(s => s.id === selectedShift)?.name,
-                date: selectedDate,
-                branchId: selectedBranch,
-                status: "PENDING"
-            }, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json"
+            const res = await axiosClient.get(`/attendance/monthly/${staffId}`, {
+                params: { month: selectedMonth, year: selectedYear }
+            });
+            setMonthlyStats(res.data);
+        } catch (err) {
+            console.error('Lỗi lấy thống kê:', err);
+        }
+    }, [staffId, selectedMonth, selectedYear]);
+
+    useEffect(() => {
+        if (staffId) {
+            fetchMonthlyStats();
+        }
+    }, [staffId, selectedMonth, selectedYear, fetchMonthlyStats]);
+
+    // ===== ACTIONS =====
+
+    // Đăng ký ca
+    const handleRegisterShift = async (shiftId) => {
+        if (!staffId) {
+            showToast('error', 'Lỗi', 'Không tìm thấy thông tin nhân viên');
+            return;
+        }
+
+        setRegisteringShiftId(shiftId);
+        try {
+            const formattedDate = moment(selectedDate).format('YYYY-MM-DD');
+            await axiosClient.post('/staff-shifts', null, {
+                params: {
+                    staffId: staffId,
+                    shiftId: shiftId,
+                    workDay: formattedDate
                 }
             });
 
-            if (response.status === 200 || response.status === 201) {
-                setMessage({ type: "success", text: "Đăng ký ca làm thành công! Vui lòng chờ xác nhận từ quản lý." });
-                setSelectedShift("");
-                setSelectedDate("");
-                setSelectedBranch("");
-                fetchRegisteredShifts(user.id);
+            showToast('success', 'Thành công', '🎉 Đăng ký ca làm thành công!');
+            setShowRegisterModal(false);
 
-                setTimeout(() => {
-                    setActiveTab("history");
-                    setMessage({ type: "", text: "" });
-                }, 2000);
-            }
+            // Refresh data
+            await preloadMonthData(currentMonth);
+
+            // Update current view
+            const dateStr = formattedDate;
+            const updatedShifts = allMonthShifts.filter(
+                s => moment(s.workDay).format('YYYY-MM-DD') === dateStr
+            );
+            setStaffShifts(updatedShifts);
+
         } catch (err) {
-            console.error("Register shift error:", err);
-            setMessage({
-                type: "error",
-                text: err.response?.data?.message || "Đăng ký thất bại. Vui lòng thử lại sau."
-            });
+            console.error('Lỗi đăng ký ca:', err);
+            const message = err.response?.data?.message || 'Không thể đăng ký ca. Vui lòng thử lại sau';
+            showToast('error', 'Lỗi', message);
         } finally {
-            setIsLoading(false);
+            setRegisteringShiftId(null);
         }
     };
 
-    const getStatusBadge = (status) => {
-        switch (status) {
-            case "PENDING":
-                return { text: "Chờ duyệt", color: "#f59e0b", bg: "#fffbeb", icon: <Clock size={12} /> };
-            case "APPROVED":
-                return { text: "Đã duyệt", color: "#10b981", bg: "#f0fdf4", icon: <CheckCircle size={12} /> };
-            case "REJECTED":
-                return { text: "Từ chối", color: "#ef4444", bg: "#fef2f2", icon: <XCircle size={12} /> };
-            default:
-                return { text: "Không xác định", color: "#6b7280", bg: "#f3f4f6", icon: <AlertCircle size={12} /> };
+    // Hủy đăng ký ca
+    const handleCancelRegistration = async (staffShiftId) => {
+        if (!window.confirm('Bạn có chắc muốn hủy đăng ký ca này?')) return;
+
+        setCancellingShiftId(staffShiftId);
+        try {
+            await axiosClient.delete(`/staff-shifts/${staffShiftId}`);
+            showToast('success', 'Thành công', '✅ Đã hủy đăng ký ca');
+            setShowDetailModal(false);
+
+            // Refresh
+            await preloadMonthData(currentMonth);
+
+            // Update current view
+            setStaffShifts(prev => prev.filter(s => s.id !== staffShiftId));
+
+        } catch (err) {
+            console.error('Lỗi hủy ca:', err);
+            showToast('error', 'Lỗi', 'Không thể hủy đăng ký ca');
+        } finally {
+            setCancellingShiftId(null);
         }
     };
 
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' });
-    };
+    // ===== CALENDAR EVENTS =====
 
-    // Lấy dữ liệu cho calendar
-    const getShiftsByDate = () => {
-        const shiftsByDate = {};
-        registeredShifts.forEach(shift => {
-            const date = shift.date;
-            if (!shiftsByDate[date]) {
-                shiftsByDate[date] = [];
-            }
-            shiftsByDate[date].push(shift);
+    const calendarEvents = useMemo(() => {
+        if (!allMonthShifts.length || !shifts.length) return [];
+
+        return allMonthShifts.map(staffShift => {
+            const shift = shifts.find(s => s.id === staffShift.shift?.id);
+            const startTime = shift?.startTime || '00:00';
+            const endTime = shift?.endTime || '00:00';
+
+            return {
+                id: staffShift.id,
+                title: shift?.name || 'Ca làm',
+                start: moment(`${staffShift.workDay} ${startTime}`).toDate(),
+                end: moment(`${staffShift.workDay} ${endTime}`).toDate(),
+                resource: staffShift,
+                allDay: false
+            };
         });
-        return shiftsByDate;
-    };
+    }, [allMonthShifts, shifts]);
 
-    // Lọc theo trạng thái
-    const getFilteredShifts = () => {
-        if (filterStatus === "ALL") return registeredShifts;
-        return registeredShifts.filter(shift => shift.status === filterStatus);
-    };
+    // Calendar event style
+    const eventStyleGetter = useCallback((event) => {
+        const shift = shifts.find(s => s.id === event.resource?.shift?.id);
+        let backgroundColor = '#4361ee';
 
-    // Tạo dữ liệu cho calendar tháng
-    const getCalendarDays = () => {
-        const year = currentMonth.getFullYear();
-        const month = currentMonth.getMonth();
-        const firstDayOfMonth = new Date(year, month, 1);
-        const lastDayOfMonth = new Date(year, month + 1, 0);
-        const startDate = new Date(firstDayOfMonth);
-        startDate.setDate(firstDayOfMonth.getDate() - firstDayOfMonth.getDay());
-        const endDate = new Date(lastDayOfMonth);
-        endDate.setDate(lastDayOfMonth.getDate() + (6 - lastDayOfMonth.getDay()));
+        // Màu khác nhau cho từng ca
+        if (shift?.name?.includes('Sáng')) backgroundColor = '#f59e0b';
+        if (shift?.name?.includes('Chiều')) backgroundColor = '#06d6a0';
+        if (shift?.name?.includes('Tối')) backgroundColor = '#7c3aed';
 
-        const days = [];
-        const currentDate = new Date(startDate);
+        return {
+            style: {
+                backgroundColor,
+                borderRadius: '6px',
+                opacity: 0.9,
+                color: 'white',
+                border: 'none',
+                padding: '2px 6px',
+                fontSize: '0.85rem',
+                fontWeight: '500',
+                cursor: 'pointer'
+            }
+        };
+    }, [shifts]);
 
-        while (currentDate <= endDate) {
-            const dateStr = currentDate.toISOString().split('T')[0];
-            const shiftsOfDay = registeredShifts.filter(shift => shift.date === dateStr);
-            const isCurrentMonth = currentDate.getMonth() === month;
+    // ===== HELPERS =====
 
-            days.push({
-                date: new Date(currentDate),
-                dateStr,
-                isCurrentMonth,
-                shifts: shiftsOfDay,
-                isToday: dateStr === new Date().toISOString().split('T')[0]
-            });
+    const isShiftRegistered = useCallback((shiftId) => {
+        return staffShifts.some(ss => ss.shift?.id === shiftId);
+    }, [staffShifts]);
 
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
+    // ===== RENDER =====
 
-        return days;
-    };
-
-    const changeMonth = (increment) => {
-        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + increment, 1));
-    };
-
-    const minDate = new Date().toISOString().split('T')[0];
-    const maxDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-    const shiftsByDate = getShiftsByDate();
-    const filteredShifts = getFilteredShifts();
-    const calendarDays = getCalendarDays();
+    if (error) {
+        return (
+            <Container className="shift-registration py-4">
+                <Alert variant="danger" className="fade-in-up">
+                    <i className="ti ti-alert-triangle me-2"></i>
+                    {error}
+                </Alert>
+            </Container>
+        );
+    }
 
     return (
-        <div className="shift-registration-page">
-            <div className="container">
+        <div className="shift-registration">
+            <Container fluid className="py-4">
                 {/* Header */}
-                <div className="page-header">
-                    <div className="header-title">
-                        <Calendar size={28} />
-                        <h1>Đăng ký ca làm</h1>
-                    </div>
-                    <div className="user-info">
-                        <User size={16} />
-                        <span>{user?.fullName || user?.username}</span>
-                    </div>
+                <div className="shift-registration-header fade-in-up">
+                    <h2>
+                        <i className="ti ti-calendar-time me-2"></i>
+                        Đăng ký ca làm việc
+                    </h2>
+                    <p>Quản lý và đăng ký ca làm việc của bạn một cách dễ dàng</p>
                 </div>
 
-                {/* Tabs */}
-                <div className="tabs">
-                    <button
-                        className={`tab ${activeTab === "register" ? "active" : ""}`}
-                        onClick={() => setActiveTab("register")}
+                {/* Thống kê tháng */}
+                {monthlyStats && (
+                    <Row className="mb-4 g-3">
+                        <Col xl={3} md={6}>
+                            <StatCard
+                                icon="calendar-stats"
+                                label="Tổng số ngày"
+                                value={monthlyStats.totalDays}
+                                variant="primary"
+                            />
+                        </Col>
+                        <Col xl={3} md={6}>
+                            <StatCard
+                                icon="check"
+                                label="Có mặt đúng giờ"
+                                value={monthlyStats.presentDays}
+                                variant="success"
+                            />
+                        </Col>
+                        <Col xl={3} md={6}>
+                            <StatCard
+                                icon="clock-exclamation"
+                                label="Đi trễ"
+                                value={monthlyStats.lateDays}
+                                variant="warning"
+                            />
+                        </Col>
+                        <Col xl={3} md={6}>
+                            <StatCard
+                                icon="calendar-off"
+                                label="Nghỉ phép"
+                                value={monthlyStats.leaveDays}
+                                variant="info"
+                            />
+                        </Col>
+                    </Row>
+                )}
+
+                {/* Chọn tháng thống kê */}
+                <div className="month-selector fade-in-up">
+                    <label>
+                        <i className="ti ti-chart-bar me-2"></i>
+                        Xem thống kê tháng
+                    </label>
+                    <Form.Select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                        size="sm"
                     >
-                        <Bell size={16} />
-                        Đăng ký mới
-                    </button>
-                    <button
-                        className={`tab ${activeTab === "history" ? "active" : ""}`}
-                        onClick={() => setActiveTab("history")}
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                            <option key={m} value={m}>Tháng {m}</option>
+                        ))}
+                    </Form.Select>
+                    <Form.Select
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                        size="sm"
                     >
-                        <History size={16} />
-                        Lịch sử
-                    </button>
-                    <button
-                        className={`tab ${activeTab === "calendar" ? "active" : ""}`}
-                        onClick={() => setActiveTab("calendar")}
-                    >
-                        <CalendarDays size={16} />
-                        Lịch làm việc
-                    </button>
+                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => (
+                            <option key={y} value={y}>{y}</option>
+                        ))}
+                    </Form.Select>
+
+                    {preloading && (
+                        <Spinner animation="border" size="sm" className="ms-2" />
+                    )}
                 </div>
 
-                {/* Nội dung */}
-                <div className="tab-content">
-                    {/* Tab Đăng ký */}
-                    {activeTab === "register" && (
-                        <form onSubmit={handleRegister} className="register-form">
-                            <div className="form-card">
-                                <h3>
-                                    <User size={18} />
-                                    Thông tin cá nhân
-                                </h3>
-                                <div className="info-row">
-                                    <span>Họ và tên:</span>
-                                    <strong>{user?.fullName || user?.username}</strong>
-                                </div>
-                                <div className="info-row">
-                                    <span>Số điện thoại:</span>
-                                    <strong>{user?.phone || "Chưa cập nhật"}</strong>
-                                </div>
-                            </div>
+                {/* Tabs chuyển đổi view */}
+                <Tabs
+                    activeKey={viewMode}
+                    onSelect={(k) => setViewMode(k)}
+                    className="shift-tabs mb-4 fade-in-up"
+                >
+                    {/* ========== CALENDAR VIEW ========== */}
+                    <Tab
+                        eventKey="calendar"
+                        title={<><i className="ti ti-calendar me-1"></i> Lịch</>}
+                    >
+                        <Card className="calendar-card">
+                            <Card.Body>
+                                {preloading && (
+                                    <div className="text-center mb-3">
+                                        <Spinner animation="border" size="sm" variant="primary" />
+                                        <span className="ms-2 text-muted">Đang tải dữ liệu...</span>
+                                    </div>
+                                )}
+                                <Calendar
+                                    localizer={localizer}
+                                    events={calendarEvents}
+                                    startAccessor="start"
+                                    endAccessor="end"
+                                    style={{ height: 550 }}
+                                    selectable
+                                    onSelectSlot={(slotInfo) => {
+                                        handleDateSelect(slotInfo.start);
+                                    }}
+                                    onSelectEvent={(event) => {
+                                        setSelectedStaffShift(event.resource);
+                                        setShowDetailModal(true);
+                                    }}
+                                    onNavigate={(date) => {
+                                        setCurrentMonth(date);
+                                        preloadMonthData(date);
+                                    }}
+                                    views={['month', 'week', 'day']}
+                                    defaultView="month"
+                                    date={currentMonth}
+                                    eventPropGetter={eventStyleGetter}
+                                    messages={{
+                                        today: 'Hôm nay',
+                                        previous: 'Trước',
+                                        next: 'Sau',
+                                        month: 'Tháng',
+                                        week: 'Tuần',
+                                        day: 'Ngày',
+                                        agenda: 'Lịch trình',
+                                        date: 'Ngày',
+                                        time: 'Thời gian',
+                                        event: 'Sự kiện',
+                                        noEventsInRange: 'Không có ca làm nào'
+                                    }}
+                                    dayPropGetter={(date) => {
+                                        const today = moment().startOf('day');
+                                        const dateMoment = moment(date).startOf('day');
+                                        if (dateMoment.isSame(today)) {
+                                            return {
+                                                style: {
+                                                    backgroundColor: 'rgba(67, 97, 238, 0.05)'
+                                                }
+                                            };
+                                        }
+                                        return {};
+                                    }}
+                                />
+                            </Card.Body>
+                        </Card>
+                    </Tab>
 
-                            <div className="form-card">
-                                <h3>
-                                    <Calendar size={18} />
-                                    Thông tin đăng ký
-                                </h3>
-
-                                <div className="form-group">
-                                    <label>Chọn chi nhánh</label>
-                                    <select
-                                        value={selectedBranch}
-                                        onChange={(e) => setSelectedBranch(e.target.value)}
-                                        required
-                                    >
-                                        <option value="">-- Chọn chi nhánh --</option>
-                                        {branches.map(branch => (
-                                            <option key={branch.id} value={branch.id}>
-                                                {branch.name} - {branch.address}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="form-group">
-                                    <label>Chọn ca làm</label>
-                                    <div className="shift-options">
-                                        {shifts.map(shift => (
-                                            <div
-                                                key={shift.id}
-                                                className={`shift-card ${selectedShift === shift.id ? "selected" : ""}`}
-                                                onClick={() => setSelectedShift(shift.id)}
-                                                style={{ background: shift.bg, borderColor: selectedShift === shift.id ? shift.color : "#e2e8e0" }}
-                                            >
-                                                <div className="shift-icon" style={{ color: shift.color }}>
-                                                    {shift.icon}
-                                                </div>
-                                                <div className="shift-info">
-                                                    <div className="shift-name" style={{ color: shift.color }}>{shift.name}</div>
-                                                    <div className="shift-time">{shift.time}</div>
-                                                </div>
-                                                {selectedShift === shift.id && <CheckCircle size={18} color={shift.color} />}
-                                            </div>
-                                        ))}
+                    {/* ========== LIST VIEW ========== */}
+                    <Tab
+                        eventKey="list"
+                        title={<><i className="ti ti-list me-1"></i> Danh sách</>}
+                    >
+                        <Card className="list-view-card">
+                            <Card.Body>
+                                <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                    <h5 className="mb-0">
+                                        <i className="ti ti-calendar-event me-2"></i>
+                                        Ca làm ngày {moment(selectedDate).format('DD/MM/YYYY')}
+                                    </h5>
+                                    <div className="d-flex gap-2 align-items-center">
+                                        <Button
+                                            variant="outline-secondary"
+                                            size="sm"
+                                            onClick={() => {
+                                                const prevDay = moment(selectedDate).subtract(1, 'day').toDate();
+                                                handleDateSelect(prevDay);
+                                            }}
+                                        >
+                                            <i className="ti ti-chevron-left"></i>
+                                        </Button>
+                                        <Form.Control
+                                            type="date"
+                                            value={moment(selectedDate).format('YYYY-MM-DD')}
+                                            onChange={(e) => {
+                                                const newDate = e.target.value ? new Date(e.target.value) : new Date();
+                                                handleDateSelect(newDate);
+                                            }}
+                                            style={{ width: '160px' }}
+                                            className="date-picker"
+                                        />
+                                        <Button
+                                            variant="outline-secondary"
+                                            size="sm"
+                                            onClick={() => {
+                                                const nextDay = moment(selectedDate).add(1, 'day').toDate();
+                                                handleDateSelect(nextDay);
+                                            }}
+                                        >
+                                            <i className="ti ti-chevron-right"></i>
+                                        </Button>
+                                        <Button
+                                            variant="outline-primary"
+                                            size="sm"
+                                            onClick={() => {
+                                                const today = new Date();
+                                                handleDateSelect(today);
+                                            }}
+                                        >
+                                            Hôm nay
+                                        </Button>
                                     </div>
                                 </div>
 
-                                <div className="form-group">
-                                    <label>Chọn ngày làm</label>
-                                    <input
-                                        type="date"
-                                        value={selectedDate}
-                                        onChange={(e) => setSelectedDate(e.target.value)}
-                                        min={minDate}
-                                        max={maxDate}
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            {message.text && (
-                                <div className={`message ${message.type}`}>
-                                    {message.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-                                    <span>{message.text}</span>
-                                </div>
-                            )}
-
-                            <button type="submit" className="submit-btn" disabled={isLoading}>
-                                {isLoading ? (
-                                    <>
-                                        <div className="spinner"></div>
-                                        Đang xử lý...
-                                    </>
+                                {loading ? (
+                                    <ShiftSkeleton />
                                 ) : (
                                     <>
-                                        <Bell size={16} />
-                                        Gửi đăng ký
-                                    </>
-                                )}
-                            </button>
-                        </form>
-                    )}
-
-                    {/* Tab Lịch sử */}
-                    {activeTab === "history" && (
-                        <div className="history-section">
-                            {/* Filter buttons */}
-                            <div className="filter-buttons">
-                                <button
-                                    className={`filter-btn ${filterStatus === "ALL" ? "active" : ""}`}
-                                    onClick={() => setFilterStatus("ALL")}
-                                >
-                                    Tất cả
-                                </button>
-                                <button
-                                    className={`filter-btn ${filterStatus === "PENDING" ? "active" : ""}`}
-                                    onClick={() => setFilterStatus("PENDING")}
-                                >
-                                    Chờ duyệt
-                                </button>
-                                <button
-                                    className={`filter-btn ${filterStatus === "APPROVED" ? "active" : ""}`}
-                                    onClick={() => setFilterStatus("APPROVED")}
-                                >
-                                    Đã duyệt
-                                </button>
-                                <button
-                                    className={`filter-btn ${filterStatus === "REJECTED" ? "active" : ""}`}
-                                    onClick={() => setFilterStatus("REJECTED")}
-                                >
-                                    Từ chối
-                                </button>
-                            </div>
-
-                            {filteredShifts.length === 0 ? (
-                                <div className="empty-state">
-                                    <Calendar size={48} />
-                                    <p>Không có đăng ký ca làm nào</p>
-                                    <button onClick={() => setActiveTab("register")} className="empty-btn">
-                                        Đăng ký ngay
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="history-list">
-                                    {filteredShifts.map((item, index) => {
-                                        const status = getStatusBadge(item.status);
-                                        const shift = shifts.find(s => s.id === item.shiftId);
-                                        return (
-                                            <div key={index} className="history-card">
-                                                <div className="history-date">
-                                                    <Calendar size={14} />
-                                                    <span>{formatDate(item.date)}</span>
-                                                </div>
-                                                <div className="history-shift" style={{ background: shift?.bg, color: shift?.color }}>
-                                                    {shift?.icon}
-                                                    <span>{shift?.name}</span>
-                                                    <small>{shift?.time}</small>
-                                                </div>
-                                                <div className="history-status" style={{ background: status.bg, color: status.color }}>
-                                                    {status.icon}
-                                                    <span>{status.text}</span>
-                                                </div>
-                                                {item.reason && (
-                                                    <div className="history-reason">{item.reason}</div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Tab Lịch làm việc - Calendar View */}
-                    {activeTab === "calendar" && (
-                        <div className="calendar-section">
-                            {/* Calendar Header */}
-                            <div className="calendar-header">
-                                <button onClick={() => changeMonth(-1)} className="month-nav">
-                                    <ChevronLeft size={20} />
-                                </button>
-                                <h2>
-                                    {currentMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
-                                </h2>
-                                <button onClick={() => changeMonth(1)} className="month-nav">
-                                    <ChevronRight size={20} />
-                                </button>
-                            </div>
-
-                            {/* Legend */}
-                            <div className="calendar-legend">
-                                <div className="legend-item">
-                                    <span className="legend-color pending"></span>
-                                    <span>Chờ duyệt</span>
-                                </div>
-                                <div className="legend-item">
-                                    <span className="legend-color approved"></span>
-                                    <span>Đã duyệt</span>
-                                </div>
-                                <div className="legend-item">
-                                    <span className="legend-color rejected"></span>
-                                    <span>Từ chối</span>
-                                </div>
-                            </div>
-
-                            {/* Calendar Grid */}
-                            <div className="calendar-grid">
-                                {/* Weekday headers */}
-                                {['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].map(day => (
-                                    <div key={day} className="calendar-weekday">
-                                        {day}
-                                    </div>
-                                ))}
-
-                                {/* Calendar days */}
-                                {calendarDays.map((day, index) => {
-                                    const hasPending = day.shifts.some(s => s.status === 'PENDING');
-                                    const hasApproved = day.shifts.some(s => s.status === 'APPROVED');
-                                    const hasRejected = day.shifts.some(s => s.status === 'REJECTED');
-
-                                    return (
-                                        <div
-                                            key={index}
-                                            className={`calendar-day ${!day.isCurrentMonth ? 'other-month' : ''} ${day.isToday ? 'today' : ''}`}
-                                        >
-                                            <div className="calendar-day-number">{day.date.getDate()}</div>
-                                            <div className="calendar-day-shifts">
-                                                {day.shifts.map((shift, idx) => {
-                                                    const shiftInfo = shifts.find(s => s.id === shift.shiftId);
-                                                    const status = getStatusBadge(shift.status);
-                                                    return (
-                                                        <div
-                                                            key={idx}
-                                                            className="calendar-shift-item"
-                                                            style={{ background: status.bg, color: status.color }}
-                                                            title={`${shiftInfo?.name || shift.shiftName} - ${status.text}`}
-                                                        >
-                                                            <span className="shift-short">{shiftInfo?.shortName || shift.shiftName?.substring(0, 2)}</span>
+                                        {/* Ca đã đăng ký */}
+                                        <div className="section-title">
+                                            <i className="ti ti-clipboard-check me-2"></i>
+                                            Ca đã đăng ký ({staffShifts.length})
+                                        </div>
+                                        {staffShifts.length === 0 ? (
+                                            <Alert variant="light" className="empty-state-small">
+                                                <i className="ti ti-info-circle me-2"></i>
+                                                Chưa đăng ký ca nào cho ngày này
+                                            </Alert>
+                                        ) : (
+                                            <ListGroup className="mb-4 shift-list-group">
+                                                {staffShifts.map((staffShift) => (
+                                                    <ListGroup.Item
+                                                        key={staffShift.id}
+                                                        className="shift-list-item registered"
+                                                        action
+                                                        onClick={() => {
+                                                            setSelectedStaffShift(staffShift);
+                                                            setShowDetailModal(true);
+                                                        }}
+                                                    >
+                                                        <div className="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <div className="shift-name">
+                                                                    {staffShift.shift?.name || 'N/A'}
+                                                                </div>
+                                                                <div className="shift-time">
+                                                                    <i className="ti ti-clock"></i>
+                                                                    {formatTime(staffShift.shift?.startTime)} - {formatTime(staffShift.shift?.endTime)}
+                                                                    {staffShift.shift?.workingHours && ` (${staffShift.shift.workingHours}h)`}
+                                                                </div>
+                                                                {staffShift.shift?.shiftAllowance > 0 && (
+                                                                    <div className="shift-meta">
+                                                                        <Badge className="badge-shift badge-allowance">
+                                                                            +{formatCurrency(staffShift.shift.shiftAllowance)}
+                                                                        </Badge>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <Badge className="badge-shift badge-registered">
+                                                                <i className="ti ti-check me-1"></i>
+                                                                Đã đăng ký
+                                                            </Badge>
                                                         </div>
+                                                    </ListGroup.Item>
+                                                ))}
+                                            </ListGroup>
+                                        )}
+
+                                        {/* Ca có sẵn */}
+                                        <div className="section-title">
+                                            <i className="ti ti-plus-circle me-2"></i>
+                                            Ca có sẵn để đăng ký ({shiftSchedules.length})
+                                        </div>
+                                        {shiftSchedules.length === 0 ? (
+                                            <Alert variant="light" className="empty-state-small">
+                                                <i className="ti ti-info-circle me-2"></i>
+                                                Không có ca làm nào khả dụng cho ngày này
+                                            </Alert>
+                                        ) : (
+                                            <ListGroup className="shift-list-group">
+                                                {shiftSchedules.map((schedule) => {
+                                                    const shift = schedule.shift || {};
+                                                    const registered = isShiftRegistered(shift.id);
+                                                    const slotsLeft = (schedule.maxStaff || 0) - (schedule.requiredStaff || 0);
+
+                                                    return (
+                                                        <ListGroup.Item
+                                                            key={schedule.id}
+                                                            className={`shift-list-item ${registered ? 'registered' : ''}`}
+                                                            disabled={registered}
+                                                        >
+                                                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                                                <div>
+                                                                    <div className="shift-name">
+                                                                        {shift.name || 'N/A'}
+                                                                    </div>
+                                                                    <div className="shift-time">
+                                                                        <i className="ti ti-clock"></i>
+                                                                        {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
+                                                                        {shift.workingHours && ` (${shift.workingHours}h)`}
+                                                                    </div>
+                                                                    <div className="shift-meta">
+                                                                        <Badge
+                                                                            bg={slotsLeft > 0 ? 'success' : 'danger'}
+                                                                            className="badge-shift me-2"
+                                                                        >
+                                                                            {slotsLeft > 0 ? `Còn ${slotsLeft} slot` : 'Hết slot'}
+                                                                        </Badge>
+                                                                        {shift.shiftAllowance > 0 && (
+                                                                            <Badge className="badge-shift badge-allowance">
+                                                                                +{formatCurrency(shift.shiftAllowance)}
+                                                                            </Badge>
+                                                                        )}
+                                                                        <small className="text-muted ms-2">
+                                                                            {schedule.requiredStaff}/{schedule.maxStaff} đã đăng ký
+                                                                        </small>
+                                                                    </div>
+                                                                </div>
+                                                                <Button
+                                                                    variant={registered ? "secondary" : "primary"}
+                                                                    size="sm"
+                                                                    className="btn-register-shift"
+                                                                    disabled={registered || slotsLeft <= 0}
+                                                                    onClick={() => {
+                                                                        setSelectedSchedule(schedule);
+                                                                        handleRegisterShift(shift.id);
+                                                                    }}
+                                                                >
+                                                                    {registeringShiftId === shift.id ? (
+                                                                        <>
+                                                                            <Spinner animation="border" size="sm" className="me-1" />
+                                                                            Đang xử lý...
+                                                                        </>
+                                                                    ) : registered ? (
+                                                                        <>
+                                                                            <i className="ti ti-check me-1"></i>
+                                                                            Đã đăng ký
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <i className="ti ti-plus me-1"></i>
+                                                                            Đăng ký
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                        </ListGroup.Item>
                                                     );
                                                 })}
-                                            </div>
-                                            {day.shifts.length > 0 && (
-                                                <div className="calendar-day-status">
-                                                    {hasPending && <span className="status-dot pending" title="Có ca chờ duyệt"></span>}
-                                                    {hasApproved && <span className="status-dot approved" title="Có ca đã duyệt"></span>}
-                                                    {hasRejected && <span className="status-dot rejected" title="Có ca bị từ chối"></span>}
+                                            </ListGroup>
+                                        )}
+                                    </>
+                                )}
+                            </Card.Body>
+                        </Card>
+                    </Tab>
+                </Tabs>
+
+                {/* ========== MODAL ĐĂNG KÝ CA ========== */}
+                <Modal
+                    show={showRegisterModal}
+                    onHide={() => setShowRegisterModal(false)}
+                    centered
+                    size="lg"
+                    className="shift-modal"
+                >
+                    <Modal.Header closeButton>
+                        <Modal.Title>
+                            <i className="ti ti-calendar-plus me-2"></i>
+                            Đăng ký ca làm
+                        </Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        <div className="text-center mb-4">
+                            <h5>
+                                <i className="ti ti-calendar me-2"></i>
+                                {moment(selectedDate).format('dddd, DD/MM/YYYY')}
+                            </h5>
+                            {moment(selectedDate).isBefore(moment(), 'day') && (
+                                <Badge bg="danger" className="mt-2">
+                                    <i className="ti ti-alert-triangle me-1"></i>
+                                    Ngày đã qua
+                                </Badge>
+                            )}
+                        </div>
+
+                        {loading ? (
+                            <ShiftSkeleton />
+                        ) : shiftSchedules.length === 0 ? (
+                            <div className="empty-state">
+                                <i className="ti ti-calendar-off empty-icon"></i>
+                                <p className="empty-text">Không có ca làm khả dụng</p>
+                                <p className="empty-subtext">
+                                    Vui lòng chọn ngày khác hoặc liên hệ quản lý
+                                </p>
+                            </div>
+                        ) : (
+                            <ListGroup className="shift-list-group">
+                                {shiftSchedules.map((schedule) => {
+                                    const shift = schedule.shift || {};
+                                    const registered = isShiftRegistered(shift.id);
+                                    const slotsLeft = (schedule.maxStaff || 0) - (schedule.requiredStaff || 0);
+
+                                    return (
+                                        <ListGroup.Item
+                                            key={schedule.id}
+                                            className={`shift-list-item ${registered ? 'registered' : ''}`}
+                                        >
+                                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                                <div>
+                                                    <div className="shift-name">
+                                                        {shift.name || 'N/A'}
+                                                        {shift.workingHours && (
+                                                            <small className="text-muted ms-2">
+                                                                ({shift.workingHours}h)
+                                                            </small>
+                                                        )}
+                                                    </div>
+                                                    <div className="shift-time">
+                                                        <i className="ti ti-clock"></i>
+                                                        {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
+                                                    </div>
+                                                    <div className="shift-meta mt-2">
+                                                        <Badge
+                                                            bg={slotsLeft > 0 ? 'success' : 'danger'}
+                                                            className="badge-shift me-2"
+                                                        >
+                                                            {slotsLeft > 0 ? `Còn ${slotsLeft} slot` : 'Đã đầy'}
+                                                        </Badge>
+                                                        {shift.shiftAllowance > 0 && (
+                                                            <Badge className="badge-shift badge-allowance">
+                                                                <i className="ti ti-coin me-1"></i>
+                                                                +{formatCurrency(shift.shiftAllowance)}
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
+                                                <Button
+                                                    variant={registered ? "success" : "primary"}
+                                                    size="sm"
+                                                    className={`btn-register-shift ${registered ? 'pulse-animation' : ''}`}
+                                                    disabled={registered || slotsLeft <= 0}
+                                                    onClick={() => handleRegisterShift(shift.id)}
+                                                >
+                                                    {registeringShiftId === shift.id ? (
+                                                        <Spinner animation="border" size="sm" />
+                                                    ) : registered ? (
+                                                        <>
+                                                            <i className="ti ti-check me-1"></i>
+                                                            Đã đăng ký
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <i className="ti ti-plus me-1"></i>
+                                                            Đăng ký ngay
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </div>
+                                        </ListGroup.Item>
                                     );
                                 })}
-                            </div>
+                            </ListGroup>
+                        )}
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="secondary" onClick={() => setShowRegisterModal(false)}>
+                            <i className="ti ti-x me-1"></i>
+                            Đóng
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
 
-                            {/* Chi tiết khi click vào ngày (có thể thêm sau) */}
-                            <div className="calendar-note">
-                                <small>💡 Di chuột vào ô để xem chi tiết ca làm</small>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
+                {/* ========== MODAL CHI TIẾT CA ========== */}
+                <Modal
+                    show={showDetailModal}
+                    onHide={() => setShowDetailModal(false)}
+                    centered
+                    className="shift-modal"
+                >
+                    <Modal.Header closeButton>
+                        <Modal.Title>
+                            <i className="ti ti-clipboard-check me-2"></i>
+                            Chi tiết ca đăng ký
+                        </Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        {selectedStaffShift && (
+                            <>
+                                <div className="text-center mb-4">
+                                    <div className="shift-detail-badge mb-2">
+                                        <Badge bg="success" className="fs-6 px-3 py-2">
+                                            <i className="ti ti-check me-1"></i>
+                                            Đã đăng ký
+                                        </Badge>
+                                    </div>
+                                    <h5 className="text-primary">
+                                        {selectedStaffShift.shift?.name || 'N/A'}
+                                    </h5>
+                                </div>
+
+                                <div className="shift-detail-grid">
+                                    <div className="shift-detail-item">
+                                        <div className="label">
+                                            <i className="ti ti-calendar me-1"></i>
+                                            Ngày làm việc
+                                        </div>
+                                        <div className="value">
+                                            {moment(selectedStaffShift.workDay).format('dddd, DD/MM/YYYY')}
+                                        </div>
+                                    </div>
+
+                                    <div className="shift-detail-item">
+                                        <div className="label">
+                                            <i className="ti ti-clock-play me-1"></i>
+                                            Giờ bắt đầu
+                                        </div>
+                                        <div className="value">
+                                            {formatTime(selectedStaffShift.shift?.startTime)}
+                                        </div>
+                                    </div>
+
+                                    <div className="shift-detail-item">
+                                        <div className="label">
+                                            <i className="ti ti-clock-stop me-1"></i>
+                                            Giờ kết thúc
+                                        </div>
+                                        <div className="value">
+                                            {formatTime(selectedStaffShift.shift?.endTime)}
+                                        </div>
+                                    </div>
+
+                                    {selectedStaffShift.shift?.workingHours && (
+                                        <div className="shift-detail-item">
+                                            <div className="label">
+                                                <i className="ti ti-hourglass me-1"></i>
+                                                Số giờ làm
+                                            </div>
+                                            <div className="value">
+                                                {selectedStaffShift.shift.workingHours} giờ
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedStaffShift.shift?.shiftAllowance > 0 && (
+                                        <div className="shift-detail-item">
+                                            <div className="label">
+                                                <i className="ti ti-coin me-1"></i>
+                                                Phụ cấp ca
+                                            </div>
+                                            <div className="value text-warning">
+                                                +{formatCurrency(selectedStaffShift.shift.shiftAllowance)}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+                    </Modal.Body>
+                    <Modal.Footer className="d-flex justify-content-between">
+                        <Button
+                            variant="danger"
+                            onClick={() => selectedStaffShift && handleCancelRegistration(selectedStaffShift.id)}
+                            disabled={cancellingShiftId === selectedStaffShift?.id}
+                        >
+                            {cancellingShiftId === selectedStaffShift?.id ? (
+                                <>
+                                    <Spinner animation="border" size="sm" className="me-1" />
+                                    Đang hủy...
+                                </>
+                            ) : (
+                                <>
+                                    <i className="ti ti-trash me-1"></i>
+                                    Hủy đăng ký
+                                </>
+                            )}
+                        </Button>
+                        <Button variant="secondary" onClick={() => setShowDetailModal(false)}>
+                            <i className="ti ti-x me-1"></i>
+                            Đóng
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
+            </Container>
         </div>
     );
 };
