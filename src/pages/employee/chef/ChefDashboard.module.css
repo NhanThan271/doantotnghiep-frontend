@@ -516,7 +516,6 @@
 .overdueItem {
     border-color: #fecaca !important;
     background: #fef2f2 !important;
-    animation: pulse 2s ease-in-out infinite;
 }
 
 .updatingItem {
