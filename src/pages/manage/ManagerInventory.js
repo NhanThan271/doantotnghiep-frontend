@@ -209,7 +209,7 @@ export default function ManagerInventoryManagement() {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(
-                `${API_BASE_URL}/api/branch-inventory/history/${currentBranch.id}`,
+                `${API_BASE_URL}/api/inventory-batches/branch/${currentBranch.id}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             if (!response.ok) throw new Error();
@@ -821,15 +821,6 @@ export default function ManagerInventoryManagement() {
                                             const TypeIcon = typeInfo.icon;
                                             return (
                                                 <div key={`history-${record.id || index}`} style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', position: 'relative', zIndex: 1 }}>
-                                                    {/* Timeline dot */}
-                                                    <div style={{
-                                                        width: '56px', height: '56px', flexShrink: 0,
-                                                        background: typeInfo.bg, border: `2px solid ${typeInfo.border}`,
-                                                        borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                        boxShadow: `0 0 0 4px #1c1c1e`
-                                                    }}>
-                                                        <TypeIcon size={22} color={typeInfo.color} />
-                                                    </div>
 
                                                     {/* Card */}
                                                     <div style={{
@@ -910,113 +901,117 @@ export default function ManagerInventoryManagement() {
             </div>
 
             {/* Create Request Modal */}
-            {showRequestModal && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalContent}>
-                        <div className={styles.modalHeader}>
-                            <div>
-                                <h2 className={styles.modalTitle}>Tạo yêu cầu nhập kho</h2>
-                                <p className={styles.modalSubtitle}>Chọn nguyên liệu cần nhập từ kho tổng</p>
+            {
+                showRequestModal && (
+                    <div className={styles.modalOverlay}>
+                        <div className={styles.modalContent}>
+                            <div className={styles.modalHeader}>
+                                <div>
+                                    <h2 className={styles.modalTitle}>Tạo yêu cầu nhập kho</h2>
+                                    <p className={styles.modalSubtitle}>Chọn nguyên liệu cần nhập từ kho tổng</p>
+                                </div>
+                                <button onClick={() => {
+                                    setShowRequestModal(false);
+                                    setRequestForm({ warehouseId: '', reason: '', type: 'IMPORT', items: [{ ingredientId: '', quantity: '' }] });
+                                }} className={styles.modalCloseButton}>
+                                    <X size={24} />
+                                </button>
                             </div>
-                            <button onClick={() => {
-                                setShowRequestModal(false);
-                                setRequestForm({ warehouseId: '', reason: '', type: 'IMPORT', items: [{ ingredientId: '', quantity: '' }] });
-                            }} className={styles.modalCloseButton}>
-                                <X size={24} />
-                            </button>
-                        </div>
 
-                        <div className={styles.modalBody}>
+                            <div className={styles.modalBody}>
 
-                            {/* Chọn kho tổng */}
-                            <div style={{ marginBottom: '20px' }}>
-                                <label className={styles.infoLabel} style={{ display: 'block', marginBottom: '8px' }}>Kho tổng *</label>
-                                <select
-                                    value={requestForm.warehouseId}
-                                    onChange={(e) => setRequestForm({ ...requestForm, warehouseId: e.target.value })}
-                                    className={styles.searchInput1} style={{ width: '100%' }}>
-                                    <option value="">-- Chọn kho tổng --</option>
-                                    {warehouses.map(w => (
-                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                {/* Chọn kho tổng */}
+                                <div style={{ marginBottom: '20px' }}>
+                                    <label className={styles.infoLabel} style={{ display: 'block', marginBottom: '8px' }}>Kho tổng *</label>
+                                    <select
+                                        value={requestForm.warehouseId}
+                                        onChange={(e) => setRequestForm({ ...requestForm, warehouseId: e.target.value })}
+                                        className={styles.searchInput1} style={{ width: '100%' }}>
+                                        <option value="">-- Chọn kho tổng --</option>
+                                        {warehouses.map(w => (
+                                            <option key={w.id} value={w.id}>{w.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Danh sách nguyên liệu (multi-item) */}
+                                <div style={{ marginBottom: '20px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                        <label className={styles.infoLabel}>Nguyên liệu *</label>
+                                        <button onClick={addFormItem} style={{ fontSize: '13px', color: '#8B5CF6', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <Plus size={14} /> Thêm nguyên liệu
+                                        </button>
+                                    </div>
+                                    {requestForm.items.map((item, index) => (
+                                        <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                            <select
+                                                value={item.ingredientId}
+                                                onChange={(e) => updateFormItem(index, 'ingredientId', e.target.value)}
+                                                className={styles.searchInput1} style={{ flex: 2 }}>
+                                                <option value="">-- Chọn nguyên liệu --</option>
+                                                {allIngredients.map(ing => (
+                                                    <option key={ing.id} value={ing.id}>
+                                                        {ing.name} ({ing.unit}) — Tồn: {getCurrentStock(ing.id)}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <input
+                                                type="number" min="0.01" step="0.01"
+                                                placeholder="Số lượng"
+                                                value={item.quantity}
+                                                onChange={(e) => updateFormItem(index, 'quantity', e.target.value)}
+                                                className={styles.searchInput1} style={{ flex: 1 }} />
+                                            {requestForm.items.length > 1 && (
+                                                <button onClick={() => removeFormItem(index)}
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}>
+                                                    <X size={18} />
+                                                </button>
+                                            )}
+                                        </div>
                                     ))}
-                                </select>
-                            </div>
-
-                            {/* Danh sách nguyên liệu (multi-item) */}
-                            <div style={{ marginBottom: '20px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                    <label className={styles.infoLabel}>Nguyên liệu *</label>
-                                    <button onClick={addFormItem} style={{ fontSize: '13px', color: '#8B5CF6', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <Plus size={14} /> Thêm nguyên liệu
-                                    </button>
                                 </div>
-                                {requestForm.items.map((item, index) => (
-                                    <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                                        <select
-                                            value={item.ingredientId}
-                                            onChange={(e) => updateFormItem(index, 'ingredientId', e.target.value)}
-                                            className={styles.searchInput1} style={{ flex: 2 }}>
-                                            <option value="">-- Chọn nguyên liệu --</option>
-                                            {allIngredients.map(ing => (
-                                                <option key={ing.id} value={ing.id}>
-                                                    {ing.name} ({ing.unit}) — Tồn: {getCurrentStock(ing.id)}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <input
-                                            type="number" min="0.01" step="0.01"
-                                            placeholder="Số lượng"
-                                            value={item.quantity}
-                                            onChange={(e) => updateFormItem(index, 'quantity', e.target.value)}
-                                            className={styles.searchInput1} style={{ flex: 1 }} />
-                                        {requestForm.items.length > 1 && (
-                                            <button onClick={() => removeFormItem(index)}
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}>
-                                                <X size={18} />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
 
-                            {requestForm.ingredientId && (
-                                <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '8px' }}>
-                                    <div style={{ fontSize: '13px', color: '#9ca3af' }}>Tồn kho hiện tại</div>
-                                    <div style={{ fontSize: '22px', fontWeight: '700', color: '#8B5CF6' }}>
-                                        {getCurrentStock(requestForm.ingredientId)} {allIngredients.find(i => i.id === parseInt(requestForm.ingredientId))?.unit || ''}
+                                {requestForm.ingredientId && (
+                                    <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '8px' }}>
+                                        <div style={{ fontSize: '13px', color: '#9ca3af' }}>Tồn kho hiện tại</div>
+                                        <div style={{ fontSize: '22px', fontWeight: '700', color: '#8B5CF6' }}>
+                                            {getCurrentStock(requestForm.ingredientId)} {allIngredients.find(i => i.id === parseInt(requestForm.ingredientId))?.unit || ''}
+                                        </div>
                                     </div>
+                                )}
+
+                                {/* Lý do */}
+                                <div style={{ marginBottom: '20px' }}>
+                                    <label className={styles.infoLabel} style={{ display: 'block', marginBottom: '8px' }}>Lý do yêu cầu *</label>
+                                    <textarea
+                                        value={requestForm.reason}
+                                        onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
+                                        className={styles.searchInput1} placeholder="Nhập lý do yêu cầu nhập kho..."
+                                        rows="3" style={{ width: '100%', resize: 'vertical' }} />
                                 </div>
-                            )}
 
-                            {/* Lý do */}
-                            <div style={{ marginBottom: '20px' }}>
-                                <label className={styles.infoLabel} style={{ display: 'block', marginBottom: '8px' }}>Lý do yêu cầu *</label>
-                                <textarea
-                                    value={requestForm.reason}
-                                    onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
-                                    className={styles.searchInput1} placeholder="Nhập lý do yêu cầu nhập kho..."
-                                    rows="3" style={{ width: '100%', resize: 'vertical' }} />
-                            </div>
-
-                            <div className={styles.modalActions}>
-                                <button onClick={() => { setShowRequestModal(false); setRequestForm({ warehouseId: '', reason: '', type: 'IMPORT', items: [{ ingredientId: '', quantity: '' }] }); }}
-                                    className={styles.buttonDanger}><X size={20} /> Hủy</button>
-                                <button onClick={createInventoryRequest} className={styles.buttonSuccess}>
-                                    <Plus size={20} /> Gửi yêu cầu</button>
+                                <div className={styles.modalActions}>
+                                    <button onClick={() => { setShowRequestModal(false); setRequestForm({ warehouseId: '', reason: '', type: 'IMPORT', items: [{ ingredientId: '', quantity: '' }] }); }}
+                                        className={styles.buttonDanger}><X size={20} /> Hủy</button>
+                                    <button onClick={createInventoryRequest} className={styles.buttonSuccess}>
+                                        <Plus size={20} /> Gửi yêu cầu</button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-            {loading && (
-                <div className={styles.loadingOverlay}>
-                    <div className={styles.loadingModal}>
-                        <RefreshCw size={48} className={styles.spinIcon} />
-                        <p>Đang tải dữ liệu...</p>
+            {
+                loading && (
+                    <div className={styles.loadingOverlay}>
+                        <div className={styles.loadingModal}>
+                            <RefreshCw size={48} className={styles.spinIcon} />
+                            <p>Đang tải dữ liệu...</p>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <style>{`
                 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
@@ -1024,6 +1019,6 @@ export default function ManagerInventoryManagement() {
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                 .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background-color: #10B981; animation: pulse 2s infinite; }
             `}</style>
-        </div>
+        </div >
     );
 }
