@@ -1,10 +1,10 @@
 // layouts/ChefLayout.js
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Outlet } from "react-router-dom";
 import { ChefHat, LogOut } from "lucide-react";
 import styles from "./ChefLayout.module.css";
 
-const ChefLayout = ({ children }) => {
+const ChefLayout = () => {
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -40,9 +40,9 @@ const ChefLayout = ({ children }) => {
                 </div>
             </header>
 
-            {/* Main Content */}
+            {/* Main Content - Sử dụng Outlet cho nested routes */}
             <main className={styles.content}>
-                {children}
+                <Outlet />
             </main>
         </div>
     );
