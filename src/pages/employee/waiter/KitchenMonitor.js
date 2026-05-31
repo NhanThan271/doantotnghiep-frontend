@@ -1,4 +1,4 @@
-// KitchenMonitor.js
+// KitchenMonitor.js - Đã sửa với tabs lọc trạng thái món + Socket real-time
 import React, { useState, useEffect } from "react";
 import io from 'socket.io-client';
 
@@ -9,31 +9,100 @@ const KitchenMonitor = () => {
     const [kitchenOrders, setKitchenOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedOrder, setExpandedOrder] = useState(null);
+    const [activeTab, setActiveTab] = useState('ALL');
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = user?.branch?.id;
 
-    // Lấy danh sách đơn hàng đang nấu
+    // ===== ĐĂNG KÝ ROLE WAITER =====
+    useEffect(() => {
+        if (branchId && user?.id) {
+            console.log("🔌 [KitchenMonitor] Đăng ký role WAITER với socket server");
+            console.log(`   UserID: ${user.id}, Branch: ${branchId}`);
+
+            socket.emit('register-role', {
+                role: 'waiter',
+                userId: user.id,
+                branchId: branchId
+            });
+
+            console.log("✅ [KitchenMonitor] Đã gửi register-role thành công");
+        }
+    }, [branchId, user?.id]);
+
+    // ===== FETCH DATA =====
     const fetchKitchenOrders = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${API}/api/customer/orders`, {
+
+            // Lấy danh sách đơn hàng
+            const ordersResponse = await fetch(`${API}/api/customer/orders`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                const branchOrders = data.filter(o => o.branch?.id === branchId);
-                // Lọc đơn hàng đang xử lý (chưa thanh toán và chưa hủy)
-                const activeOrders = branchOrders.filter(o =>
-                    (o.status === "PENDING" || o.status === "PREPARING") &&
-                    o.status !== "PAID" &&
-                    o.status !== "CANCELED"
-                );
-                setKitchenOrders(activeOrders);
-                console.log("📦 Đơn hàng đang nấu:", activeOrders.length);
-            }
+            if (!ordersResponse.ok) throw new Error('Failed to fetch orders');
+
+            const allOrders = await ordersResponse.json();
+            const branchOrders = allOrders.filter(o => o.branch?.id === branchId);
+
+            // Lấy trạng thái từ KitchenOrderItem
+            const kitchenItemsResponse = await fetch(`${API}/api/kitchen-order-items/active`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            const kitchenItems = await kitchenItemsResponse.json();
+
+            console.log("📦 Kitchen Items from API:", kitchenItems);
+
+            // Map từng KitchenOrderItem thành 1 item riêng biệt
+            const enrichedOrders = branchOrders.map(order => {
+                const orderKitchenItems = kitchenItems.filter(ki => ki.orderId === order.id);
+
+                const enrichedItems = orderKitchenItems.map(ki => {
+                    const originalItem = (order.items || []).find(oi =>
+                        oi.food?.id === ki.food?.id
+                    );
+
+                    return {
+                        id: ki.id,
+                        food: ki.food || originalItem?.food,
+                        kitchenStatus: ki.kitchenStatus || 'WAITING',
+                        status: ki.kitchenStatus || 'WAITING',
+                        quantity: 1,
+                        note: originalItem?.note || ki.notes || '',
+                        price: originalItem?.price,
+                        kitchenItemId: ki.id
+                    };
+                });
+
+                // Fallback nếu không có KitchenOrderItem
+                if (enrichedItems.length === 0) {
+                    return {
+                        ...order,
+                        items: (order.items || []).map(item => ({
+                            ...item,
+                            kitchenStatus: item.kitchenStatus || 'WAITING',
+                            status: item.kitchenStatus || 'WAITING'
+                        }))
+                    };
+                }
+
+                return {
+                    ...order,
+                    items: enrichedItems
+                };
+            });
+
+            // Lọc đơn hàng đang xử lý
+            const activeOrders = enrichedOrders.filter(o =>
+                o.status !== "PAID" &&
+                o.status !== "CANCELED"
+            );
+
+            console.log("✅ Enriched Orders:", activeOrders.length);
+            setKitchenOrders(activeOrders);
+
         } catch (err) {
             console.error("Lỗi tải đơn bếp:", err);
         } finally {
@@ -41,7 +110,7 @@ const KitchenMonitor = () => {
         }
     };
 
-    // Lắng nghe socket events
+    // ===== SOCKET LISTENERS =====
     useEffect(() => {
         if (branchId) {
             fetchKitchenOrders();
@@ -66,24 +135,65 @@ const KitchenMonitor = () => {
                     fetchKitchenOrders();
                 }
             });
+
+            socket.on("kitchen-item-status-changed", (data) => {
+                if (data.branchId === branchId) {
+                    console.log("🔔 [KitchenMonitor] Nhận thông báo từ bếp:", data);
+                    console.log(`📋 Món: ${data.itemName} → ${data.status}`);
+                    console.log(`📝 Message: ${data.message}`);
+                    fetchKitchenOrders();
+                }
+            });
+
+            socket.on("update-order-item-status", (data) => {
+                if (data.branchId === branchId) {
+                    console.log("🔄 [KitchenMonitor] Cập nhật trạng thái món:", data);
+                    fetchKitchenOrders();
+                }
+            });
         }
 
         return () => {
             socket.off("new-order");
             socket.off("order-updated");
             socket.off("item-completed");
+            socket.off("kitchen-item-status-changed");
+            socket.off("update-order-item-status");
         };
     }, [branchId]);
 
-    // Refresh mỗi 30 giây
-    useEffect(() => {
-        const interval = setInterval(() => {
-            fetchKitchenOrders();
-        }, 30000);
+    // ===== FILTER ORDERS BY ITEM STATUS =====
+    const getFilteredOrders = () => {
+        if (activeTab === 'ALL') return kitchenOrders;
 
-        return () => clearInterval(interval);
-    }, []);
+        return kitchenOrders.filter(order => {
+            return order.items?.some(item => item.kitchenStatus === activeTab);
+        }).map(order => {
+            return {
+                ...order,
+                items: order.items?.filter(item => item.kitchenStatus === activeTab)
+            };
+        });
+    };
 
+    const filteredOrders = getFilteredOrders();
+
+    // ===== STATS DỰA TRÊN ITEM STATUS =====
+    const getAllItems = () => {
+        return kitchenOrders.flatMap(order => order.items || []);
+    };
+
+    const allItems = getAllItems();
+
+    const stats = {
+        total: kitchenOrders.length,
+        waiting: allItems.filter(item => item.kitchenStatus === 'WAITING').length,
+        preparing: allItems.filter(item => item.kitchenStatus === 'PREPARING').length,
+        completed: allItems.filter(item => item.kitchenStatus === 'READY' || item.kitchenStatus === 'COMPLETED').length,
+        totalItems: allItems.length
+    };
+
+    // ===== HELPER FUNCTIONS =====
     const getStatusIcon = (status) => {
         switch (status) {
             case 'PENDING': return '⏳';
@@ -115,6 +225,7 @@ const KitchenMonitor = () => {
         switch (status) {
             case 'WAITING': return '#f59e0b';
             case 'PREPARING': return '#3b82f6';
+            case 'READY': return '#10b981';
             case 'COMPLETED': return '#10b981';
             default: return '#6b7280';
         }
@@ -122,10 +233,21 @@ const KitchenMonitor = () => {
 
     const getItemStatusText = (status) => {
         switch (status) {
-            case 'WAITING': return 'Chờ nấu';
-            case 'PREPARING': return 'Đang nấu';
-            case 'COMPLETED': return 'Hoàn thành';
-            default: return status;
+            case 'WAITING': return '⏳ Chờ nấu';
+            case 'PREPARING': return '🔪 Đang nấu';
+            case 'READY': return '✅ Hoàn thành';
+            case 'COMPLETED': return '✅ Hoàn thành';
+            default: return status || 'Không xác định';
+        }
+    };
+
+    const getItemStatusIcon = (status) => {
+        switch (status) {
+            case 'WAITING': return '⏳';
+            case 'PREPARING': return '🔪';
+            case 'READY': return '✅';
+            case 'COMPLETED': return '✅';
+            default: return '📦';
         }
     };
 
@@ -149,14 +271,6 @@ const KitchenMonitor = () => {
 
     const toggleExpand = (orderId) => {
         setExpandedOrder(expandedOrder === orderId ? null : orderId);
-    };
-
-    // Thống kê
-    const stats = {
-        total: kitchenOrders.length,
-        pending: kitchenOrders.filter(o => o.status === 'PENDING').length,
-        preparing: kitchenOrders.filter(o => o.status === 'PREPARING').length,
-        totalItems: kitchenOrders.reduce((sum, o) => sum + (o.items?.length || 0), 0)
     };
 
     return (
@@ -220,8 +334,8 @@ const KitchenMonitor = () => {
                         textAlign: 'center',
                         borderLeft: '4px solid #f59e0b'
                     }}>
-                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>{stats.pending}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b' }}>Chờ chế biến</div>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>{stats.waiting}</div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>⏳ Chờ nấu</div>
                     </div>
                     <div style={{
                         background: '#f8fafc',
@@ -231,7 +345,7 @@ const KitchenMonitor = () => {
                         borderLeft: '4px solid #3b82f6'
                     }}>
                         <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6' }}>{stats.preparing}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b' }}>Đang chế biến</div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>🔪 Đang nấu</div>
                     </div>
                     <div style={{
                         background: '#f8fafc',
@@ -240,9 +354,59 @@ const KitchenMonitor = () => {
                         textAlign: 'center',
                         borderLeft: '4px solid #10b981'
                     }}>
-                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>{stats.totalItems}</div>
-                        <div style={{ fontSize: '12px', color: '#64748b' }}>Tổng món</div>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>{stats.completed}</div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>✅ Hoàn thành</div>
                     </div>
+                </div>
+
+                {/* TABS LỌC THEO TRẠNG THÁI MÓN */}
+                <div style={{
+                    display: 'flex',
+                    gap: '8px',
+                    marginTop: '20px',
+                    flexWrap: 'wrap'
+                }}>
+                    {[
+                        { key: 'ALL', label: 'Tất cả', count: stats.totalItems, color: '#3b82f6' },
+                        { key: 'WAITING', label: '⏳ Món mới', count: stats.waiting, color: '#f59e0b' },
+                        { key: 'PREPARING', label: '🔪 Đang làm', count: stats.preparing, color: '#3b82f6' },
+                        { key: 'READY', label: '✅ Hoàn thành', count: stats.completed, color: '#10b981' }
+                    ].map(tab => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
+                            style={{
+                                padding: '8px 16px',
+                                borderRadius: '20px',
+                                border: activeTab === tab.key
+                                    ? `2px solid ${tab.color}`
+                                    : '1px solid #e2e8f0',
+                                background: activeTab === tab.key
+                                    ? `${tab.color}10`
+                                    : 'white',
+                                color: activeTab === tab.key ? tab.color : '#64748b',
+                                cursor: 'pointer',
+                                fontWeight: activeTab === tab.key ? 'bold' : 'normal',
+                                fontSize: '14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            {tab.label}
+                            <span style={{
+                                background: activeTab === tab.key ? tab.color : '#e2e8f0',
+                                color: activeTab === tab.key ? 'white' : '#64748b',
+                                padding: '2px 8px',
+                                borderRadius: '10px',
+                                fontSize: '12px',
+                                fontWeight: 'bold'
+                            }}>
+                                {tab.count}
+                            </span>
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -265,16 +429,23 @@ const KitchenMonitor = () => {
                     }}></div>
                     <p>Đang tải dữ liệu...</p>
                 </div>
-            ) : kitchenOrders.length === 0 ? (
+            ) : filteredOrders.length === 0 ? (
                 <div style={{
                     textAlign: 'center',
                     padding: '60px',
                     background: 'white',
                     borderRadius: '16px'
                 }}>
-                    <div style={{ fontSize: '64px', marginBottom: '16px' }}>🧑‍🍳</div>
-                    <h3 style={{ color: '#1e293b', marginBottom: '8px' }}>Không có đơn hàng nào</h3>
-                    <p style={{ color: '#64748b' }}>Hiện tại không có đơn hàng nào đang chế biến</p>
+                    <div style={{ fontSize: '64px', marginBottom: '16px' }}>🍽️</div>
+                    <h3 style={{ color: '#1e293b', marginBottom: '8px' }}>
+                        {activeTab === 'ALL' ? 'Không có đơn hàng nào' : `Không có món ${getItemStatusText(activeTab).toLowerCase()}`}
+                    </h3>
+                    <p style={{ color: '#64748b' }}>
+                        {activeTab === 'ALL'
+                            ? 'Hiện tại không có đơn hàng nào đang chế biến'
+                            : `Không có món nào ở trạng thái "${getItemStatusText(activeTab)}"`
+                        }
+                    </p>
                 </div>
             ) : (
                 <div style={{
@@ -282,7 +453,7 @@ const KitchenMonitor = () => {
                     flexDirection: 'column',
                     gap: '16px'
                 }}>
-                    {kitchenOrders.map(order => (
+                    {filteredOrders.map(order => (
                         <div
                             key={order.id}
                             style={{
@@ -356,7 +527,12 @@ const KitchenMonitor = () => {
                             {/* Order Items - Expandable */}
                             {expandedOrder === order.id && (
                                 <div style={{ padding: '0 20px 20px 20px', borderTop: '1px solid #e2e8f0' }}>
-                                    <h4 style={{ margin: '16px 0 12px', color: '#1e293b' }}>📋 Danh sách món</h4>
+                                    <h4 style={{ margin: '16px 0 12px', color: '#1e293b' }}>
+                                        📋 Danh sách món
+                                        <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '8px' }}>
+                                            (Hiển thị: {activeTab === 'ALL' ? 'Tất cả' : getItemStatusText(activeTab)})
+                                        </span>
+                                    </h4>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                                         {order.items?.map((item, idx) => (
                                             <div
@@ -368,11 +544,12 @@ const KitchenMonitor = () => {
                                                     padding: '12px',
                                                     background: '#f8fafc',
                                                     borderRadius: '12px',
-                                                    borderLeft: `3px solid ${getItemStatusColor(item.status)}`
+                                                    borderLeft: `3px solid ${getItemStatusColor(item.kitchenStatus)}`
                                                 }}
                                             >
                                                 <div style={{ flex: 1 }}>
-                                                    <div style={{ fontWeight: 500, color: '#1e293b' }}>
+                                                    <div style={{ fontWeight: 500, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                        <span>{getItemStatusIcon(item.kitchenStatus)}</span>
                                                         {item.food?.name || 'Món ăn'}
                                                     </div>
                                                     {item.note && (
@@ -380,6 +557,9 @@ const KitchenMonitor = () => {
                                                             📝 {item.note}
                                                         </div>
                                                     )}
+                                                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+                                                        ID: {item.kitchenItemId || item.id} | Status: {item.kitchenStatus || 'N/A'}
+                                                    </div>
                                                 </div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                                                     <span style={{
@@ -396,10 +576,11 @@ const KitchenMonitor = () => {
                                                         fontSize: 12,
                                                         padding: '4px 10px',
                                                         borderRadius: 20,
-                                                        background: `${getItemStatusColor(item.status)}20`,
-                                                        color: getItemStatusColor(item.status)
+                                                        background: `${getItemStatusColor(item.kitchenStatus)}20`,
+                                                        color: getItemStatusColor(item.kitchenStatus),
+                                                        fontWeight: 'bold'
                                                     }}>
-                                                        {getItemStatusText(item.status)}
+                                                        {getItemStatusText(item.kitchenStatus)}
                                                     </span>
                                                 </div>
                                             </div>

@@ -23,6 +23,9 @@ import io from 'socket.io-client';
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
 
+// Key lưu trong localStorage
+const CHEF_NOTIFICATIONS_KEY = 'chef_notifications';
+
 const ChefDashboard = () => {
     const [allItems, setAllItems] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -30,7 +33,30 @@ const ChefDashboard = () => {
     const [lastUpdated, setLastUpdated] = useState(null);
     const [toasts, setToasts] = useState([]);
     const [updatingId, setUpdatingId] = useState(null);
-    const [notifications, setNotifications] = useState([]);
+
+    // ===== NOTIFICATIONS VỚI LOCALSTORAGE =====
+    const [notifications, setNotifications] = useState(() => {
+        try {
+            const saved = localStorage.getItem(CHEF_NOTIFICATIONS_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                return parsed.map(n => ({ ...n, timestamp: new Date(n.timestamp) }));
+            }
+        } catch (e) {
+            console.error("Lỗi đọc chef notifications:", e);
+        }
+        return [];
+    });
+
+    // Lưu notifications vào localStorage mỗi khi thay đổi
+    useEffect(() => {
+        try {
+            localStorage.setItem(CHEF_NOTIFICATIONS_KEY, JSON.stringify(notifications));
+        } catch (e) {
+            console.error("Lỗi lưu chef notifications:", e);
+        }
+    }, [notifications]);
+
     const [showNotificationPanel, setShowNotificationPanel] = useState(false);
     const [showIngredientWarning, setShowIngredientWarning] = useState(true);
     const [isSocketConnected, setIsSocketConnected] = useState(false);
@@ -139,15 +165,15 @@ const ChefDashboard = () => {
     };
 
     const showToast = (message, type = 'info') => {
-        const id = Date.now() + Math.random(); // ← Thêm Math.random() để tránh trùng
+        const id = Date.now() + Math.random();
         setToasts(prev => [...prev, { id, message, type }]);
         setTimeout(() => removeToast(id), 3000);
     };
 
     const addNotification = (message, type = 'info') => {
-        const id = Date.now();
+        const id = Date.now() + Math.random();
         const timestamp = new Date();
-        setNotifications(prev => [{ id, message, type, timestamp }, ...prev]);
+        setNotifications(prev => [{ id, message, type, timestamp }, ...prev].slice(0, 50));
 
         playNotificationSound();
 
@@ -158,8 +184,10 @@ const ChefDashboard = () => {
             });
         }
     };
+
     const clearAllNotifications = () => {
         setNotifications([]);
+        localStorage.removeItem(CHEF_NOTIFICATIONS_KEY);
     };
 
     // ========== DEDUCT INGREDIENTS FUNCTION ==========
@@ -199,7 +227,6 @@ const ChefDashboard = () => {
 
             const branchIngredients = await ingredientsResponse.json();
 
-            // ===== KIỂM TRA TRƯỚC: Có đủ tất cả nguyên liệu không? =====
             for (const recipe of recipes) {
                 const ingredientId = recipe.ingredient?.id;
                 const ingredientName = recipe.ingredient?.name || 'Không xác định';
@@ -226,16 +253,10 @@ const ChefDashboard = () => {
                 }
             }
 
-            // ===== NẾU CÓ LỖI → DỪNG, KHÔNG TRỪ GÌ CẢ =====
             if (hasError) {
-                return {
-                    success: false,
-                    hasError: true,
-                    warnings
-                };
+                return { success: false, hasError: true, warnings };
             }
 
-            // ===== ĐỦ TẤT CẢ → TIẾN HÀNH TRỪ =====
             for (const recipe of recipes) {
                 const ingredientId = recipe.ingredient?.id;
                 const ingredientName = recipe.ingredient?.name || 'Không xác định';
@@ -285,20 +306,11 @@ const ChefDashboard = () => {
                 }
             }
 
-            return {
-                success: true,
-                hasError: false,
-                warnings: warnings.length > 0 ? warnings : null
-            };
+            return { success: true, hasError: false, warnings: warnings.length > 0 ? warnings : null };
 
         } catch (error) {
             console.error('Lỗi trừ nguyên liệu:', error);
-            return {
-                success: false,
-                hasError: true,
-                error: error.message,
-                warnings: [`❌ Lỗi hệ thống: ${error.message}`]
-            };
+            return { success: false, hasError: true, error: error.message, warnings: [`❌ Lỗi hệ thống: ${error.message}`] };
         }
     };
 
@@ -329,11 +341,9 @@ const ChefDashboard = () => {
                     displayLocation = `Đơn #${item.orderId}`;
                 }
 
-                // Kiểm tra item mới
                 const isNewItem = !knownItemIdsRef.current.has(item.id);
                 knownItemIdsRef.current.set(item.id, true);
 
-                // Lấy thời gian cho item
                 let itemCreatedAt;
                 if (isNewItem) {
                     itemCreatedAt = new Date().toISOString();
@@ -356,22 +366,16 @@ const ChefDashboard = () => {
                         existing.latestItemTime = itemCreatedAt;
                         existing.isNewlyAdded = true;
                     }
-                    // KHÔNG đổi createdAt
-
                 } else {
-                    // ===== LẤY THỜI GIAN ĐÃ LƯU CHO GROUP NÀY =====
                     const savedTime = knownItemIdsRef.current.get(`group_${key}`);
 
                     let groupCreatedAt;
                     if (savedTime) {
-                        // Đã lưu → dùng lại thời gian cũ
                         groupCreatedAt = savedTime;
                     } else {
-                        // Chưa lưu → tạo mới
                         groupCreatedAt = isNewItem
                             ? new Date().toISOString()
                             : (item.createdAt || new Date().toISOString());
-                        // LƯU LẠI
                         knownItemIdsRef.current.set(`group_${key}`, groupCreatedAt);
                     }
 
@@ -505,7 +509,7 @@ const ChefDashboard = () => {
 
         const handleReservationUpcoming = (data) => {
             const foodList = data.foods?.map(f => `${f.foodName} x${f.quantity}`).join(', ') || '';
-            const message = ` ${data.message} | Khách: ${data.customerName} | ${data.table} - ${data.branch} | Giờ đến: ${data.time} | Món: ${foodList}`;
+            const message = `📅 ${data.message} | Khách: ${data.customerName} | ${data.table} - ${data.branch} | Giờ đến: ${data.time} | Món: ${foodList}`;
             showToast(message, 'warning');
             addNotification(message, 'warning');
             speakVietnamese(`Chuẩn bị món cho khách ${data.customerName} tại ${data.table}, đến lúc ${data.time}`);
@@ -561,13 +565,6 @@ const ChefDashboard = () => {
     const updateStatus = async (itemGroup, status) => {
         const idsToUpdate = itemGroup.originalIds;
 
-        console.log("🔧 [ChefDashboard] updateStatus called:", {
-            itemName: itemGroup.name,
-            status: status,
-            idsToUpdate: idsToUpdate,
-            branchId: branchId
-        });
-
         if (!idsToUpdate || idsToUpdate.length === 0) {
             showToast(`Không tìm thấy món ${itemGroup.name}`, 'error');
             return;
@@ -579,12 +576,7 @@ const ChefDashboard = () => {
             if (status === 'PREPARING' && branchId) {
                 const foodId = itemGroup.foodId;
                 if (foodId) {
-                    const deductResult = await deductIngredientsForItem(
-                        foodId,
-                        itemGroup.quantity,
-                        branchId
-                    );
-
+                    const deductResult = await deductIngredientsForItem(foodId, itemGroup.quantity, branchId);
                     if (deductResult.warnings && deductResult.warnings.length > 0) {
                         deductResult.warnings.forEach(warning => {
                             if (warning.includes('❌')) {
@@ -595,9 +587,8 @@ const ChefDashboard = () => {
                             }
                         });
                     }
-
                     if (deductResult.hasError) {
-                        showToast('🚫 Không đủ nguyên liệu! Vui lòng kiểm tra kho.', 'error');
+                        showToast('🚫 Không đủ nguyên liệu!', 'error');
                         addNotification('🚫 Không đủ nguyên liệu cho: ' + itemGroup.name, 'error');
                         setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
                         return;
@@ -605,39 +596,41 @@ const ChefDashboard = () => {
                 }
             }
 
-            // Cập nhật TẤT CẢ item
             for (const originalId of idsToUpdate) {
-                console.log(`📝 [ChefDashboard] Updating item ${originalId} to status ${status}`);
                 await kitchenAPI.updateItemStatus(originalId, status);
             }
 
-            // Xóa thời gian đã lưu của group cũ
             const oldKey = `${itemGroup.foodId}_${itemGroup.status}`;
             knownItemIdsRef.current.delete(`group_${oldKey}`);
 
             await fetchData();
 
-            // ===== EMIT SOCKET - THÊM LOG =====
-            console.log("🔌 [ChefDashboard] Socket connected status:", socketRef.current?.connected);
-
             if (socketRef.current?.connected) {
                 const emitData = {
-                    items: idsToUpdate.map(id => parseInt(id)), // Đảm bảo là number
+                    items: idsToUpdate.map(id => parseInt(id)),
                     status: status,
                     itemName: itemGroup.name,
                     tables: itemGroup.tables,
                     branchId: branchId,
                     timestamp: new Date().toISOString()
                 };
-
-                console.log("📤 [ChefDashboard] Emitting update-order-item-status:", JSON.stringify(emitData, null, 2));
                 socketRef.current.emit("update-order-item-status", emitData);
-                console.log("✅ [ChefDashboard] Emitted update-order-item-status successfully");
 
+                const waiterData = {
+                    items: idsToUpdate.map(id => parseInt(id)),
+                    status: status,
+                    itemName: itemGroup.name,
+                    foodId: itemGroup.foodId,
+                    quantity: itemGroup.quantity,
+                    tables: itemGroup.tables,
+                    branchId: branchId,
+                    timestamp: new Date().toISOString(),
+                    message: status === 'PREPARING'
+                        ? `🔪 Bắt đầu nấu: ${itemGroup.name} (SL: ${itemGroup.quantity})`
+                        : `✅ Hoàn thành: ${itemGroup.name} (SL: ${itemGroup.quantity})`
+                };
+                socketRef.current.emit("kitchen-item-status-changed", waiterData);
                 socketRef.current.emit("update-tables");
-                console.log("✅ [ChefDashboard] Emitted update-tables");
-            } else {
-                console.log("❌ [ChefDashboard] Socket NOT connected! Cannot emit event.");
             }
 
             showToast(
@@ -646,7 +639,7 @@ const ChefDashboard = () => {
             );
 
         } catch (err) {
-            console.error("❌ [ChefDashboard] Error in updateStatus:", err);
+            console.error("❌ Error in updateStatus:", err);
             showToast(`Lỗi: ${err.message}`, 'error');
         } finally {
             setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
@@ -677,16 +670,20 @@ const ChefDashboard = () => {
         return '#10b981';
     };
 
+    // ===== FILTER - THÊM READY =====
     const filtered = allItems.filter(i => {
         if (activeTab === 'WAITING') return i.status === 'WAITING';
         if (activeTab === 'PREPARING') return i.status === 'PREPARING';
+        if (activeTab === 'READY') return i.status === 'READY';
         return true;
     });
 
+    // ===== COUNTS - THÊM READY =====
     const counts = {
         ALL: allItems.length,
         WAITING: allItems.filter(i => i.status === 'WAITING').length,
         PREPARING: allItems.filter(i => i.status === 'PREPARING').length,
+        READY: allItems.filter(i => i.status === 'READY').length,
         OVERDUE: allItems.filter(i => isOverdue(i.createdAt)).length
     };
 
@@ -695,12 +692,14 @@ const ChefDashboard = () => {
     const getStatusIcon = (status) => {
         if (status === 'WAITING') return <Clock size={12} color="#fbbf24" />;
         if (status === 'PREPARING') return <ChefHat size={12} color="#f97316" />;
+        if (status === 'READY') return <Check size={12} color="#10b981" />;
         return <Check size={12} color="#10b981" />;
     };
 
     const getStatusText = (status) => {
         if (status === 'WAITING') return 'Chờ làm';
         if (status === 'PREPARING') return 'Đang nấu';
+        if (status === 'READY') return 'Hoàn thành';
         return 'Hoàn thành';
     };
 
@@ -732,41 +731,25 @@ const ChefDashboard = () => {
             </div>
             {showNotificationPanel && (
                 <>
-                    {/* Overlay để click ra ngoài đóng panel */}
-                    <div
-                        className={styles.notificationOverlay}
-                        onClick={() => setShowNotificationPanel(false)}
-                    />
+                    <div className={styles.notificationOverlay} onClick={() => setShowNotificationPanel(false)} />
                     <div className={styles.notificationPanel}>
                         <div className={styles.notificationHeader}>
                             <h4>🔔 Thông báo ({notifications.length})</h4>
                             <div className={styles.headerButtons}>
                                 {notifications.length > 0 && (
-                                    <button
-                                        className={styles.clearAllBtn}
-                                        onClick={clearAllNotifications}
-                                        title="Xóa tất cả thông báo"
-                                    >
+                                    <button className={styles.clearAllBtn} onClick={clearAllNotifications} title="Xóa tất cả thông báo">
                                         <X size={14} /> Xóa tất cả
                                     </button>
                                 )}
-                                <button
-                                    className={styles.closePanelBtn}
-                                    onClick={() => setShowNotificationPanel(false)}
-                                    title="Đóng"
-                                >
-                                    ✕
-                                </button>
+                                <button className={styles.closePanelBtn} onClick={() => setShowNotificationPanel(false)} title="Đóng">✕</button>
                             </div>
                         </div>
                         <div className={styles.notificationList}>
                             {notifications.length === 0 ? (
-                                <div className={styles.noNotification}>
-                                    <p>Chưa có thông báo</p>
-                                </div>
+                                <div className={styles.noNotification}><p>Chưa có thông báo</p></div>
                             ) : (
                                 notifications.map(noti => (
-                                    <div key={noti.id} className={`${styles.notificationItem} ${styles[noti.type]}`}>
+                                    <div key={noti.id} className={`${styles.notificationItem} ${styles[noti.type] || ''}`}>
                                         <div className={styles.notificationContent}>
                                             <div className={styles.notificationMessage}>{noti.message}</div>
                                             <div className={styles.notificationTime}>
@@ -789,20 +772,22 @@ const ChefDashboard = () => {
                     <div className={styles.statValue}>{counts.PREPARING}</div>
                     <div className={styles.statLabel}><ChefHat size={14} color="#f97316" /> Đang nấu</div>
                 </div>
-                <div className={`${styles.statCard} ${counts.OVERDUE > 0 ? styles.hasOverdue : ''}`}>
-                    <div className={styles.statValue}>{counts.OVERDUE}</div>
-                    <div className={styles.statLabel}><AlertCircle size={14} color="#ef4444" /> Quá hạn</div>
+                <div className={`${styles.statCard} ${counts.READY > 0 ? styles.hasReady : ''}`}>
+                    <div className={styles.statValue}>{counts.READY}</div>
+                    <div className={styles.statLabel}><Check size={14} color="#10b981" /> Hoàn thành</div>
                 </div>
                 <div className={styles.statCard}>
                     <div className={styles.statValue}>{counts.ALL}</div>
                     <div className={styles.statLabel}><Package size={14} color="#3b82f6" /> Tổng món</div>
                 </div>
             </div>
+            {/* ===== TABS - THÊM HOÀN THÀNH ===== */}
             <div className={styles.tabsContainer}>
                 {[
                     { key: 'ALL', label: 'Tất cả', icon: <Package size={14} color="#3b82f6" />, count: counts.ALL },
                     { key: 'WAITING', label: 'Món mới', icon: <Clock size={14} color="#fbbf24" />, count: counts.WAITING },
-                    { key: 'PREPARING', label: 'Đang làm', icon: <ChefHat size={14} color="#f97316" />, count: counts.PREPARING }
+                    { key: 'PREPARING', label: 'Đang làm', icon: <ChefHat size={14} color="#f97316" />, count: counts.PREPARING },
+                    { key: 'READY', label: 'Hoàn thành', icon: <Check size={14} color="#10b981" />, count: counts.READY }
                 ].map(tab => (
                     <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`${styles.tab} ${activeTab === tab.key ? styles.activeTab : ''}`}>
                         {tab.icon} <span>{tab.label}</span> <span className={styles.tabCount}>({tab.count})</span>
@@ -872,25 +857,17 @@ const ChefDashboard = () => {
                                     </p>
                                 )}
                                 <div className={styles.itemFooter}>
-                                    <span className={`${styles.statusBadge} ${styles[item.status]}`}>
+                                    <span className={`${styles.statusBadge} ${styles[item.status] || ''}`}>
                                         {getStatusIcon(item.status)} {getStatusText(item.status)}
                                     </span>
                                     <div className={styles.actionButtons}>
                                         {item.status === 'WAITING' && (
-                                            <button
-                                                className={styles.startBtn}
-                                                disabled={isUpdatingItem}
-                                                onClick={() => updateStatus(item, 'PREPARING')}
-                                            >
+                                            <button className={styles.startBtn} disabled={isUpdatingItem} onClick={() => updateStatus(item, 'PREPARING')}>
                                                 <Play size={14} color="#ffffff" /> Bắt đầu
                                             </button>
                                         )}
                                         {item.status === 'PREPARING' && (
-                                            <button
-                                                className={styles.completeBtn}
-                                                disabled={isUpdatingItem}
-                                                onClick={() => updateStatus(item, 'READY')}
-                                            >
+                                            <button className={styles.completeBtn} disabled={isUpdatingItem} onClick={() => updateStatus(item, 'READY')}>
                                                 <Check size={14} color="#ffffff" /> Hoàn thành
                                             </button>
                                         )}
