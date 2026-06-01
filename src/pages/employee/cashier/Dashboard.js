@@ -77,22 +77,27 @@ const Dashboard = () => {
                     return billDate === today && bill.paymentStatus === 'PAID';
                 });
 
+                // ✅ SỬA LẠI CÁCH LỌC THEO ENUM CỦA BACKEND
                 const cashRevenue = todayBills
                     .filter(b => b.paymentMethod === 'CASH')
                     .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
 
                 const momoRevenue = todayBills
-                    .filter(b => b.paymentMethod === 'MOMO')
+                    .filter(b => b.paymentMethod === 'MOBILE')  // ✅ Đổi từ 'MOMO' thành 'MOBILE'
                     .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
 
                 const bankingRevenue = todayBills
-                    .filter(b => b.paymentMethod === 'BANKING')
+                    .filter(b => b.paymentMethod === 'CARD')    // ✅ Đổi từ 'BANKING' thành 'CARD'
                     .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
 
+                const cashBills = todayBills.filter(b => b.paymentMethod === 'CASH');
+                const momoBills = todayBills.filter(b => b.paymentMethod === 'MOBILE');
+                const bankingBills = todayBills.filter(b => b.paymentMethod === 'CARD');
+
                 const methods = [
-                    { name: 'Tiền mặt', value: cashRevenue, count: todayBills.filter(b => b.paymentMethod === 'CASH').length, icon: <DollarSign size={20} />, color: '#10b981' },
-                    { name: 'MoMo', value: momoRevenue, count: todayBills.filter(b => b.paymentMethod === 'MOMO').length, icon: <Phone size={20} />, color: '#8b5cf6' },
-                    { name: 'Chuyển khoản', value: bankingRevenue, count: todayBills.filter(b => b.paymentMethod === 'BANKING').length, icon: <Building2 size={20} />, color: '#3b82f6' }
+                    { name: 'Tiền mặt', value: cashRevenue, count: cashBills.length, icon: <DollarSign size={20} />, color: '#10b981' },
+                    { name: 'MoMo/Ví điện tử', value: momoRevenue, count: momoBills.length, icon: <Phone size={20} />, color: '#8b5cf6' },
+                    { name: 'Thẻ (CARD)', value: bankingRevenue, count: bankingBills.length, icon: <Building2 size={20} />, color: '#3b82f6' }
                 ];
 
                 setPaymentMethods(methods);
@@ -102,8 +107,11 @@ const Dashboard = () => {
                     totalOrders: todayBills.length,
                     pendingOrders: bills.filter(b => b.paymentStatus !== 'PAID').length,
                     cashRevenue: cashRevenue,
+                    cashOrders: cashBills.length,
                     momoRevenue: momoRevenue,
-                    bankingRevenue: bankingRevenue
+                    momoOrders: momoBills.length,
+                    bankingRevenue: bankingRevenue,
+                    bankingOrders: bankingBills.length
                 });
             }
         } catch (error) {
@@ -382,14 +390,7 @@ const Dashboard = () => {
                         <div className={styles.statSub}>{stats.totalOrders} đơn hàng</div>
                     </div>
                 </div>
-                <div className={styles.statCard}>
-                    <div className={styles.statIcon}><Receipt size={24} /></div>
-                    <div className={styles.statInfo}>
-                        <div className={styles.statTitle}>Đơn chờ thanh toán</div>
-                        <div className={styles.statValue}>{stats.pendingOrders}</div>
-                        <div className={styles.statSub}>chưa thanh toán</div>
-                    </div>
-                </div>
+
                 <div className={styles.statCard}>
                     <div className={styles.statIcon}><DollarSign size={24} /></div>
                     <div className={styles.statInfo}>

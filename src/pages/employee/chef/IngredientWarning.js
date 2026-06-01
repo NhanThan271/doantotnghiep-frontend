@@ -8,6 +8,8 @@ const IngredientWarning = ({ branchId, onClose, autoRefresh = true }) => {
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState(false);
     const [refreshInterval, setRefreshInterval] = useState(null);
+    // Tránh gửi trùng lặp
+    const [lastSentWarning, setLastSentWarning] = useState('');
 
     useEffect(() => {
         fetchWarnings();
@@ -21,6 +23,44 @@ const IngredientWarning = ({ branchId, onClose, autoRefresh = true }) => {
             if (refreshInterval) clearInterval(refreshInterval);
         };
     }, [branchId, autoRefresh]);
+
+    // ===== GỬI CẢNH BÁO NGUYÊN LIỆU LÊN CHEFLAYOUT BELL =====
+    useEffect(() => {
+        if (warnings.length > 0) {
+            const criticalCount = warnings.filter(w => w.status === 'critical').length;
+            const warningCount = warnings.filter(w => w.status === 'warning').length;
+
+            let message = '';
+            let type = 'warning';
+
+            if (criticalCount > 0 && warningCount > 0) {
+                message = `⚠️ NGUYÊN LIỆU: ${criticalCount} đã hết, ${warningCount} sắp hết`;
+                type = 'error';
+            } else if (criticalCount > 0) {
+                message = `❌ NGUYÊN LIỆU: ${criticalCount} nguyên liệu đã HẾT!`;
+                type = 'error';
+            } else if (warningCount > 0) {
+                message = `⚠️ NGUYÊN LIỆU: ${warningCount} nguyên liệu sắp hết`;
+                type = 'warning';
+            }
+
+            // Chỉ gửi nếu khác với lần trước (tránh spam)
+            if (message && message !== lastSentWarning) {
+                setLastSentWarning(message);
+
+                console.log('📦 Gửi cảnh báo nguyên liệu lên bell:', message);
+
+                // Gửi lên ChefLayout bell
+                window.dispatchEvent(new CustomEvent('chef-notification', {
+                    detail: {
+                        message,
+                        type,
+                        timestamp: new Date().toISOString()
+                    }
+                }));
+            }
+        }
+    }, [warnings, lastSentWarning]);
 
     const fetchWarnings = async () => {
         if (!branchId) return;

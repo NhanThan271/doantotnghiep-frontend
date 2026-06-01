@@ -1,4 +1,4 @@
-// OrderDetail.js - Full refactored with axiosClient (Bỏ hiển thị trạng thái món)
+// OrderDetail.js - Full refactored with axiosClient + Cashier Notifications + Room Fee
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -16,6 +16,9 @@ const socket = io(SOCKET_URL, {
     reconnectionAttempts: 5,
     reconnectionDelay: 1000
 });
+
+const CASHIER_NOTIFICATIONS_KEY = 'cashier_notifications';
+const WAITER_NOTIFICATIONS_KEY = 'waiter_notifications';
 
 const OrderDetail = () => {
     const { state } = useLocation();
@@ -45,12 +48,52 @@ const OrderDetail = () => {
     const [isConfirming, setIsConfirming] = useState(false);
     const [processingPayment, setProcessingPayment] = useState(false);
     const [branchInfo, setBranchInfo] = useState(null);
+    const [roomFee, setRoomFee] = useState(0); // ✅ Thêm phí phòng
 
     const confirmedCartRef = useRef({});
     const [confirmedCart, setConfirmedCart] = useState({});
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = user?.branch?.id;
+
+    // ===== NOTIFICATION HELPERS =====
+    const sendCashierNotification = (message, type = 'info') => {
+        const newNotification = {
+            id: Date.now() + Math.random(),
+            message,
+            type,
+            timestamp: new Date().toISOString()
+        };
+
+        const saved = localStorage.getItem(CASHIER_NOTIFICATIONS_KEY);
+        const currentNotifications = saved ? JSON.parse(saved) : [];
+        currentNotifications.unshift(newNotification);
+        localStorage.setItem(CASHIER_NOTIFICATIONS_KEY, JSON.stringify(currentNotifications.slice(0, 50)));
+
+        window.dispatchEvent(new CustomEvent('cashier-notification', {
+            detail: newNotification
+        }));
+
+        console.log('📤 Waiter → Cashier notification:', message);
+    };
+
+    const sendWaiterNotification = (message, type = 'info') => {
+        const newNotification = {
+            id: Date.now() + Math.random(),
+            message,
+            type,
+            timestamp: new Date().toISOString()
+        };
+
+        const saved = localStorage.getItem(WAITER_NOTIFICATIONS_KEY);
+        const currentNotifications = saved ? JSON.parse(saved) : [];
+        currentNotifications.unshift(newNotification);
+        localStorage.setItem(WAITER_NOTIFICATIONS_KEY, JSON.stringify(currentNotifications.slice(0, 50)));
+
+        window.dispatchEvent(new CustomEvent('waiter-notification', {
+            detail: newNotification
+        }));
+    };
 
     // ===== TOAST MANAGEMENT =====
     const showToast = useCallback((message, type = 'info', duration = 5000) => {
@@ -68,14 +111,9 @@ const OrderDetail = () => {
             const response = await axiosClient.get(
                 `/branch-foods/branch/${branchId}/with-promotions`
             );
-
-            console.log("📦 Dữ liệu sản phẩm từ API:", response.data);
             const activeProducts = response.data.filter(p => p.isActive !== false);
             setProducts(activeProducts);
-
-            const cats = ["Tất cả", ...new Set(
-                activeProducts.map(p => p.categoryName).filter(Boolean)
-            )];
+            const cats = ["Tất cả", ...new Set(activeProducts.map(p => p.categoryName).filter(Boolean))];
             setCategories(cats);
         } catch (err) {
             console.error("Lỗi tải sản phẩm:", err);
@@ -108,13 +146,9 @@ const OrderDetail = () => {
             const response = await axiosClient.get("/customer/orders");
             const existingOrder = response.data.find(o => {
                 if (isRoom) {
-                    return o.room?.id === entity.id &&
-                        o.status !== "PAID" &&
-                        o.status !== "CANCELED";
+                    return o.room?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED";
                 }
-                return o.table?.id === entity.id &&
-                    o.status !== "PAID" &&
-                    o.status !== "CANCELED";
+                return o.table?.id === entity.id && o.status !== "PAID" && o.status !== "CANCELED";
             });
 
             if (existingOrder) {
@@ -127,7 +161,6 @@ const OrderDetail = () => {
                         const foodId = item.foodId || item.food?.id || item.id;
                         const foodName = item.food?.name || item.foodName || item.name;
                         const product = products.find(p => p.id === foodId);
-
                         return {
                             id: foodId,
                             name: product?.name || foodName || `Sản phẩm #${foodId}`,
@@ -159,7 +192,6 @@ const OrderDetail = () => {
         try {
             const response = await axiosClient.get(`/customer/orders/${orderId}`);
             const updatedOrder = response.data;
-
             setOrder(updatedOrder);
 
             if (updatedOrder.items && updatedOrder.items.length > 0) {
@@ -182,7 +214,6 @@ const OrderDetail = () => {
                 confirmedCartRef.current = snapshot;
                 setConfirmedCart(snapshot);
             }
-
             return updatedOrder;
         } catch (err) {
             console.error("Lỗi fetch order:", err);
@@ -193,29 +224,20 @@ const OrderDetail = () => {
     // ===== CART OPERATIONS =====
     const addToCart = useCallback((product) => {
         const price = product.finalPrice || product.branchPrice || product.originalPrice || 0;
-
         setCart(prevCart => {
-            const existingIndex = prevCart.findIndex(
-                item => parseInt(item.id) === parseInt(product.id)
-            );
-
+            const existingIndex = prevCart.findIndex(item => parseInt(item.id) === parseInt(product.id));
             if (existingIndex >= 0) {
                 return prevCart.map((item, index) =>
-                    index === existingIndex
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
+                    index === existingIndex ? { ...item, quantity: item.quantity + 1 } : item
                 );
             }
-
             return [...prevCart, {
                 id: product.id,
                 branchFoodId: product.branchFoodId,
                 name: product.name,
                 price: price,
                 quantity: 1,
-                image: product.imageUrl?.startsWith("http")
-                    ? product.imageUrl
-                    : `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/${product.imageUrl}`,
+                image: product.imageUrl?.startsWith("http") ? product.imageUrl : `http://localhost:8080/${product.imageUrl}`,
                 kitchenStatus: 'WAITING'
             }];
         });
@@ -234,10 +256,19 @@ const OrderDetail = () => {
     }, []);
 
     const removeFromCart = useCallback((id) => {
-        setCart(prevCart => prevCart.filter(
-            item => parseInt(item.id) !== parseInt(id)
-        ));
+        setCart(prevCart => prevCart.filter(item => parseInt(item.id) !== parseInt(id)));
     }, []);
+
+    // ===== COMPUTED VALUES =====
+    const itemsTotal = useMemo(() => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [cart]);
+    const originalTotal = useMemo(() => itemsTotal + roomFee, [itemsTotal, roomFee]);
+    const totalItems = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
+
+    const discount = useMemo(() => selectedPromotion?.discountPercentage
+        ? (originalTotal * selectedPromotion.discountPercentage) / 100
+        : selectedPromotion?.discountAmount || 0, [originalTotal, selectedPromotion]);
+
+    const finalTotal = useMemo(() => originalTotal - discount, [originalTotal, discount]);
 
     // ===== ORDER OPERATIONS =====
     const handleUpdateOrder = async () => {
@@ -251,8 +282,7 @@ const OrderDetail = () => {
             order.items.forEach(item => {
                 const foodId = item.foodId || item.food?.id;
                 if (foodId) {
-                    orderItemMap[parseInt(foodId)] =
-                        (orderItemMap[parseInt(foodId)] || 0) + (item.quantity || 0);
+                    orderItemMap[parseInt(foodId)] = (orderItemMap[parseInt(foodId)] || 0) + (item.quantity || 0);
                 }
             });
         }
@@ -263,81 +293,56 @@ const OrderDetail = () => {
             if (!foodId) return;
             if (groupedCart[foodId]) {
                 groupedCart[foodId].quantity += item.quantity;
-                if (item.price > groupedCart[foodId].price) {
-                    groupedCart[foodId].price = item.price;
-                }
+                if (item.price > groupedCart[foodId].price) groupedCart[foodId].price = item.price;
             } else {
                 groupedCart[foodId] = { ...item };
             }
         });
 
         const mergedCart = Object.values(groupedCart);
-
         const itemsToAdd = [];
         mergedCart.forEach(item => {
             const foodId = parseInt(item.id);
             if (!foodId) return;
             const orderQty = orderItemMap[foodId] || 0;
             const quantityToAdd = item.quantity - orderQty;
-            if (quantityToAdd > 0) {
-                itemsToAdd.push({ foodId, quantity: quantityToAdd });
-            }
+            if (quantityToAdd > 0) itemsToAdd.push({ foodId, quantity: quantityToAdd });
         });
 
         if (itemsToAdd.length === 0) {
-            showToast("Chưa có món mới để cập nhật! Hãy thêm món vào giỏ hàng.", "info", 3000);
+            showToast("Chưa có món mới để cập nhật!", "info", 3000);
             return;
         }
 
         setIsUpdating(true);
-
         try {
             await axiosClient.post(`/customer/orders/${order.id}/add-items`, itemsToAdd);
-
             await fetchOrderById(order.id);
 
             const newItems = itemsToAdd.map(item => {
                 const product = products.find(p => p.id === item.foodId);
                 return {
-                    id: item.foodId,
-                    name: product?.name || `Món #${item.foodId}`,
-                    quantity: item.quantity,
-                    orderId: order.id,
-                    tableNumber: entityNumber,
-                    tableId: entity.id,
-                    status: 'WAITING'
+                    id: item.foodId, name: product?.name || `Món #${item.foodId}`,
+                    quantity: item.quantity, orderId: order.id,
+                    tableNumber: entityNumber, tableId: entity.id, status: 'WAITING'
                 };
             });
 
             socket.emit("order-updated", {
-                orderId: order.id,
-                tableNumber: entityNumber,
-                tableId: entity.id,
+                orderId: order.id, tableNumber: entityNumber, tableId: entity.id,
                 locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
-                areaName: entity?.area || "Khu chính",
-                isRoom: isRoom,
-                items: newItems.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    quantity: item.quantity
-                })),
-                timestamp: new Date().toISOString(),
-                branchId: branchId
+                areaName: entity?.area || "Khu chính", isRoom: isRoom,
+                items: newItems.map(item => ({ id: item.id, name: item.name, quantity: item.quantity })),
+                timestamp: new Date().toISOString(), branchId: branchId
             });
 
-            showToast(
-                `Đã thêm ${itemsToAdd.reduce((sum, i) => sum + i.quantity, 0)} món vào đơn!`,
-                'success',
-                3000
-            );
+            const locationName = isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`;
+            sendCashierNotification(`➕ ${locationName} thêm món - ${finalTotal.toLocaleString('vi-VN')}đ`, 'order');
 
+            showToast(`Đã thêm ${itemsToAdd.reduce((sum, i) => sum + i.quantity, 0)} món vào đơn!`, 'success', 3000);
         } catch (err) {
             console.error("❌ Lỗi cập nhật đơn:", err);
-            showToast(
-                `Lỗi: ${err.response?.data?.message || err.message}`,
-                "error",
-                5000
-            );
+            showToast(`Lỗi: ${err.response?.data?.message || err.message}`, "error", 5000);
         } finally {
             setIsUpdating(false);
         }
@@ -350,7 +355,6 @@ const OrderDetail = () => {
         }
 
         setIsConfirming(true);
-
         try {
             const orderData = {
                 customerName: customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`,
@@ -358,20 +362,13 @@ const OrderDetail = () => {
                 branch: { id: branchId },
                 ...(isRoom ? { room: { id: entity.id } } : { table: { id: entity.id } })
             };
-
-            if (selectedPromotion?.id) {
-                orderData.promotion = { id: selectedPromotion.id };
-            }
+            if (selectedPromotion?.id) orderData.promotion = { id: selectedPromotion.id };
 
             const res = await axiosClient.post("/customer/orders", orderData);
             const newOrder = res.data;
 
-            const itemsToAdd = cart
-                .filter(item => item.id && item.quantity > 0)
-                .map(item => ({
-                    foodId: item.id,
-                    quantity: item.quantity
-                }));
+            const itemsToAdd = cart.filter(item => item.id && item.quantity > 0)
+                .map(item => ({ foodId: item.id, quantity: item.quantity }));
 
             if (itemsToAdd.length > 0) {
                 await axiosClient.post(`/customer/orders/${newOrder.id}/add-items`, itemsToAdd);
@@ -382,41 +379,27 @@ const OrderDetail = () => {
             const newItems = itemsToAdd.map(item => {
                 const product = products.find(p => p.id === item.foodId);
                 return {
-                    id: item.foodId,
-                    name: product?.name || `Món #${item.foodId}`,
-                    quantity: item.quantity,
-                    orderId: newOrder.id,
-                    tableNumber: entityNumber,
-                    tableId: entity.id,
-                    status: 'WAITING'
+                    id: item.foodId, name: product?.name || `Món #${item.foodId}`,
+                    quantity: item.quantity, orderId: newOrder.id,
+                    tableNumber: entityNumber, tableId: entity.id, status: 'WAITING'
                 };
             });
 
             socket.emit("new-order", {
-                orderId: newOrder.id,
-                tableNumber: entityNumber,
-                tableId: entity.id,
+                orderId: newOrder.id, tableNumber: entityNumber, tableId: entity.id,
                 locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
-                areaName: entity?.area || "Khu chính",
-                isRoom: isRoom,
-                items: newItems.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    quantity: item.quantity
-                })),
-                timestamp: new Date().toISOString(),
-                branchId: branchId
+                areaName: entity?.area || "Khu chính", isRoom: isRoom,
+                items: newItems.map(item => ({ id: item.id, name: item.name, quantity: item.quantity })),
+                timestamp: new Date().toISOString(), branchId: branchId
             });
 
-            showToast(`Đơn hàng đã được gửi đến bếp!`, 'success', 4000);
+            const locationName = isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`;
+            sendCashierNotification(`🆕 ${locationName} - Đơn mới: ${totalItems} món - ${finalTotal.toLocaleString('vi-VN')}đ`, 'order');
 
+            showToast(`Đơn hàng đã được gửi đến bếp!`, 'success', 4000);
         } catch (err) {
             console.error("❌ Lỗi tạo đơn:", err);
-            showToast(
-                `Lỗi: ${err.response?.data?.message || "Không thể tạo đơn hàng!"}`,
-                "error",
-                5000
-            );
+            showToast(`Lỗi: ${err.response?.data?.message || "Không thể tạo đơn hàng!"}`, "error", 5000);
         } finally {
             setIsConfirming(false);
         }
@@ -437,24 +420,17 @@ const OrderDetail = () => {
             sessionStorage.removeItem('paymentCancelled');
 
             const tempPaymentData = {
-                orderId: order.id,
-                totalAmount: finalTotal,
+                orderId: order.id, totalAmount: finalTotal,
                 customerName: customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`,
-                entityType: entityType,
-                entityNumber: entityNumber,
-                entityId: entity.id,
-                isRoom: isRoom,
-                returnTo: '/waiter/orders'
+                entityType: entityType, entityNumber: entityNumber,
+                entityId: entity.id, isRoom: isRoom, returnTo: '/waiter/orders'
             };
             sessionStorage.setItem('tempCashierPayment', JSON.stringify(tempPaymentData));
 
             const entityData = {
-                id: entity.id,
-                number: entity.number,
-                type: isRoom ? 'room' : 'table',
-                status: entity.status,
-                capacity: entity.capacity,
-                area: entity.area
+                id: entity.id, number: entity.number,
+                type: isRoom ? 'room' : 'table', status: entity.status,
+                capacity: entity.capacity, area: entity.area
             };
             sessionStorage.setItem('lastEntity', JSON.stringify(entityData));
 
@@ -478,7 +454,6 @@ const OrderDetail = () => {
             }
 
             window.location.href = paymentResponse.data.data.checkoutUrl;
-
         } catch (err) {
             console.error("Payment error:", err);
             showToast(`Lỗi thanh toán: ${err.message}`, "error", 3000);
@@ -492,96 +467,48 @@ const OrderDetail = () => {
         const branchAddress = branchInfo?.address || '123 Đường ABC, Quận XYZ, TP.HCM';
         const branchPhone = branchInfo?.phone || '0123 456 789';
 
-        const billContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <title>Hóa đơn ${entityType} ${entityNumber}</title>
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { font-family: 'Arial', sans-serif; padding: 40px; background: white; }
-                .bill-container { max-width: 800px; margin: 0 auto; border: 2px solid #333; padding: 30px; }
-                .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
-                .header h1 { font-size: 32px; color: #8b4513; margin-bottom: 5px; }
-                .header p { color: #666; font-size: 14px; }
-                .bill-info { display: flex; justify-content: space-between; margin-bottom: 30px; padding: 15px; background: #f9f9f9; border-radius: 8px; }
-                .bill-info div { flex: 1; }
-                .bill-info strong { display: block; color: #333; margin-bottom: 5px; }
-                table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                thead { background: #8b4513; color: white; }
-                th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-                .text-right { text-align: right; }
-                .text-center { text-align: center; }
-                .totals { margin-top: 20px; padding-top: 20px; border-top: 2px solid #333; }
-                .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 16px; }
-                .total-row.grand-total { font-size: 20px; font-weight: bold; color: #8b4513; margin-top: 10px; padding-top: 10px; border-top: 2px solid #8b4513; }
-                .footer { margin-top: 40px; text-align: center; padding-top: 20px; border-top: 1px dashed #999; color: #666; }
-                @media print { body { padding: 0; } }
-            </style>
-        </head>
-        <body>
-            <div class="bill-container">
-                <div class="header">
-                    <h1>${branchName}</h1>
-                    <p>${branchAddress}</p>
-                    <p>Hotline: ${branchPhone}</p>
-                </div>
-                <div class="bill-info">
-                    <div><strong>HÓA ĐƠN</strong><span>${new Date().toLocaleString('vi-VN')}</span></div>
-                    <div><strong>Khách hàng</strong><span>${customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`}</span></div>
-                    <div><strong>${entityType}</strong><span>${entityType} ${entityNumber}</span></div>
-                </div>
-                <table>
-                    <thead>
-                        <tr><th>Sản phẩm</th><th class="text-center">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th></tr>
-                    </thead>
-                    <tbody>
-                        ${cart.map(item => `
-                            <tr>
-                                <td>${item.name}</td>
-                                <td class="text-center">${item.quantity}</td>
-                                <td class="text-right">${item.price.toLocaleString('vi-VN')}đ</td>
-                                <td class="text-right">${(item.price * item.quantity).toLocaleString('vi-VN')}đ</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                <div class="totals">
-                    <div class="total-row"><span>Tạm tính:</span><span>${originalTotal.toLocaleString('vi-VN')}đ</span></div>
-                    ${discount > 0 ? `<div class="total-row" style="color: #10b981;"><span>Giảm giá:</span><span>-${discount.toLocaleString('vi-VN')}đ</span></div>` : ''}
-                    <div class="total-row grand-total"><span>TỔNG CỘNG:</span><span>${finalTotal.toLocaleString('vi-VN')}đ</span></div>
-                </div>
-                <div class="footer"><p>Cảm ơn quý khách! Hẹn gặp lại!</p></div>
+        const billContent = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hóa đơn ${entityType} ${entityNumber}</title><style>
+            *{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:40px;background:white}
+            .bill-container{max-width:800px;margin:0 auto;border:2px solid #333;padding:30px}
+            .header{text-align:center;border-bottom:2px solid #333;padding-bottom:20px;margin-bottom:20px}
+            .header h1{font-size:32px;color:#8b4513;margin-bottom:5px}.header p{color:#666;font-size:14px}
+            .bill-info{display:flex;justify-content:space-between;margin-bottom:30px;padding:15px;background:#f9f9f9;border-radius:8px}
+            .bill-info div{flex:1}.bill-info strong{display:block;color:#333;margin-bottom:5px}
+            table{width:100%;border-collapse:collapse;margin-bottom:20px}thead{background:#8b4513;color:white}
+            th,td{padding:12px;text-align:left;border-bottom:1px solid #ddd}.text-right{text-align:right}.text-center{text-align:center}
+            .totals{margin-top:20px;padding-top:20px;border-top:2px solid #333}
+            .total-row{display:flex;justify-content:space-between;padding:8px 0;font-size:16px}
+            .total-row.grand-total{font-size:20px;font-weight:bold;color:#8b4513;margin-top:10px;padding-top:10px;border-top:2px solid #8b4513}
+            .footer{margin-top:40px;text-align:center;padding-top:20px;border-top:1px dashed #999;color:#666}
+        </style></head><body><div class="bill-container">
+            <div class="header"><h1>${branchName}</h1><p>${branchAddress}</p><p>Hotline: ${branchPhone}</p></div>
+            <div class="bill-info">
+                <div><strong>HÓA ĐƠN</strong><span>${new Date().toLocaleString('vi-VN')}</span></div>
+                <div><strong>Khách hàng</strong><span>${customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`}</span></div>
+                <div><strong>${entityType}</strong><span>${entityType} ${entityNumber}</span></div>
             </div>
-        </body>
-        </html>
-        `;
+            <table><thead><tr><th>Sản phẩm</th><th class="text-center">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th></tr></thead>
+            <tbody>${cart.map(item => `<tr><td>${item.name}</td><td class="text-center">${item.quantity}</td><td class="text-right">${item.price.toLocaleString('vi-VN')}đ</td><td class="text-right">${(item.price * item.quantity).toLocaleString('vi-VN')}đ</td>`).join('')}</tbody></table>
+            <div class="totals">
+                <div class="total-row"><span>Tạm tính món:</span><span>${itemsTotal.toLocaleString('vi-VN')}đ</span></div>
+                ${isRoom && roomFee > 0 ? `
+                <div class="total-row">
+                    <span>🏠 Phí phòng VIP:</span>
+                    <span>${roomFee.toLocaleString('vi-VN')}đ</span>
+                </div>
+                ` : ''}
+                <div class="total-row"><span>Tổng tiền trước KM:</span><span>${originalTotal.toLocaleString('vi-VN')}đ</span></div>
+                ${discount > 0 ? `<div class="total-row" style="color:#10b981;"><span>Giảm giá:</span><span>-${discount.toLocaleString('vi-VN')}đ</span></div>` : ''}
+                <div class="total-row grand-total"><span>TỔNG CỘNG:</span><span>${finalTotal.toLocaleString('vi-VN')}đ</span></div>
+            </div>
+            <div class="footer"><p>Cảm ơn quý khách! Hẹn gặp lại!</p></div>
+        </div></body></html>`;
 
         const printWindow = window.open('', '_blank');
         printWindow.document.write(billContent);
         printWindow.document.close();
         setTimeout(() => printWindow.print(), 500);
     };
-
-    // ===== COMPUTED VALUES =====
-    const originalTotal = useMemo(() =>
-        cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-        [cart]);
-
-    const totalItems = useMemo(() =>
-        cart.reduce((sum, item) => sum + item.quantity, 0),
-        [cart]);
-
-    const discount = useMemo(() =>
-        selectedPromotion?.discountPercentage
-            ? (originalTotal * selectedPromotion.discountPercentage) / 100
-            : selectedPromotion?.discountAmount || 0,
-        [originalTotal, selectedPromotion]);
-
-    const finalTotal = useMemo(() =>
-        originalTotal - discount,
-        [originalTotal, discount]);
 
     const filteredProducts = useMemo(() => {
         return products
@@ -599,22 +526,26 @@ const OrderDetail = () => {
         if (!entity) return;
         const initialize = async () => {
             setLoading(true);
-            await Promise.all([
-                fetchProducts(),
-                fetchPromotions(),
-                fetchBranchInfo()
-            ]);
+            await Promise.all([fetchProducts(), fetchPromotions(), fetchBranchInfo()]);
         };
         initialize();
     }, [entity, fetchProducts, fetchPromotions, fetchBranchInfo]);
+
+    // Lấy phí phòng nếu là phòng VIP
+    useEffect(() => {
+        if (isRoom && entity?.roomFee) {
+            setRoomFee(Number(entity.roomFee));
+            console.log(`🏠 Phí phòng VIP ${entityNumber}: ${Number(entity.roomFee).toLocaleString('vi-VN')}đ`);
+        } else {
+            setRoomFee(0);
+        }
+    }, [isRoom, entity, entityNumber]);
 
     useEffect(() => {
         if (products.length === 0) return;
         const existingOrderFromState = state?.existingOrder;
         const processOrder = async () => {
-            if (existingOrderFromState &&
-                existingOrderFromState.status !== "PAID" &&
-                existingOrderFromState.status !== "CANCELED") {
+            if (existingOrderFromState && existingOrderFromState.status !== "PAID" && existingOrderFromState.status !== "CANCELED") {
                 setOrder(existingOrderFromState);
                 setCustomerName(existingOrderFromState.customerName || "");
                 let items = [];
@@ -623,12 +554,9 @@ const OrderDetail = () => {
                         const foodId = item.foodId || item.food?.id || item.id;
                         const product = products.find(p => p.id === foodId);
                         return {
-                            id: foodId,
-                            name: product?.name || item.food?.name || `Sản phẩm #${foodId}`,
-                            price: item.price || 0,
-                            quantity: item.quantity || 0,
-                            image: product?.imageUrl || '',
-                            kitchenStatus: item.kitchenStatus || 'WAITING'
+                            id: foodId, name: product?.name || item.food?.name || `Sản phẩm #${foodId}`,
+                            price: item.price || 0, quantity: item.quantity || 0,
+                            image: product?.imageUrl || '', kitchenStatus: item.kitchenStatus || 'WAITING'
                         };
                     }).filter(item => item.id);
                 }
@@ -637,9 +565,7 @@ const OrderDetail = () => {
                 items.forEach(item => { snapshot[item.id] = item.quantity; });
                 confirmedCartRef.current = snapshot;
                 setConfirmedCart(snapshot);
-                if (existingOrderFromState.promotion) {
-                    setSelectedPromotion(existingOrderFromState.promotion);
-                }
+                if (existingOrderFromState.promotion) setSelectedPromotion(existingOrderFromState.promotion);
             } else if (entity) {
                 await checkExistingOrder();
             }
@@ -650,68 +576,41 @@ const OrderDetail = () => {
     // Socket listeners
     useEffect(() => {
         const handleConnect = () => {
-            console.log("✅ Socket connected - OrderDetail");
-            socket.emit("register-role", {
-                role: "waiter",
-                userId: user?.id,
-                branchId: branchId
-            });
+            socket.emit("register-role", { role: "waiter", userId: user?.id, branchId: branchId });
         };
 
         const handleUpdateOrderStatus = async (data) => {
             if (data.branchId && branchId && data.branchId !== branchId) return;
             if (order && order.id === data.orderId) {
                 await fetchOrderById(order.id);
-                showToast(
-                    `🔔 Đơn hàng #${order.id} đã chuyển trạng thái: ${data.newStatus || data.status}`,
-                    'info',
-                    3000
-                );
+                showToast(`🔔 Đơn hàng #${order.id} đã chuyển trạng thái: ${data.newStatus || data.status}`, 'info', 3000);
             }
         };
 
         const handleUpdateOrderItemStatus = (data) => {
             if (data.branchId && branchId && data.branchId !== branchId) return;
             if (!order || !data.items || data.items.length === 0) return;
-            const orderItemIds = order.items?.map(item =>
-                item.foodId || item.food?.id || item.id
-            ) || [];
-            const hasRelevantItem = data.items.some(id =>
-                orderItemIds.includes(parseInt(id))
-            );
+            const orderItemIds = order.items?.map(item => item.foodId || item.food?.id || item.id) || [];
+            const hasRelevantItem = data.items.some(id => orderItemIds.includes(parseInt(id)));
             if (!hasRelevantItem) return;
             if (order.items) {
                 const updatedItems = order.items.map(item => {
                     const foodId = item.foodId || item.food?.id || item.id;
-                    if (data.items.includes(parseInt(foodId))) {
-                        return { ...item, kitchenStatus: data.status };
-                    }
+                    if (data.items.includes(parseInt(foodId))) return { ...item, kitchenStatus: data.status };
                     return item;
                 });
                 setOrder(prev => prev ? { ...prev, items: updatedItems } : prev);
-                setCart(prevCart =>
-                    prevCart.map(item => {
-                        const foodId = parseInt(item.id);
-                        if (data.items.includes(foodId)) {
-                            return { ...item, kitchenStatus: data.status };
-                        }
-                        return item;
-                    })
-                );
+                setCart(prevCart => prevCart.map(item => {
+                    const foodId = parseInt(item.id);
+                    if (data.items.includes(foodId)) return { ...item, kitchenStatus: data.status };
+                    return item;
+                }));
             }
             let statusText, toastType;
             switch (data.status) {
-                case 'PREPARING':
-                    statusText = '🔪 ĐANG NẤU';
-                    toastType = 'info';
-                    break;
-                case 'READY':
-                    statusText = '✅ HOÀN THÀNH';
-                    toastType = 'success';
-                    break;
-                default:
-                    statusText = `📋 ${data.status}`;
-                    toastType = 'info';
+                case 'PREPARING': statusText = '🔪 ĐANG NẤU'; toastType = 'info'; break;
+                case 'READY': statusText = '✅ HOÀN THÀNH'; toastType = 'success'; break;
+                default: statusText = `📋 ${data.status}`; toastType = 'info';
             }
             showToast(`${statusText}: ${data.itemName}`, toastType, 5000);
         };
@@ -744,11 +643,19 @@ const OrderDetail = () => {
                 }
                 if (entityId) {
                     try {
-                        const url = isRoomParam === 'true' ? `/rooms/${entityId}/status?status=FREE` : `/tables/${entityId}/status?status=FREE`;
+                        // ✅ SỬA: Phòng về ACTIVE, Bàn về FREE
+                        const newStatus = isRoomParam === 'true' ? 'ACTIVE' : 'FREE';
+                        const url = isRoomParam === 'true'
+                            ? `/rooms/${entityId}/status?status=${newStatus}`
+                            : `/tables/${entityId}/status?status=${newStatus}`;
                         await axiosClient.put(url);
                         socket.emit("update-tables");
                     } catch (err) { }
                 }
+
+                const entityType2 = isRoomParam === 'true' ? 'Phòng' : 'Bàn';
+                sendCashierNotification(`💰 ${entityType2} ${entityNumber || ''} thanh toán PayOS thành công`, 'success');
+
                 window.history.replaceState({}, document.title, window.location.pathname);
                 showToast("Thanh toán thành công!", "success", 2000);
                 setTimeout(() => navigate(returnTo || '/waiter/orders'), 2000);
@@ -759,6 +666,7 @@ const OrderDetail = () => {
         }
     }, [navigate, showToast]);
 
+    // Fix cart items
     useEffect(() => {
         if (products.length > 0 && cart.length > 0) {
             let hasChange = false;
@@ -858,19 +766,10 @@ const OrderDetail = () => {
             <div className={styles.content}>
                 {order?.status !== "PAID" && (
                     <div className={styles.productsGrid}>
-                        {loading ? (
-                            <div className={styles.loading}><div className={styles.spinner}></div>Đang tải...</div>
-                        ) : filteredProducts.length === 0 ? (
-                            <div className={styles.emptyProducts}>Không tìm thấy sản phẩm nào</div>
-                        ) : (
+                        {loading ? <div className={styles.loading}><div className={styles.spinner}></div>Đang tải...</div> : filteredProducts.length === 0 ? <div className={styles.emptyProducts}>Không tìm thấy sản phẩm nào</div> : (
                             filteredProducts.map(product => (
                                 <div key={product.id} className={styles.productCard} onClick={() => addToCart(product)}>
-                                    <img
-                                        src={product.imageUrl?.startsWith("http") ? product.imageUrl : `${process.env.REACT_APP_API_URL || 'http://localhost:8080'}/${product.imageUrl}`}
-                                        alt={product.name}
-                                        className={styles.productImage}
-                                        onError={(e) => { e.target.src = "/default-food.jpg"; }}
-                                    />
+                                    <img src={product.imageUrl?.startsWith("http") ? product.imageUrl : `http://localhost:8080/${product.imageUrl}`} alt={product.name} className={styles.productImage} onError={(e) => { e.target.src = "/default-food.jpg"; }} />
                                     <div className={styles.productInfo}>
                                         <h4>{product.name}</h4>
                                         <p className={styles.productPrice}>{(product.finalPrice || product.branchPrice || product.originalPrice || 0).toLocaleString('vi-VN')}đ</p>
@@ -895,7 +794,6 @@ const OrderDetail = () => {
                                 {cart.map((item, index) => (
                                     <div key={`${item.id}_${index}`} className={styles.cartItem}>
                                         <div className={styles.cartItemInfo}>
-                                            {/* BỎ HIỂN THỊ TRẠNG THÁI MÓN */}
                                             <span className={styles.cartItemName}>{item.name}</span>
                                             <span className={styles.cartItemPrice}>{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
                                         </div>
@@ -912,13 +810,38 @@ const OrderDetail = () => {
                             </div>
 
                             <div className={styles.cartFooter}>
+                                {/* Hiển thị phí phòng nếu là phòng VIP */}
+                                {isRoom && roomFee > 0 && (
+                                    <div className={styles.totalRow}>
+                                        <span>🏠 Phí phòng VIP:</span>
+                                        <span>{roomFee.toLocaleString('vi-VN')}đ</span>
+                                    </div>
+                                )}
+
                                 {discount > 0 && (
                                     <>
-                                        <div className={styles.totalRow}><span>Tạm tính:</span><span>{originalTotal.toLocaleString('vi-VN')}đ</span></div>
-                                        <div className={styles.discountRow}><span>Giảm giá:</span><span>-{discount.toLocaleString('vi-VN')}đ</span></div>
+                                        <div className={styles.totalRow}>
+                                            <span>Tạm tính (món + phí phòng):</span>
+                                            <span>{originalTotal.toLocaleString('vi-VN')}đ</span>
+                                        </div>
+                                        <div className={styles.discountRow}>
+                                            <span>Giảm giá:</span>
+                                            <span>-{discount.toLocaleString('vi-VN')}đ</span>
+                                        </div>
                                     </>
                                 )}
-                                <div className={styles.totalRow}><span>Tổng cộng:</span><span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span></div>
+
+                                {discount === 0 && isRoom && roomFee > 0 && (
+                                    <div className={styles.totalRow}>
+                                        <span>Tạm tính món:</span>
+                                        <span>{itemsTotal.toLocaleString('vi-VN')}đ</span>
+                                    </div>
+                                )}
+
+                                <div className={styles.totalRow}>
+                                    <span>Tổng cộng:</span>
+                                    <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
+                                </div>
 
                                 {canEdit && cart.length > 0 && (
                                     <button className={styles.updateBtn} onClick={handleUpdateOrder} disabled={isUpdating}>
@@ -953,22 +876,16 @@ const OrderDetail = () => {
                         <div className={`${styles.promoOption} ${!selectedPromotion ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(null); setShowPromotionModal(false); }}>
                             <div>Không sử dụng mã giảm giá</div>
                         </div>
-                        {promotions.length === 0 ? (
-                            <div className={styles.emptyPromo}>Không có mã khuyến mãi nào</div>
-                        ) : (
+                        {promotions.length === 0 ? <div className={styles.emptyPromo}>Không có mã khuyến mãi nào</div> : (
                             promotions.map((promo) => (
-                                <div key={promo.id} className={`${styles.promoOption} ${selectedPromotion?.id === promo.id ? styles.selected : ''}`}
-                                    onClick={() => { setSelectedPromotion(promo); setShowPromotionModal(false); showToast(`Đã áp dụng mã ${promo.name}`, 'success', 2000); }}>
+                                <div key={promo.id} className={`${styles.promoOption} ${selectedPromotion?.id === promo.id ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(promo); setShowPromotionModal(false); showToast(`Đã áp dụng mã ${promo.name}`, 'success', 2000); }}>
                                     <div className={styles.promoIcon}>{promo.discountPercentage ? <Percent size={20} /> : <DollarSign size={20} />}</div>
                                     <div className={styles.promoInfo}>
                                         <div className={styles.promoName}>{promo.name}</div>
                                         {promo.description && <div className={styles.promoDesc}>{promo.description}</div>}
                                         {promo.endDate && <div className={styles.promoDate}>Hạn đến: {new Date(promo.endDate).toLocaleDateString('vi-VN')}</div>}
                                     </div>
-                                    <div className={styles.promoValue}>
-                                        {promo.discountPercentage && `-${promo.discountPercentage}%`}
-                                        {promo.discountAmount && `-${promo.discountAmount.toLocaleString('vi-VN')}đ`}
-                                    </div>
+                                    <div className={styles.promoValue}>{promo.discountPercentage && `-${promo.discountPercentage}%`}{promo.discountAmount && `-${promo.discountAmount.toLocaleString('vi-VN')}đ`}</div>
                                 </div>
                             ))
                         )}

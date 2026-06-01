@@ -1,4 +1,4 @@
-// TableDetail.js - Full code
+// TableDetail.js - Full code with room fee
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, ShoppingCart, Users, Plus, Minus, Trash2, Printer, Tag, X, Percent, DollarSign } from "lucide-react";
@@ -11,6 +11,7 @@ import CashPaymentModal from "./CashPaymentModal";
 
 const socket = io('http://localhost:3001');
 const API = "http://localhost:8080";
+const CASHIER_NOTIFICATIONS_KEY = 'cashier_notifications';
 
 const TableDetail = () => {
     const { state } = useLocation();
@@ -43,9 +44,31 @@ const TableDetail = () => {
     const confirmedCartRef = useRef({});
     const [confirmedCart, setConfirmedCart] = useState({});
     const [branchInfo, setBranchInfo] = useState(null);
+    const [roomFee, setRoomFee] = useState(0);
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
     const API_BASE_URL = 'http://localhost:8080';
+
+    // ===== GỬI NOTIFICATION =====
+    const sendCashierNotification = (message, type = 'info') => {
+        const newNotification = {
+            id: Date.now() + Math.random(),
+            message,
+            type,
+            timestamp: new Date().toISOString()
+        };
+
+        const saved = localStorage.getItem(CASHIER_NOTIFICATIONS_KEY);
+        const currentNotifications = saved ? JSON.parse(saved) : [];
+        currentNotifications.unshift(newNotification);
+        localStorage.setItem(CASHIER_NOTIFICATIONS_KEY, JSON.stringify(currentNotifications.slice(0, 50)));
+
+        window.dispatchEvent(new CustomEvent('cashier-notification', {
+            detail: newNotification
+        }));
+
+        console.log('📤 Notification sent:', message);
+    };
 
     const showToast = (message, type = 'info', duration = 5000) => {
         const id = Date.now();
@@ -191,7 +214,9 @@ const TableDetail = () => {
         setCart(prevCart => prevCart.filter(item => parseInt(item.id) !== parseInt(id)));
     };
 
-    const originalTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    // Tính tổng tiền đã bao gồm phí phòng
+    const itemsTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const originalTotal = itemsTotal + roomFee;
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
     const discount = selectedPromotion?.discountPercentage
@@ -199,11 +224,6 @@ const TableDetail = () => {
         : selectedPromotion?.discountAmount || 0;
 
     const finalTotal = originalTotal - discount;
-
-    const hasNewItems = useMemo(() => {
-        if (!order) return cart.length > 0;
-        return true;
-    }, [cart, order]);
 
     const handleUpdateOrder = async () => {
         if (cart.length === 0) {
@@ -301,15 +321,25 @@ const TableDetail = () => {
                 tableNumber: entityNumber,
                 tableId: entity.id,
                 locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
-                areaName: entity?.area || "Khu chính",
+                areaName: entity?.area || (isRoom ? "Khu VIP" : "Khu chính"),
                 items: newItems.map(item => ({
                     id: item.id,
                     name: item.name,
                     quantity: item.quantity
                 })),
                 timestamp: new Date().toISOString(),
-                branchId: branchId
+                branchId: branchId,
+                isRoom: isRoom,
+                entityType: isRoom ? 'room' : 'table',
+                entityNumber: entityNumber,
+                entityArea: entity?.area || (isRoom ? "Khu VIP" : "Khu chính")
             });
+
+            const locationName = isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`;
+            sendCashierNotification(
+                `➕ ${locationName} thêm ${itemsToAdd.reduce((sum, i) => sum + i.quantity, 0)} món - ${finalTotal.toLocaleString('vi-VN')}đ`,
+                'order'
+            );
 
             showToast(`Đã thêm ${itemsToAdd.reduce((sum, i) => sum + i.quantity, 0)} món vào đơn!`, 'success', 3000);
 
@@ -318,6 +348,39 @@ const TableDetail = () => {
             showToast(`Lỗi: ${err.response?.data?.message || err.message}`, "error", 5000);
         } finally {
             setIsUpdating(false);
+        }
+    };
+
+    const updateEntityStatus = async (newStatus) => {
+        try {
+            const updateUrl = isRoom
+                ? `${API}/api/rooms/${entity.id}/status?status=${newStatus}`
+                : `${API}/api/tables/${entity.id}/status?status=${newStatus}`;
+
+            const token = localStorage.getItem("token");
+            const response = await fetch(updateUrl, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.ok) {
+                console.log(`✅ Đã cập nhật ${entityType} ${entityNumber} thành ${newStatus}`);
+                if (isRoom) {
+                    entity.status = newStatus;
+                } else {
+                    entity.status = newStatus;
+                }
+                return true;
+            } else {
+                console.error(`Lỗi cập nhật status: ${response.status}`);
+                return false;
+            }
+        } catch (err) {
+            console.error(`Lỗi cập nhật trạng thái ${entityType}:`, err);
+            return false;
         }
     };
 
@@ -344,6 +407,8 @@ const TableDetail = () => {
             const res = await axiosClient.post("/customer/orders", orderData);
             const newOrder = res.data;
 
+            await updateEntityStatus("OCCUPIED");
+
             const itemsToAdd = cart
                 .filter(item => item.id && item.quantity > 0)
                 .map(item => ({
@@ -359,7 +424,6 @@ const TableDetail = () => {
             const finalOrder = finalRes.data;
 
             console.log("✅ Final order:", finalOrder);
-
             setOrder(finalOrder);
 
             if (finalOrder.items && finalOrder.items.length > 0) {
@@ -400,15 +464,27 @@ const TableDetail = () => {
                 tableNumber: entityNumber,
                 tableId: entity.id,
                 locationName: isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`,
-                areaName: entity?.area || "Khu chính",
+                areaName: entity?.area || (isRoom ? "Khu VIP" : "Khu chính"),
                 items: newItems.map(item => ({
                     id: item.id,
                     name: item.name,
                     quantity: item.quantity
                 })),
                 timestamp: new Date().toISOString(),
-                branchId: branchId
+                branchId: branchId,
+                isRoom: isRoom,
+                entityType: isRoom ? 'room' : 'table',
+                entityNumber: entityNumber,
+                entityArea: entity?.area || (isRoom ? "Khu VIP" : "Khu chính")
             });
+
+            socket.emit("update-tables");
+
+            const locationName = isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`;
+            sendCashierNotification(
+                `🆕 Đơn mới - ${locationName}: ${totalItems} món - ${finalTotal.toLocaleString('vi-VN')}đ`,
+                'order'
+            );
 
             showToast(`Đơn hàng đã được gửi đến bếp!`, 'success', 4000);
 
@@ -534,6 +610,15 @@ const TableDetail = () => {
                     }
                 }
 
+                const locationName = isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`;
+                const amountFormatted = finalTotal.toLocaleString('vi-VN') + 'đ';
+                const methodText = method === 'cash' ? 'Tiền mặt' : method === 'card' ? 'Thẻ' : 'Chuyển khoản';
+
+                sendCashierNotification(
+                    `💰 ${locationName} thanh toán ${amountFormatted} (${methodText})`,
+                    'success'
+                );
+
                 setOrder(null);
                 setCart([]);
                 setSelectedPromotion(null);
@@ -551,6 +636,13 @@ const TableDetail = () => {
             }
         } catch (err) {
             console.error("❌ Lỗi thanh toán:", err);
+
+            const locationName = isRoom ? `Phòng ${entityNumber}` : `Bàn ${entityNumber}`;
+            sendCashierNotification(
+                `❌ ${locationName} thanh toán thất bại: ${err.response?.data?.message || err.message}`,
+                'error'
+            );
+
             showToast(`Lỗi thanh toán: ${err.response?.data?.message || "Không thể thanh toán!"}`, "error", 3000);
         }
     };
@@ -600,7 +692,9 @@ const TableDetail = () => {
                     <div><strong>${entityType}</strong><span>${entityType} ${entityNumber}</span></div>
                 </div>
                 <table>
-                    <thead><tr><th>Sản phẩm</th><th class="text-center">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th></tr></thead>
+                    <thead>
+                        <tr><th>Sản phẩm</th><th class="text-center">SL</th><th class="text-right">Đơn giá</th><th class="text-right">Thành tiền</th></tr>
+                    </thead>
                     <tbody>
                         ${cart.map(item => `
                             <tr>
@@ -613,7 +707,14 @@ const TableDetail = () => {
                     </tbody>
                 </table>
                 <div class="totals">
-                    <div class="total-row"><span>Tạm tính:</span><span>${originalTotal.toLocaleString('vi-VN')}đ</span></div>
+                    <div class="total-row"><span>Tạm tính món:</span><span>${itemsTotal.toLocaleString('vi-VN')}đ</span></div>
+                    ${isRoom && roomFee > 0 ? `
+                    <div class="total-row">
+                        <span>🏠 Phí phòng VIP:</span>
+                        <span>${roomFee.toLocaleString('vi-VN')}đ</span>
+                    </div>
+                    ` : ''}
+                    <div class="total-row"><span>Tổng tiền trước KM:</span><span>${originalTotal.toLocaleString('vi-VN')}đ</span></div>
                     ${discount > 0 ? `<div class="total-row" style="color: #10b981;"><span>Giảm giá:</span><span>-${discount.toLocaleString('vi-VN')}đ</span></div>` : ''}
                     <div class="total-row grand-total"><span>TỔNG CỘNG:</span><span>${finalTotal.toLocaleString('vi-VN')}đ</span></div>
                 </div>
@@ -637,7 +738,17 @@ const TableDetail = () => {
 
     const existingOrderFromState = state?.existingOrder;
 
-    // FIX 1: Đồng bộ tên sản phẩm từ products vào cart
+    // Lấy phí phòng nếu là phòng VIP
+    useEffect(() => {
+        if (isRoom && entity?.roomFee) {
+            setRoomFee(Number(entity.roomFee));
+            console.log(`🏠 Phí phòng VIP ${entityNumber}: ${Number(entity.roomFee).toLocaleString('vi-VN')}đ`);
+        } else {
+            setRoomFee(0);
+        }
+    }, [isRoom, entity, entityNumber]);
+
+    // FIX 1: Đồng bộ tên sản phẩm
     useEffect(() => {
         if (products.length > 0 && cart.length > 0) {
             let hasChange = false;
@@ -649,7 +760,6 @@ const TableDetail = () => {
                 }
                 return item;
             });
-
             if (hasChange) {
                 console.log("🔄 Đồng bộ tên sản phẩm từ products vào cart");
                 setCart(updatedCart);
@@ -657,7 +767,7 @@ const TableDetail = () => {
         }
     }, [products]);
 
-    // FIX 2: Tự động sửa các cart item bị thiếu id
+    // FIX 2: Tự động sửa cart item thiếu id
     useEffect(() => {
         if (products.length > 0 && cart.length > 0) {
             let hasChange = false;
@@ -671,7 +781,6 @@ const TableDetail = () => {
                 }
                 return item;
             });
-
             if (hasChange) {
                 console.log("🔧 Đã tự động fix cart items bị undefined id");
                 setCart(fixedCart);
@@ -688,66 +797,50 @@ const TableDetail = () => {
         }
     }, []);
 
-    // FIX 3: Gộp các item trùng id trong cart
+    // FIX 3: Gộp item trùng id
     useEffect(() => {
         if (cart.length <= 1) return;
-
         const grouped = {};
         cart.forEach(item => {
             const key = parseInt(item.id);
             if (!key) return;
-
             if (grouped[key]) {
                 grouped[key].quantity += item.quantity;
-                if (item.price > grouped[key].price) {
-                    grouped[key].price = item.price;
-                }
+                if (item.price > grouped[key].price) grouped[key].price = item.price;
             } else {
                 grouped[key] = { ...item };
             }
         });
-
         const mergedCart = Object.values(grouped);
-
         if (mergedCart.length !== cart.length) {
             console.log("🔄 FIX 3: Gộp cart:", mergedCart);
             setCart(mergedCart);
         }
     }, [cart]);
 
-    // FIX 4: Khởi tạo dữ liệu
+    // FIX 4: Khởi tạo
     useEffect(() => {
         const initialize = async () => {
             await fetchProducts();
             await fetchPromotions();
             await fetchBranchInfo();
         };
-
-        if (entity) {
-            initialize();
-        }
+        if (entity) initialize();
     }, [entity]);
 
     useEffect(() => {
         const processExistingOrder = async () => {
             if (products.length === 0) return;
-
             if (existingOrderFromState) {
-                if (existingOrderFromState.status === "PAID" ||
-                    existingOrderFromState.status === "CANCELED") {
-                    return;
-                }
-
+                if (existingOrderFromState.status === "PAID" || existingOrderFromState.status === "CANCELED") return;
                 setOrder(existingOrderFromState);
                 setCustomerName(existingOrderFromState.customerName || "");
-
                 let items = [];
                 if (existingOrderFromState.items && existingOrderFromState.items.length > 0) {
                     items = existingOrderFromState.items.map(item => {
                         const foodId = item.foodId || item.food?.id || item.id;
                         const foodName = item.food?.name || item.foodName || item.name;
                         const product = products.find(p => p.id === foodId);
-
                         return {
                             id: foodId,
                             name: product?.name || foodName || `Sản phẩm #${foodId}`,
@@ -758,20 +851,15 @@ const TableDetail = () => {
                     }).filter(item => item.id);
                 }
                 setCart(items);
-
                 const snapshot = {};
                 items.forEach(item => { snapshot[item.id] = item.quantity; });
                 confirmedCartRef.current = snapshot;
                 setConfirmedCart(snapshot);
-
-                if (existingOrderFromState.promotion) {
-                    setSelectedPromotion(existingOrderFromState.promotion);
-                }
+                if (existingOrderFromState.promotion) setSelectedPromotion(existingOrderFromState.promotion);
             } else if (entity) {
                 await checkExistingOrder();
             }
         };
-
         processExistingOrder();
     }, [products, existingOrderFromState, entity]);
 
@@ -788,80 +876,31 @@ const TableDetail = () => {
                     <div className={`${entity?.status === "FREE" ? styles.available : styles.occupied}`}>
                         {entity?.status === "FREE" ? "🟢 Trống" : entity?.status === "RESERVED" ? "📅 Đã đặt" : "🔴 Đã có khách"}
                     </div>
-                    {order?.status === "PENDING" && (
-                        <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>
-                            ⏳ Đang chờ bếp
-                        </div>
-                    )}
-                    {order?.status === "PREPARING" && (
-                        <div className={styles.statusBadge} style={{ background: "#f59e0b" }}>
-                            🔪 Đang chuẩn bị
-                        </div>
-                    )}
-                    {order?.status === "COMPLETED" && (
-                        <div className={styles.statusBadge} style={{ background: "#10b981" }}>
-                            ✅ Đã hoàn thành
-                        </div>
-                    )}
+                    {order?.status === "PENDING" && <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>⏳ Đang chờ bếp</div>}
+                    {order?.status === "PREPARING" && <div className={styles.statusBadge} style={{ background: "#f59e0b" }}>🔪 Đang chuẩn bị</div>}
+                    {order?.status === "COMPLETED" && <div className={styles.statusBadge} style={{ background: "#10b981" }}>✅ Đã hoàn thành</div>}
                 </div>
                 <div className={styles.stats}>
-                    <div className={styles.statItem}>
-                        <ShoppingCart size={18} />
-                        <span>{totalItems} món</span>
-                    </div>
-                    <div className={styles.statItem}>
-                        <Users size={18} />
-                        <span>{entity?.capacity || 4} người</span>
-                    </div>
+                    <div className={styles.statItem}><ShoppingCart size={18} /><span>{totalItems} món</span></div>
+                    <div className={styles.statItem}><Users size={18} /><span>{entity?.capacity || 4} người</span></div>
                 </div>
             </div>
 
             <div className={styles.customerSection}>
-                <input
-                    type="text"
-                    className={styles.customerInput}
-                    placeholder="Tên khách hàng (tùy chọn)"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                />
+                <input type="text" className={styles.customerInput} placeholder="Tên khách hàng (tùy chọn)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
             </div>
 
             {order?.status !== "PAID" && (
                 <div className={styles.promotionSection}>
                     <div className={styles.formGroup}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Tag size={16} />
-                            Mã khuyến mãi
-                        </label>
-                        <div
-                            className={styles.promotionSelect}
-                            onClick={() => setShowPromotionModal(true)}
-                            style={{ cursor: 'pointer' }}
-                        >
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Tag size={16} />Mã khuyến mãi</label>
+                        <div className={styles.promotionSelect} onClick={() => setShowPromotionModal(true)} style={{ cursor: 'pointer' }}>
                             {selectedPromotion ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                                     <Tag size={16} color="#10b981" />
                                     <span>{selectedPromotion.name}</span>
-                                    {selectedPromotion.discountPercentage && (
-                                        <span style={{ color: '#10b981', fontWeight: '600' }}>
-                                            -{selectedPromotion.discountPercentage}%
-                                        </span>
-                                    )}
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedPromotion(null);
-                                        }}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: '#9ca3af',
-                                            cursor: 'pointer',
-                                            marginLeft: 'auto'
-                                        }}
-                                    >
-                                        <X size={16} />
-                                    </button>
+                                    {selectedPromotion.discountPercentage && <span style={{ color: '#10b981', fontWeight: '600' }}>-{selectedPromotion.discountPercentage}%</span>}
+                                    <button onClick={(e) => { e.stopPropagation(); setSelectedPromotion(null); }} style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer', marginLeft: 'auto' }}><X size={16} /></button>
                                 </div>
                             ) : (
                                 <span style={{ color: '#9ca3af' }}>Chọn mã giảm giá...</span>
@@ -874,23 +913,11 @@ const TableDetail = () => {
             {order?.status !== "PAID" && (
                 <>
                     <div className={styles.searchSection}>
-                        <input
-                            type="text"
-                            className={styles.searchInput}
-                            placeholder="Tìm kiếm món..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                        <input type="text" className={styles.searchInput} placeholder="Tìm kiếm món..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                     </div>
                     <div className={styles.categoryTabs}>
                         {categories.map(cat => (
-                            <button
-                                key={cat}
-                                className={`${styles.categoryBtn} ${activeTab === cat ? styles.active : ""}`}
-                                onClick={() => setActiveTab(cat)}
-                            >
-                                {cat}
-                            </button>
+                            <button key={cat} className={`${styles.categoryBtn} ${activeTab === cat ? styles.active : ""}`} onClick={() => setActiveTab(cat)}>{cat}</button>
                         ))}
                     </div>
                 </>
@@ -899,22 +926,13 @@ const TableDetail = () => {
             <div className={styles.content}>
                 {order?.status !== "PAID" && (
                     <div className={styles.productsGrid}>
-                        {loading ? (
-                            <div className={styles.loading}>Đang tải...</div>
-                        ) : (
+                        {loading ? <div className={styles.loading}>Đang tải...</div> : (
                             filteredProducts.map(product => (
                                 <div key={product.id} className={styles.productCard} onClick={() => addToCart(product)}>
-                                    <img
-                                        src={product.imageUrl?.startsWith("http") ? product.imageUrl : `${API_BASE_URL}/${product.imageUrl}`}
-                                        alt={product.name}
-                                        className={styles.productImage}
-                                        onError={(e) => { e.target.src = "/default-food.jpg"; }}
-                                    />
+                                    <img src={product.imageUrl?.startsWith("http") ? product.imageUrl : `${API_BASE_URL}/${product.imageUrl}`} alt={product.name} className={styles.productImage} onError={(e) => { e.target.src = "/default-food.jpg"; }} />
                                     <div className={styles.productInfo}>
                                         <h4>{product.name}</h4>
-                                        <p className={styles.productPrice}>
-                                            {(product.finalPrice || product.branchPrice || product.originalPrice || 0).toLocaleString('vi-VN')}đ
-                                        </p>
+                                        <p className={styles.productPrice}>{(product.finalPrice || product.branchPrice || product.originalPrice || 0).toLocaleString('vi-VN')}đ</p>
                                     </div>
                                 </div>
                             ))
@@ -925,14 +943,7 @@ const TableDetail = () => {
                 <div className={styles.cartSidebar}>
                     <div className={styles.cartHeader}>
                         <h3>🛒 Đơn hàng</h3>
-
-                        <button
-                            className={styles.cartBackBtn}
-                            onClick={() => navigate(-1)}
-                        >
-                            <ArrowLeft size={18} />
-                            Quay về
-                        </button>
+                        <button className={styles.cartBackBtn} onClick={() => navigate(-1)}><ArrowLeft size={18} />Quay về</button>
                     </div>
                     {cart.length === 0 ? (
                         <p className={styles.emptyCart}>Chưa có món nào</p>
@@ -943,37 +954,34 @@ const TableDetail = () => {
                                     <div key={`${item.id}_${index}`} className={styles.cartItem}>
                                         <div className={styles.cartItemInfo}>
                                             <span className={styles.cartItemName}>{item.name}</span>
-                                            <span className={styles.cartItemPrice}>
-                                                {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-                                            </span>
+                                            <span className={styles.cartItemPrice}>{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
                                         </div>
-                                        {order?.status !== "PAID" && (
+                                        {order?.status !== "PAID" ? (
                                             <div className={styles.cartItemControls}>
-                                                <button onClick={() => updateQuantity(item.id, -1)} className={styles.qtyBtn}>
-                                                    <Minus size={14} />
-                                                </button>
+                                                <button onClick={() => updateQuantity(item.id, -1)} className={styles.qtyBtn}><Minus size={14} /></button>
                                                 <span className={styles.qty}>{item.quantity}</span>
-                                                <button onClick={() => updateQuantity(item.id, 1)} className={styles.qtyBtn}>
-                                                    <Plus size={14} />
-                                                </button>
-                                                <button onClick={() => removeFromCart(item.id)} className={styles.removeBtn}>
-                                                    <Trash2 size={14} />
-                                                </button>
+                                                <button onClick={() => updateQuantity(item.id, 1)} className={styles.qtyBtn}><Plus size={14} /></button>
+                                                <button onClick={() => removeFromCart(item.id)} className={styles.removeBtn}><Trash2 size={14} /></button>
                                             </div>
-                                        )}
-                                        {order?.status === "PAID" && (
-                                            <div className={styles.cartItemControls}>
-                                                <span className={styles.qty}>x{item.quantity}</span>
-                                            </div>
+                                        ) : (
+                                            <div className={styles.cartItemControls}><span className={styles.qty}>x{item.quantity}</span></div>
                                         )}
                                     </div>
                                 ))}
                             </div>
                             <div className={styles.cartFooter}>
+                                {/* Hiển thị phí phòng nếu là phòng VIP */}
+                                {isRoom && roomFee > 0 && (
+                                    <div className={styles.totalRow}>
+                                        <span>🏠 Phí phòng VIP:</span>
+                                        <span>{roomFee.toLocaleString('vi-VN')}đ</span>
+                                    </div>
+                                )}
+
                                 {discount > 0 && (
                                     <>
                                         <div className={styles.totalRow}>
-                                            <span>Tạm tính:</span>
+                                            <span>Tạm tính (món + phí phòng):</span>
                                             <span>{originalTotal.toLocaleString('vi-VN')}đ</span>
                                         </div>
                                         <div className={styles.discountRow}>
@@ -982,38 +990,23 @@ const TableDetail = () => {
                                         </div>
                                     </>
                                 )}
+
+                                {discount === 0 && isRoom && roomFee > 0 && (
+                                    <div className={styles.totalRow}>
+                                        <span>Tạm tính món:</span>
+                                        <span>{itemsTotal.toLocaleString('vi-VN')}đ</span>
+                                    </div>
+                                )}
+
                                 <div className={styles.totalRow}>
                                     <span>Tổng cộng:</span>
                                     <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
                                 </div>
 
-                                {canEdit && cart.length > 0 && (
-                                    <button
-                                        className={styles.updateBtn}
-                                        onClick={handleUpdateOrder}
-                                        disabled={isUpdating}
-                                    >
-                                        {isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}
-                                    </button>
-                                )}
-
-                                {isNewOrder && cart.length > 0 && (
-                                    <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>
-                                        {isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}
-                                    </button>
-                                )}
-
-                                {canPrint && (
-                                    <button className={styles.printBtn} onClick={printBill}>
-                                        <Printer size={18} /> In hóa đơn
-                                    </button>
-                                )}
-
-                                {canPay && (
-                                    <button className={styles.payBtn} onClick={() => setShowPaymentMethodModal(true)} disabled={processingPayment}>
-                                        {processingPayment ? "Đang xử lý..." : "Thanh toán"}
-                                    </button>
-                                )}
+                                {canEdit && cart.length > 0 && <button className={styles.updateBtn} onClick={handleUpdateOrder} disabled={isUpdating}>{isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}</button>}
+                                {isNewOrder && cart.length > 0 && <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>{isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}</button>}
+                                {canPrint && <button className={styles.printBtn} onClick={printBill}><Printer size={18} />In hóa đơn</button>}
+                                {canPay && <button className={styles.payBtn} onClick={() => setShowPaymentMethodModal(true)} disabled={processingPayment}>{processingPayment ? "Đang xử lý..." : "Thanh toán"}</button>}
                             </div>
                         </>
                     )}
@@ -1025,50 +1018,21 @@ const TableDetail = () => {
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
                             <h3>Chọn mã khuyến mãi</h3>
-                            <button onClick={() => setShowPromotionModal(false)} className={styles.modalClose}>
-                                <X size={24} />
-                            </button>
+                            <button onClick={() => setShowPromotionModal(false)} className={styles.modalClose}><X size={24} /></button>
                         </div>
-
-                        <div
-                            className={`${styles.promoOption} ${!selectedPromotion ? styles.selected : ''}`}
-                            onClick={() => {
-                                setSelectedPromotion(null);
-                                setShowPromotionModal(false);
-                            }}
-                        >
+                        <div className={`${styles.promoOption} ${!selectedPromotion ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(null); setShowPromotionModal(false); }}>
                             <div>Không sử dụng mã giảm giá</div>
                         </div>
-
-                        {promotions.length === 0 ? (
-                            <div className={styles.emptyPromo}>Không có mã khuyến mãi nào</div>
-                        ) : (
+                        {promotions.length === 0 ? <div className={styles.emptyPromo}>Không có mã khuyến mãi nào</div> : (
                             promotions.map((promo) => (
-                                <div
-                                    key={promo.id}
-                                    className={`${styles.promoOption} ${selectedPromotion?.id === promo.id ? styles.selected : ''}`}
-                                    onClick={() => {
-                                        setSelectedPromotion(promo);
-                                        setShowPromotionModal(false);
-                                        showToast(`Đã áp dụng mã ${promo.name}`, 'success', 2000);
-                                    }}
-                                >
-                                    <div className={styles.promoIcon}>
-                                        {promo.discountPercentage ? <Percent size={20} /> : <DollarSign size={20} />}
-                                    </div>
+                                <div key={promo.id} className={`${styles.promoOption} ${selectedPromotion?.id === promo.id ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(promo); setShowPromotionModal(false); showToast(`Đã áp dụng mã ${promo.name}`, 'success', 2000); }}>
+                                    <div className={styles.promoIcon}>{promo.discountPercentage ? <Percent size={20} /> : <DollarSign size={20} />}</div>
                                     <div className={styles.promoInfo}>
                                         <div className={styles.promoName}>{promo.name}</div>
                                         {promo.description && <div className={styles.promoDesc}>{promo.description}</div>}
-                                        {promo.endDate && (
-                                            <div className={styles.promoDate}>
-                                                Hạn đến: {new Date(promo.endDate).toLocaleDateString('vi-VN')}
-                                            </div>
-                                        )}
+                                        {promo.endDate && <div className={styles.promoDate}>Hạn đến: {new Date(promo.endDate).toLocaleDateString('vi-VN')}</div>}
                                     </div>
-                                    <div className={styles.promoValue}>
-                                        {promo.discountPercentage && `-${promo.discountPercentage}%`}
-                                        {promo.discountAmount && `-${promo.discountAmount.toLocaleString('vi-VN')}đ`}
-                                    </div>
+                                    <div className={styles.promoValue}>{promo.discountPercentage && `-${promo.discountPercentage}%`}{promo.discountAmount && `-${promo.discountAmount.toLocaleString('vi-VN')}đ`}</div>
                                 </div>
                             ))
                         )}
@@ -1076,39 +1040,12 @@ const TableDetail = () => {
                 </div>
             )}
 
-            <PaymentMethodModal
-                show={showPaymentMethodModal}
-                onClose={() => setShowPaymentMethodModal(false)}
-                onSelect={(method) => {
-                    setShowPaymentMethodModal(false);
-                    if (method === "transfer" || method === "momo") {
-                        handlePayOSPayment();
-                    } else if (method === "cash") {
-                        setShowCashModal(true);
-                    } else if (method === "card") {
-                        handleCompletePayment(order?.id, "card");
-                    }
-                }}
-            />
-
-            <CashPaymentModal
-                show={showCashModal}
-                onClose={() => setShowCashModal(false)}
-                onConfirm={() => {
-                    handleCompletePayment(order?.id, "cash");
-                }}
-                totalAmount={finalTotal}
-            />
+            <PaymentMethodModal show={showPaymentMethodModal} onClose={() => setShowPaymentMethodModal(false)} onSelect={(method) => { setShowPaymentMethodModal(false); if (method === "transfer" || method === "momo") { handlePayOSPayment(); } else if (method === "cash") { setShowCashModal(true); } else if (method === "card") { handleCompletePayment(order?.id, "card"); } }} />
+            <CashPaymentModal show={showCashModal} onClose={() => setShowCashModal(false)} onConfirm={() => { handleCompletePayment(order?.id, "cash"); }} totalAmount={finalTotal} />
 
             <div className={styles.toastContainer}>
                 {toasts.map((toast) => (
-                    <ToastNotification
-                        key={toast.id}
-                        message={toast.message}
-                        type={toast.type}
-                        duration={toast.duration}
-                        onClose={() => removeToast(toast.id)}
-                    />
+                    <ToastNotification key={toast.id} message={toast.message} type={toast.type} duration={toast.duration} onClose={() => removeToast(toast.id)} />
                 ))}
             </div>
         </div>
