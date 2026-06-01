@@ -35,8 +35,6 @@ import ClientPaymentSuccess from "./pages/client/booking/PaymentSuccess";
 import ClientPaymentCancel from "./pages/client/booking/PaymentCancel";
 import CashierPaymentSuccess from "./pages/employee/cashier/CashierPaymentSuccess";
 import CashierPaymentCancel from "./pages/employee/cashier/CashierPaymentCancel";
-import PaymentRequest from "./pages/employee/waiter/PaymentRequest";
-import PaymentQR from "./pages/employee/waiter/PaymentQR";
 import KitchenMonitor from "./pages/employee/waiter/KitchenMonitor";
 import HeroLanding from "./pages/client/HeroLanding";
 import Home from "./layouts/Home";
@@ -96,15 +94,12 @@ function App() {
         {/* ==================== WAITER ROUTES ==================== */}
         <Route path="/waiter" element={<WaiterLayout />}>
           <Route path="orders" element={<Orders />} />
-          <Route path="payment-requests" element={<PaymentRequest />} />
           <Route path="kitchen" element={<KitchenMonitor />} />
           <Route path="shift" element={<ShiftRegistration />} />
         </Route>
 
         {/* Route cho OrderDetail - Dành cho waiter */}
         <Route path="/waiter/orders/:id" element={<OrderDetail />} />
-        <Route path="/waiter/payment-requests/:id" element={<PaymentQR />} />
-
         {/* Waiter payment routes */}
         <Route path="/waiter/payment-success" element={<WaiterPaymentSuccess />} />
         <Route path="/waiter/payment-cancel" element={<WaiterPaymentCancel />} />

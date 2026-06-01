@@ -54,6 +54,33 @@ const Orders = () => {
         return null;
     }, [existingOrders]);
 
+    // ========== UPDATE ENTITY STATUS ==========
+    const updateEntityStatus = async (entityId, type, newStatus) => {
+        try {
+            const updateUrl = type === 'room'
+                ? `http://localhost:8080/api/rooms/${entityId}/status?status=${newStatus}`
+                : `http://localhost:8080/api/tables/${entityId}/status?status=${newStatus}`;
+
+            const token = localStorage.getItem('token');
+            const response = await fetch(updateUrl, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.ok) {
+                console.log(`✅ Đã cập nhật ${type === 'room' ? 'phòng' : 'bàn'} ${entityId} thành ${newStatus}`);
+                return true;
+            }
+            return false;
+        } catch (err) {
+            console.error(`Lỗi cập nhật trạng thái:`, err);
+            return false;
+        }
+    };
+
     // ========== API CALLS ==========
 
     // Lấy danh sách đơn hàng đang hoạt động
@@ -166,10 +193,9 @@ const Orders = () => {
 
     // WebSocket listener (nếu có)
     useEffect(() => {
-        // Có thể tích hợp WebSocket ở đây
         const interval = setInterval(() => {
             fetchExistingOrders();
-        }, 30000); // Polling mỗi 30 giây
+        }, 30000);
 
         return () => clearInterval(interval);
     }, [fetchExistingOrders]);
@@ -192,21 +218,49 @@ const Orders = () => {
         showToast('success', 'Thành công', 'Đã làm mới dữ liệu');
     };
 
-    const handleTableClick = (table) => {
-        const existingOrder = existingOrders[`table_${table.id}`];
-        navigate(`/waiter/orders/${table.id}`, {
+    const handleTableClick = async (table) => {
+        let existingOrder = existingOrders[`table_${table.id}`];
+        let currentTable = table;
+
+        // Nếu bàn đang TRỐNG và chưa có đơn hàng
+        if (table.status === "FREE" && !existingOrder) {
+            await updateEntityStatus(table.id, 'table', 'OCCUPIED');
+            await fetchTables();
+            await fetchExistingOrders();
+
+            // Cập nhật lại thông tin bàn
+            const updatedTable = tables.find(t => t.id === table.id);
+            if (updatedTable) currentTable = updatedTable;
+            existingOrder = existingOrders[`table_${table.id}`];
+        }
+
+        navigate(`/waiter/orders/${currentTable.id}`, {
             state: {
-                table: table,
+                table: { ...currentTable, status: "OCCUPIED" },
                 existingOrder: existingOrder || null
             }
         });
     };
 
-    const handleRoomClick = (room) => {
-        const existingOrder = existingOrders[`room_${room.id}`];
-        navigate(`/waiter/orders/${room.id}`, {
+    const handleRoomClick = async (room) => {
+        let existingOrder = existingOrders[`room_${room.id}`];
+        let currentRoom = room;
+
+        // Nếu phòng đang TRỐNG (ACTIVE) và chưa có đơn hàng
+        if (room.status === "ACTIVE" && !existingOrder) {
+            await updateEntityStatus(room.id, 'room', 'OCCUPIED');
+            await fetchRooms();
+            await fetchExistingOrders();
+
+            // Cập nhật lại thông tin phòng
+            const updatedRoom = rooms.find(r => r.id === room.id);
+            if (updatedRoom) currentRoom = updatedRoom;
+            existingOrder = existingOrders[`room_${room.id}`];
+        }
+
+        navigate(`/waiter/orders/${currentRoom.id}`, {
             state: {
-                room: room,
+                room: { ...currentRoom, status: "OCCUPIED" },
                 existingOrder: existingOrder || null
             }
         });
@@ -222,7 +276,15 @@ const Orders = () => {
 
     // ========== STATUS HELPERS ==========
 
-    const getStatusColor = (status) => {
+    const getStatusColor = (status, type = 'table') => {
+        if (type === 'room') {
+            const colors = {
+                ACTIVE: "#10b981",
+                OCCUPIED: "#ef4444",
+                MAINTENANCE: "#6b7280"
+            };
+            return colors[status] || "#6b7280";
+        }
         const colors = {
             FREE: "#10b981",
             RESERVED: "#f59e0b",
@@ -231,7 +293,15 @@ const Orders = () => {
         return colors[status] || "#6b7280";
     };
 
-    const getStatusText = (status) => {
+    const getStatusText = (status, type = 'table') => {
+        if (type === 'room') {
+            const texts = {
+                ACTIVE: "Trống",
+                OCCUPIED: "Đã có khách",
+                MAINTENANCE: "Bảo trì"
+            };
+            return texts[status] || status;
+        }
         const texts = {
             FREE: "Trống",
             RESERVED: "Đã đặt",
@@ -240,11 +310,19 @@ const Orders = () => {
         return texts[status] || status;
     };
 
-    const getStatusIcon = (status) => {
+    const getStatusIcon = (status, type = 'table') => {
+        if (type === 'room') {
+            switch (status) {
+                case "ACTIVE": return <CheckCircle size={14} color="#10b981" />;
+                case "OCCUPIED": return <XCircle size={14} color="#ef4444" />;
+                case "MAINTENANCE": return <XCircle size={14} color="#6b7280" />;
+                default: return null;
+            }
+        }
         switch (status) {
-            case "FREE": return <CheckCircle size={14} />;
-            case "RESERVED": return <Clock size={14} />;
-            case "OCCUPIED": return <XCircle size={14} />;
+            case "FREE": return <CheckCircle size={14} color="#10b981" />;
+            case "RESERVED": return <Clock size={14} color="#f59e0b" />;
+            case "OCCUPIED": return <XCircle size={14} color="#ef4444" />;
             default: return null;
         }
     };
@@ -271,14 +349,27 @@ const Orders = () => {
         const orderStatus = getOrderStatusText(entityId, type);
         const startTime = getStartTime(entityId, type);
         const elapsedTime = getElapsedTime(startTime);
-        const icon = type === 'table' ? '🍽️' : '🏠';
         const label = type === 'table' ? 'Bàn' : 'Phòng';
+
+        // Xác định trạng thái hiển thị
+        const displayStatus = type === 'room'
+            ? (entity.status === "ACTIVE" ? "FREE" : entity.status)
+            : entity.status;
 
         const statusIcons = {
             FREE: '🍽️',
             RESERVED: '📅',
-            OCCUPIED: '🍜'
+            OCCUPIED: '🍜',
+            ACTIVE: '🏠'
         };
+
+        // Kiểm tra xem có thể gọi món không (trống và chưa có đơn)
+        const canOrder = (type === 'table' && entity.status === "FREE" && !hasOrder) ||
+            (type === 'room' && entity.status === "ACTIVE" && !hasOrder);
+
+        // Kiểm tra xem đã có khách chưa
+        const isOccupied = (type === 'table' && entity.status === "OCCUPIED") ||
+            (type === 'room' && entity.status === "OCCUPIED");
 
         return (
             <div
@@ -286,17 +377,17 @@ const Orders = () => {
                 onClick={() => type === 'table' ? handleTableClick(entity) : handleRoomClick(entity)}
                 style={{
                     position: "relative",
-                    background: entity.status === "FREE"
-                        ? "linear-gradient(135deg, #ffffff, #f8faf5)"
-                        : entity.status === "RESERVED"
-                            ? "#fffbeb"
-                            : "#fff3e0",
+                    background: isOccupied
+                        ? "#fff3e0"
+                        : canOrder
+                            ? "linear-gradient(135deg, #ffffff, #f8faf5)"
+                            : "#fffbeb",
                     borderRadius: "16px",
                     padding: "20px",
                     cursor: "pointer",
                     transition: "all 0.2s",
                     boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                    border: `2px solid ${getStatusColor(entity.status)}`,
+                    border: `2px solid ${getStatusColor(entity.status, type)}`,
                     textAlign: "center"
                 }}
                 onMouseEnter={(e) => {
@@ -308,8 +399,8 @@ const Orders = () => {
                     e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.05)";
                 }}
             >
-                {/* Badge "Thêm món" cho bàn/phòng đang có khách */}
-                {entity.status !== "FREE" && (
+                {/* Badge "Thêm món" / "Gọi món" */}
+                {(isOccupied || canOrder) && (
                     <div style={{
                         position: "absolute",
                         top: "8px",
@@ -325,13 +416,13 @@ const Orders = () => {
                         gap: "4px"
                     }}>
                         <PlusCircle size={10} />
-                        Thêm món
+                        {isOccupied ? "Thêm món" : "Gọi món"}
                     </div>
                 )}
 
                 {/* Icon trạng thái */}
                 <div style={{ fontSize: "40px", marginBottom: "8px" }}>
-                    {statusIcons[entity.status] || icon}
+                    {statusIcons[displayStatus] || (type === 'room' ? '🏠' : '🍽️')}
                 </div>
 
                 {/* Tên bàn/phòng */}
@@ -377,14 +468,14 @@ const Orders = () => {
                     gap: "8px",
                     marginTop: "8px",
                     fontSize: "13px",
-                    color: getStatusColor(entity.status)
+                    color: getStatusColor(entity.status, type)
                 }}>
-                    {getStatusIcon(entity.status)}
-                    <span>{getStatusText(entity.status)}</span>
+                    {getStatusIcon(entity.status, type)}
+                    <span>{getStatusText(entity.status, type)}</span>
                 </div>
 
                 {/* Thời gian đã sử dụng */}
-                {entity.status === "OCCUPIED" && (
+                {isOccupied && (
                     <div style={{
                         fontSize: "11px",
                         color: "#8a9b8c",
@@ -475,9 +566,6 @@ const Orders = () => {
                     <h2 style={{ margin: 0, color: "#2c3e2f", display: "flex", alignItems: "center", gap: "8px" }}>
                         <ClipboardList size={24} /> Quản lý bàn & phòng
                     </h2>
-                    <p style={{ margin: "8px 0 0", color: "#8a9b8c", fontSize: "14px" }}>
-                        Nhấp vào bàn/phòng để xem chi tiết hoặc thêm món
-                    </p>
                 </div>
                 <div style={{ marginTop: "12px", display: "flex", gap: "12px" }}>
                     <button
@@ -550,7 +638,7 @@ const Orders = () => {
                 </button>
             </div>
 
-            {/* Area Filter */}
+            {/* Area Filter - Chỉ hiển thị cho bàn */}
             {activeTab === "tables" && areas.length > 0 && (
                 <div style={{
                     background: "white",

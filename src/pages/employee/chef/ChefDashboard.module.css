@@ -448,40 +448,6 @@
     opacity: 0.8;
 }
 
-/* ── Refresh Section ────────────────────────────────────────── */
-.refreshSection {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.refreshBtn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 40px;
-    padding: 8px 20px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.refreshBtn:hover:not(:disabled) {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
-}
-
-.refreshBtn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
 .spinning {
     animation: spin 1s linear infinite;
 }
@@ -1021,4 +987,43 @@
     .notificationMessage {
         font-size: 12px;
     }
+}
+
+.tabsWrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 16px;
+}
+
+.tabsContainer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.refreshBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 12px 20px;
+    border: none;
+    border-radius: 12px;
+
+    background: #3b82f6;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.refreshBtn:hover {
+    background: #2563eb;
+}
+
+.refreshBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }

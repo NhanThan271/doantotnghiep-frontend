@@ -375,9 +375,7 @@ const KitchenMonitor = () => {
                         }}>
                             👨‍🍳 Theo dõi bếp
                         </h2>
-                        <p style={{ margin: '8px 0 0', color: '#64748b', fontSize: 14 }}>
-                            Danh sách đơn hàng đang chế biến (đã gộp món cùng tên & trạng thái)
-                        </p>
+
                     </div>
                     <button
                         onClick={fetchKitchenOrders}

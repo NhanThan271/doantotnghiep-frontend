@@ -362,10 +362,47 @@ const TablesPage = () => {
                             const startTime = getTableStartTime(room.id, 'room');
                             const elapsedTime = getElapsedTime(startTime);
 
+                            // Xác định class CSS dựa trên RoomStatus
                             let cardClass = styles.card;
-                            if (room.status === "FREE") cardClass += ` ${styles.cardFree}`;
-                            else if (room.status === "RESERVED") cardClass += ` ${styles.cardReserved}`;
-                            else cardClass += ` ${styles.cardOccupied}`;
+                            if (room.status === "ACTIVE") {
+                                cardClass += ` ${styles.cardFree}`;
+                            } else if (room.status === "OCCUPIED") {
+                                cardClass += ` ${styles.cardOccupied}`;
+                            } else if (room.status === "MAINTENANCE") {
+                                cardClass += ` ${styles.cardMaintenance}`;
+                            }
+
+                            // Xác định icon cho từng trạng thái
+                            const getRoomIcon = () => {
+                                if (room.status === "ACTIVE") return "🏠";
+                                if (room.status === "OCCUPIED") return "👥";
+                                if (room.status === "MAINTENANCE") return "🔧";
+                                return "🏠";
+                            };
+
+                            // Xác định text trạng thái
+                            const getRoomStatusText = () => {
+                                if (room.status === "ACTIVE") return "Trống";
+                                if (room.status === "OCCUPIED") return "Đã có khách";
+                                if (room.status === "MAINTENANCE") return "Bảo trì";
+                                return room.status;
+                            };
+
+                            // Xác định màu sắc trạng thái
+                            const getRoomStatusColor = () => {
+                                if (room.status === "ACTIVE") return "#10b981";
+                                if (room.status === "OCCUPIED") return "#ef4444";
+                                if (room.status === "MAINTENANCE") return "#6b7280";
+                                return "#6b7280";
+                            };
+
+                            // Xác định icon trạng thái
+                            const getRoomStatusIcon = () => {
+                                if (room.status === "ACTIVE") return <CheckCircle size={14} color="#10b981" />;
+                                if (room.status === "OCCUPIED") return <XCircle size={14} color="#ef4444" />;
+                                if (room.status === "MAINTENANCE") return <XCircle size={14} color="#6b7280" />;
+                                return null;
+                            };
 
                             return (
                                 <div
@@ -373,39 +410,45 @@ const TablesPage = () => {
                                     onClick={() => handleRoomClick(room)}
                                     className={cardClass}
                                 >
-                                    {room.status !== "FREE" && (
+                                    {/* Chỉ hiển thị nút "Thêm món" khi phòng đang có khách */}
+                                    {room.status === "OCCUPIED" && (
                                         <div className={styles.addButton}>
                                             <PlusCircle size={10} />
                                             Thêm món
                                         </div>
                                     )}
 
-                                    <div className={styles.cardIcon}>🏠</div>
+                                    {/* Icon chính của phòng */}
+                                    <div className={styles.cardIcon}>
+                                        {getRoomIcon()}
+                                    </div>
+
+                                    {/* Tên phòng */}
                                     <div className={styles.cardTitle}>Phòng {room.number}</div>
 
+                                    {/* Khu vực */}
                                     <div className={styles.location}>
                                         <MapPin size={12} />
                                         <span>{room.area || "Khu vực VIP"}</span>
                                     </div>
 
+                                    {/* Trạng thái đơn hàng (chờ bếp, đang chuẩn bị, hoàn thành) */}
                                     {hasOrder && orderStatus && (
                                         <div className={styles.orderStatus}>{orderStatus}</div>
                                     )}
 
+                                    {/* Trạng thái phòng */}
                                     <div className={styles.tableStatus}>
-                                        {room.status === "FREE" ? (
-                                            <CheckCircle size={14} color="#10b981" />
-                                        ) : room.status === "RESERVED" ? (
-                                            <Clock size={14} color="#f59e0b" />
-                                        ) : (
-                                            <XCircle size={14} color="#ef4444" />
-                                        )}
-                                        <span className={styles.statusText} style={{ color: getStatusColor(room.status) }}>
-                                            {getStatusText(room.status)}
+                                        {getRoomStatusIcon()}
+                                        <span
+                                            className={styles.statusText}
+                                            style={{ color: getRoomStatusColor() }}
+                                        >
+                                            {getRoomStatusText()}
                                         </span>
                                     </div>
 
-                                    {/* Hiển thị thời gian đã sử dụng cho phòng từ lúc mở */}
+                                    {/* Hiển thị thời gian đã sử dụng (chỉ khi phòng có khách) */}
                                     {room.status === "OCCUPIED" && (
                                         <div className={styles.timeInfo}>
                                             <Clock size={12} />
@@ -413,6 +456,7 @@ const TablesPage = () => {
                                         </div>
                                     )}
 
+                                    {/* Sức chứa */}
                                     <div className={styles.capacity}>
                                         <Users size={12} /> Sức chứa: {room.capacity} người
                                     </div>
