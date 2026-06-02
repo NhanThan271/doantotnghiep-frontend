@@ -8,7 +8,6 @@ export default function BranchReservationManager() {
     const [currentBranch, setCurrentBranch] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
-    const [filterDate, setFilterDate] = useState('');
     const [loading, setLoading] = useState(false);
     const [expandedReservation, setExpandedReservation] = useState(null);
 
@@ -74,7 +73,7 @@ export default function BranchReservationManager() {
             if (!response.ok) throw new Error('Không thể tải danh sách đặt bàn');
             const data = await response.json();
             // Lọc theo chi nhánh
-            const branchReservations = data.filter(r => r.branch?.id === currentBranch.id);
+            const branchReservations = data.filter(r => r.branchName === currentBranch.name);
             setReservations(branchReservations);
         } catch (error) {
             console.error('Lỗi:', error);
@@ -190,22 +189,8 @@ export default function BranchReservationManager() {
 
         const matchesStatus = filterStatus === 'all' ? true : res.status === filterStatus;
 
-        const matchesDate = !filterDate ? true :
-            new Date(res.reservationTime).toISOString().split('T')[0] === filterDate;
-
-        return matchesSearch && matchesStatus && matchesDate;
+        return matchesSearch && matchesStatus;
     });
-
-    const getToday = () => {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-    };
-    useEffect(() => {
-        setFilterDate(getToday());
-    }, []);
 
     // Thống kê
     const stats = {
@@ -242,15 +227,6 @@ export default function BranchReservationManager() {
                             )}
                         </p>
                     </div>
-
-                    <button
-                        onClick={fetchReservations}
-                        disabled={loading}
-                        className={`${styles.refreshButton} ${loading ? styles.refreshButtonDisabled : ''}`}
-                    >
-                        <RefreshCw size={18} className={loading ? styles.spinIcon : ''} />
-                        Làm mới
-                    </button>
                 </div>
 
                 {/* Stats Cards */}
@@ -310,14 +286,6 @@ export default function BranchReservationManager() {
                     </div>
 
                     <div style={{ display: 'flex', gap: '12px' }}>
-                        <input
-                            type="date"
-                            value={filterDate}
-                            onChange={(e) => setFilterDate(e.target.value)}
-                            className={styles.filterSelect}
-                            style={{ width: '180px', background: 'rgb(243, 244, 246)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
-                        />
-
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
@@ -346,188 +314,175 @@ export default function BranchReservationManager() {
             </div>
 
             {/* Reservations List */}
-            <div style={{ marginTop: '16px' }}>
-                {filteredReservations.length === 0 ? (
-                    <div className={styles.tableCard}>
-                        <div className={styles.emptyState} style={{ padding: '60px 20px' }}>
-                            <Calendar size={48} className={styles.emptyIcon} />
-                            <p>Không tìm thấy đặt bàn nào</p>
-                        </div>
-                    </div>
-                ) : (
-                    <div style={{ display: 'grid', gap: '16px' }}>
-                        {filteredReservations.map((reservation) => {
-                            const isExpanded = expandedReservation === reservation.id;
-                            const reservationDate = new Date(reservation.reservationTime);
+            {filteredReservations.map((reservation) => {
+                const isExpanded = expandedReservation === reservation.id;
+                const reservationDate = new Date(reservation.checkInTime);
 
-                            return (
-                                <div key={reservation.id} className={styles.tableCard}>
-                                    <div
-                                        style={{
-                                            padding: '20px',
-                                            cursor: 'pointer',
-                                            borderBottom: isExpanded ? '1px solid var(--color-border)' : 'none'
-                                        }}
-                                        onClick={() => setExpandedReservation(isExpanded ? null : reservation.id)}
-                                    >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                                                    <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0 }}>
-                                                        {reservation.customerName}
-                                                    </h3>
-                                                    <span className={
-                                                        reservation.status === 'PENDING' ? styles.badgePending :
-                                                            reservation.status === 'CONFIRMED' ? styles.badgeSuccess :
-                                                                reservation.status === 'CANCELLED' ? styles.badgeDanger :
-                                                                    styles.badgeWarning
-                                                    }>
-                                                        {reservation.status === 'PENDING' ? 'Chờ xác nhận' :
-                                                            reservation.status === 'CONFIRMED' ? 'Đã xác nhận' :
-                                                                reservation.status === 'CANCELLED' ? 'Đã hủy' : 'Hoàn thành'}
-                                                    </span>
-                                                </div>
+                return (
+                    <div key={reservation.id} className={styles.tableCard}
+                        style={{ marginBottom: 0, transition: 'box-shadow 0.2s' }}>
 
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <Phone size={16} />
-                                                        {reservation.phone}
-                                                    </div>
-                                                    {reservation.email && (
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <Mail size={16} />
-                                                            {reservation.email}
-                                                        </div>
-                                                    )}
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <Calendar size={16} />
-                                                        {reservationDate.toLocaleDateString('vi-VN')} {reservationDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <Users size={16} />
-                                                        {reservation.guestCount} người
-                                                    </div>
-                                                    {reservation.table && (
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <MapPin size={16} />
-                                                            Bàn {reservation.table.number} - {reservation.table.area}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                        {/* ── HEADER CARD ── */}
+                        <div
+                            onClick={() => setExpandedReservation(isExpanded ? null : reservation.id)}
+                            style={{
+                                padding: '16px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14,
+                                borderBottom: isExpanded ? '1px solid var(--color-border)' : 'none'
+                            }}
+                        >
+                            {/* Avatar */}
+                            <div style={{
+                                width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                                background: 'linear-gradient(135deg, #E07B39, #B85C1E)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontWeight: 700, fontSize: 17, color: '#fff'
+                            }}>
+                                {reservation.customerName?.[0]?.toUpperCase() || '?'}
+                            </div>
 
-                                            <div>
-                                                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                                            </div>
-                                        </div>
-                                    </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                {/* Tên + badge */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-secondary)' }}>
+                                        {reservation.customerName}
+                                    </span>
+                                    <span className={
+                                        reservation.status === 'PENDING' ? styles.badgePending :
+                                            reservation.status === 'CONFIRMED' ? styles.badgeSuccess :
+                                                reservation.status === 'CANCELLED' ? styles.badgeDanger :
+                                                    styles.badgeWarning
+                                    }>
+                                        {reservation.status === 'PENDING' ? 'Chờ xác nhận' :
+                                            reservation.status === 'CONFIRMED' ? '✓ Đã xác nhận' :
+                                                reservation.status === 'CANCELLED' ? '✕ Đã hủy' : 'Hoàn thành'}
+                                    </span>
+                                </div>
 
-                                    {isExpanded && (
-                                        <div style={{ padding: '20px', backgroundColor: 'var(--color-background-secondary)' }}>
-                                            {reservation.notes && (
-                                                <div style={{ marginBottom: '16px' }}>
-                                                    <strong style={{ fontSize: '14px' }}>Ghi chú:</strong>
-                                                    <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-                                                        {reservation.notes}
-                                                    </p>
-                                                </div>
-                                            )}
-
-                                            {reservation.status === 'PENDING' && (
-                                                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                                                    <button
-                                                        onClick={() => updateReservationStatus(reservation.id, 'CANCELLED')}
-                                                        className={styles.dangerButton}
-                                                        disabled={loading}
-                                                    >
-                                                        <XCircle size={18} />
-                                                        Hủy đặt bàn
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedReservation(reservation);
-                                                            setShowAssignModal(true);
-                                                        }}
-                                                        className={styles.successButton}
-                                                        disabled={loading}
-                                                    >
-                                                        <CheckCircle size={18} />
-                                                        Xác nhận & Gán bàn
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
+                                {/* Info row */}
+                                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                                    {reservation.phone && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                            <Phone size={13} /> {reservation.phone}
+                                        </span>
+                                    )}
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                        <Calendar size={13} />
+                                        {reservationDate.toLocaleDateString('vi-VN')} {reservationDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    {reservation.guestCount && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                            <Users size={13} /> {reservation.guestCount} người
+                                        </span>
+                                    )}
+                                    {reservation.tableNumber && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                            <MapPin size={13} /> Bàn {reservation.tableNumber}
+                                        </span>
+                                    )}
+                                    {reservation.roomNumber && (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                            <MapPin size={13} /> Phòng {reservation.roomNumber}
+                                        </span>
                                     )}
                                 </div>
-                            );
-                        })}
+                            </div>
+
+                            <div style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }}>
+                                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                            </div>
+                        </div>
+
+                        {/* ── EXPANDED ── */}
+                        {isExpanded && (
+                            <div style={{ padding: '16px 20px', background: 'rgba(0,0,0,0.05)' }}>
+                                {reservation.email && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
+                                        <Mail size={14} /> {reservation.email}
+                                    </div>
+                                )}
+                                {reservation.notes && (
+                                    <div style={{ padding: '10px 14px', background: 'rgba(224,123,57,0.08)', borderLeft: '3px solid #E07B39', borderRadius: 6, fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
+                                        <strong>Ghi chú:</strong> {reservation.notes}
+                                    </div>
+                                )}
+                                {reservation.status === 'PENDING' && (
+                                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); updateReservationStatus(reservation.id, 'CANCELLED'); }}
+                                            className={styles.buttonDanger}
+                                            disabled={loading}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                                        >
+                                            <XCircle size={16} /> Hủy đặt bàn
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setSelectedReservation(reservation); setShowAssignModal(true); }}
+                                            className={styles.buttonSuccess}
+                                            disabled={loading}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                                        >
+                                            <CheckCircle size={16} /> Xác nhận & Gán bàn
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
+                );
+            })}
 
             {/* Modal Gán bàn */}
             {showAssignModal && selectedReservation && (
                 <div className={styles.modalOverlay} onClick={() => setShowAssignModal(false)}>
-                    <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                        <div className={styles.modalHeader}>
-                            <h3 className={styles.modalTitle}>
-                                <MapPin size={24} />
-                                Gán bàn cho {selectedReservation.customerName}
+                    <div onClick={e => e.stopPropagation()} style={{
+                        background: '#fff', borderRadius: 16, padding: 28,
+                        width: '100%', maxWidth: 420,
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#1f2937' }}>
+                                Gán bàn cho khách
                             </h3>
-                            <button
-                                onClick={() => setShowAssignModal(false)}
-                                className={styles.modalClose}
-                            >
-                                ✕
-                            </button>
+                            <button onClick={() => setShowAssignModal(false)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#9ca3af' }}>✕</button>
                         </div>
 
-                        <div className={styles.modalBody}>
-                            <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: 'var(--color-background-secondary)', borderRadius: '8px' }}>
-                                <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-                                    <div><strong>Số người:</strong> {selectedReservation.guestCount}</div>
-                                    <div><strong>Thời gian:</strong> {new Date(selectedReservation.reservationTime).toLocaleString('vi-VN')}</div>
-                                </div>
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Chọn bàn *</label>
-                                <select
-                                    value={selectedTableId}
-                                    onChange={(e) => setSelectedTableId(e.target.value)}
-                                    className={styles.formInput}
-                                >
-                                    <option value="">-- Chọn bàn --</option>
-                                    {tables
-                                        .filter(t => t.status === 'FREE' && t.capacity >= selectedReservation.guestCount)
-                                        .map(table => (
-                                            <option key={table.id} value={table.id}>
-                                                Bàn {table.number} - {table.area} (Sức chứa: {table.capacity})
-                                            </option>
-                                        ))}
-                                </select>
-                                {availableTables.length === 0 && (
-                                    <small style={{ color: 'var(--color-danger)', fontSize: '12px' }}>
-                                        Không có bàn trống phù hợp
-                                    </small>
-                                )}
+                        {/* Thông tin khách */}
+                        <div style={{ background: '#fef3c7', borderRadius: 10, padding: '12px 16px', marginBottom: 20, border: '1px solid #fcd34d' }}>
+                            <div style={{ fontWeight: 700, color: '#1f2937', marginBottom: 4 }}>{selectedReservation.customerName}</div>
+                            <div style={{ fontSize: 13, color: '#6b7280', display: 'flex', gap: 16 }}>
+                                <span><Users size={12} style={{ verticalAlign: 'middle' }} /> {selectedReservation.guestCount} người</span>
+                                <span><Clock size={12} style={{ verticalAlign: 'middle' }} /> {new Date(selectedReservation.checkInTime).toLocaleString('vi-VN')}</span>
                             </div>
                         </div>
 
-                        <div className={styles.modalFooter}>
-                            <button
-                                onClick={() => setShowAssignModal(false)}
-                                className={styles.secondaryButton}
-                            >
-                                Hủy
-                            </button>
+                        <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Chọn bàn *</label>
+                        <select
+                            value={selectedTableId}
+                            onChange={e => setSelectedTableId(e.target.value)}
+                            style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 14, marginBottom: 6, background: '#f9fafb', color: '#1f2937', outline: 'none', boxSizing: 'border-box' }}
+                        >
+                            <option value="">-- Chọn bàn trống --</option>
+                            {tables.filter(t => t.status === 'FREE' && t.capacity >= selectedReservation.guestCount).map(t => (
+                                <option key={t.id} value={t.id}>Bàn {t.number} — {t.area} (Sức chứa: {t.capacity})</option>
+                            ))}
+                        </select>
+                        {availableTables.length === 0 && (
+                            <p style={{ fontSize: 12, color: '#ef4444', margin: '0 0 12px' }}>Không có bàn trống phù hợp</p>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                            <button onClick={() => setShowAssignModal(false)} className={styles.secondaryButton} style={{ flex: 1 }}>Hủy</button>
                             <button
                                 onClick={handleAssignTable}
-                                className={styles.successButton}
                                 disabled={loading || !selectedTableId}
+                                style={{
+                                    flex: 2, padding: '11px', border: 'none', borderRadius: 10, cursor: selectedTableId ? 'pointer' : 'not-allowed',
+                                    background: selectedTableId ? 'linear-gradient(135deg, #E07B39, #B85C1E)' : '#e5e7eb',
+                                    color: selectedTableId ? '#fff' : '#9ca3af', fontWeight: 700, fontSize: 14
+                                }}
                             >
-                                <CheckCircle size={18} />
-                                {loading ? 'Đang xử lý...' : 'Xác nhận'}
+                                {loading ? 'Đang xử lý...' : '✓ Xác nhận gán bàn'}
                             </button>
                         </div>
                     </div>

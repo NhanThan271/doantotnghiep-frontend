@@ -53,7 +53,6 @@ export default function ManagerRoomManagement() {
     // Fetch rooms by branch
     const fetchRooms = async () => {
         if (!currentBranch?.id) return;
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(
@@ -67,8 +66,6 @@ export default function ManagerRoomManagement() {
         } catch (error) {
             console.error('Lỗi khi tải danh sách phòng:', error);
             alert('Không thể tải danh sách phòng. Vui lòng thử lại.');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -98,7 +95,10 @@ export default function ManagerRoomManagement() {
     }, []);
 
     useEffect(() => {
-        if (currentBranch) fetchRooms();
+        const interval = setInterval(() => {
+            if (currentBranch) fetchRooms();
+        }, 300); 
+        return () => clearInterval(interval);
     }, [currentBranch]);
 
     // Filter rooms
@@ -172,14 +172,6 @@ export default function ManagerRoomManagement() {
                             </p>
                         )}
                     </div>
-                    <button
-                        onClick={fetchRooms}
-                        disabled={loading}
-                        className={`${styles.refreshButton} ${loading ? styles.refreshButtonDisabled : ''}`}
-                    >
-                        <RefreshCw size={18} className={loading ? styles.spinIcon : ''} />
-                        Làm mới
-                    </button>
                 </div>
 
                 {/* Stats */}

@@ -22,6 +22,13 @@ export default function BranchDashboard() {
         fetchBranchData();
     }, []);
 
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchBranchData();
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
     const fetchBranchData = async () => {
         setLoading(true);
         setError(null);
@@ -403,31 +410,6 @@ export default function BranchDashboard() {
                             Theo dõi hoạt động chi nhánh của bạn
                         </p>
                     </div>
-                    <button
-                        onClick={fetchBranchData}
-                        style={{
-                            padding: '10px 20px',
-                            background: 'rgba(139, 92, 246, 0.1)',
-                            border: '1px solid rgba(139, 92, 246, 0.3)',
-                            borderRadius: '8px',
-                            color: '#8B5CF6',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)';
-                        }}
-                    >
-                        🔄 Làm mới
-                    </button>
                 </div>
             </div>
 
