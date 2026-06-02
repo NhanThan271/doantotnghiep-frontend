@@ -456,6 +456,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                             />
                             <input
                                 type={showPassword ? 'text' : 'password'}
+                                autoComplete="new-password"
                                 placeholder="Nhập mật khẩu"
                                 value={formData.password}
                                 onChange={(e) => handleChange('password', e.target.value)}
@@ -551,6 +552,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                 />
                                 <input
                                     type="email"
+                                    autoComplete="new-email"
                                     placeholder="email@example.com"
                                     value={formData.email}
                                     onChange={(e) => handleChange('email', e.target.value)}
