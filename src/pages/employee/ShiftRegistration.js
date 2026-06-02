@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     Container, Row, Col, Card, Button, Badge, Spinner,
-    Alert, Modal, Form, ListGroup, Tabs, Tab
+    Alert, Modal, Form, ListGroup, Tabs, Tab, ProgressBar
 } from 'react-bootstrap';
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
@@ -66,798 +66,570 @@ const AttendanceBadge = ({ status, checkIn, checkOut }) => {
     return <Badge bg="secondary" className="px-3 py-2">⏳ Chưa check-in</Badge>;
 };
 
+// ========== SHIFT CARD COMPONENT ==========
+const ShiftCard = ({ shift, assignedCount, requiredStaff, maxStaff, registered, onRegister, registering, showRegister = true }) => {
+    const filled = requiredStaff > 0 ? Math.min(100, (assignedCount / requiredStaff) * 100) : 0;
+    const isFull = assignedCount >= requiredStaff;
+    const isOver = assignedCount > requiredStaff;
+
+    let statusColor = '#e9ecef';
+    let statusText = '';
+    let progressVariant = 'secondary';
+
+    if (assignedCount === 0) {
+        statusColor = '#dc3545';
+        statusText = 'Chưa có ai';
+        progressVariant = 'danger';
+    } else if (isFull && !isOver) {
+        statusColor = '#28a745';
+        statusText = 'Đã đủ';
+        progressVariant = 'success';
+    } else if (isOver) {
+        statusColor = '#17a2b8';
+        statusText = 'Đã đủ (dư)';
+        progressVariant = 'info';
+    } else {
+        statusColor = '#ffc107';
+        statusText = `Thiếu ${requiredStaff - assignedCount} người`;
+        progressVariant = 'warning';
+    }
+
+    return (
+        <Card className="shift-card mb-3" style={{
+            borderLeft: `4px solid ${statusColor}`,
+            borderRadius: '12px',
+            transition: 'all 0.3s ease',
+            backgroundColor: registered ? '#f0fff4' : 'white'
+        }}>
+            <Card.Body className="py-3 px-4">
+                <div className="d-flex justify-content-between align-items-center">
+                    <div className="flex-grow-1">
+                        <div className="d-flex align-items-center gap-2 mb-2">
+                            <h6 className="mb-0 fw-bold">{shift.name || 'Ca'}</h6>
+                            {shift.shiftAllowance > 0 && (
+                                <Badge bg="warning" text="dark" className="px-2">
+                                    💰 +{formatCurrency(shift.shiftAllowance)}
+                                </Badge>
+                            )}
+                            {registered && (
+                                <Badge bg="success" className="px-2">✅ Đã đăng ký</Badge>
+                            )}
+                        </div>
+
+                        <div className="d-flex align-items-center gap-3 text-muted small mb-2">
+                            <span>
+                                <i className="ti ti-clock me-1"></i>
+                                {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
+                            </span>
+                            {shift.workingHours && (
+                                <span>
+                                    <i className="ti ti-hourglass me-1"></i>
+                                    {shift.workingHours}h
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="d-flex align-items-center gap-2">
+                            <div style={{ width: '120px' }}>
+                                <ProgressBar
+                                    now={filled}
+                                    variant={progressVariant}
+                                    style={{ height: '8px', borderRadius: '4px' }}
+                                />
+                            </div>
+                            <Badge bg={isFull ? 'success' : 'warning'} className="px-2">
+                                {assignedCount}/{requiredStaff}
+                            </Badge>
+                            <small className="text-muted">{statusText}</small>
+                        </div>
+                    </div>
+
+                    {showRegister && (
+                        <Button
+                            variant={registered ? 'outline-success' : 'primary'}
+                            size="sm"
+                            className="px-4 rounded-pill"
+                            disabled={registered || isFull || registering}
+                            onClick={onRegister}
+                            style={{ minWidth: '100px' }}
+                        >
+                            {registering ? (
+                                <Spinner size="sm" />
+                            ) : registered ? (
+                                'Đã đăng ký'
+                            ) : isFull ? (
+                                'Đã đủ'
+                            ) : (
+                                'Đăng ký'
+                            )}
+                        </Button>
+                    )}
+                </div>
+            </Card.Body>
+        </Card>
+    );
+};
+
 // ========== MAIN COMPONENT ==========
 const ShiftRegistration = () => {
-    // ===== USER STATE =====
     const [staffId, setStaffId] = useState(null);
     const [staffInfo, setStaffInfo] = useState(null);
     const [branchId, setBranchId] = useState(null);
     const [loadingUser, setLoadingUser] = useState(true);
     const [error, setError] = useState(null);
 
-    // ===== SHIFT STATE =====
-    const [shifts, setShifts] = useState([]); // Danh sách loại ca (Sáng, Chiều, Tối)
-    const [staffShifts, setStaffShifts] = useState([]); // Ca đã đăng ký của ngày đang chọn
-    const [shiftSchedules, setShiftSchedules] = useState([]); // Ca có sẵn của ngày đang chọn
+    const [shifts, setShifts] = useState([]);
+    const [staffShifts, setStaffShifts] = useState([]); // Ca của CHÍNH MÌNH
+    const [allDayShifts, setAllDayShifts] = useState([]); // TẤT CẢ ca trong ngày
+    const [shiftSchedules, setShiftSchedules] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [viewMode, setViewMode] = useState('list');
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
-    // ===== MODAL STATE =====
-    const [showRegisterModal, setShowRegisterModal] = useState(false);
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedStaffShift, setSelectedStaffShift] = useState(null);
     const [registeringShiftId, setRegisteringShiftId] = useState(null);
     const [cancellingShiftId, setCancellingShiftId] = useState(null);
 
-    // ===== ATTENDANCE STATE =====
     const [checkingIn, setCheckingIn] = useState(false);
     const [checkingOut, setCheckingOut] = useState(false);
     const [todayAttendance, setTodayAttendance] = useState(null);
     const [attendanceLoading, setAttendanceLoading] = useState(false);
 
-    // ===== STATS STATE =====
     const [monthlyStats, setMonthlyStats] = useState(null);
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-    // ===== CACHE STATE =====
-    const [allMonthShifts, setAllMonthShifts] = useState([]); // TẤT CẢ ca đã đăng ký
-    const [allMonthSchedules, setAllMonthSchedules] = useState([]); // TẤT CẢ lịch ca
+    const [allMonthShifts, setAllMonthShifts] = useState([]);
+    const [allMonthSchedules, setAllMonthSchedules] = useState([]);
     const [preloading, setPreloading] = useState(false);
     const cacheRef = useRef({});
 
-    // ==========================================
-    // 1. INIT USER DATA
-    // ==========================================
-    useEffect(() => {
-        initUserData();
-    }, []);
+    // ========== INIT USER ==========
+    useEffect(() => { initUserData(); }, []);
 
     const initUserData = async () => {
         setLoadingUser(true);
-        setError(null);
         try {
-            const storedUser = localStorage.getItem('user');
-            let localData = {};
-            if (storedUser) {
-                localData = JSON.parse(storedUser);
-                console.log('📦 localStorage:', localData);
-            }
-
+            const stored = JSON.parse(localStorage.getItem('user') || '{}');
             let apiData = {};
-            try {
-                const res = await axiosClient.get('/auth/me');
-                apiData = res.data;
-                console.log('✅ /auth/me:', apiData);
-            } catch (err) {
-                console.warn('⚠️ /auth/me failed');
-            }
+            try { const res = await axiosClient.get('/auth/me'); apiData = res.data; } catch (e) { }
+            const data = { ...stored, ...apiData };
 
-            const data = { ...localData, ...apiData };
+            let bid = data.branchId || data.branch?.id || data.branch;
+            let bname = data.branchName || data.branch?.name || 'N/A';
+            let sid = data.staffId || null;
 
-            let extractedBranchId = data.branchId || data.branch?.id || (typeof data.branch === 'number' ? data.branch : null);
-            let branchName = data.branchName || data.branch?.name || 'N/A';
-            let fullName = data.fullName || data.username || 'N/A';
-            let position = data.position || null;
-            let extractedStaffId = data.staffId || data.staff?.id || null;
-
-            // Tìm staffId nếu chưa có
-            if (!extractedStaffId && extractedBranchId && data.id) {
-                console.log('🔍 Finding staff from branch API...');
+            if (!sid && bid && data.id) {
                 try {
-                    const res = await axiosClient.get(`/staff/branch/${extractedBranchId}`);
+                    const res = await axiosClient.get(`/staff/branch/${bid}`);
                     const found = res.data.find(s => (s.userId || s.user?.id) === data.id);
-                    if (found) {
-                        extractedStaffId = found.id;
-                        position = position || found.position;
-                        console.log('✅ Found staff:', found);
-                    }
-                } catch (e) {
-                    console.warn('⚠️ Branch API failed, using userId');
-                    extractedStaffId = data.id;
-                }
+                    sid = found?.id || data.id;
+                } catch (e) { sid = data.id; }
             }
-            if (!extractedStaffId && data.id) extractedStaffId = data.id;
+            if (!sid) sid = data.id;
 
-            console.log('🆔 Staff ID:', extractedStaffId);
-            console.log('🏢 Branch ID:', extractedBranchId);
-
-            if (!extractedBranchId) {
-                setError('Không tìm thấy thông tin chi nhánh.');
-                setLoadingUser(false);
-                return;
-            }
-
-            setStaffId(extractedStaffId);
-            setBranchId(extractedBranchId);
+            setStaffId(sid); setBranchId(bid);
             setStaffInfo({
-                id: extractedStaffId,
-                position,
-                user: { id: data.id, fullName, username: data.username, email: data.email, phone: data.phone },
-                branch: { id: extractedBranchId, name: branchName }
+                id: sid, position: data.position,
+                user: { id: data.id, fullName: data.fullName || data.username },
+                branch: { id: bid, name: bname }
             });
-
-            localStorage.setItem('user', JSON.stringify({ ...data, staffId: extractedStaffId, branchId: extractedBranchId, position }));
-
-        } catch (err) {
-            console.error('❌ Init error:', err);
-            setError('Không thể tải thông tin.');
-        } finally {
-            setLoadingUser(false);
-        }
+        } catch (e) { setError('Lỗi tải thông tin'); }
+        finally { setLoadingUser(false); }
     };
 
-    // ==========================================
-    // 2. FETCH ALL SHIFTS (loại ca)
-    // ==========================================
-    useEffect(() => {
-        axiosClient.get('/shifts')
-            .then(res => {
-                console.log('✅ Shifts loaded:', res.data.length);
-                setShifts(res.data);
-            })
-            .catch(err => console.error('❌ Shifts error:', err));
-    }, []);
+    // ========== FETCH SHIFTS ==========
+    useEffect(() => { axiosClient.get('/shifts').then(r => setShifts(r.data)).catch(() => { }); }, []);
 
-    // ==========================================
-    // 3. LOAD MONTH DATA
-    // ==========================================
-    useEffect(() => {
-        if (staffId && branchId) {
-            preloadMonthData(currentMonth);
-        }
-    }, [staffId, branchId, currentMonth]);
+    // ========== LOAD MONTH DATA ==========
+    useEffect(() => { if (staffId && branchId) preloadMonthData(currentMonth); }, [staffId, branchId, currentMonth]);
 
     const preloadMonthData = useCallback(async (date) => {
-        if (!staffId || !branchId) {
-            console.warn('⚠️ Missing staffId or branchId', { staffId, branchId });
-            return;
-        }
-
-        const monthKey = moment(date).format('YYYY-MM');
-        const cached = cacheRef.current[monthKey];
-
-        if (cached && (Date.now() - cached.timestamp) < 5 * 60 * 1000) {
-            console.log('📦 Using cache for', monthKey);
-            setAllMonthShifts(cached.data.shifts || []);
-            setAllMonthSchedules(cached.data.schedules || []);
-            return;
-        }
-
+        if (!staffId || !branchId) return;
         setPreloading(true);
         try {
-            console.log('🔄 Loading month data...');
-            console.log('📡 GET /staff-shifts/staff/' + staffId);
-            console.log('📡 GET /shift-schedules/branch/' + branchId);
-
-            const [shiftsRes, schedulesRes] = await Promise.all([
-                axiosClient.get(`/staff-shifts/staff/${staffId}`).catch(e => {
-                    console.warn('⚠️ staff-shifts error:', e.response?.status);
-                    return { data: [] };
-                }),
-                axiosClient.get(`/shift-schedules/branch/${branchId}`).catch(e => {
-                    console.warn('⚠️ schedules error:', e.response?.status);
-                    return { data: [] };
-                })
+            const [ss, sc] = await Promise.all([
+                axiosClient.get(`/staff-shifts/staff/${staffId}`).catch(() => ({ data: [] })),
+                axiosClient.get(`/shift-schedules/branch/${branchId}`).catch(() => ({ data: [] }))
             ]);
-
-            console.log('✅ My shifts:', shiftsRes.data?.length || 0, 'records');
-            console.log('✅ Schedules:', schedulesRes.data?.length || 0, 'records');
-
-            if (schedulesRes.data?.length > 0) {
-                console.log('📋 Sample schedule:', JSON.stringify(schedulesRes.data[0], null, 2));
-            } else {
-                console.warn('⚠️ NO SCHEDULES FOUND for branch:', branchId);
-            }
-
-            setAllMonthShifts(shiftsRes.data || []);
-            setAllMonthSchedules(schedulesRes.data || []);
-
-            cacheRef.current[monthKey] = {
-                data: { shifts: shiftsRes.data || [], schedules: schedulesRes.data || [] },
-                timestamp: Date.now()
-            };
-        } catch (err) {
-            console.error('❌ Preload error:', err);
-        } finally {
-            setPreloading(false);
-        }
+            setAllMonthShifts(ss.data || []);
+            setAllMonthSchedules(sc.data || []);
+        } catch (e) { } finally { setPreloading(false); }
     }, [staffId, branchId]);
 
-    // ==========================================
-    // 4. LOAD DAY DATA (DÙNG allMonthSchedules)
-    // ==========================================
+    // ========== LOAD DAY DATA ==========
     const loadDayData = useCallback(async (date) => {
         if (!staffId) return;
         setSelectedDate(date);
-        const dateStr = moment(date).format('YYYY-MM-DD');
-
-        console.log('📅 Loading day:', dateStr);
-        console.log('📋 allMonthSchedules count:', allMonthSchedules.length);
-
+        const ds = moment(date).format('YYYY-MM-DD');
         setLoading(true);
         try {
-            // Lấy ca đã đăng ký từ API
-            const ssRes = await axiosClient.get('/staff-shifts/staff-date', {
-                params: { staffId, date: dateStr }
-            }).catch(() => ({ data: [] }));
+            // Lấy ca của CHÍNH MÌNH + TẤT CẢ ca trong ngày
+            const [myRes, allRes] = await Promise.all([
+                axiosClient.get('/staff-shifts/staff-date', { params: { staffId, date: ds } }).catch(() => ({ data: [] })),
+                axiosClient.get('/staff-shifts/date', { params: { date: ds } }).catch(() => ({ data: [] }))
+            ]);
 
-            // LỌC schedules từ allMonthSchedules
             const filtered = allMonthSchedules.filter(s => {
-                const sDate = s.workDay || s.work_day;
-                return sDate === dateStr || moment(sDate).format('YYYY-MM-DD') === dateStr;
+                const sd = s.workDay || s.work_day;
+                return sd === ds || moment(sd).format('YYYY-MM-DD') === ds;
             });
 
-            console.log('✅ Staff shifts for date:', ssRes.data?.length || 0);
-            console.log('✅ Filtered schedules:', filtered.length);
-            if (filtered.length > 0) console.log('📋 Filtered:', filtered);
-
-            setStaffShifts(ssRes.data || []);
+            setStaffShifts(myRes.data || []);
+            setAllDayShifts(allRes.data || []); // Lưu TẤT CẢ shifts trong ngày
             setShiftSchedules(filtered || []);
-
-        } catch (err) {
-            console.error('❌ loadDayData error:', err);
-            showToast('error', 'Lỗi', 'Không thể tải dữ liệu');
-        } finally {
-            setLoading(false);
-        }
+        } catch (e) { } finally { setLoading(false); }
     }, [staffId, allMonthSchedules]);
 
-    // Tự động load ngày hiện tại khi allMonthSchedules thay đổi
-    useEffect(() => {
-        if (allMonthSchedules.length > 0 || allMonthShifts.length > 0) {
-            loadDayData(selectedDate);
-        }
-    }, [allMonthSchedules, allMonthShifts]);
+    useEffect(() => { if (allMonthSchedules.length > 0) loadDayData(selectedDate); }, [allMonthSchedules]);
 
-    // ==========================================
-    // 5. MONTHLY STATS
-    // ==========================================
+    // ========== STATS ==========
     const fetchMonthlyStats = useCallback(() => {
         if (!staffId) return;
-        axiosClient.get(`/attendance/monthly/${staffId}`, {
-            params: { month: selectedMonth, year: selectedYear }
-        })
-            .then(res => setMonthlyStats(res.data))
-            .catch(() => { });
+        axiosClient.get(`/attendance/monthly/${staffId}`, { params: { month: selectedMonth, year: selectedYear } })
+            .then(r => setMonthlyStats(r.data)).catch(() => { });
     }, [staffId, selectedMonth, selectedYear]);
+    useEffect(() => { fetchMonthlyStats(); }, [fetchMonthlyStats]);
 
-    useEffect(() => {
-        fetchMonthlyStats();
-    }, [fetchMonthlyStats]);
-
-    // ==========================================
-    // 6. REGISTER
-    // ==========================================
-    const handleRegisterShift = async (shiftId) => {
+    // ========== REGISTER ==========
+    const handleRegister = async (shiftId) => {
         setRegisteringShiftId(shiftId);
         try {
-            await axiosClient.post('/staff-shifts', null, {
-                params: { staffId, shiftId, workDay: moment(selectedDate).format('YYYY-MM-DD') }
-            });
+            await axiosClient.post('/staff-shifts', null, { params: { staffId, shiftId, workDay: moment(selectedDate).format('YYYY-MM-DD') } });
             showToast('success', 'Thành công', '🎉 Đăng ký ca thành công!');
-            setShowRegisterModal(false);
             preloadMonthData(currentMonth);
             loadDayData(selectedDate);
         } catch (err) {
             showToast('error', 'Lỗi', err.response?.data?.message || 'Không thể đăng ký');
-        } finally {
-            setRegisteringShiftId(null);
-        }
+        } finally { setRegisteringShiftId(null); }
     };
 
-    // ==========================================
-    // 7. CANCEL
-    // ==========================================
-    const handleCancelRegistration = async (staffShiftId) => {
-        if (!window.confirm('Bạn có chắc muốn hủy?')) return;
-        setCancellingShiftId(staffShiftId);
+    // ========== CANCEL ==========
+    const handleCancel = async (id) => {
+        if (!window.confirm('Hủy đăng ký?')) return;
+        setCancellingShiftId(id);
         try {
-            await axiosClient.delete(`/staff-shifts/${staffShiftId}`);
-            showToast('success', 'Thành công', '✅ Đã hủy đăng ký');
+            await axiosClient.delete(`/staff-shifts/${id}`);
+            showToast('success', 'Thành công', '✅ Đã hủy!');
             setShowDetailModal(false);
             preloadMonthData(currentMonth);
             loadDayData(selectedDate);
-        } catch (err) {
-            showToast('error', 'Lỗi', 'Không thể hủy');
-        } finally {
-            setCancellingShiftId(null);
-        }
+        } catch (err) { showToast('error', 'Lỗi', 'Không thể hủy'); }
+        finally { setCancellingShiftId(null); }
     };
 
-    // ==========================================
-    // 8. OPEN DETAIL + LOAD ATTENDANCE
-    // ==========================================
-    const openShiftDetail = (staffShift) => {
-        console.log('📋 Opening detail:', staffShift);
-        setSelectedStaffShift(staffShift);
+    // ========== DETAIL + ATTENDANCE ==========
+    const openDetail = (ss) => {
+        setSelectedStaffShift(ss);
         setTodayAttendance(null);
         setShowDetailModal(true);
-
         const today = moment().format('YYYY-MM-DD');
-        const shiftDate = moment(staffShift.workDay).format('YYYY-MM-DD');
-
-        if (today === shiftDate) {
-            const schedule = allMonthSchedules.find(s => {
-                const sDate = s.workDay || s.work_day;
-                const sShiftId = s.shift?.id || s.shiftId;
-                const ssShiftId = staffShift.shift?.id || staffShift.shiftId;
-                return sShiftId === ssShiftId &&
-                    (sDate === shiftDate || moment(sDate).format('YYYY-MM-DD') === shiftDate);
+        const sd = moment(ss.workDay).format('YYYY-MM-DD');
+        if (today === sd) {
+            const sc = allMonthSchedules.find(s => {
+                return (s.shift?.id || s.shiftId) === (ss.shift?.id || ss.shiftId) &&
+                    ((s.workDay || s.work_day) === sd || moment(s.workDay || s.work_day).format('YYYY-MM-DD') === sd);
             });
-
-            console.log('🔍 Schedule for attendance:', schedule);
-            if (schedule) {
-                fetchTodayAttendance(schedule.id);
-            }
+            if (sc) fetchAttendance(sc.id);
         }
     };
 
-    // ==========================================
-    // 9. FETCH ATTENDANCE
-    // ==========================================
-    const fetchTodayAttendance = async (shiftScheduleId) => {
-        if (!staffId || !shiftScheduleId) return;
-        console.log('📡 GET /attendance/today/' + staffId + '?shiftScheduleId=' + shiftScheduleId);
+    const fetchAttendance = async (scheduleId) => {
         setAttendanceLoading(true);
         try {
-            const res = await axiosClient.get(`/attendance/today/${staffId}`, {
-                params: { shiftScheduleId }
-            });
-            console.log('✅ Attendance:', res.data);
+            const res = await axiosClient.get(`/attendance/today/${staffId}`, { params: { shiftScheduleId: scheduleId } });
             setTodayAttendance(res.data);
-        } catch (err) {
-            console.warn('⚠️ No attendance:', err.response?.status);
-            setTodayAttendance(null);
-        } finally {
-            setAttendanceLoading(false);
-        }
+        } catch (e) { setTodayAttendance(null); }
+        finally { setAttendanceLoading(false); }
     };
 
-    // ==========================================
-    // 10. CHECK-IN
-    // ==========================================
     const handleCheckIn = async () => {
-        if (!staffId || !selectedStaffShift) return;
-
-        const shiftDate = moment(selectedStaffShift.workDay).format('YYYY-MM-DD');
-        const schedule = allMonthSchedules.find(s => {
-            const sDate = s.workDay || s.work_day;
-            const sShiftId = s.shift?.id || s.shiftId;
-            const ssShiftId = selectedStaffShift.shift?.id || selectedStaffShift.shiftId;
-            return sShiftId === ssShiftId &&
-                (sDate === shiftDate || moment(sDate).format('YYYY-MM-DD') === shiftDate);
+        const sd = moment(selectedStaffShift.workDay).format('YYYY-MM-DD');
+        const sc = allMonthSchedules.find(s => {
+            return (s.shift?.id || s.shiftId) === (selectedStaffShift.shift?.id || selectedStaffShift.shiftId) &&
+                ((s.workDay || s.work_day) === sd || moment(s.workDay || s.work_day).format('YYYY-MM-DD') === sd);
         });
-
-        if (!schedule) {
-            showToast('error', 'Lỗi', 'Không tìm thấy lịch ca để check-in');
-            return;
-        }
-
+        if (!sc) { showToast('error', 'Lỗi', 'Không tìm thấy lịch ca'); return; }
         setCheckingIn(true);
         try {
-            await axiosClient.post(`/attendance/check-in/${staffId}`, null, {
-                params: { shiftScheduleId: schedule.id }
-            });
-            showToast('success', 'Thành công', '✅ Check-in thành công! 🟢');
-            fetchTodayAttendance(schedule.id);
+            await axiosClient.post(`/attendance/check-in/${staffId}`, null, { params: { shiftScheduleId: sc.id } });
+            showToast('success', 'OK', '✅ Check-in!');
+            fetchAttendance(sc.id);
             fetchMonthlyStats();
-        } catch (err) {
-            showToast('error', 'Lỗi', err.response?.data?.message || 'Check-in thất bại');
-        } finally {
-            setCheckingIn(false);
-        }
+        } catch (err) { showToast('error', 'Lỗi', err.response?.data?.message); }
+        finally { setCheckingIn(false); }
     };
 
-    // ==========================================
-    // 11. CHECK-OUT
-    // ==========================================
     const handleCheckOut = async () => {
-        if (!staffId || !selectedStaffShift) return;
-        if (!window.confirm('Check-out? Kết thúc ca làm?')) return;
-
-        const shiftDate = moment(selectedStaffShift.workDay).format('YYYY-MM-DD');
-        const schedule = allMonthSchedules.find(s => {
-            const sDate = s.workDay || s.work_day;
-            const sShiftId = s.shift?.id || s.shiftId;
-            const ssShiftId = selectedStaffShift.shift?.id || selectedStaffShift.shiftId;
-            return sShiftId === ssShiftId &&
-                (sDate === shiftDate || moment(sDate).format('YYYY-MM-DD') === shiftDate);
+        if (!window.confirm('Check-out?')) return;
+        const sd = moment(selectedStaffShift.workDay).format('YYYY-MM-DD');
+        const sc = allMonthSchedules.find(s => {
+            return (s.shift?.id || s.shiftId) === (selectedStaffShift.shift?.id || selectedStaffShift.shiftId) &&
+                ((s.workDay || s.work_day) === sd || moment(s.workDay || s.work_day).format('YYYY-MM-DD') === sd);
         });
-
-        if (!schedule) {
-            showToast('error', 'Lỗi', 'Không tìm thấy lịch ca để check-out');
-            return;
-        }
-
+        if (!sc) { showToast('error', 'Lỗi', 'Không tìm thấy lịch ca'); return; }
         setCheckingOut(true);
         try {
-            await axiosClient.post(`/attendance/check-out/${staffId}`, null, {
-                params: { shiftScheduleId: schedule.id }
-            });
-            showToast('success', 'Thành công', '🏠 Check-out thành công!');
-            fetchTodayAttendance(schedule.id);
+            await axiosClient.post(`/attendance/check-out/${staffId}`, null, { params: { shiftScheduleId: sc.id } });
+            showToast('success', 'OK', '🏠 Check-out!');
+            fetchAttendance(sc.id);
             fetchMonthlyStats();
-        } catch (err) {
-            showToast('error', 'Lỗi', err.response?.data?.message || 'Check-out thất bại');
-        } finally {
-            setCheckingOut(false);
-        }
+        } catch (err) { showToast('error', 'Lỗi', err.response?.data?.message); }
+        finally { setCheckingOut(false); }
     };
 
-    // ==========================================
-    // CALENDAR EVENTS
-    // ==========================================
+    // ========== CALENDAR ==========
     const calendarEvents = useMemo(() => {
-        if (!allMonthShifts.length) return [];
         return allMonthShifts.map(ss => {
             const shift = shifts.find(s => s.id === (ss.shift?.id || ss.shiftId));
             return {
-                id: ss.id,
-                title: `✅ ${shift?.name || 'Ca'}`,
+                id: ss.id, title: `✅ ${shift?.name || 'Ca'}`,
                 start: moment(`${ss.workDay} ${shift?.startTime || '08:00'}`).toDate(),
                 end: moment(`${ss.workDay} ${shift?.endTime || '17:00'}`).toDate(),
-                resource: ss,
-                allDay: false
+                resource: ss, allDay: false
             };
         });
     }, [allMonthShifts, shifts]);
 
-    const eventStyleGetter = () => ({
-        style: {
-            backgroundColor: '#06d6a0',
-            borderRadius: '6px',
-            color: 'white',
-            border: 'none',
-            padding: '4px 8px',
-            fontSize: '0.85rem',
-            fontWeight: '600',
-            cursor: 'pointer'
-        }
-    });
+    const isToday = (d) => moment(d).format('YYYY-MM-DD') === moment().format('YYYY-MM-DD');
 
-    const isShiftRegistered = useCallback((shiftId) => {
-        return staffShifts.some(ss => (ss.shift?.id || ss.shiftId) === shiftId);
-    }, [staffShifts]);
-
-    const isToday = (date) => moment(date).format('YYYY-MM-DD') === moment().format('YYYY-MM-DD');
-
-    // ==========================================
-    // RENDER
-    // ==========================================
-    if (loadingUser) return (
-        <Container className="text-center py-5">
-            <Spinner animation="border" variant="primary" style={{ width: '3rem', height: '3rem' }} />
-            <p className="mt-3">Đang tải thông tin...</p>
-        </Container>
-    );
-
-    if (error) return (
-        <Container className="py-5">
-            <Alert variant="warning" className="text-center fade-in-up">
-                <i className="ti ti-alert-triangle me-2" style={{ fontSize: '1.5rem' }}></i>
-                <strong>{error}</strong>
-            </Alert>
-            <div className="text-center mt-3">
-                <Button variant="primary" onClick={initUserData}>
-                    <i className="ti ti-refresh me-2"></i>Thử lại
-                </Button>
-            </div>
-        </Container>
-    );
+    if (loadingUser) return <Container className="text-center py-5"><Spinner /></Container>;
+    if (error) return <Container className="py-5"><Alert variant="warning">{error}</Alert></Container>;
 
     return (
-        <div className="shift-registration" style={{ background: '#f0f2f5', minHeight: '100vh', padding: '20px' }}>
+        <div style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%)', minHeight: '100vh', padding: '24px' }}>
             <Container fluid>
-                {/* ===== HEADER ===== */}
-                <Card className="mb-4 shadow-sm">
-                    <Card.Body>
-                        <div className="d-flex justify-content-between align-items-start">
+                {/* HEADER */}
+                <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '16px', background: 'white' }}>
+                    <Card.Body className="p-4">
+                        <div className="d-flex justify-content-between align-items-center">
                             <div>
-                                <h3 className="mb-1">📅 Đăng ký ca làm việc</h3>
-                                <p className="text-muted mb-0">
-                                    👤 <strong>{staffInfo?.user?.fullName || 'N/A'}</strong> |
-                                    🏢 <strong>{staffInfo?.branch?.name || 'N/A'}</strong>
-                                    {staffInfo?.position && <Badge bg="primary" className="ms-2">{staffInfo.position}</Badge>}
-                                </p>
-                                <small className="text-muted">
-                                    StaffID: {staffId} | BranchID: {branchId} |
-                                    Ca: {allMonthShifts.length} | Lịch: {allMonthSchedules.length}
-                                </small>
+                                <h3 className="mb-1" style={{ color: '#2c3e50', fontWeight: 700 }}>
+                                    📅 Quản lý ca làm việc
+                                </h3>
+                                <div className="d-flex align-items-center gap-3 mt-2">
+                                    <span className="text-muted">
+                                        👤 <strong>{staffInfo?.user?.fullName}</strong>
+                                    </span>
+                                    <span className="text-muted">|</span>
+                                    <span className="text-muted">
+                                        🏢 <strong>{staffInfo?.branch?.name}</strong>
+                                    </span>
+                                    {staffInfo?.position && (
+                                        <Badge bg="primary" className="px-3 py-2 rounded-pill">{staffInfo.position}</Badge>
+                                    )}
+                                </div>
                             </div>
-                            <div className="d-flex gap-2">
-                                <Button variant="outline-success" size="sm" onClick={() => preloadMonthData(currentMonth)}>
-                                    <i className="ti ti-refresh me-1"></i>Tải lại
-                                </Button>
-                                <Button variant="outline-primary" size="sm" onClick={initUserData}>
-                                    <i className="ti ti-user-check"></i>
-                                </Button>
-                            </div>
+                            <Button variant="outline-secondary" size="sm" className="rounded-pill" onClick={() => preloadMonthData(currentMonth)}>
+                                🔄 Tải lại
+                            </Button>
                         </div>
                     </Card.Body>
                 </Card>
 
-                {/* ===== STATS ===== */}
+                {/* STATS */}
                 {monthlyStats && (
                     <Row className="mb-4 g-3">
                         {[
-                            { icon: 'calendar-stats', label: 'Tổng ngày', value: monthlyStats.totalDays, variant: 'primary' },
-                            { icon: 'check', label: 'Đúng giờ', value: monthlyStats.presentDays, variant: 'success' },
-                            { icon: 'clock-exclamation', label: 'Đi trễ', value: monthlyStats.lateDays, variant: 'warning' },
-                            { icon: 'calendar-off', label: 'Nghỉ phép', value: monthlyStats.leaveDays, variant: 'info' },
+                            { icon: '📊', label: 'Tổng ngày', val: monthlyStats.totalDays, color: '#4361ee' },
+                            { icon: '✅', label: 'Đúng giờ', val: monthlyStats.presentDays, color: '#06d6a0' },
+                            { icon: '⚠️', label: 'Đi trễ', val: monthlyStats.lateDays, color: '#f59e0b' },
+                            { icon: '📅', label: 'Nghỉ phép', val: monthlyStats.leaveDays, color: '#118ab2' },
                         ].map((s, i) => (
-                            <Col key={i} xl={3} md={6}>
-                                <StatCard {...s} />
+                            <Col key={i} xs={6} md={3}>
+                                <Card className="text-center border-0 shadow-sm" style={{ borderRadius: '12px', borderLeft: `4px solid ${s.color}` }}>
+                                    <Card.Body className="py-3">
+                                        <div style={{ fontSize: '1.8rem' }}>{s.icon}</div>
+                                        <h3 className="mb-0 fw-bold">{s.val}</h3>
+                                        <small className="text-muted">{s.label}</small>
+                                    </Card.Body>
+                                </Card>
                             </Col>
                         ))}
                     </Row>
                 )}
 
-                {/* ===== MONTH SELECTOR ===== */}
-                <Card className="mb-4 shadow-sm">
-                    <Card.Body>
+                {/* MONTH SELECTOR */}
+                <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
+                    <Card.Body className="py-2 px-4">
                         <div className="d-flex align-items-center gap-2">
-                            <strong>📊 Thống kê tháng:</strong>
-                            <Form.Select value={selectedMonth} onChange={e => setSelectedMonth(+e.target.value)} style={{ width: 130 }}>
+                            <span className="fw-bold">📊 Thống kê:</span>
+                            <Form.Select size="sm" value={selectedMonth} onChange={e => setSelectedMonth(+e.target.value)} style={{ width: 130 }}>
                                 {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>Tháng {m}</option>)}
                             </Form.Select>
-                            <Form.Select value={selectedYear} onChange={e => setSelectedYear(+e.target.value)} style={{ width: 100 }}>
+                            <Form.Select size="sm" value={selectedYear} onChange={e => setSelectedYear(+e.target.value)} style={{ width: 100 }}>
                                 {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                             </Form.Select>
-                            {preloading && <Spinner animation="border" size="sm" />}
                         </div>
                     </Card.Body>
                 </Card>
 
-                {/* ===== TABS ===== */}
-                <Card className="shadow-sm">
-                    <Card.Header>
-                        <Tabs activeKey={viewMode} onSelect={k => setViewMode(k)}>
-                            <Tab eventKey="list" title="📋 Danh sách ca" />
-                            <Tab eventKey="calendar" title="📅 Lịch" />
+                {/* TABS */}
+                <Card className="border-0 shadow-sm" style={{ borderRadius: '16px', overflow: 'hidden' }}>
+                    <Card.Header className="bg-white border-0 pt-3 px-4">
+                        <Tabs activeKey={viewMode} onSelect={k => setViewMode(k)} className="border-0">
+                            <Tab eventKey="list" title={<span className="px-2">📋 Danh sách ca</span>} />
+                            <Tab eventKey="calendar" title={<span className="px-2">📅 Lịch tháng</span>} />
                         </Tabs>
                     </Card.Header>
-                    <Card.Body>
-                        {/* ===== LIST VIEW ===== */}
+                    <Card.Body className="p-4">
                         {viewMode === 'list' && (
                             <>
-                                <div className="d-flex justify-content-between align-items-center mb-3">
-                                    <h5>
-                                        📅 {moment(selectedDate).format('DD/MM/YYYY')}
-                                        {isToday(selectedDate) && <Badge bg="warning" className="ms-2">Hôm nay</Badge>}
+                                <div className="d-flex justify-content-between align-items-center mb-4">
+                                    <h5 className="mb-0">
+                                        📅 {moment(selectedDate).format('dddd, DD/MM/YYYY')}
+                                        {isToday(selectedDate) && <Badge bg="warning" className="ms-2 rounded-pill px-3">Hôm nay</Badge>}
                                     </h5>
-                                    <Form.Control
-                                        type="date"
-                                        value={moment(selectedDate).format('YYYY-MM-DD')}
-                                        onChange={e => loadDayData(new Date(e.target.value))}
-                                        style={{ width: 180 }}
-                                    />
+                                    <Form.Control type="date" value={moment(selectedDate).format('YYYY-MM-DD')}
+                                        onChange={e => loadDayData(new Date(e.target.value))} style={{ width: 180, borderRadius: '10px' }} />
                                 </div>
 
                                 {loading ? <ShiftSkeleton /> : (
                                     <>
-                                        {/* CA ĐÃ ĐĂNG KÝ */}
-                                        <h6 className="text-success mb-2">✅ Đã đăng ký ({staffShifts.length})</h6>
-                                        {staffShifts.length === 0 && <Alert variant="light">Chưa có ca nào</Alert>}
-                                        {staffShifts.map(ss => (
-                                            <Card key={ss.id} className="mb-2 border-success" style={{ cursor: 'pointer' }}
-                                                onClick={() => openShiftDetail(ss)}>
-                                                <Card.Body className="py-2 px-3">
-                                                    <div className="d-flex justify-content-between align-items-center">
-                                                        <div>
-                                                            <strong>{ss.shift?.name || 'Ca'}</strong>
-                                                            <small className="text-muted ms-2">
-                                                                🕐 {formatTime(ss.shift?.startTime)} - {formatTime(ss.shift?.endTime)}
-                                                            </small>
-                                                        </div>
-                                                        <div className="d-flex gap-2">
-                                                            {isToday(ss.workDay) && <Badge bg="warning">Hôm nay</Badge>}
-                                                            <Badge bg="success">Đã đăng ký</Badge>
-                                                        </div>
-                                                    </div>
-                                                </Card.Body>
-                                            </Card>
-                                        ))}
-
-                                        <hr />
-
-                                        {/* CA CÓ SẴN */}
-                                        <h6 className="text-primary mb-2">📝 Có sẵn ({shiftSchedules.length})</h6>
-                                        {shiftSchedules.length === 0 && <Alert variant="light">Không có ca khả dụng</Alert>}
-                                        {shiftSchedules.map(sc => {
-                                            const shift = sc.shift || {};
-                                            const registered = isShiftRegistered(shift.id);
-                                            const slots = (sc.maxStaff || 0) - (sc.requiredStaff || 0);
-                                            return (
-                                                <Card key={sc.id} className="mb-2">
-                                                    <Card.Body className="py-2 px-3">
-                                                        <div className="d-flex justify-content-between align-items-center">
-                                                            <div>
-                                                                <strong>{shift.name || 'Ca'}</strong>
-                                                                <small className="text-muted ms-2">
-                                                                    🕐 {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
-                                                                    {shift.workingHours && ` (${shift.workingHours}h)`}
-                                                                </small>
-                                                                <br />
-                                                                <Badge bg={slots > 0 ? 'success' : 'danger'}>{slots > 0 ? `Còn ${slots} slot` : 'Hết slot'}</Badge>
-                                                                {shift.shiftAllowance > 0 && <Badge bg="info" className="ms-1">+{formatCurrency(shift.shiftAllowance)}</Badge>}
+                                        {/* ĐÃ ĐĂNG KÝ */}
+                                        {staffShifts.length > 0 && (
+                                            <div className="mb-4">
+                                                <h6 className="fw-bold mb-3" style={{ color: '#28a745' }}>
+                                                    ✅ Ca đã đăng ký ({staffShifts.length})
+                                                </h6>
+                                                {staffShifts.map(ss => (
+                                                    <Card key={ss.id} className="mb-2 border-0 shadow-sm"
+                                                        style={{ borderRadius: '12px', borderLeft: '4px solid #28a745', cursor: 'pointer' }}
+                                                        onClick={() => openDetail(ss)}>
+                                                        <Card.Body className="py-3 px-4">
+                                                            <div className="d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <strong className="text-success">{ss.shift?.name}</strong>
+                                                                    <span className="text-muted ms-3">
+                                                                        🕐 {formatTime(ss.shift?.startTime)} - {formatTime(ss.shift?.endTime)}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="d-flex gap-2">
+                                                                    {isToday(ss.workDay) && <Badge bg="warning" className="rounded-pill px-3">Hôm nay</Badge>}
+                                                                    <Badge bg="success" className="rounded-pill px-3">✅ Đã đăng ký</Badge>
+                                                                </div>
                                                             </div>
-                                                            <Button variant="primary" size="sm"
-                                                                disabled={registered || slots <= 0 || registeringShiftId === shift.id}
-                                                                onClick={() => handleRegisterShift(shift.id)}>
-                                                                {registeringShiftId === shift.id ? <Spinner size="sm" /> :
-                                                                    registered ? 'Đã đăng ký' : 'Đăng ký'}
-                                                            </Button>
-                                                        </div>
-                                                    </Card.Body>
-                                                </Card>
-                                            );
-                                        })}
+                                                        </Card.Body>
+                                                    </Card>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* CA CÓ SẴN - ĐẾM TỪ allDayShifts */}
+                                        {shiftSchedules.length > 0 && (
+                                            <div>
+                                                <h6 className="fw-bold mb-3" style={{ color: '#4361ee' }}>
+                                                    📝 Ca có sẵn để đăng ký ({shiftSchedules.length})
+                                                </h6>
+                                                {shiftSchedules.map(sc => {
+                                                    const shift = sc.shift || {};
+                                                    const registered = staffShifts.some(ss => (ss.shift?.id || ss.shiftId) === shift.id);
+
+                                                    // ĐẾM TỪ TẤT CẢ SHIFTS TRONG NGÀY (allDayShifts)
+                                                    const assignedCount = (allDayShifts || []).filter(ss =>
+                                                        (ss.shift?.id || ss.shiftId) === shift.id
+                                                    ).length;
+
+                                                    const requiredStaff = sc.requiredStaff || 0;
+                                                    const maxStaff = sc.maxStaff || 10;
+
+                                                    return (
+                                                        <ShiftCard
+                                                            key={sc.id}
+                                                            shift={shift}
+                                                            assignedCount={assignedCount}
+                                                            requiredStaff={requiredStaff}
+                                                            maxStaff={maxStaff}
+                                                            registered={registered}
+                                                            onRegister={() => handleRegister(shift.id)}
+                                                            registering={registeringShiftId === shift.id}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {staffShifts.length === 0 && shiftSchedules.length === 0 && (
+                                            <div className="text-center py-5">
+                                                <div style={{ fontSize: '4rem' }}>📭</div>
+                                                <p className="text-muted mt-3">Không có ca làm nào cho ngày này</p>
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </>
                         )}
 
-                        {/* ===== CALENDAR VIEW ===== */}
                         {viewMode === 'calendar' && (
-                            preloading ? (
-                                <div className="text-center py-5"><Spinner /></div>
-                            ) : (
-                                <Calendar
-                                    localizer={localizer}
-                                    events={calendarEvents}
-                                    startAccessor="start"
-                                    endAccessor="end"
-                                    style={{ height: 500 }}
-                                    selectable
-                                    onSelectSlot={s => { loadDayData(s.start); setViewMode('list'); }}
-                                    onSelectEvent={e => openShiftDetail(e.resource)}
-                                    onNavigate={d => setCurrentMonth(d)}
-                                    views={['month']}
-                                    date={currentMonth}
-                                    eventPropGetter={eventStyleGetter}
-                                    messages={{
-                                        today: 'Hôm nay',
-                                        previous: '⬅',
-                                        next: '➡',
-                                        noEventsInRange: 'Click ngày để đăng ký ca'
-                                    }}
-                                />
-                            )
+                            <Calendar localizer={localizer} events={calendarEvents}
+                                startAccessor="start" endAccessor="end" style={{ height: 500 }}
+                                selectable onSelectSlot={s => { loadDayData(s.start); setViewMode('list'); }}
+                                onSelectEvent={e => openDetail(e.resource)}
+                                onNavigate={d => setCurrentMonth(d)} views={['month']} date={currentMonth}
+                                eventPropGetter={() => ({ style: { backgroundColor: '#06d6a0', borderRadius: '8px', color: 'white', border: 'none', padding: '4px 8px', fontWeight: 600, cursor: 'pointer' } })}
+                                messages={{ today: 'Hôm nay', noEventsInRange: 'Click ngày để xem ca' }} />
                         )}
                     </Card.Body>
                 </Card>
 
-                {/* ===== MODAL: ĐĂNG KÝ CA ===== */}
-                <Modal show={showRegisterModal} onHide={() => setShowRegisterModal(false)} centered size="lg">
-                    <Modal.Header closeButton style={{ background: '#4361ee', color: 'white' }}>
-                        <Modal.Title>📝 Đăng ký ca làm</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <h5 className="text-center mb-3">{moment(selectedDate).format('dddd, DD/MM/YYYY')}</h5>
-                        {loading ? <ShiftSkeleton /> : shiftSchedules.length === 0 ? (
-                            <div className="text-center py-4">
-                                <p className="text-muted">Không có ca khả dụng</p>
-                            </div>
-                        ) : (
-                            <ListGroup>
-                                {shiftSchedules.map(sc => {
-                                    const shift = sc.shift || {};
-                                    const registered = isShiftRegistered(shift.id);
-                                    const slots = (sc.maxStaff || 0) - (sc.requiredStaff || 0);
-                                    return (
-                                        <ListGroup.Item key={sc.id} className="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <strong>{shift.name}</strong>
-                                                <div className="text-muted">
-                                                    🕐 {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
-                                                    {shift.workingHours && ` (${shift.workingHours}h)`}
-                                                </div>
-                                                <Badge bg={slots > 0 ? 'success' : 'danger'}>{slots > 0 ? `Còn ${slots} slot` : 'Hết slot'}</Badge>
-                                                {shift.shiftAllowance > 0 && <Badge bg="info" className="ms-1">+{formatCurrency(shift.shiftAllowance)}</Badge>}
-                                            </div>
-                                            <Button variant="primary" size="sm"
-                                                disabled={registered || slots <= 0}
-                                                onClick={() => handleRegisterShift(shift.id)}>
-                                                {registered ? '✓ Đã đăng ký' : 'Đăng ký ngay'}
-                                            </Button>
-                                        </ListGroup.Item>
-                                    );
-                                })}
-                            </ListGroup>
-                        )}
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button variant="secondary" onClick={() => setShowRegisterModal(false)}>Đóng</Button>
-                    </Modal.Footer>
-                </Modal>
-
-                {/* ===== MODAL: CHI TIẾT + CHECK-IN/OUT ===== */}
-                <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} centered size="lg">
-                    <Modal.Header closeButton style={{ background: '#4361ee', color: 'white' }}>
+                {/* MODAL CHI TIẾT */}
+                <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} centered>
+                    <Modal.Header closeButton style={{ background: 'linear-gradient(135deg, #4361ee, #3f37c9)', color: 'white', borderRadius: '12px 12px 0 0' }}>
                         <Modal.Title>📋 Chi tiết ca làm</Modal.Title>
                     </Modal.Header>
-                    <Modal.Body>
+                    <Modal.Body className="p-4">
                         {selectedStaffShift && (
                             <>
-                                <Row className="mb-3">
+                                <Row className="mb-4">
                                     <Col xs={6}>
-                                        <Card className="text-center p-3 bg-light">
-                                            <small className="text-muted">Ngày làm</small>
-                                            <h5>{moment(selectedStaffShift.workDay).format('DD/MM/YYYY')}</h5>
-                                            {isToday(selectedStaffShift.workDay) && <Badge bg="warning">Hôm nay</Badge>}
-                                        </Card>
+                                        <div className="text-center p-3 rounded-3" style={{ background: '#f8f9fa' }}>
+                                            <small className="text-muted d-block mb-1">Ngày làm</small>
+                                            <strong className="d-block" style={{ fontSize: '1.2rem' }}>
+                                                {moment(selectedStaffShift.workDay).format('DD/MM/YYYY')}
+                                            </strong>
+                                            {isToday(selectedStaffShift.workDay) && <Badge bg="warning" className="mt-1 rounded-pill">Hôm nay</Badge>}
+                                        </div>
                                     </Col>
                                     <Col xs={6}>
-                                        <Card className="text-center p-3 bg-light">
-                                            <small className="text-muted">Ca làm</small>
-                                            <h5>{selectedStaffShift.shift?.name || 'Ca'}</h5>
-                                            <small>{formatTime(selectedStaffShift.shift?.startTime)} - {formatTime(selectedStaffShift.shift?.endTime)}</small>
-                                        </Card>
+                                        <div className="text-center p-3 rounded-3" style={{ background: '#f8f9fa' }}>
+                                            <small className="text-muted d-block mb-1">Ca làm</small>
+                                            <strong className="d-block" style={{ fontSize: '1.2rem' }}>{selectedStaffShift.shift?.name}</strong>
+                                            <small className="text-muted">{formatTime(selectedStaffShift.shift?.startTime)} - {formatTime(selectedStaffShift.shift?.endTime)}</small>
+                                        </div>
                                     </Col>
                                 </Row>
 
-                                {/* CHECK-IN / CHECK-OUT */}
                                 {isToday(selectedStaffShift.workDay) && (
-                                    <Card className="border-primary mb-3">
-                                        <Card.Header className="bg-primary text-white"><strong>🕐 Điểm danh</strong></Card.Header>
-                                        <Card.Body>
-                                            {attendanceLoading ? (
-                                                <div className="text-center"><Spinner size="sm" /></div>
-                                            ) : todayAttendance ? (
+                                    <div className="p-3 rounded-3 mb-3" style={{ background: '#f0f4ff', border: '2px solid #4361ee' }}>
+                                        <h6 className="mb-3">🕐 Điểm danh hôm nay</h6>
+                                        {attendanceLoading ? <div className="text-center"><Spinner size="sm" /></div> :
+                                            todayAttendance ? (
                                                 <div>
-                                                    <div className="d-flex justify-content-between mb-2">
-                                                        <span>Trạng thái:</span>
-                                                        <AttendanceBadge {...todayAttendance} />
-                                                    </div>
-                                                    <div className="d-flex justify-content-between mb-2">
-                                                        <span>Check-in:</span>
-                                                        <strong>{formatDateTime(todayAttendance.checkIn)}</strong>
-                                                    </div>
-                                                    <div className="d-flex justify-content-between">
-                                                        <span>Check-out:</span>
-                                                        <strong>{formatDateTime(todayAttendance.checkOut)}</strong>
-                                                    </div>
+                                                    <div className="d-flex justify-content-between mb-2"><span>Trạng thái:</span><AttendanceBadge {...todayAttendance} /></div>
+                                                    <div className="d-flex justify-content-between mb-2"><span>Check-in:</span><strong>{formatDateTime(todayAttendance.checkIn)}</strong></div>
+                                                    <div className="d-flex justify-content-between"><span>Check-out:</span><strong>{formatDateTime(todayAttendance.checkOut)}</strong></div>
                                                 </div>
-                                            ) : (
-                                                <Alert variant="light" className="text-center mb-0">Chưa điểm danh</Alert>
-                                            )}
-
-                                            <div className="d-flex gap-2 mt-3">
-                                                <Button variant="success" className="flex-fill"
-                                                    disabled={todayAttendance?.checkIn || checkingIn}
-                                                    onClick={handleCheckIn}>
-                                                    {checkingIn ? <Spinner size="sm" /> :
-                                                        todayAttendance?.checkIn ? '✅ Đã check-in' : '🟢 CHECK-IN'}
-                                                </Button>
-                                                <Button variant="danger" className="flex-fill"
-                                                    disabled={!todayAttendance?.checkIn || todayAttendance?.checkOut || checkingOut}
-                                                    onClick={handleCheckOut}>
-                                                    {checkingOut ? <Spinner size="sm" /> :
-                                                        todayAttendance?.checkOut ? '✅ Đã check-out' : '🔴 CHECK-OUT'}
-                                                </Button>
-                                            </div>
-                                        </Card.Body>
-                                    </Card>
-                                )}
-
-                                {!isToday(selectedStaffShift.workDay) && (
-                                    <Alert variant="info" className="text-center">
-                                        💡 Check-in/Check-out chỉ khả dụng trong ngày làm việc
-                                    </Alert>
+                                            ) : <Alert variant="light" className="text-center mb-0">Chưa điểm danh</Alert>}
+                                        <div className="d-flex gap-2 mt-3">
+                                            <Button variant="success" className="flex-fill rounded-pill" disabled={todayAttendance?.checkIn || checkingIn} onClick={handleCheckIn}>
+                                                {checkingIn ? <Spinner size="sm" /> : todayAttendance?.checkIn ? '✅ Đã check-in' : '🟢 CHECK-IN'}
+                                            </Button>
+                                            <Button variant="danger" className="flex-fill rounded-pill" disabled={!todayAttendance?.checkIn || todayAttendance?.checkOut || checkingOut} onClick={handleCheckOut}>
+                                                {checkingOut ? <Spinner size="sm" /> : todayAttendance?.checkOut ? '✅ Đã check-out' : '🔴 CHECK-OUT'}
+                                            </Button>
+                                        </div>
+                                    </div>
                                 )}
                             </>
                         )}
                     </Modal.Body>
-                    <Modal.Footer className="d-flex justify-content-between">
-                        <Button variant="outline-danger"
-                            onClick={() => handleCancelRegistration(selectedStaffShift?.id)}
-                            disabled={cancellingShiftId === selectedStaffShift?.id}>
-                            {cancellingShiftId === selectedStaffShift?.id ? 'Đang hủy...' : '🗑️ Hủy đăng ký'}
+                    <Modal.Footer>
+                        <Button variant="outline-danger" className="rounded-pill" onClick={() => handleCancel(selectedStaffShift?.id)}>
+                            🗑️ Hủy đăng ký
                         </Button>
-                        <Button variant="secondary" onClick={() => setShowDetailModal(false)}>Đóng</Button>
+                        <Button variant="secondary" className="rounded-pill" onClick={() => setShowDetailModal(false)}>Đóng</Button>
                     </Modal.Footer>
                 </Modal>
             </Container>

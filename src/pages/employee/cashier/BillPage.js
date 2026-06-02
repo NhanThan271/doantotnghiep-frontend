@@ -1,10 +1,32 @@
 // pages/employee/cashier/BillPage.js
 import React, { useState, useEffect } from "react";
 import {
-    Search, Filter, Eye, Printer, Calendar, ChevronLeft, ChevronRight,
+    Search, Filter, Eye, Calendar, ChevronLeft, ChevronRight,
     DollarSign, Download, RefreshCw
 } from "lucide-react";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import styles from "./BillPage.module.css";
+
+// ========== Hàm bỏ dấu tiếng Việt ==========
+const removeVietnameseTones = (str) => {
+    if (!str) return '';
+    // Bỏ emoji
+    str = str.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
+    // Bỏ dấu tiếng Việt
+    str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // Thay thế đ/Đ
+    str = str.replace(/đ/g, 'd').replace(/Đ/g, 'D');
+    // Bỏ các ký tự không phải ASCII còn lại
+    str = str.replace(/[^\x00-\x7F\s]/g, '');
+    return str.trim();
+};
+
+// ========== Format tiền cho PDF (bỏ ký tự đặc biệt) ==========
+const formatCurrencyPDF = (amount) => {
+    if (!amount) return "0d";
+    return Number(amount).toLocaleString('vi-VN') + 'd';
+};
 
 const BillPage = () => {
     const [bills, setBills] = useState([]);
@@ -20,12 +42,12 @@ const BillPage = () => {
     const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
     const [paymentMethod, setPaymentMethod] = useState('CASH');
     const [processingPayment, setProcessingPayment] = useState(false);
-    const [tableNumbers, setTableNumbers] = useState({}); // Lưu số bàn cho từng bill
+    const [tableNumbers, setTableNumbers] = useState({});
     const itemsPerPage = 10;
 
     useEffect(() => {
         fetchBills();
-    }, [filter, currentPage]);
+    }, [filter.status, filter.search, filter.startDate, filter.endDate, currentPage]);
 
     const fetchBills = async () => {
         setLoading(true);
@@ -40,14 +62,11 @@ const BillPage = () => {
 
             if (response.ok) {
                 let allBills = await response.json();
-                console.log("Fetched bills:", allBills);
 
-                // Lọc theo trạng thái
                 if (filter.status !== 'all') {
                     allBills = allBills.filter(bill => bill.paymentStatus === filter.status.toUpperCase());
                 }
 
-                // Lọc theo tìm kiếm
                 if (filter.search) {
                     allBills = allBills.filter(bill =>
                         bill.id?.toString().includes(filter.search) ||
@@ -55,7 +74,6 @@ const BillPage = () => {
                     );
                 }
 
-                // Lọc theo ngày
                 if (filter.startDate) {
                     const startDate = new Date(filter.startDate);
                     startDate.setHours(0, 0, 0);
@@ -68,20 +86,17 @@ const BillPage = () => {
                     allBills = allBills.filter(bill => new Date(bill.createdAt) <= endDate);
                 }
 
-                // Sắp xếp theo id giảm dần
                 allBills.sort((a, b) => b.id - a.id);
 
-                // Phân trang
                 setTotalPages(Math.ceil(allBills.length / itemsPerPage));
                 const start = (currentPage - 1) * itemsPerPage;
                 const end = start + itemsPerPage;
                 const paginatedBills = allBills.slice(start, end);
                 setBills(paginatedBills);
 
-                // ✅ SỬA: Fetch số bàn cho TẤT CẢ bill (bỏ điều kiện && bill.paymentStatus === 'PENDING')
                 for (const bill of paginatedBills) {
                     if (bill.order?.id && !tableNumbers[bill.id]) {
-                        await fetchTableNumber(bill.id, bill.order.id);
+                        fetchTableNumber(bill.id, bill.order.id);
                     }
                 }
             }
@@ -92,7 +107,6 @@ const BillPage = () => {
         }
     };
 
-    // Lấy số bàn từ order detail
     const fetchTableNumber = async (billId, orderId) => {
         try {
             const token = localStorage.getItem('token');
@@ -103,7 +117,7 @@ const BillPage = () => {
                 const orderDetail = await response.json();
                 setTableNumbers(prev => ({
                     ...prev,
-                    [billId]: orderDetail.table?.number || '--'
+                    [billId]: orderDetail.table?.number || orderDetail.room?.number || '--'
                 }));
             }
         } catch (error) {
@@ -111,7 +125,6 @@ const BillPage = () => {
         }
     };
 
-    // Gọi API lấy chi tiết đơn hàng
     const fetchOrderDetail = async (orderId) => {
         setLoadingDetail(true);
         try {
@@ -119,11 +132,8 @@ const BillPage = () => {
             const response = await fetch(`http://localhost:8080/api/customer/orders/${orderId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-
             if (response.ok) {
-                const data = await response.json();
-                console.log("Order detail:", data);
-                return data;
+                return await response.json();
             }
         } catch (error) {
             console.error("Error fetching order detail:", error);
@@ -133,12 +143,10 @@ const BillPage = () => {
         return null;
     };
 
-    // Xem chi tiết hóa đơn
     const handleViewDetail = async (bill) => {
         setSelectedBill(bill);
         setSelectedOrderDetail(null);
         setShowDetailModal(true);
-
         if (bill.order?.id) {
             const orderDetail = await fetchOrderDetail(bill.order.id);
             setSelectedOrderDetail(orderDetail);
@@ -149,24 +157,24 @@ const BillPage = () => {
         setProcessingPayment(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:8080/api/customer/orders/${orderId}/pay?paymentMethod=${paymentMethod}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+            const response = await fetch(
+                `http://localhost:8080/api/customer/orders/${orderId}/pay?paymentMethod=${paymentMethod}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
                 }
-            });
-
+            );
             if (response.ok) {
-                const result = await response.json();
-                console.log("Payment result:", result);
                 alert("Thanh toán thành công!");
                 setShowPaymentModal(false);
                 setSelectedOrderForPayment(null);
                 fetchBills();
             } else {
                 const error = await response.json();
-                alert(error.message || error.error || "Thanh toán thất bại");
+                alert(error.message || "Thanh toán thất bại");
             }
         } catch (error) {
             console.error("Error processing payment:", error);
@@ -176,32 +184,179 @@ const BillPage = () => {
         }
     };
 
+    // ========== XUẤT PDF ==========
     const handleExportBill = async (billId) => {
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:8080/api/employee/bills/${billId}/export`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `bill_${billId}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            } else {
-                alert("Không thể xuất hóa đơn");
+            const bill = bills.find(b => b.id === billId);
+            if (!bill) {
+                alert('Không tìm thấy hóa đơn');
+                return;
             }
+
+            let orderDetail = null;
+            if (bill.order?.id) {
+                orderDetail = await fetchOrderDetail(bill.order.id);
+            }
+
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // ===== TIÊU ĐỀ =====
+            doc.setFontSize(20);
+            doc.setFont('helvetica', 'bold');
+            doc.text('HOA DON THANH TOAN', pageWidth / 2, 20, { align: 'center' });
+
+            // Đường kẻ
+            doc.setLineWidth(0.5);
+            doc.setDrawColor(67, 97, 238);
+            doc.line(14, 25, pageWidth - 14, 25);
+
+            // ===== THÔNG TIN CỬA HÀNG =====
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(100, 100, 100);
+            const branchName = JSON.parse(localStorage.getItem('user') || '{}')?.branchName || '';
+            doc.text(removeVietnameseTones(branchName), pageWidth / 2, 30, { align: 'center' });
+            doc.text('Dia chi: ' + removeVietnameseTones(JSON.parse(localStorage.getItem('user') || '{}')?.branch?.address || ''), pageWidth / 2, 35, { align: 'center' });
+
+            // ===== THÔNG TIN HÓA ĐƠN =====
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(11);
+
+            const leftX = 14;
+            const rightCol = 110;
+            let y = 44;
+            const lh = 7;
+
+            // Cột trái
+            doc.setFont('helvetica', 'bold');
+            doc.text('Ma hoa don:', leftX, y);
+            doc.text('Ma don hang:', leftX, y + lh);
+            doc.text('Ban:', leftX, y + lh * 2);
+            doc.text('Khach hang:', leftX, y + lh * 3);
+
+            doc.setFont('helvetica', 'normal');
+            doc.text(`#${bill.id}`, leftX + 30, y);
+            doc.text(`#${bill.order?.id || '--'}`, leftX + 30, y + lh);
+            doc.text(`${tableNumbers[bill.id] ? 'Ban ' + tableNumbers[bill.id] : '--'}`, leftX + 30, y + lh * 2);
+            doc.text(removeVietnameseTones(orderDetail?.customerName || 'Khach le'), leftX + 30, y + lh * 3);
+
+            // Cột phải
+            doc.setFont('helvetica', 'bold');
+            doc.text('Ngay xuat:', rightCol, y);
+            doc.text('Phuong thuc:', rightCol, y + lh);
+            doc.text('Trang thai:', rightCol, y + lh * 2);
+            doc.text('Thu ngan:', rightCol, y + lh * 3);
+
+            doc.setFont('helvetica', 'normal');
+            doc.text(formatDateTime(bill.createdAt), rightCol + 28, y);
+            doc.text(removeVietnameseTones(getPaymentMethodText(bill.paymentMethod)), rightCol + 28, y + lh);
+            doc.text(bill.paymentStatus === 'PAID' ? 'Da thanh toan' : 'Cho thanh toan', rightCol + 28, y + lh * 2);
+            doc.text(removeVietnameseTones(JSON.parse(localStorage.getItem('user') || '{}')?.fullName || ''), rightCol + 28, y + lh * 3);
+
+            // Đường kẻ
+            y = y + lh * 4 + 2;
+            doc.setDrawColor(200, 200, 200);
+            doc.line(14, y, pageWidth - 14, y);
+
+            // ===== DANH SÁCH MÓN =====
+            y += 8;
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(67, 97, 238);
+            doc.text('CHI TIET DON HANG', leftX, y);
+
+            if (orderDetail?.items && orderDetail.items.length > 0) {
+                const tableData = orderDetail.items.map((item, idx) => [
+                    (idx + 1).toString(),
+                    removeVietnameseTones(item.foodName || item.name || `Mon ${item.foodId}`),
+                    (item.quantity || 1).toString(),
+                    formatCurrencyPDF(item.price),
+                    formatCurrencyPDF((item.price || 0) * (item.quantity || 1))
+                ]);
+
+                // Thêm dòng tổng
+                tableData.push([
+                    '', '', '', 'TONG CONG:', formatCurrencyPDF(bill.totalAmount)
+                ]);
+
+                doc.autoTable({
+                    startY: y + 4,
+                    head: [['STT', 'Ten mon', 'SL', 'Don gia', 'Thanh tien']],
+                    body: tableData,
+                    theme: 'striped',
+                    headStyles: {
+                        fillColor: [67, 97, 238],
+                        textColor: [255, 255, 255],
+                        fontStyle: 'bold',
+                        fontSize: 10,
+                        halign: 'center'
+                    },
+                    bodyStyles: {
+                        fontSize: 10,
+                        textColor: [50, 50, 50]
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 10, halign: 'center' },
+                        1: { cellWidth: 75 },
+                        2: { cellWidth: 12, halign: 'center' },
+                        3: { cellWidth: 35, halign: 'right' },
+                        4: { cellWidth: 40, halign: 'right' }
+                    },
+                    footStyles: {
+                        fontStyle: 'bold',
+                        fontSize: 11,
+                        textColor: [220, 50, 50]
+                    },
+                    styles: {
+                        cellPadding: 3,
+                        overflow: 'linebreak'
+                    },
+                    alternateRowStyles: {
+                        fillColor: [245, 247, 250]
+                    }
+                });
+
+                // ===== FOOTER =====
+                const finalY = doc.lastAutoTable.finalY + 10;
+
+                // Đường kẻ tổng
+                doc.setDrawColor(67, 97, 238);
+                doc.setLineWidth(0.8);
+                doc.line(120, finalY - 4, pageWidth - 14, finalY - 4);
+
+                doc.setFontSize(13);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(220, 50, 50);
+                doc.text('TONG CONG: ' + formatCurrencyPDF(bill.totalAmount), pageWidth - 14, finalY + 4, { align: 'right' });
+
+                // Lời cảm ơn
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'italic');
+                doc.setTextColor(100, 100, 100);
+                doc.text('Cam on quy khach da su dung dich vu!', pageWidth / 2, finalY + 20, { align: 'center' });
+                doc.text('Hen gap lai quy khach lan sau.', pageWidth / 2, finalY + 26, { align: 'center' });
+
+                // Mã QR giả (nếu cần)
+                doc.setFontSize(7);
+                doc.text('Bill #' + bill.id + ' - ' + new Date().toISOString().split('T')[0], pageWidth / 2, finalY + 34, { align: 'center' });
+
+            } else {
+                doc.setFontSize(10);
+                doc.setTextColor(150, 150, 150);
+                doc.text('Khong co mon an nao.', leftX, y + 10);
+            }
+
+            // Lưu file
+            doc.save(`HoaDon_${bill.id}.pdf`);
+
         } catch (error) {
-            console.error("Error exporting bill:", error);
-            alert("Có lỗi khi xuất hóa đơn");
+            console.error('PDF Error:', error);
+            alert('Loi xuat hoa don: ' + error.message);
         }
     };
 
+    // ========== HELPERS ==========
     const formatCurrency = (amount) => {
         if (!amount) return "0đ";
         return Number(amount).toLocaleString('vi-VN') + 'đ';
@@ -211,12 +366,8 @@ const BillPage = () => {
         if (!dateString) return "--:--";
         const date = new Date(dateString);
         return date.toLocaleString('vi-VN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            day: '2-digit', month: '2-digit', year: 'numeric'
         });
     };
 
@@ -241,7 +392,16 @@ const BillPage = () => {
         return methods[method] || method;
     };
 
-    // Lấy order detail để hiển thị (ưu tiên từ API riêng)
+    const getPaymentMethodText = (method) => {
+        const methods = {
+            'CASH': 'Tien mat',
+            'MOMO': 'Vi MoMo',
+            'MOBILE': 'Vi dien tu',
+            'BANKING': 'Chuyen khoan',
+        };
+        return methods[method] || method || 'Khong xac dinh';
+    };
+
     const getDisplayOrder = () => {
         if (selectedOrderDetail) return selectedOrderDetail;
         if (selectedBill?.order) return selectedBill.order;
@@ -250,8 +410,10 @@ const BillPage = () => {
 
     const displayOrder = getDisplayOrder();
 
+    // ========== RENDER ==========
     return (
         <div className={styles.container}>
+            {/* Header */}
             <div className={styles.header}>
                 <h2>Quản lý hóa đơn</h2>
                 <button onClick={() => fetchBills()} className={styles.refreshBtn}>
@@ -264,21 +426,15 @@ const BillPage = () => {
                 <div className={styles.filterRow}>
                     <div className={styles.filterGroup}>
                         <label><Search size={14} /> Tìm kiếm</label>
-                        <input
-                            type="text"
-                            placeholder="Mã HD, mã đơn..."
-                            value={filter.search}
+                        <input type="text" placeholder="Mã HD, mã đơn..." value={filter.search}
                             onChange={(e) => setFilter({ ...filter, search: e.target.value, currentPage: 1 })}
-                            className={styles.searchInput}
-                        />
+                            className={styles.searchInput} />
                     </div>
                     <div className={styles.filterGroup}>
                         <label><Filter size={14} /> Trạng thái</label>
-                        <select
-                            value={filter.status}
+                        <select value={filter.status}
                             onChange={(e) => setFilter({ ...filter, status: e.target.value, currentPage: 1 })}
-                            className={styles.selectInput}
-                        >
+                            className={styles.selectInput}>
                             <option value="all">Tất cả</option>
                             <option value="PAID">Đã thanh toán</option>
                             <option value="PENDING">Chờ thanh toán</option>
@@ -287,112 +443,57 @@ const BillPage = () => {
                     </div>
                     <div className={styles.filterGroup}>
                         <label><Calendar size={14} /> Từ ngày</label>
-                        <input
-                            type="date"
-                            value={filter.startDate}
+                        <input type="date" value={filter.startDate}
                             onChange={(e) => setFilter({ ...filter, startDate: e.target.value, currentPage: 1 })}
-                            className={styles.dateInput}
-                        />
+                            className={styles.dateInput} />
                     </div>
                     <div className={styles.filterGroup}>
                         <label><Calendar size={14} /> Đến ngày</label>
-                        <input
-                            type="date"
-                            value={filter.endDate}
+                        <input type="date" value={filter.endDate}
                             onChange={(e) => setFilter({ ...filter, endDate: e.target.value, currentPage: 1 })}
-                            className={styles.dateInput}
-                        />
+                            className={styles.dateInput} />
                     </div>
                 </div>
             </div>
 
-            {/* Summary Stats */}
+            {/* Stats */}
             <div className={styles.summaryStats}>
-                <div className={styles.statCard}>
-                    <div className={styles.statLabel}>Tổng hóa đơn</div>
-                    <div className={styles.statValue}>{bills.length}</div>
-                </div>
-                <div className={styles.statCard}>
-                    <div className={styles.statLabel}>Đã thanh toán</div>
-                    <div className={styles.statValue}>{bills.filter(b => b.paymentStatus === 'PAID').length}</div>
-                </div>
-                <div className={styles.statCard}>
-                    <div className={styles.statLabel}>Chờ thanh toán</div>
-                    <div className={styles.statValue}>{bills.filter(b => b.paymentStatus === 'PENDING').length}</div>
-                </div>
-                <div className={styles.statCard}>
-                    <div className={styles.statLabel}>Tổng doanh thu</div>
-                    <div className={styles.statValue}>
-                        {formatCurrency(bills.filter(b => b.paymentStatus === 'PAID').reduce((sum, b) => sum + (b.totalAmount || 0), 0))}
-                    </div>
-                </div>
+                <div className={styles.statCard}><div className={styles.statLabel}>Tổng hóa đơn</div><div className={styles.statValue}>{bills.length}</div></div>
+                <div className={styles.statCard}><div className={styles.statLabel}>Đã thanh toán</div><div className={styles.statValue}>{bills.filter(b => b.paymentStatus === 'PAID').length}</div></div>
+                <div className={styles.statCard}><div className={styles.statLabel}>Chờ thanh toán</div><div className={styles.statValue}>{bills.filter(b => b.paymentStatus === 'PENDING').length}</div></div>
+                <div className={styles.statCard}><div className={styles.statLabel}>Tổng doanh thu</div><div className={styles.statValue}>{formatCurrency(bills.filter(b => b.paymentStatus === 'PAID').reduce((sum, b) => sum + (b.totalAmount || 0), 0))}</div></div>
             </div>
 
             {/* Table */}
             <div className={styles.tableWrapper}>
-                {loading ? (
-                    <div className={styles.loading}>Đang tải...</div>
-                ) : (
+                {loading ? <div className={styles.loading}>Đang tải...</div> : (
                     <table className={styles.table}>
                         <thead>
-                            <tr>
-                                <th>Mã HD</th>
-                                <th>Mã đơn</th>
-                                <th>Bàn</th>
-                                <th>Thời gian</th>
-                                <th>Tổng tiền</th>
-                                <th>Phương thức</th>
-                                <th>Trạng thái</th>
-                                <th>Thao tác</th>
-                            </tr>
+                            <tr><th>Mã HD</th><th>Mã đơn</th><th>Bàn</th><th>Thời gian</th><th>Tổng tiền</th><th>Phương thức</th><th>Trạng thái</th><th>Thao tác</th></tr>
                         </thead>
                         <tbody>
                             {bills.length === 0 ? (
-                                <tr key="no-data">
-                                    <td colSpan="8" className={styles.noData}>Không có dữ liệu</td>
+                                <tr><td colSpan="8" className={styles.noData}>Không có dữ liệu</td></tr>
+                            ) : bills.map((bill) => (
+                                <tr key={bill.id}>
+                                    <td><span className={styles.orderId}>#{bill.id}</span></td>
+                                    <td>#{bill.order?.id || '--'}</td>
+                                    <td>{tableNumbers[bill.id] ? `Bàn ${tableNumbers[bill.id]}` : '...'}</td>
+                                    <td>{formatDateTime(bill.createdAt)}</td>
+                                    <td><span className={styles.amount}>{formatCurrency(bill.totalAmount)}</span></td>
+                                    <td>{getPaymentMethodLabel(bill.paymentMethod)}</td>
+                                    <td>{getStatusBadge(bill.paymentStatus)}</td>
+                                    <td>
+                                        <button onClick={() => handleViewDetail(bill)} className={styles.viewBtn}><Eye size={14} /> Chi tiết</button>
+                                        {bill.paymentStatus === 'PAID' && (
+                                            <button onClick={() => handleExportBill(bill.id)} className={styles.printBtn}><Download size={14} /> PDF</button>
+                                        )}
+                                        {bill.paymentStatus === 'PENDING' && (
+                                            <button onClick={() => { setSelectedOrderForPayment(bill.order); setShowPaymentModal(true); }} className={styles.paymentBtn}><DollarSign size={14} /> TT</button>
+                                        )}
+                                    </td>
                                 </tr>
-                            ) : (
-                                bills.map((bill) => (
-                                    <tr key={bill.id}>
-                                        <td><span className={styles.orderId}>#{bill.id}</span></td>
-                                        <td>#{bill.order?.id || '--'}</td>
-                                        <td>
-                                            {tableNumbers[bill.id] ? `Bàn ${tableNumbers[bill.id]}` : 'Đang tải...'}
-                                        </td>
-                                        <td>{formatDateTime(bill.createdAt)}</td>
-                                        <td><span className={styles.amount}>{formatCurrency(bill.totalAmount)}</span></td>
-                                        <td>{getPaymentMethodLabel(bill.paymentMethod)}</td>
-                                        <td>{getStatusBadge(bill.paymentStatus)}</td>
-                                        <td>
-                                            <button
-                                                onClick={() => handleViewDetail(bill)}
-                                                className={styles.viewBtn}
-                                            >
-                                                <Eye size={14} /> Chi tiết
-                                            </button>
-                                            {bill.paymentStatus === 'PAID' && (
-                                                <button
-                                                    onClick={() => handleExportBill(bill.id)}
-                                                    className={styles.printBtn}
-                                                >
-                                                    <Download size={14} /> PDF
-                                                </button>
-                                            )}
-                                            {bill.paymentStatus === 'PENDING' && (
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedOrderForPayment(bill.order);
-                                                        setShowPaymentModal(true);
-                                                    }}
-                                                    className={styles.paymentBtn}
-                                                >
-                                                    <DollarSign size={14} /> Thanh toán
-                                                </button>
-                                            )}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
+                            ))}
                         </tbody>
                     </table>
                 )}
@@ -401,96 +502,38 @@ const BillPage = () => {
             {/* Pagination */}
             {totalPages > 1 && (
                 <div className={styles.pagination}>
-                    <button
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className={styles.pageBtn}
-                    >
-                        <ChevronLeft size={18} />
-                    </button>
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className={styles.pageBtn}><ChevronLeft size={18} /></button>
                     <span className={styles.pageInfo}>Trang {currentPage} / {totalPages}</span>
-                    <button
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className={styles.pageBtn}
-                    >
-                        <ChevronRight size={18} />
-                    </button>
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={styles.pageBtn}><ChevronRight size={18} /></button>
                 </div>
             )}
 
             {/* Detail Modal */}
             {showDetailModal && selectedBill && (
-                <div className={styles.modalOverlay} onClick={() => {
-                    setShowDetailModal(false);
-                    setSelectedOrderDetail(null);
-                }}>
+                <div className={styles.modalOverlay} onClick={() => { setShowDetailModal(false); setSelectedOrderDetail(null); }}>
                     <div className={styles.modalLg} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
                             <h3>Chi tiết hóa đơn #{selectedBill.id}</h3>
-                            <button onClick={() => {
-                                setShowDetailModal(false);
-                                setSelectedOrderDetail(null);
-                            }} className={styles.closeBtn}>✕</button>
+                            <button onClick={() => { setShowDetailModal(false); setSelectedOrderDetail(null); }} className={styles.closeBtn}>✕</button>
                         </div>
                         <div className={styles.orderDetail}>
-                            {loadingDetail ? (
-                                <div className={styles.loading}>Đang tải chi tiết...</div>
-                            ) : (
+                            {loadingDetail ? <div className={styles.loading}>Đang tải...</div> : (
                                 <>
                                     <div className={styles.infoGrid}>
-                                        <div className={styles.infoRow}>
-                                            <span>Mã hóa đơn:</span>
-                                            <strong>#{selectedBill.id}</strong>
-                                        </div>
-                                        <div className={styles.infoRow}>
-                                            <span>Mã đơn hàng:</span>
-                                            <strong>#{displayOrder?.id || selectedBill.order?.id || '--'}</strong>
-                                        </div>
-                                        <div className={styles.infoRow}>
-                                            <span>Bàn:</span>
-                                            <strong>
-                                                {displayOrder?.table?.number
-                                                    ? `Bàn ${displayOrder.table.number}`
-                                                    : 'Đang tải...'}
-                                            </strong>
-                                        </div>
-                                        <div className={styles.infoRow}>
-                                            <span>Khách hàng:</span>
-                                            <strong>{displayOrder?.customerName || 'Khách lẻ'}</strong>
-                                        </div>
-                                        <div className={styles.infoRow}>
-                                            <span>Thời gian tạo:</span>
-                                            <strong>{formatDateTime(selectedBill.createdAt)}</strong>
-                                        </div>
-                                        <div className={styles.infoRow}>
-                                            <span>Thời gian xuất HD:</span>
-                                            <strong>{formatDateTime(selectedBill.issuedAt)}</strong>
-                                        </div>
-                                        <div className={styles.infoRow}>
-                                            <span>Phương thức thanh toán:</span>
-                                            <strong>{getPaymentMethodLabel(selectedBill.paymentMethod)}</strong>
-                                        </div>
-                                        <div className={styles.infoRow}>
-                                            <span>Trạng thái:</span>
-                                            <strong>{selectedBill.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chờ thanh toán'}</strong>
-                                        </div>
+                                        <div className={styles.infoRow}><span>Mã hóa đơn:</span><strong>#{selectedBill.id}</strong></div>
+                                        <div className={styles.infoRow}><span>Mã đơn hàng:</span><strong>#{displayOrder?.id || '--'}</strong></div>
+                                        <div className={styles.infoRow}><span>Bàn:</span><strong>{displayOrder?.table?.number ? `Bàn ${displayOrder.table.number}` : '...'}</strong></div>
+                                        <div className={styles.infoRow}><span>Khách hàng:</span><strong>{displayOrder?.customerName || 'Khách lẻ'}</strong></div>
+                                        <div className={styles.infoRow}><span>Thời gian:</span><strong>{formatDateTime(selectedBill.createdAt)}</strong></div>
+                                        <div className={styles.infoRow}><span>Phương thức:</span><strong>{getPaymentMethodLabel(selectedBill.paymentMethod)}</strong></div>
+                                        <div className={styles.infoRow}><span>Trạng thái:</span><strong>{selectedBill.paymentStatus === 'PAID' ? 'Đã thanh toán' : 'Chờ thanh toán'}</strong></div>
                                     </div>
-
                                     <div className={styles.divider}></div>
-
                                     <div className={styles.itemsList}>
                                         <h4>📋 Danh sách món:</h4>
-                                        {displayOrder?.items && displayOrder.items.length > 0 ? (
+                                        {displayOrder?.items?.length > 0 ? (
                                             <table className={styles.itemsTable}>
-                                                <thead>
-                                                    <tr>
-                                                        <th>Tên món</th>
-                                                        <th>Số lượng</th>
-                                                        <th>Đơn giá</th>
-                                                        <th>Thành tiền</th>
-                                                    </tr>
-                                                </thead>
+                                                <thead><tr><th>Tên món</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
                                                 <tbody>
                                                     {displayOrder.items.map((item, idx) => (
                                                         <tr key={idx}>
@@ -508,25 +551,15 @@ const BillPage = () => {
                                                     </tr>
                                                 </tfoot>
                                             </table>
-                                        ) : (
-                                            <div className={styles.noItems}>Không có món ăn</div>
-                                        )}
+                                        ) : <div className={styles.noItems}>Không có món ăn</div>}
                                     </div>
                                 </>
                             )}
                         </div>
                         <div className={styles.modalFooter}>
-                            <button onClick={() => {
-                                setShowDetailModal(false);
-                                setSelectedOrderDetail(null);
-                            }} className={styles.closeModalBtn}>Đóng</button>
+                            <button onClick={() => { setShowDetailModal(false); setSelectedOrderDetail(null); }} className={styles.closeModalBtn}>Đóng</button>
                             {selectedBill.paymentStatus === 'PAID' && (
-                                <button
-                                    onClick={() => handleExportBill(selectedBill.id)}
-                                    className={styles.printBtnLarge}
-                                >
-                                    <Download size={16} /> Xuất PDF
-                                </button>
+                                <button onClick={() => handleExportBill(selectedBill.id)} className={styles.printBtnLarge}><Download size={16} /> Xuất PDF</button>
                             )}
                         </div>
                     </div>
@@ -542,50 +575,26 @@ const BillPage = () => {
                             <button onClick={() => setShowPaymentModal(false)} className={styles.closeBtn}>✕</button>
                         </div>
                         <div className={styles.orderDetail}>
-                            <div className={styles.infoRow}>
-                                <span>Mã đơn hàng:</span>
-                                <strong>#{selectedOrderForPayment?.id}</strong>
-                            </div>
-                            <div className={styles.infoRow}>
-                                <span>Bàn:</span>
-                                <strong>{selectedOrderForPayment?.table?.number ? `Bàn ${selectedOrderForPayment.table.number}` : 'Bàn --'}</strong>
-                            </div>
-                            <div className={styles.totalRow}>
-                                <span>Tổng tiền:</span>
-                                <strong className={styles.totalAmount}>{formatCurrency(selectedOrderForPayment?.totalAmount)}</strong>
-                            </div>
+                            <div className={styles.infoRow}><span>Mã đơn:</span><strong>#{selectedOrderForPayment?.id}</strong></div>
+                            <div className={styles.infoRow}><span>Bàn:</span><strong>{selectedOrderForPayment?.table?.number ? `Bàn ${selectedOrderForPayment.table.number}` : '--'}</strong></div>
+                            <div className={styles.totalRow}><span>Tổng tiền:</span><strong className={styles.totalAmount}>{formatCurrency(selectedOrderForPayment?.totalAmount)}</strong></div>
                             <div className={styles.divider}></div>
                             <div className={styles.paymentMethodSection}>
-                                <label>Chọn phương thức thanh toán:</label>
+                                <label>Chọn phương thức:</label>
                                 <div className={styles.paymentMethods}>
-                                    <button
-                                        className={`${styles.methodBtn} ${paymentMethod === 'CASH' ? styles.activeMethod : ''}`}
-                                        onClick={() => setPaymentMethod('CASH')}
-                                    >
-                                        💵 Tiền mặt
-                                    </button>
-                                    <button
-                                        className={`${styles.methodBtn} ${paymentMethod === 'MOMO' ? styles.activeMethod : ''}`}
-                                        onClick={() => setPaymentMethod('MOMO')}
-                                    >
-                                        📱 MoMo
-                                    </button>
-                                    <button
-                                        className={`${styles.methodBtn} ${paymentMethod === 'BANKING' ? styles.activeMethod : ''}`}
-                                        onClick={() => setPaymentMethod('BANKING')}
-                                    >
-                                        🏦 Chuyển khoản
-                                    </button>
+                                    {['CASH', 'MOMO', 'BANKING'].map(m => (
+                                        <button key={m}
+                                            className={`${styles.methodBtn} ${paymentMethod === m ? styles.activeMethod : ''}`}
+                                            onClick={() => setPaymentMethod(m)}>
+                                            {m === 'CASH' ? '💵 Tiền mặt' : m === 'MOMO' ? '📱 MoMo' : '🏦 Chuyển khoản'}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         </div>
                         <div className={styles.modalFooter}>
                             <button onClick={() => setShowPaymentModal(false)} className={styles.cancelBtn}>Hủy</button>
-                            <button
-                                onClick={() => handleProcessPayment(selectedOrderForPayment?.id)}
-                                className={styles.confirmPaymentBtn}
-                                disabled={processingPayment}
-                            >
+                            <button onClick={() => handleProcessPayment(selectedOrderForPayment?.id)} className={styles.confirmPaymentBtn} disabled={processingPayment}>
                                 {processingPayment ? "Đang xử lý..." : "Xác nhận thanh toán"}
                             </button>
                         </div>
