@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { ChefHat, LogOut } from "lucide-react";
-
+import io from 'socket.io-client';
 const CHEF_NOTIFICATIONS_KEY = 'chef_notifications';
-
+const socket = io('http://localhost:3001');
 const ChefLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -25,6 +25,47 @@ const ChefLayout = () => {
     });
 
     const [showNotificationPanel, setShowNotificationPanel] = useState(false);
+
+    useEffect(() => {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+        // Đăng ký role kitchen
+        if (user?.id && user?.branch?.id) {
+            socket.emit("register-role", {
+                role: "kitchen",
+                userId: user.id,
+                branchId: user.branch.id
+            });
+        }
+
+        // 👇 THÊM LISTENER NÀY
+        const handleKitchenReservation = (data) => {
+            console.log("👨‍🍳 ChefLayout nhận thông báo:", data);
+
+            const event = new CustomEvent('chef-notification', {
+                detail: {
+                    message: data.message || `🍳 Chuẩn bị món cho khách ${data.customerName}`,
+                    type: 'warning'
+                }
+            });
+            window.dispatchEvent(event);
+
+            const newNotification = {
+                id: Date.now() + Math.random(),
+                message: data.message,
+                type: 'warning',
+                timestamp: new Date(),
+                items: data.items || []
+            };
+            setNotifications(prev => [newNotification, ...prev].slice(0, 50));
+        };
+
+        socket.on("kitchen-reservation-notification", handleKitchenReservation);
+
+        return () => {
+            socket.off("kitchen-reservation-notification", handleKitchenReservation);
+        };
+    }, []);
 
     // ===== LƯU NOTIFICATIONS VÀO LOCALSTORAGE =====
     useEffect(() => {
@@ -331,8 +372,8 @@ const ChefLayout = () => {
                                             noti.type === 'warning' ? '#fffbeb' :
                                                 noti.type === 'error' ? '#fef2f2' : '#f9fafb',
                                         borderLeft: `4px solid ${noti.type === 'success' ? '#10b981' :
-                                                noti.type === 'warning' ? '#f59e0b' :
-                                                    noti.type === 'error' ? '#ef4444' : '#3b82f6'
+                                            noti.type === 'warning' ? '#f59e0b' :
+                                                noti.type === 'error' ? '#ef4444' : '#3b82f6'
                                             }`
                                     }}>
                                         <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>

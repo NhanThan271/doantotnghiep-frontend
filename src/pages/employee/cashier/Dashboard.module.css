@@ -1,8 +1,17 @@
 /* Dashboard.module.css */
 .container {
     padding: 20px;
-    min-height: 100vh;
+    height: 100%;
+    max-width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    box-sizing: border-box;
+}
+
+.container * {
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* Header */
@@ -15,23 +24,36 @@
     padding: 16px 24px;
     border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.headerLeft {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
 }
 
 .headerLeft h2 {
-    margin: 0 0 8px 0;
+    margin: 0;
     color: #1e3a8a;
+    font-size: 22px;
+    white-space: nowrap;
 }
 
 .shiftStatus {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 .statusBadge {
     color: #10b981;
     font-size: 14px;
     font-weight: 500;
+    white-space: nowrap;
 }
 
 .shiftTimer {
@@ -41,11 +63,23 @@
     font-size: 13px;
     color: #6b7280;
     font-family: monospace;
+    white-space: nowrap;
+}
+
+.lastUpdated {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #9ca3af;
+    white-space: nowrap;
 }
 
 .headerRight {
     display: flex;
-    gap: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 .startShiftBtn {
@@ -59,6 +93,33 @@
     align-items: center;
     gap: 8px;
     font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.startShiftBtn:hover {
+    background: #059669;
+}
+
+.createOrderBtn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.createOrderBtn:hover {
+    background: #2563eb;
 }
 
 .endShiftBtn {
@@ -72,6 +133,13 @@
     align-items: center;
     gap: 8px;
     font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.endShiftBtn:hover {
+    background: #dc2626;
 }
 
 .refreshBtn {
@@ -83,6 +151,62 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    font-size: 14px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.refreshBtn:hover {
+    background: #e5e7eb;
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Error Alert */
+.errorAlert {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.errorClose {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 4px;
+}
+
+/* Loading Overlay */
+.loadingOverlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px;
+    color: #6b7280;
+    font-size: 16px;
 }
 
 /* Stats Grid */
@@ -108,19 +232,27 @@
     transform: translateY(-2px);
 }
 
+.primaryCard {
+    border: 2px solid #10b98130;
+}
+
+.warningCard {
+    border: 2px solid #f59e0b30;
+}
+
 .statIcon {
     width: 60px;
     height: 60px;
-    background: #eff6ff;
     border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 32px;
+    flex-shrink: 0;
 }
 
 .statInfo {
     flex: 1;
+    min-width: 0;
 }
 
 .statTitle {
@@ -130,9 +262,10 @@
 }
 
 .statValue {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: bold;
     color: #1e3a8a;
+    word-break: break-all;
 }
 
 .statSub {
@@ -147,11 +280,15 @@
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .paymentMethodsCard h3 {
     margin: 0 0 16px 0;
     color: #1e3a8a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .methodsGrid {
@@ -164,23 +301,30 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px;
+    padding: 16px;
     background: #f9fafb;
     border-radius: 12px;
     position: relative;
+    transition: all 0.2s;
+}
+
+.methodItem:hover {
+    background: #f3f4f6;
 }
 
 .methodIcon {
-    font-size: 28px;
+    flex-shrink: 0;
 }
 
 .methodInfo {
     flex: 1;
+    min-width: 0;
 }
 
 .methodName {
     font-size: 13px;
     color: #6b7280;
+    margin-bottom: 4px;
 }
 
 .methodValue {
@@ -192,12 +336,24 @@
 .methodCount {
     font-size: 11px;
     color: #9ca3af;
+    margin-top: 2px;
 }
 
-.methodPercent {
-    font-size: 14px;
-    font-weight: bold;
-    color: #10b981;
+.methodBar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #e5e7eb;
+    border-radius: 0 0 12px 12px;
+    overflow: hidden;
+}
+
+.methodBarFill {
+    height: 100%;
+    border-radius: 0 0 12px 12px;
+    transition: width 0.5s ease;
 }
 
 /* Shift Info */
@@ -206,6 +362,7 @@
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .shiftInfoHeader {
@@ -213,16 +370,22 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .shiftInfoHeader h3 {
     margin: 0;
     color: #1e3a8a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .actionButtons {
     display: flex;
-    gap: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .withdrawBtn {
@@ -236,6 +399,12 @@
     align-items: center;
     gap: 6px;
     font-size: 13px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.withdrawBtn:hover {
+    background: #fde68a;
 }
 
 .depositBtn {
@@ -249,6 +418,12 @@
     align-items: center;
     gap: 6px;
     font-size: 13px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.depositBtn:hover {
+    background: #a7f3d0;
 }
 
 .shiftInfoGrid {
@@ -266,6 +441,9 @@
 .infoLabel {
     font-size: 12px;
     color: #6b7280;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .infoValue {
@@ -274,17 +452,27 @@
     color: #1f2937;
 }
 
+.infoValueHighlight {
+    font-size: 18px;
+    font-weight: 700;
+    color: #10b981;
+}
+
 /* Hourly Revenue */
 .hourlyRevenueCard {
     background: white;
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .hourlyRevenueCard h3 {
     margin: 0 0 20px 0;
     color: #1e3a8a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .chartContainer {
@@ -292,34 +480,87 @@
     align-items: flex-end;
     gap: 8px;
     overflow-x: auto;
+    overflow-y: hidden;
     padding: 10px 0;
+    min-height: 200px;
+}
+
+.chartContainer::-webkit-scrollbar {
+    height: 6px;
+}
+
+.chartContainer::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.chartContainer::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.chartBarGroup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 50px;
+    position: relative;
 }
 
 .chartBar {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 60px;
-}
-
-.chartBarLabel {
-    font-size: 11px;
-    color: #6b7280;
-    margin-bottom: 8px;
+    justify-content: flex-end;
+    height: 180px;
+    width: 100%;
 }
 
 .chartBarFill {
-    width: 40px;
+    width: 36px;
     border-radius: 4px 4px 0 0;
     transition: height 0.3s;
     min-height: 4px;
 }
 
-.chartBarValue {
+.chartBarLabel {
     font-size: 11px;
-    color: #1f2937;
-    margin-top: 6px;
-    font-weight: 500;
+    color: #6b7280;
+    margin-top: 8px;
+    white-space: nowrap;
+}
+
+.chartBarTooltip {
+    position: absolute;
+    top: -40px;
+    background: #1f2937;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.chartLegend {
+    display: flex;
+    gap: 20px;
+    margin-top: 12px;
+    justify-content: center;
+}
+
+.legendItem {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.legendColor {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
 }
 
 /* Transactions */
@@ -328,16 +569,21 @@
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .transactionsCard h3 {
     margin: 0 0 16px 0;
     color: #1e3a8a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .transactionsTable {
     width: 100%;
     border-collapse: collapse;
+    font-size: 13px;
 }
 
 .transactionsTable th {
@@ -346,6 +592,7 @@
     background: #f9fafb;
     font-weight: 600;
     color: #374151;
+    white-space: nowrap;
 }
 
 .transactionsTable td {
@@ -353,29 +600,52 @@
     border-bottom: 1px solid #e5e7eb;
 }
 
-.withdrawText {
-    color: #d97706;
-    font-weight: 500;
+.withdrawRow {
+    background: #fffbeb;
 }
 
-.depositText {
+.depositRow {
+    background: #f0fdf4;
+}
+
+.withdrawBadge {
+    color: #d97706;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.depositBadge {
     color: #059669;
     font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .withdrawAmount {
     color: #d97706;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .depositAmount {
     color: #059669;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .transactionReason {
     color: #6b7280;
-    font-size: 13px;
+    font-size: 12px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.balanceAfter {
+    font-weight: 500;
+    color: #1f2937;
 }
 
 /* Recent Orders */
@@ -384,20 +654,50 @@
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.recentOrdersCard h3 {
-    margin: 0 0 16px 0;
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.cardHeader h3 {
+    margin: 0;
     color: #1e3a8a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.viewAllBtn {
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+    color: #3b82f6;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.viewAllBtn:hover {
+    background: #dbeafe;
 }
 
 .tableWrapper {
-    overflow-x: auto;
+    overflow-x: hidden;
+    overflow-y: visible;
+    width: 100%;
 }
 
 .ordersTable {
     width: 100%;
     border-collapse: collapse;
+    font-size: 13px;
 }
 
 .ordersTable th {
@@ -406,11 +706,20 @@
     background: #f9fafb;
     font-weight: 600;
     color: #374151;
+    white-space: nowrap;
 }
 
 .ordersTable td {
     padding: 12px;
     border-bottom: 1px solid #e5e7eb;
+}
+
+.paidRow {
+    background: #f0fdf4;
+}
+
+.pendingRow {
+    background: #fffbeb;
 }
 
 .orderId {
@@ -419,7 +728,7 @@
 }
 
 .orderAmount {
-    font-weight: 500;
+    font-weight: 600;
     color: #059669;
 }
 
@@ -428,7 +737,10 @@
     padding: 4px 8px;
     background: #f3f4f6;
     border-radius: 4px;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
 }
 
 .paidBadge {
@@ -438,7 +750,10 @@
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
 }
 
 .unpaidBadge {
@@ -448,7 +763,10 @@
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
 }
 
 .viewBtn {
@@ -462,6 +780,19 @@
     gap: 6px;
     font-size: 12px;
     color: #3b82f6;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.viewBtn:hover {
+    background: #dbeafe;
+}
+
+.noData {
+    text-align: center;
+    padding: 40px;
+    color: #9ca3af;
+    font-size: 14px;
 }
 
 /* No Shift State */
@@ -470,6 +801,7 @@
     border-radius: 16px;
     padding: 60px 20px;
     text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .noShiftContent {
@@ -477,17 +809,75 @@
     margin: 0 auto;
 }
 
+.noShiftIcon {
+    color: #9ca3af;
+    margin-bottom: 20px;
+}
+
 .noShiftContent h3 {
     margin: 20px 0 8px;
     color: #374151;
+    font-size: 20px;
 }
 
 .noShiftContent p {
     color: #6b7280;
     margin-bottom: 24px;
+    font-size: 14px;
 }
 
-/* Modal */
+.noShiftInstructions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+    text-align: left;
+}
+
+.instructionItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: #374151;
+}
+
+.stepNumber {
+    width: 28px;
+    height: 28px;
+    background: #dbeafe;
+    color: #3b82f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.startShiftLargeBtn {
+    background: #10b981;
+    color: white;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.startShiftLargeBtn:hover {
+    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* ===== MODAL ===== */
 .modalOverlay {
     position: fixed;
     top: 0;
@@ -499,32 +889,68 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 20px;
 }
 
 .modal {
     background: white;
     border-radius: 16px;
-    width: 450px;
-    max-width: 90%;
-    max-height: 90vh;
+    width: 650px;
+    max-width: 95%;
+    max-height: 95vh;
     overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
-.modal h3 {
-    margin: 0;
-    padding: 20px 24px 16px;
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px 12px;
     border-bottom: 1px solid #e5e7eb;
 }
 
-.modalContent {
-    padding: 20px 24px;
+.modalHeader h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #1e3a8a;
+    font-size: 18px;
 }
 
-.modalContent label {
-    display: block;
+.modalClose {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.modalClose:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.modalContent {
+    padding: 16px 20px;
+}
+
+.formGroup {
+    margin-bottom: 16px;
+}
+
+.formGroup label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     margin-bottom: 8px;
     font-weight: 500;
     color: #374151;
+    font-size: 14px;
 }
 
 .required {
@@ -536,14 +962,21 @@
     padding: 10px 12px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
-    margin-bottom: 16px;
     font-size: 14px;
+    box-sizing: border-box;
+    transition: all 0.2s;
 }
 
 .modalInput:focus {
     outline: none;
     border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.inputHint {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 6px;
 }
 
 .modalInfo {
@@ -555,13 +988,59 @@
     border-radius: 8px;
     font-size: 13px;
     color: #d97706;
+    margin-bottom: 16px;
+}
+
+.developmentNote {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: #fffbeb;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-top: 12px;
+}
+
+.quickAmounts {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.quickAmounts span {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.quickAmountBtn {
+    padding: 6px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.quickAmountBtn:hover {
+    background: #f3f4f6;
+}
+
+.quickAmountBtn.active {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    color: #3b82f6;
 }
 
 .modalFooter {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    padding: 16px 24px 20px;
+    padding: 12px 20px 16px;
     border-top: 1px solid #e5e7eb;
 }
 
@@ -571,6 +1050,12 @@
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+    background: #e5e7eb;
 }
 
 .confirmBtn,
@@ -582,6 +1067,11 @@
     border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .confirmBtn {
@@ -589,9 +1079,17 @@
     color: white;
 }
 
+.confirmBtn:hover {
+    background: #059669;
+}
+
 .endShiftConfirmBtn {
     background: #ef4444;
     color: white;
+}
+
+.endShiftConfirmBtn:hover {
+    background: #dc2626;
 }
 
 .withdrawConfirmBtn {
@@ -599,26 +1097,81 @@
     color: white;
 }
 
+.withdrawConfirmBtn:hover {
+    background: #b45309;
+}
+
 .depositConfirmBtn {
     background: #059669;
     color: white;
 }
 
-/* End Shift Summary */
+.depositConfirmBtn:hover {
+    background: #047857;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ===== END SHIFT SUMMARY - 2 CỘT ===== */
 .endShiftSummary {
-    padding: 20px 24px;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 24px;
+}
+
+.summarySection {
+    margin-bottom: 12px;
+}
+
+.summarySection:last-child {
+    grid-column: 1 / -1;
+}
+
+.summarySection h4 {
+    margin: 0 0 8px 0;
+    color: #1e3a8a;
+    font-size: 14px;
 }
 
 .summaryRow {
     display: flex;
     justify-content: space-between;
-    padding: 8px 0;
+    align-items: center;
+    padding: 5px 0;
+    font-size: 13px;
+}
+
+.summaryRow span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #6b7280;
+}
+
+.summaryRowHighlight {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: #f0fdf4;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.summaryRowHighlight span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #6b7280;
 }
 
 .divider {
-    height: 1px;
-    background: #e5e7eb;
-    margin: 12px 0;
+    display: none;
 }
 
 .cashHighlight {
@@ -631,9 +1184,49 @@
     font-size: 18px;
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
+.calculationNote {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fef3c7;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #d97706;
+    margin-top: 10px;
+    grid-column: 1 / -1;
+}
+
+.calculationNote span {
+    line-height: 1.6;
+}
+
+/* Scrollbar Styles */
+.container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1200px) {
     .statsGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .shiftInfoGrid {
         grid-template-columns: repeat(2, 1fr);
     }
 
@@ -641,12 +1234,55 @@
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .shiftInfoGrid {
-        grid-template-columns: repeat(2, 1fr);
+    .modal {
+        width: 90%;
+    }
+
+    .endShiftSummary {
+        grid-template-columns: 1fr;
     }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+    .container {
+        padding: 12px;
+    }
+
+    .header {
+        padding: 12px 16px;
+    }
+
+    .headerLeft h2 {
+        font-size: 18px;
+    }
+
+    .statValue {
+        font-size: 20px;
+    }
+
+    .statIcon {
+        width: 48px;
+        height: 48px;
+    }
+
+    .chartBarFill {
+        width: 24px;
+    }
+
+    .chartBarGroup {
+        min-width: 40px;
+    }
+
+    .modal {
+        width: 95%;
+    }
+
+    .endShiftSummary {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
     .statsGrid {
         grid-template-columns: 1fr;
     }
@@ -661,6 +1297,26 @@
 
     .header {
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
+    }
+
+    .headerRight {
+        width: 100%;
+    }
+
+    .actionButtons {
+        width: 100%;
+    }
+
+    .actionButtons button {
+        flex: 1;
+    }
+
+    .chartBarGroup {
+        min-width: 30px;
+    }
+
+    .chartBarFill {
+        width: 16px;
     }
 }
