@@ -152,77 +152,6 @@ const ChefDashboard = () => {
         }
     }, []);
 
-    // ========== DEDUCT INGREDIENTS ==========
-    const deductIngredientsForItem = async (foodId, quantity, branchId) => {
-        try {
-            const warnings = [];
-            let hasError = false;
-
-            const recipeResponse = await axiosClient.get(`/recipes/food/${foodId}`);
-            const recipes = recipeResponse.data;
-
-            if (!recipes || recipes.length === 0) {
-                return { success: true, warnings: null, hasError: false };
-            }
-
-            const ingredientsResponse = await axiosClient.get(`/branch-ingredients/branch/${branchId}`);
-            const branchIngredients = ingredientsResponse.data;
-
-            for (const recipe of recipes) {
-                const ingredientId = recipe.ingredient?.id;
-                const ingredientName = recipe.ingredient?.name || 'Không xác định';
-                const unit = recipe.ingredient?.unit || '';
-                const requiredPerItem = recipe.quantityRequired || 0;
-                const totalRequired = requiredPerItem * quantity;
-
-                if (totalRequired === 0) continue;
-
-                const branchIngredient = branchIngredients.find(bi => bi.ingredient?.id === ingredientId);
-
-                if (!branchIngredient) {
-                    warnings.push(`⚠️ Không tìm thấy "${ingredientName}" trong kho`);
-                    continue;
-                }
-
-                const currentQuantity = branchIngredient.quantity || 0;
-
-                if (currentQuantity < totalRequired) {
-                    hasError = true;
-                    warnings.push(`❌ KHÔNG ĐỦ "${ingredientName}": cần ${totalRequired}${unit}, hiện có ${currentQuantity}${unit}`);
-                }
-            }
-
-            if (hasError) return { success: false, hasError: true, warnings };
-
-            for (const recipe of recipes) {
-                const ingredientId = recipe.ingredient?.id;
-                const ingredientName = recipe.ingredient?.name || 'Không xác định';
-                const unit = recipe.ingredient?.unit || '';
-                const requiredPerItem = recipe.quantityRequired || 0;
-                const totalRequired = requiredPerItem * quantity;
-
-                if (totalRequired === 0) continue;
-
-                const branchIngredient = branchIngredients.find(bi => bi.ingredient?.id === ingredientId);
-                if (!branchIngredient) continue;
-
-                const currentQuantity = branchIngredient.quantity || 0;
-                const newQuantity = currentQuantity - totalRequired;
-
-                if (newQuantity < 10) {
-                    warnings.push(`⚠️ "${ingredientName}" sắp hết: còn ${newQuantity.toFixed(2)}${unit}`);
-                }
-
-                await axiosClient.put(`/branch-ingredients/${branchIngredient.id}?quantity=${newQuantity}`);
-            }
-
-            return { success: true, hasError: false, warnings: warnings.length > 0 ? warnings : null };
-        } catch (error) {
-            console.error('Lỗi trừ nguyên liệu:', error);
-            return { success: false, hasError: true, error: error.message, warnings: [`❌ Lỗi hệ thống: ${error.message}`] };
-        }
-    };
-
     // ========== FETCH DATA ==========
     const fetchData = useCallback(async (silent = false) => {
         if (!branchId) return;
@@ -233,6 +162,13 @@ const ChefDashboard = () => {
             const items = response.data;
             const data = Array.isArray(items) ? items : [];
 
+            const activeIds = new Set(data.map(item => item.id));
+
+            for (const [key] of knownItemIdsRef.current) {
+                if (typeof key === 'number' && !activeIds.has(key)) {
+                    knownItemIdsRef.current.delete(key);
+                }
+            }
             // Debug
             if (data.length > 0) {
                 console.log("📋 Kitchen items count:", data.length);
@@ -508,6 +444,7 @@ const ChefDashboard = () => {
 
     // ========== UPDATE STATUS ==========
     const updateStatus = async (itemGroup, status) => {
+        console.log("🚀 updateStatus called:", status, "ids:", itemGroup.originalIds);
         const idsToUpdate = itemGroup.originalIds;
         if (!idsToUpdate || idsToUpdate.length === 0) {
             showToast(`Không tìm thấy món ${itemGroup.name}`, 'error');
@@ -517,33 +454,19 @@ const ChefDashboard = () => {
         setItemUpdating(prev => ({ ...prev, [itemGroup.id]: true }));
 
         try {
-            if (status === 'PREPARING' && branchId) {
-                const foodId = itemGroup.foodId;
-                if (foodId) {
-                    const deductResult = await deductIngredientsForItem(foodId, itemGroup.quantity, branchId);
-
-                    if (deductResult.warnings && deductResult.warnings.length > 0) {
-                        deductResult.warnings.forEach(warning => {
-                            if (warning.includes('❌')) {
-                                showToast(warning, 'error');
-                                sendNotificationToLayout(warning, 'error');
-                            } else {
-                                showToast(warning, 'warning');
-                            }
-                        });
-                    }
-
-                    if (deductResult.hasError) {
-                        showToast('🚫 Không đủ nguyên liệu!', 'error');
-                        sendNotificationToLayout('🚫 Không đủ nguyên liệu cho: ' + itemGroup.name, 'error');
-                        setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
-                        return;
-                    }
+            if (status === 'PREPARING') {
+                console.log("📤 Calling /status with quantity:", itemGroup.quantity);
+                await axiosClient.put(
+                    `/kitchen/order-items/${idsToUpdate[0]}/status?status=${status}&quantity=${itemGroup.quantity}`
+                );
+                await fetchData();
+            } else {
+                console.log("📤 Calling /status-only for READY");
+                for (const id of idsToUpdate) {
+                    await axiosClient.put(
+                        `/kitchen/order-items/${id}/status-only?status=${status}`
+                    );
                 }
-            }
-
-            for (const originalId of idsToUpdate) {
-                await axiosClient.put(`/kitchen-order-items/${originalId}/status?status=${status}`);
             }
 
             const oldKey = `${itemGroup.foodId}_${itemGroup.status}`;
@@ -577,6 +500,7 @@ const ChefDashboard = () => {
             showToast(toastMessage, 'success');
         } catch (err) {
             console.error("❌ Error in updateStatus:", err);
+            console.error("❌ Response data:", err.response?.data);
             showToast(`Lỗi: ${err.response?.data?.message || err.message}`, 'error');
         } finally {
             setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));

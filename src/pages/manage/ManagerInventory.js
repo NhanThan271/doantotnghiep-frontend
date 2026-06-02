@@ -39,6 +39,14 @@ export default function ManagerInventoryManagement() {
     const POLLING_INTERVAL = 10000;
     const processedResponses = useRef(new Set());
 
+    const [branchAggregated, setBranchAggregated] = useState([]);
+    const [expiredItems, setExpiredItems] = useState([]);
+    const [nearExpiryItems, setNearExpiryItems] = useState([]);
+    const [branchViewMode, setBranchViewMode] = useState('aggregate');
+    const [branchBatches, setBranchBatches] = useState([]);
+
+    const [batchHsdFilter, setBatchHsdFilter] = useState('all');
+
     // Notification system
     const addNotification = (notification) => {
         const id = Date.now() + Math.random();
@@ -98,6 +106,40 @@ export default function ManagerInventoryManagement() {
         };
     }, [currentBranch?.id, user?.id]);
 
+    const fetchBranchAggregated = useCallback(async () => {
+        if (!currentBranch?.id) return;
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(
+                `${API_BASE_URL}/api/inventory-batches/branch/${currentBranch.id}/aggregated`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            setBranchAggregated(data);
+            setExpiredItems(data.filter(d => d.expired));
+            setNearExpiryItems(data.filter(d => d.nearExpired && !d.expired));
+        } catch (e) {
+            console.error(e);
+        }
+    }, [currentBranch?.id]);
+
+    const fetchBranchBatches = useCallback(async () => {
+        if (!currentBranch?.id) return;
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(
+                `${API_BASE_URL}/api/inventory-batches/branch/${currentBranch.id}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            setBranchBatches(Array.isArray(data) ? data : []);
+        } catch (e) {
+            console.error(e);
+        }
+    }, [currentBranch?.id]);
+
     const fetchAllIngredients = async () => {
         try {
             const token = localStorage.getItem('token');
@@ -149,7 +191,7 @@ export default function ManagerInventoryManagement() {
             const res = await fetch(`${API_BASE_URL}/api/warehouses`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (res.ok) setWarehouses(await res.json());
+            if (!res.ok) return;
             const data = await res.json();
             setWarehouses(Array.isArray(data) ? data : []);
         } catch (e) { console.error('Lỗi khi tải kho tổng:', e); }
@@ -231,6 +273,8 @@ export default function ManagerInventoryManagement() {
     useEffect(() => {
         if (currentBranch) {
             fetchBranchIngredients();
+            fetchBranchAggregated();
+            fetchBranchBatches();
             fetchRecipes();
             fetchProducts();
             fetchInventoryRequests();
@@ -385,7 +429,6 @@ export default function ManagerInventoryManagement() {
     };
 
     const getStockStatus = (quantity) => {
-        if (quantity === 0) return { text: 'Hết hàng', class: styles.badgeDanger, color: '#EF4444' };
         if (quantity < 10) return { text: 'Sắp hết', class: styles.badgeWarning, color: '#F59E0B' };
         return { text: 'Còn đủ', class: styles.badgeSuccess, color: '#10B981' };
     };
@@ -449,6 +492,23 @@ export default function ManagerInventoryManagement() {
         { key: 'history', label: 'Lịch sử kho', icon: History }
     ];
 
+    const ViewToggle = ({ mode, setMode }) => (
+        <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,.06)', borderRadius: 8, padding: 3 }}>
+            {[
+                { id: 'aggregate', label: '📊 Tổng hợp' },
+                { id: 'batch', label: '📦 Theo lô (HSD)' }
+            ].map(m => (
+                <button key={m.id} onClick={() => setMode(m.id)} style={{
+                    padding: '6px 14px', borderRadius: 6, border: 'none',
+                    background: mode === m.id ? '#8B5CF6' : 'transparent',
+                    color: mode === m.id ? '#fff' : 'var(--color-text-secondary)',
+                    cursor: 'pointer', fontSize: 13, fontWeight: mode === m.id ? 600 : 400,
+                    transition: 'all .15s'
+                }}>{m.label}</button>
+            ))}
+        </div>
+    );
+
     return (
         <div className={styles.pageContainer}>
             {/* Notification Toast */}
@@ -507,15 +567,54 @@ export default function ManagerInventoryManagement() {
                         <div className={styles.statIcon}><TrendingDown size={24} /></div>
                         <div><div className={styles.statValue}>{stats.lowStock}</div><div className={styles.statLabel}>Sắp hết</div></div>
                     </div>
-                    <div className={styles.statCardDanger}>
-                        <div className={styles.statIcon}><AlertCircle size={24} /></div>
-                        <div><div className={styles.statValue}>{stats.outOfStock}</div><div className={styles.statLabel}>Hết hàng</div></div>
-                    </div>
                     <div className={styles.statCardPrimary}>
                         <div className={styles.statIcon}><Clock size={24} /></div>
                         <div><div className={styles.statValue}>{stats.pendingRequests}</div><div className={styles.statLabel}>Yêu cầu chờ duyệt</div></div>
                     </div>
                 </div>
+
+                {(expiredItems.length > 0 || nearExpiryItems.length > 0) && (
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+                        {expiredItems.length > 0 && (
+                            <div style={{
+                                flex: 1, minWidth: 240,
+                                background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)',
+                                borderRadius: 10, padding: '12px 16px',
+                                display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer'
+                            }} onClick={() => setActiveTab('ingredients')}>
+                                <AlertCircle size={22} color="#ef4444" />
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ color: '#ef4444', fontWeight: 700 }}>
+                                        {expiredItems.length} nguyên liệu đã hết hạn
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'rgba(239,68,68,.7)', marginTop: 2 }}>
+                                        {expiredItems.map(i => i.ingredientName).join(' · ')}
+                                    </div>
+                                </div>
+                                <span style={{ color: '#ef4444', fontSize: 12 }}>Xem →</span>
+                            </div>
+                        )}
+                        {nearExpiryItems.length > 0 && (
+                            <div style={{
+                                flex: 1, minWidth: 240,
+                                background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.3)',
+                                borderRadius: 10, padding: '12px 16px',
+                                display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer'
+                            }} onClick={() => setActiveTab('ingredients')}>
+                                <Clock size={22} color="#f59e0b" />
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ color: '#f59e0b', fontWeight: 700 }}>
+                                        {nearExpiryItems.length} nguyên liệu sắp hết hạn (≤ 7 ngày)
+                                    </div>
+                                    <div style={{ fontSize: 12, color: 'rgba(245,158,11,.75)', marginTop: 2 }}>
+                                        {nearExpiryItems.map(i => `${i.ingredientName} (còn ${i.daysToExpire}d)`).join(' · ')}
+                                    </div>
+                                </div>
+                                <span style={{ color: '#f59e0b', fontSize: 12 }}>Xem →</span>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Tabs */}
                 <div style={{ display: 'flex', gap: '4px', marginTop: '24px', borderBottom: '1px solid var(--color-border)', paddingBottom: '0' }}>
@@ -558,9 +657,11 @@ export default function ManagerInventoryManagement() {
                             <select value={filterStock} onChange={(e) => setFilterStock(e.target.value)}
                                 className={styles.filterSelect}
                                 style={{ padding: '12px 16px', background: 'rgb(243, 244, 246)', border: '1px solid var(--color-border)', borderRadius: '12px', color: 'var(--color-text-secondary)', fontSize: '14px', cursor: 'pointer', outline: 'none', minWidth: '150px' }}>
-                                <option value="all">Tất cả tồn kho</option>
+                                <option value="all">Còn hạn sử dụng</option>
                                 <option value="low">Sắp hết (&lt; 10)</option>
-                                <option value="out">Hết hàng</option>
+                                <option value="nearExpiry">Sắp hết hạn (≤ 7 ngày)</option>
+                                <option value="expired">Đã hết hạn</option>
+                                <option value="out">Hết hàng (tồn = 0)</option>
                             </select>
                             <button onClick={() => setShowRequestModal(true)} className={styles.actionButtonSuccess}
                                 style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px' }}>
@@ -601,45 +702,255 @@ export default function ManagerInventoryManagement() {
             <div className={styles.tableCard}>
 
                 {/* ===== TAB: TỒN KHO ===== */}
-                {activeTab === 'ingredients' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', padding: '20px' }}>
-                        {filteredIngredients.length === 0 ? (
-                            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 20px' }}>
-                                <Beaker size={48} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#9ca3af' }} />
-                                <p style={{ color: '#9ca3af', fontSize: '16px' }}>Không có nguyên liệu nào</p>
+                {activeTab === 'ingredients' && (() => {
+                    // ── helpers ──────────────────────────────────────────────
+                    const calcDays = (d) =>
+                        d !== undefined && d !== null ? d : null;
+
+                    const batchRowStyle = (d) => {
+                        if (d === null || d === undefined) return {};
+                        if (d < 0) return { background: 'rgba(239,68,68,.08)', borderLeft: '3px solid #ef4444' };
+                        if (d <= 3) return { background: 'rgba(239,68,68,.05)', borderLeft: '3px solid rgba(239,68,68,.5)' };
+                        if (d <= 7) return { background: 'rgba(245,158,11,.05)', borderLeft: '3px solid rgba(245,158,11,.6)' };
+                        return {};
+                    };
+
+                    const fmtLocalDate = (days) => {
+                        if (days === undefined || days === null) return '—';
+                        const d = new Date();
+                        d.setDate(d.getDate() + days);
+                        return d.toLocaleDateString('vi-VN');
+                    };
+
+                    // ── filter cho chế độ tổng hợp ───────────────────────────
+                    const displayed = branchAggregated.filter(item => {
+                        const matchSearch = !searchTerm ||
+                            item.ingredientName?.toLowerCase().includes(searchTerm.toLowerCase());
+                        const matchStock =
+                            filterStock === 'all' ? !item.expired :           // 👈 mặc định bỏ hết hạn
+                                filterStock === 'low' ? (item.totalQuantity < 10 && item.totalQuantity > 0 && !item.expired) :
+                                    filterStock === 'out' ? item.totalQuantity === 0 :
+                                        filterStock === 'expired' ? item.expired :
+                                            filterStock === 'nearExpiry' ? (item.nearExpired && !item.expired) : true;
+                        return matchSearch && matchStock;
+                    });
+
+                    // ── filter cho chế độ theo lô ────────────────────────────
+                    const displayedBatches = branchBatches.filter(b => {
+                        const matchSearch = !searchTerm ||
+                            b.ingredientName?.toLowerCase().includes(searchTerm.toLowerCase());
+                        const d = b.daysToExpire;
+                        const matchHsd =
+                            batchHsdFilter === 'all' ? true :
+                                batchHsdFilter === 'usable' ? (d !== null && d !== undefined && d > 5) :
+                                    batchHsdFilter === 'nearExpiry' ? (d !== null && d !== undefined && d >= 0 && d <= 7) :
+                                        batchHsdFilter === 'expired' ? (d !== null && d !== undefined && d < 0) :
+                                            batchHsdFilter === 'unknown' ? (d === null || d === undefined) : true;
+                        return matchSearch && matchHsd;
+                    }).sort((a, b) => (a.daysToExpire ?? 9999) - (b.daysToExpire ?? 9999));
+
+                    const expiredBatches = branchBatches.filter(b => b.daysToExpire !== undefined && b.daysToExpire < 0);
+                    const ExpiryBadge = ({ days }) => {
+                        if (days === undefined || days === null)
+                            return <span style={{ fontSize: 12, color: '#9ca3af' }}>Không rõ</span>;
+                        if (days < 0)
+                            return <span style={{ background: 'rgba(239,68,68,.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,.35)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>⚠ Hết hạn ({Math.abs(days)}d)</span>;
+                        if (days === 0)
+                            return <span style={{ background: 'rgba(239,68,68,.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,.35)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>⚠ Hết hôm nay</span>;
+                        if (days <= 3)
+                            return <span style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>🔴 Còn {days} ngày</span>;
+                        if (days <= 7)
+                            return <span style={{ background: 'rgba(245,158,11,.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,.35)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>⏰ Còn {days} ngày</span>;
+                        return <span style={{ background: 'rgba(16,185,129,.1)', color: '#10b981', border: '1px solid rgba(16,185,129,.3)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>✓ Còn {days} ngày</span>;
+                    };
+
+                    return (
+                        <div style={{ padding: 20 }}>
+                            {/* Toggle + tiêu đề */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+                                <span style={{ color: 'var(--color-text-secondary)', fontSize: 14 }}>
+                                    {branchViewMode === 'aggregate'
+                                        ? `Tổng hợp (${displayed.length} NL còn hạn)`
+                                        : `Theo lô (${displayedBatches.length} lô)`}
+                                </span>
+                                <ViewToggle mode={branchViewMode} setMode={setBranchViewMode} />
                             </div>
-                        ) : (
-                            filteredIngredients.map((branchIng, index) => {
-                                const stockStatus = getStockStatus(branchIng.quantity);
-                                return (
-                                    <div
-                                        key={`bi-${branchIng.id || index}`}
-                                        style={{ border: `2px solid ${stockStatus.color}30`, borderRadius: '12px', padding: '20px', backgroundColor: '#F7F0EA', transition: 'all 0.2s' }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = stockStatus.color; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = `${stockStatus.color}30`; }}
-                                    >
-                                        <div style={{ width: '56px', height: '56px', background: `${stockStatus.color}20`, borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                                            <Beaker size={28} color={stockStatus.color} />
-                                        </div>
-                                        <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#B8B8B8', marginBottom: '8px' }}>
-                                            {branchIng.ingredient?.name || 'N/A'}
-                                        </h3>
-                                        <p style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '16px' }}>
-                                            Đơn vị: {branchIng.ingredient?.unit || 'N/A'}
-                                        </p>
-                                        <div style={{ border: `2px solid ${stockStatus.color}30`, padding: '12px', background: '#fff', borderRadius: '8px', marginBottom: '12px' }}>
-                                            <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase' }}>Tồn kho</div>
-                                            <div style={{ fontSize: '24px', fontWeight: '700', color: stockStatus.color }}>{branchIng.quantity}</div>
-                                        </div>
-                                        <span className={stockStatus.class} style={{ display: 'inline-block', width: '100%', textAlign: 'center' }}>
-                                            {stockStatus.text}
-                                        </span>
+
+                            {/* ── CHẾ ĐỘ TỔNG HỢP (card grid) ── */}
+                            {branchViewMode === 'aggregate' && (
+                                displayed.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                                        <Beaker size={48} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#9ca3af' }} />
+                                        <p style={{ color: '#9ca3af', fontSize: 16 }}>Không có nguyên liệu nào</p>
                                     </div>
-                                );
-                            })
-                        )}
-                    </div>
-                )}
+                                ) : (
+                                    <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid var(--color-border)' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                                            <thead>
+                                                <tr style={{ background: 'rgba(139,92,246,.08)' }}>
+                                                    {['Nguyên liệu', 'Đơn vị', 'Số lượng (còn hạn)', 'HSD gần nhất', 'Trạng thái'].map(h => (
+                                                        <th key={h} style={{
+                                                            padding: '12px 16px', textAlign: 'left',
+                                                            fontWeight: 700, color: '#8B5CF6',
+                                                            whiteSpace: 'nowrap', fontSize: 12,
+                                                            textTransform: 'uppercase', letterSpacing: '0.05em'
+                                                        }}>{h}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {displayed.map((item, idx) => {
+                                                    const stockStatus = getStockStatus(item.totalQuantity);
+                                                    return (
+                                                        <tr key={item.ingredientId}
+                                                            style={{
+                                                                borderTop: '1px solid var(--color-border)',
+                                                                transition: 'background 0.15s'
+                                                            }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.04)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                        >
+                                                            <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                                                {item.ingredientName}
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px', color: 'var(--color-text-secondary)' }}>
+                                                                {item.unit}
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px', fontWeight: 700, color: stockStatus.color, fontSize: 15 }}>
+                                                                {Number(item.totalQuantity).toFixed(2).replace(/\.00$/, '')}
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px' }}>
+                                                                <ExpiryBadge days={item.daysToExpire} />
+                                                            </td>
+                                                            <td style={{ padding: '14px 16px' }}>
+                                                                <span className={stockStatus.class}>{stockStatus.text}</span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )
+                            )}
+
+                            {/* ── CHẾ ĐỘ THEO LÔ (table) ── */}
+                            {branchViewMode === 'batch' && (
+                                <>
+
+                                    {(() => {
+                                        const filters = [
+                                            { value: 'all', label: 'Tất cả', color: '#8B5CF6' },
+                                            { value: 'usable', label: '✓ Dùng được', color: '#10b981' },
+                                            { value: 'nearExpiry', label: '⏰ Sắp hết hạn', color: '#f59e0b' },
+                                            { value: 'expired', label: '⚠ Hết hạn', color: '#ef4444' },
+                                        ];
+                                        return (
+                                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+                                                {filters.map(f => (
+                                                    <button key={f.value} onClick={() => setBatchHsdFilter(f.value)}
+                                                        style={{
+                                                            padding: '5px 14px', borderRadius: 20, border: `1.5px solid ${f.color}`,
+                                                            background: batchHsdFilter === f.value ? f.color : 'transparent',
+                                                            color: batchHsdFilter === f.value ? '#fff' : f.color,
+                                                            cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                                                            transition: 'all .15s'
+                                                        }}>
+                                                        {f.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* Banner tổng kết — thêm TRƯỚC banner expiredBatches */}
+                                    {branchViewMode === 'batch' && (() => {
+                                        const nonExportable = branchBatches.filter(b => {
+                                            const d = b.daysToExpire;
+                                            return d !== undefined && d <= 5;
+                                        });
+                                        const exportable = branchBatches.filter(b => {
+                                            const d = b.daysToExpire;
+                                            return d === undefined || d > 5;
+                                        });
+                                        return nonExportable.length > 0 ? (
+                                            <div style={{
+                                                display: 'flex', gap: 12, alignItems: 'center',
+                                                padding: '10px 14px', marginBottom: 12,
+                                                background: 'rgba(239,68,68,.08)',
+                                                border: '1px solid rgba(239,68,68,.25)',
+                                                borderRadius: 8, fontSize: 13
+                                            }}>
+                                                <AlertCircle size={18} color="#ef4444" />
+                                                <span style={{ color: '#ef4444', fontWeight: 700 }}>
+                                                    🚫 {nonExportable.length} lô không thể dùng (HSD ≤ 5 ngày hoặc đã hết hạn)
+                                                </span>
+                                                <span style={{ color: 'var(--color-text-secondary)', opacity: 0.7, marginLeft: 8 }}>
+                                                    Tổng lô còn dùng được: {exportable.length} / {branchBatches.length}
+                                                </span>
+                                            </div>
+                                        ) : null;
+                                    })()}
+
+                                    {displayedBatches.length === 0 ? (
+                                        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                                            <Package size={48} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#9ca3af' }} />
+                                            <p style={{ color: '#9ca3af', fontSize: 16 }}>Không có lô nào</p>
+                                        </div>
+                                    ) : (
+                                        <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid var(--color-border)' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                                                <thead>
+                                                    <tr style={{ background: 'rgba(139,92,246,.08)' }}>
+                                                        {['Nguyên liệu', 'Đơn vị', 'Còn lại', 'Nhập ban đầu', 'Ngày nhập', 'Hạn sử dụng', 'Trạng thái HSD', 'Trạng thái'].map(h => (
+                                                            <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 700, color: '#8B5CF6', whiteSpace: 'nowrap' }}>{h}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {displayedBatches.map((batch, idx) => (
+                                                        <tr key={batch.id || idx}
+                                                            style={{
+                                                                ...batchRowStyle(batch.daysToExpire),
+                                                                borderTop: '1px solid var(--color-border)',
+                                                                opacity: (batch.daysToExpire !== undefined && batch.daysToExpire < 0) ? 0.75 : 1
+                                                            }}
+                                                        >
+                                                            <td style={{ padding: '12px 16px', fontWeight: 600, color: '#B8B8B8' }}>{batch.ingredientName || 'N/A'}</td>
+                                                            <td style={{ padding: '12px 16px', color: '#9ca3af' }}>{batch.unit || '—'}</td>
+                                                            <td style={{ padding: '12px 16px', fontWeight: 700, color: batch.remainingQuantity === 0 ? '#ef4444' : batch.remainingQuantity < 10 ? '#f59e0b' : '#10b981' }}>
+                                                                {batch.remainingQuantity ?? 0}
+                                                            </td>
+                                                            <td style={{ padding: '12px 16px', color: '#9ca3af', opacity: 0.6 }}>{batch.quantity ?? 0}</td>
+                                                            <td style={{ padding: '12px 16px', color: '#9ca3af', whiteSpace: 'nowrap' }}>
+                                                                {batch.createdAt ? new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(batch.createdAt)) : '—'}
+                                                            </td>
+                                                            <td style={{ padding: '12px 16px', color: '#B8B8B8', fontWeight: (batch.daysToExpire !== undefined && batch.daysToExpire <= 7) ? 600 : 400 }}>
+                                                                {fmtLocalDate(batch.daysToExpire)}
+                                                            </td>
+                                                            <td style={{ padding: '12px 16px' }}>
+                                                                <ExpiryBadge days={batch.daysToExpire} />
+                                                            </td>
+                                                            <td style={{ padding: '12px 16px' }}>
+                                                                {(() => {
+                                                                    const d = batch.daysToExpire;
+                                                                    if (d === undefined || d === null) return null;
+                                                                    if (d < 0) return <span style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}>🚫 Hết hạn</span>;
+                                                                    if (d <= 5) return <span style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}>⚠ Không dùng được</span>;
+                                                                    return <span style={{ background: 'rgba(16,185,129,.1)', color: '#10b981', border: '1px solid rgba(16,185,129,.3)', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}>✓ Dùng được</span>;
+                                                                })()}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* ===== TAB: YÊU CẦU NHẬP KHO ===== */}
                 {activeTab === 'requests' && (

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@babel/runtime": "^7.29.7",
     "@ionic/react": "^8.7.5",
     "@reacticons/ionicons": "^7.1.0",
     "@stomp/stompjs": "^7.2.1",
