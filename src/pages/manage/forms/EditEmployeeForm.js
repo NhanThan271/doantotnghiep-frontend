@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Lock, Mail, Phone, UserCircle, Shield, Upload } from 'lucide-react';
+import { X, User, Lock, Mail, Phone, UserCircle, Shield, Upload, Building2 } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
 
 export default function EditEmployeeForm({ employee, closeForm, onSave, refreshCallback }) {
@@ -10,10 +10,12 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
         email: '',
         phone: '',
         role: 'EMPLOYEE',
+        branchId: '',
         isActive: true,
         imageUrl: '',
         image: null
     });
+    const [branches, setBranches] = useState([]);
     const [imagePreview, setImagePreview] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -21,6 +23,29 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
     const [changePassword, setChangePassword] = useState(false);
 
     const API_BASE_URL = 'http://localhost:8080';
+
+    // Load danh sách chi nhánh
+    useEffect(() => {
+        fetchBranches();
+    }, []);
+
+    const fetchBranches = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE_URL}/api/branches`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setBranches(data);
+            }
+        } catch (err) {
+            console.error('Lỗi khi tải danh sách chi nhánh:', err);
+        }
+    };
 
     // Load dữ liệu nhân viên khi component mount
     useEffect(() => {
@@ -32,6 +57,7 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                 email: employee.email || '',
                 phone: employee.phone || '',
                 role: employee.role || 'EMPLOYEE',
+                branchId: employee.branchId || employee.branch?.id || '',
                 isActive: employee.isActive !== undefined ? employee.isActive : true,
                 imageUrl: employee.imageUrl || '',
                 image: null
@@ -55,13 +81,11 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            // Kiểm tra file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
                 setError('Kích thước ảnh không được vượt quá 5MB');
                 return;
             }
 
-            // Kiểm tra file type
             if (!file.type.startsWith('image/')) {
                 setError('Vui lòng chọn file ảnh');
                 return;
@@ -69,7 +93,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
 
             setFormData(prev => ({ ...prev, image: file, imageUrl: '' }));
 
-            // Preview image mới
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImagePreview(reader.result);
@@ -80,7 +103,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
 
     const handleRemoveImage = () => {
         setFormData(prev => ({ ...prev, image: null }));
-        // Nếu có ảnh gốc, hiển thị lại ảnh gốc
         if (employee.imageUrl) {
             const fullImageUrl = employee.imageUrl.startsWith('http')
                 ? employee.imageUrl
@@ -122,6 +144,10 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
             setError('Số điện thoại không hợp lệ (10-11 số)');
             return false;
         }
+        if (!formData.branchId) {
+            setError('Vui lòng chọn chi nhánh');
+            return false;
+        }
         return true;
     };
 
@@ -136,34 +162,29 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
         try {
             const token = localStorage.getItem('token');
 
-            // Tạo FormData để gửi file
             const formDataToSend = new FormData();
             formDataToSend.append('username', formData.username.trim());
             formDataToSend.append('fullName', formData.fullName.trim());
             formDataToSend.append('email', formData.email.trim() || '');
             formDataToSend.append('phone', formData.phone.trim() || '');
             formDataToSend.append('role', formData.role);
+            formDataToSend.append('branchId', formData.branchId);
             formDataToSend.append('isActive', formData.isActive);
 
-            // Chỉ thêm password nếu changePassword = true
             if (changePassword && formData.password.trim()) {
                 formDataToSend.append('password', formData.password.trim());
             }
 
-            // Nếu có ảnh mới được chọn, gửi file
             if (formData.image) {
                 formDataToSend.append('image', formData.image);
-            }
-            // Nếu không có ảnh mới nhưng có imageUrl (URL từ internet), gửi imageUrl
-            else if (formData.imageUrl.trim()) {
+            } else if (formData.imageUrl.trim()) {
                 formDataToSend.append('imageUrl', formData.imageUrl.trim());
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/admin/users/${employee.id}`, {
+            const response = await fetch(`${API_BASE_URL}/api/users/${employee.id}`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`
-                    // Không set Content-Type, browser tự set với boundary cho multipart/form-data
                 },
                 body: formDataToSend
             });
@@ -177,21 +198,17 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
             const updatedUser = await response.json();
             console.log('✅ Cập nhật nhân viên thành công:', updatedUser);
 
-            // Hiển thị thông báo thành công
             alert('Cập nhật nhân viên thành công!');
 
-            // ✅ GỌI CALLBACK ĐỂ REFRESH DANH SÁCH
             if (refreshCallback && typeof refreshCallback === 'function') {
-                console.log('🔄 Đang refresh danh sách sản phẩm...');
+                console.log('🔄 Đang refresh danh sách nhân viên...');
                 refreshCallback();
             }
 
-            // Callback để cập nhật danh sách
             if (onSave) {
                 onSave(updatedUser, 'employee');
             }
 
-            // Đóng form
             closeForm();
         } catch (err) {
             console.error('❌ Lỗi khi cập nhật nhân viên:', err);
@@ -203,8 +220,7 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
 
     return (
         <div className={styles['modal-backdrop']} onClick={closeForm}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', maxHeight: '90vh', overflow: 'auto' }}>
-                {/* Header */}
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', height: '600px', overflow: 'auto' }}>
                 <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -272,7 +288,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                 </div>
 
                 <form onSubmit={handleSubmit}>
-                    {/* Error message */}
                     {error && (
                         <div style={{
                             padding: '12px',
@@ -291,7 +306,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                         </div>
                     )}
 
-                    {/* Image Upload */}
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{
                             display: 'block',
@@ -419,7 +433,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                         )}
                     </div>
 
-                    {/* Username - Không cho phép thay đổi username */}
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{
                             display: 'block',
@@ -455,7 +468,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                         </p>
                     </div>
 
-                    {/* Change Password Toggle */}
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{
                             display: 'flex',
@@ -486,7 +498,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                         </label>
                     </div>
 
-                    {/* Password - chỉ hiện khi changePassword = true */}
                     {changePassword && (
                         <div style={{ marginBottom: '20px' }}>
                             <label style={{
@@ -538,12 +549,11 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                                 </button>
                             </div>
                             <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
-                                Tối thiểu 6 ký tự, mật khẩu sẽ được mã hóa tự động
+                                Tối thiểu 6 ký tự
                             </p>
                         </div>
                     )}
 
-                    {/* Full Name */}
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{
                             display: 'block',
@@ -576,14 +586,12 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                         </div>
                     </div>
 
-                    {/* Email & Phone - 2 columns */}
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: '1fr 1fr',
                         gap: '16px',
                         marginBottom: '20px'
                     }}>
-                        {/* Email */}
                         <div>
                             <label style={{
                                 display: 'block',
@@ -615,7 +623,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                             </div>
                         </div>
 
-                        {/* Phone */}
                         <div>
                             <label style={{
                                 display: 'block',
@@ -648,7 +655,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                         </div>
                     </div>
 
-                    {/* Role */}
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{
                             display: 'block',
@@ -686,13 +692,62 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                             >
                                 <option value="EMPLOYEE">Nhân viên</option>
                                 <option value="MANAGER">Quản lý</option>
-                                <option value="KITCHEN">Nhân viên bếp</option>
-                                <option value="ADMIN">Quản trị viên</option>
                             </select>
                         </div>
                     </div>
 
-                    {/* Active Status */}
+                    <div style={{ marginBottom: '20px' }}>
+                        <label style={{
+                            display: 'block',
+                            marginBottom: '8px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: 'var(--color-text-primary)'
+                        }}>
+                            Chi nhánh <span style={{ color: '#EF4444' }}>*</span>
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                            <Building2
+                                size={18}
+                                style={{
+                                    position: 'absolute',
+                                    left: '14px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: 'var(--color-text-secondary)',
+                                    pointerEvents: 'none',
+                                    zIndex: 1
+                                }}
+                            />
+                            <select
+                                value={formData.branchId}
+                                onChange={(e) => handleChange('branchId', e.target.value)}
+                                style={{
+                                    paddingLeft: '44px',
+                                    appearance: 'none',
+                                    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23666\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
+                                    backgroundRepeat: 'no-repeat',
+                                    backgroundPosition: 'right 14px center'
+                                }}
+                                required
+                                disabled={branches.length === 0}
+                            >
+                                {branches.length === 0 ? (
+                                    <option value="">Đang tải...</option>
+                                ) : (
+                                    <>
+                                        <option value="">Chọn chi nhánh</option>
+                                        {branches.map(branch => (
+                                            <option key={branch.id} value={branch.id}>
+                                                {branch.name}
+                                            </option>
+                                        ))}
+                                    </>
+                                )}
+                            </select>
+                        </div>
+                    </div>
+
                     <div style={{ marginBottom: '20px' }}>
                         <label style={{
                             display: 'flex',

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Calendar, Clock, Search, CalendarPlus, AlertCircle, RefreshCw, Store, Edit2, Mail, Phone, UserCheck, ChevronDown, ChevronUp, X, Save, CheckCircle } from 'lucide-react';
+import { Users, Calendar, Clock, Search, CalendarPlus, AlertCircle, RefreshCw, Store, Edit2, Mail, Phone, Briefcase, UserCheck, ChevronDown, ChevronUp, X, Save, CheckCircle, ClipboardList, BarChart3, FileText, UserX } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import StaffPositionForm from './forms/StaffPositionForm';
+import { showToast } from '../../hooks/useToast';
 
 
 const POSITION_MAP = {
@@ -9,7 +11,7 @@ const POSITION_MAP = {
     CASHIER: { label: 'Thu ngân', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
     STOCK: { label: 'Kho', color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
 };
-export default function BranchEmployeesManager() {
+export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }) {
     const [employees, setEmployees] = useState([]);
     const [workShifts, setWorkShifts] = useState([]);
     const [currentBranch, setCurrentBranch] = useState(null);
@@ -22,9 +24,8 @@ export default function BranchEmployeesManager() {
     const [staffMap, setStaffMap] = useState({});
     const [shiftTemplates, setShiftTemplates] = useState([]);
     const [staffList, setStaffList] = useState([]);
-    const [viewingStaffAttendance, setViewingStaffAttendance] = useState(null);
-    const [viewingStaffSchedule, setViewingStaffSchedule] = useState(null);
     const [weekShifts, setWeekShifts] = useState([]);
+    const [positionForm, setPositionForm] = useState(null);
 
     // State cho modal phân ca
     const [showAssignModal, setShowAssignModal] = useState(false);
@@ -343,6 +344,39 @@ export default function BranchEmployeesManager() {
         }
     };
 
+    const fetchEmployees = () => {
+        const token = localStorage.getItem('token');
+        setLoading(true);
+
+        fetch(`${API_BASE_URL}/api/users`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('Lỗi lấy dữ liệu');
+                return res.json();
+            })
+            .then(data => {
+                console.log('Users data:', data);
+                const empList = data.filter(user =>
+                    user.role === 'EMPLOYEE' ||
+                    user.role === 'MANAGER' ||
+                    user.role === 'KITCHEN'
+                );
+                setEmployees(empList);
+                fetchStaffInfo(empList, token);
+            })
+            .catch(err => {
+                console.error('Lỗi:', err);
+                setEmployees([]);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    };
+
     const handleUpdateShift = async (e) => {
         e.preventDefault();
         if (!editForm.shiftId || !editForm.workDay) {
@@ -476,12 +510,26 @@ export default function BranchEmployeesManager() {
                             </button>
                         )}
                         <button
-                            onClick={() => activeTab === 'employees' ? fetchBranchEmployees() : fetchWorkShiftsForWeek()}
-                            disabled={loading}
-                            className={`${styles.refreshButton} ${loading ? styles.refreshButtonDisabled : ''}`}
+                            onClick={openAdd}
+                            style={{
+                                padding: '12px 24px',
+                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))',
+                                color: '#000',
+                                border: 'none',
+                                borderRadius: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                transition: 'transform 0.2s',
+                                fontSize: '14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                         >
-                            <RefreshCw size={18} className={loading ? styles.spinIcon : ''} />
-                            Làm mới
+                            <Users size={18} />
+                            Thêm nhân viên
                         </button>
                     </div>
                 </div>
@@ -657,34 +705,29 @@ export default function BranchEmployeesManager() {
                                                     {(() => {
                                                         const staffInfo = staffMap[emp.id];
                                                         const posInfo = staffInfo ? POSITION_MAP[staffInfo.position] : null;
-                                                        return posInfo ? (
-                                                            <span style={{
-                                                                display: 'inline-block',
-                                                                padding: '4px 12px',
-                                                                background: posInfo.bg,
-                                                                color: posInfo.color,
-                                                                borderRadius: '8px',
-                                                                fontSize: '13px',
-                                                                fontWeight: '600',
-                                                                border: `1px solid ${posInfo.color}40`
-                                                            }}>
-                                                                {posInfo.label}
-                                                            </span>
-                                                        ) : (
-                                                            <span style={{
-                                                                display: 'inline-block',
-                                                                padding: '4px 12px',
-                                                                background: 'rgba(107,114,128,0.1)',
-                                                                color: '#6B7280',
-                                                                borderRadius: '8px',
-                                                                fontSize: '13px',
-                                                                fontWeight: '600'
-                                                            }}>
-                                                                Chưa có
-                                                            </span>
+                                                        return (
+                                                            <button
+                                                                onClick={() => setPositionForm({ emp, staffInfo })}
+                                                                style={{
+                                                                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                                    padding: '4px 12px',
+                                                                    background: posInfo ? posInfo.bg : 'rgba(107,114,128,0.1)',
+                                                                    color: posInfo ? posInfo.color : '#6B7280',
+                                                                    border: `1px solid ${posInfo ? posInfo.color + '40' : 'rgba(107,114,128,0.3)'}`,
+                                                                    borderRadius: '8px',
+                                                                    fontSize: '13px', fontWeight: '600',
+                                                                    cursor: 'pointer', transition: 'all 0.2s'
+                                                                }}
+                                                                onMouseOver={e => e.currentTarget.style.opacity = '0.8'}
+                                                                onMouseOut={e => e.currentTarget.style.opacity = '1'}
+                                                            >
+                                                                {posInfo ? posInfo.label : 'Chưa có'}
+                                                                <ChevronDown size={12} />
+                                                            </button>
                                                         );
                                                     })()}
                                                 </td>
+
                                                 <td className={styles.textCenter}>
                                                     <span className={emp.isActive ? styles.badgeSuccess : styles.badgeInactive}>
                                                         {emp.isActive ? 'Hoạt động' : 'Ngưng'}
@@ -700,11 +743,15 @@ export default function BranchEmployeesManager() {
                                                                 // Lọc theo nhân viên này (lưu filter nếu cần)
                                                             }}
                                                             style={{
-                                                                background: 'rgba(59,130,246,0.1)', border: 'none',
-                                                                borderRadius: '8px', padding: '6px 10px', cursor: 'pointer'
+                                                                background: 'rgba(88, 253, 107, 0.1)',
+                                                                border: '1px solid rgba(43, 248, 57, 0.3)',
+                                                                borderRadius: '8px',
+                                                                padding: '6px 10px',
+                                                                cursor: 'pointer',
+                                                                color: '#07d64c'
                                                             }}
                                                         >
-                                                            📅
+                                                            <Calendar size={16} />
                                                         </button>
 
                                                         {/* Xem chấm công */}
@@ -716,23 +763,57 @@ export default function BranchEmployeesManager() {
                                                                 setActiveTab('attendance');
                                                             }}
                                                             style={{
-                                                                background: 'rgba(16,185,129,0.1)', border: 'none',
-                                                                borderRadius: '8px', padding: '6px 10px', cursor: 'pointer'
+                                                                background: 'rgba(139,92,246,0.1)',
+                                                                border: '1px solid rgba(139,92,246,0.3)',
+                                                                borderRadius: '8px',
+                                                                padding: '6px 10px',
+                                                                cursor: 'pointer',
+                                                                color: '#8B5CF6'
                                                             }}
                                                         >
-                                                            ⏱
+                                                            <Clock size={16} />
                                                         </button>
 
-                                                        {/* Sửa */}
                                                         <button
-                                                            title="Chỉnh sửa"
-                                                            onClick={() => alert('TODO: Mở modal sửa nhân viên')}
+                                                            onClick={() => openEdit('Employee', emp, fetchEmployees)}
                                                             style={{
-                                                                background: 'rgba(245,158,11,0.1)', border: 'none',
-                                                                borderRadius: '8px', padding: '6px 10px', cursor: 'pointer'
+                                                                padding: '8px 12px',
+                                                                background: 'rgba(59, 130, 246, 0.1)',
+                                                                color: '#3B82F6',
+                                                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                                                borderRadius: '8px',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px',
+                                                                transition: 'all 0.2s'
+                                                            }}
+                                                            onMouseOver={(e) => {
+                                                                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                                                            }}
+                                                            onMouseOut={(e) => {
+                                                                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                                                            }}
+                                                            title="Sửa thông tin"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button
+                                                            title="Sửa / Gán chức vụ"
+                                                            onClick={() => {
+                                                                const staffInfo = staffMap[emp.id] || null;
+                                                                setPositionForm({ emp, staffInfo });
+                                                            }}
+                                                            style={{
+                                                                background: 'rgba(88, 253, 107, 0.1)',
+                                                                border: '1px solid rgba(88, 253, 107, 0.3)',
+                                                                borderRadius: '8px',
+                                                                padding: '6px 10px',
+                                                                cursor: 'pointer',
+                                                                color: '#07d64c'
                                                             }}
                                                         >
-                                                            ✏️
+                                                            <Briefcase size={16} />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -759,13 +840,13 @@ export default function BranchEmployeesManager() {
                                     onClick={() => setShiftsSubTab('schedule')}
                                     className={shiftsSubTab === 'schedule' ? styles.tabActive : styles.tabInactive}
                                 >
-                                    📋 Lịch ca
+                                    <ClipboardList size={16} /> Lịch ca
                                 </button>
                                 <button
                                     onClick={() => setShiftsSubTab('assign')}
                                     className={shiftsSubTab === 'assign' ? styles.tabActive : styles.tabInactive}
                                 >
-                                    👥 Phân công
+                                    <Users size={16} /> Phân công
                                 </button>
                             </div>
 
@@ -818,7 +899,8 @@ export default function BranchEmployeesManager() {
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <div>
                                                             <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '600' }}>
-                                                                🕐 {sc.shift?.name} — {sc.shift?.startTime} - {sc.shift?.endTime}
+                                                                <Briefcase size={16} className="mr-2" />
+                                                                {sc.shift?.name} — {sc.shift?.startTime} - {sc.shift?.endTime}
                                                             </h3>
                                                             <p style={{ margin: '8px 0 0', color: 'var(--color-text-secondary)', fontSize: '14px' }}>
                                                                 Cần: <strong>{sc.requiredStaff}</strong> nhân viên &nbsp;|&nbsp;
@@ -858,7 +940,14 @@ export default function BranchEmployeesManager() {
                                 )}
                             </div>
                             <div className={styles.tableCard} style={{ marginTop: '16px', padding: '20px', overflowX: 'auto' }}>
-                                <h4 style={{ marginBottom: '12px', color: 'black' }}>📅 Lịch tuần</h4>
+                                <h4 style={{
+                                    marginBottom: '12px', background: 'rgba(88, 253, 107, 0.1)',
+                                    border: '1px solid rgba(88, 253, 107, 0.3)',
+                                    borderRadius: '8px',
+                                    padding: '6px 10px',
+                                    cursor: 'pointer',
+                                    color: '#07d64c'
+                                }}><ClipboardList size={20} className="mr-2" /> Lịch tuần</h4>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                     <thead>
                                         <tr>
@@ -1092,13 +1181,13 @@ export default function BranchEmployeesManager() {
                                     onClick={() => setAttendanceSubTab('overview')}
                                     className={attendanceSubTab === 'overview' ? styles.tabActive : styles.tabInactive}
                                 >
-                                    📊 Tổng quan
+                                    <BarChart3 size={18} /> Tổng quan
                                 </button>
                                 <button
                                     onClick={() => setAttendanceSubTab('detail')}
                                     className={attendanceSubTab === 'detail' ? styles.tabActive : styles.tabInactive}
                                 >
-                                    👤 Chi tiết nhân viên
+                                    <UserCheck size={18} /> Chi tiết nhân viên
                                 </button>
                             </div>
                         </div>
@@ -1114,24 +1203,20 @@ export default function BranchEmployeesManager() {
             hiện tại để placeholder đẹp */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginTop: '20px' }}>
                                 {[
-                                    { label: 'Đúng giờ', color: '#10B981', bg: 'rgba(16,185,129,0.1)', icon: '🟢', key: 'presentDays' },
-                                    { label: 'Đi trễ', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', icon: '🟠', key: 'lateDays' },
-                                    { label: 'Nghỉ phép', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', icon: '🔵', key: 'leaveDays' },
-                                    { label: 'Vắng mặt', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', icon: '🔴', key: 'absentDays' },
-                                ].map(item => (
-                                    <div key={item.key} style={{
-                                        background: item.bg, borderRadius: '12px', padding: '20px',
-                                        border: `1px solid ${item.color}30`
-                                    }}>
-                                        <div style={{ fontSize: '28px' }}>{item.icon}</div>
-                                        <div style={{ fontSize: '28px', fontWeight: '700', color: item.color, marginTop: '8px' }}>
-                                            —
+                                    { label: 'Đúng giờ', color: '#10B981', bg: 'rgba(16,185,129,0.1)', icon: CheckCircle, key: 'presentDays' },
+                                    { label: 'Đi trễ', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', icon: Clock, key: 'lateDays' },
+                                    { label: 'Nghỉ phép', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', icon: FileText, key: 'leaveDays' },
+                                    { label: 'Vắng mặt', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', icon: Calendar, key: 'absentDays' },
+                                ].map(item => {
+                                    const IconComponent = item.icon;
+                                    return (
+                                        <div key={item.key} style={{ background: item.bg, borderRadius: '12px', padding: '20px', border: `1px solid ${item.color}30`, textAlign: 'center' }}>
+                                            <IconComponent size={28} color={item.color} style={{ marginBottom: '8px' }} />
+                                            <div style={{ fontSize: '28px', fontWeight: '700', color: item.color, marginTop: '8px' }}>—</div>
+                                            <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>{item.label}</div>
                                         </div>
-                                        <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                                            {item.label}
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -1183,30 +1268,34 @@ export default function BranchEmployeesManager() {
                                     className={styles.primaryButton}
                                     disabled={!selectedStaffForAttendance || attendanceLoading}
                                 >
-                                    {attendanceLoading ? '...' : '🔍 Xem'}
+                                    {attendanceLoading ? '...' : (
+                                        <>
+                                            <Search size={16} className="mr-2" />
+                                            Xem
+                                        </>
+                                    )}
                                 </button>
                             </div>
 
                             {/* Kết quả */}
                             {monthlyReport ? (
                                 <div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginTop: '20px' }}>
                                         {[
-                                            { label: 'Tổng ngày', value: monthlyReport.totalDays, color: '#6B7280', icon: '📆' },
-                                            { label: 'Đúng giờ', value: monthlyReport.presentDays, color: '#10B981', icon: '✅' },
-                                            { label: 'Đi trễ', value: monthlyReport.lateDays, color: '#F59E0B', icon: '⏰' },
-                                            { label: 'Nghỉ phép', value: monthlyReport.leaveDays, color: '#3B82F6', icon: '📝' },
-                                        ].map(item => (
-                                            <div key={item.label} style={{
-                                                textAlign: 'center', padding: '16px',
-                                                background: `${item.color}15`, borderRadius: '12px',
-                                                border: `1px solid ${item.color}30`
-                                            }}>
-                                                <div style={{ fontSize: '24px' }}>{item.icon}</div>
-                                                <div style={{ fontSize: '32px', fontWeight: '700', color: item.color }}>{item.value}</div>
-                                                <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{item.label}</div>
-                                            </div>
-                                        ))}
+                                            { label: 'Đúng giờ', color: '#10B981', bg: 'rgba(16,185,129,0.1)', icon: CheckCircle, key: 'presentDays' },
+                                            { label: 'Đi trễ', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', icon: Clock, key: 'lateDays' },
+                                            { label: 'Nghỉ phép', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', icon: FileText, key: 'leaveDays' },
+                                            { label: 'Vắng mặt', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', icon: Calendar, key: 'absentDays' },
+                                        ].map(item => {
+                                            const IconComponent = item.icon;
+                                            return (
+                                                <div key={item.key} style={{ background: item.bg, borderRadius: '12px', padding: '20px', border: `1px solid ${item.color}30`, textAlign: 'center' }}>
+                                                    <IconComponent size={32} color={item.color} style={{ marginBottom: '8px' }} />
+                                                    <div style={{ fontSize: '28px', fontWeight: '700', color: item.color, marginTop: '8px' }}>—</div>
+                                                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>{item.label}</div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ) : (
@@ -1393,6 +1482,20 @@ export default function BranchEmployeesManager() {
                         <p>Đang xử lý...</p>
                     </div>
                 </div>
+            )}
+
+            {positionForm && (
+                <StaffPositionForm
+                    employee={positionForm.emp}
+                    staffInfo={positionForm.staffInfo}
+                    closeForm={() => setPositionForm(null)}
+                    onSave={() => {
+                        fetchStaffList();
+                        fetchBranchEmployees();
+                        setPositionForm(null);
+                        showToast('success', 'Thành công', 'Chức vụ đã được cập nhật');
+                    }}
+                />
             )}
         </div>
     );

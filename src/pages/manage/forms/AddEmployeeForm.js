@@ -148,7 +148,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                 formDataToSend.append('imageUrl', formData.imageUrl.trim());
             }
 
-            const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+            const response = await fetch(`${API_BASE_URL}/api/users`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -182,7 +182,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
 
     return (
         <div className={styles['modal-backdrop']} onClick={closeForm}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', height: '600px', overflow: 'auto' }}>
                 {/* Header */}
                 <div style={{
                     display: 'flex',
@@ -456,6 +456,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                             />
                             <input
                                 type={showPassword ? 'text' : 'password'}
+                                autoComplete="new-password"
                                 placeholder="Nhập mật khẩu"
                                 value={formData.password}
                                 onChange={(e) => handleChange('password', e.target.value)}
@@ -511,6 +512,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                             />
                             <input
                                 type="text"
+                                autoComplete="new-text"
                                 placeholder="Nhập họ và tên đầy đủ"
                                 value={formData.fullName}
                                 onChange={(e) => handleChange('fullName', e.target.value)}
@@ -551,6 +553,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                 />
                                 <input
                                     type="email"
+                                    autoComplete="new-email"
                                     placeholder="email@example.com"
                                     value={formData.email}
                                     onChange={(e) => handleChange('email', e.target.value)}
@@ -583,6 +586,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                 />
                                 <input
                                     type="tel"
+                                    autoComplete="new-tel"
                                     placeholder="0xxxxxxxxx"
                                     value={formData.phone}
                                     onChange={(e) => handleChange('phone', e.target.value)}
@@ -630,8 +634,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                             >
                                 <option value="EMPLOYEE">Nhân viên</option>
                                 <option value="MANAGER">Quản lý</option>
-                                <option value="KITCHEN">Nhân viên bếp</option>
-                                <option value="ADMIN">Quản trị viên</option>
                             </select>
                         </div>
                     </div>
