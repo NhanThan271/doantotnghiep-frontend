@@ -46,6 +46,64 @@ const StockBadge = ({ qty }) => {
     return <span className="badge status-approved">Đủ hàng</span>;
 };
 
+const calcDays = (date) =>
+    date ? Math.ceil((new Date(date) - new Date()) / 86_400_000) : null;
+
+const fmtLocalDate = (date) =>
+    date ? new Date(date).toLocaleDateString('vi-VN') : '—';
+
+const ExpiryBadge = ({ date, daysOverride }) => {
+    const d = daysOverride !== undefined ? daysOverride : calcDays(date);
+    if (d === null) return <span className="badge status-pending">Không rõ HSD</span>;
+    if (d < 0) return <span className="badge status-rejected">⚠ Hết hạn ({Math.abs(d)}d)</span>;
+    if (d === 0) return <span className="badge status-rejected">⚠ Hết hôm nay</span>;
+    if (d <= 3) return (
+        <span className="badge" style={{
+            background: 'rgba(239,68,68,.15)', color: '#ef4444',
+            border: '1px solid rgba(239,68,68,.35)', borderRadius: 6,
+            padding: '3px 8px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3
+        }}> Còn {d}d</span>
+    );
+    if (d <= 7) return <span className="badge status-pending">⏰ Còn {d} ngày</span>;
+    return <span className="badge status-approved">✓ {d} ngày</span>;
+};
+
+const ExportBadge = ({ expiryDate }) => {
+    const d = calcDays(expiryDate);
+    if (d === null) return null;
+    if (d < 0) return <span className="badge status-rejected">🚫 Hết hạn</span>;
+    if (d <= 5) return (
+        <span className="badge" style={{
+            background: 'rgba(239,68,68,.12)', color: '#ef4444',
+            border: '1px solid rgba(239,68,68,.3)', borderRadius: 6,
+            padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3
+        }}> Không thể xuất</span>
+    );
+    return <span className="badge status-approved" style={{ fontSize: 11 }}>✓ Xuất được</span>;
+};
+
+const batchRowStyle = (d) => {
+    if (d === null || d === undefined) return {};
+    if (d < 0) return { background: 'rgba(239,68,68,.07)', borderLeft: '3px solid #ef4444' };
+    if (d <= 3) return { background: 'rgba(239,68,68,.04)', borderLeft: '3px solid rgba(239,68,68,.5)' };
+    if (d <= 7) return { background: 'rgba(245,158,11,.05)', borderLeft: '3px solid rgba(245,158,11,.6)' };
+    return {};
+};
+
+const ViewToggle = ({ mode, setMode }) => (
+    <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,.05)', borderRadius: 8, padding: 3 }}>
+        {[{ id: 'aggregate', label: '📊 Tổng hợp' }, { id: 'batch', label: '📦 Theo lô (HSD)' }].map(m => (
+            <button key={m.id} onClick={() => setMode(m.id)} style={{
+                padding: '6px 14px', borderRadius: 6, border: 'none',
+                background: mode === m.id ? '#667eea' : 'transparent',
+                color: mode === m.id ? '#fff' : 'inherit',
+                cursor: 'pointer', fontSize: 13, fontWeight: mode === m.id ? 600 : 400,
+                transition: 'all .15s'
+            }}>{m.label}</button>
+        ))}
+    </div>
+);
+
 const colorMap = { success: '#10b981', warning: '#f59e0b', error: '#ef4444', info: '#6366f1' };
 
 function ToastContainer({ items, remove }) {
@@ -169,6 +227,13 @@ export default function InventoryManagement() {
     /* Warehouse Inventory */
     const [whInventory, setWhInventory] = useState([]);
     const [selectedWh, setSelectedWh] = useState('');
+    const [whAggregated, setWhAggregated] = useState([]);
+    const fetchWhAggregated = useCallback(async (wid) => {
+        if (!wid) return;
+        const r = await apiFetch(`/api/inventory-batches/warehouse/${wid}/aggregated`);
+        if (r.ok) setWhAggregated(await r.json());
+        else setWhAggregated([]);
+    }, []);
 
     const fetchWarehouseInventory = useCallback(async (wid) => {
         if (!wid) return;
@@ -214,8 +279,15 @@ export default function InventoryManagement() {
     const [selectedExport, setSelectedExport] = useState(null);
     const [exportDetail, setExportDetail] = useState(null);
     const [historyTab, setHistoryTab] = useState('export'); // 'export' | 'import'
+    const [whBatches, setWhBatches] = useState([]);
+    const [branchBatches, setBranchBatches] = useState([]);
+    const [nearExpiryBatches, setNearExpiryBatches] = useState([]);
+    const [expiredCount, setExpiredCount] = useState(0);
+    const [whViewMode, setWhViewMode] = useState('aggregate');
+    const [branchViewMode, setBranchViewMode] = useState('aggregate');
 
     const [deletingWh, setDeletingWh] = useState(null);
+    const [whBatchHsdFilter, setWhBatchHsdFilter] = useState('all');
 
     const fetchRequests = useCallback(async () => {
         const r = await apiFetch('/api/inventory-requests');
@@ -250,6 +322,26 @@ export default function InventoryManagement() {
     const fetchImportHistory = useCallback(async () => {
         const r = await apiFetch('/api/warehouses/inventory-history');
         if (r.ok) setImportHistory(await r.json());
+    }, []);
+
+    const fetchWhBatches = useCallback(async (wid) => {
+        if (!wid) return;
+        const r = await apiFetch(`/api/inventory-batches/warehouse/${wid}`);
+        if (r.ok) setWhBatches(await r.json()); else setWhBatches([]);
+    }, []);
+
+    const fetchBranchBatches = useCallback(async (bid) => {
+        const r = await apiFetch(`/api/inventory-batches/branch/${bid}`);
+        if (r.ok) setBranchBatches(await r.json()); else setBranchBatches([]);
+    }, []);
+
+    const fetchNearExpiry = useCallback(async () => {
+        const [nr, er] = await Promise.all([
+            apiFetch('/api/inventory-batches/near-expiry'),
+            apiFetch('/api/inventory-batches/expired-count'),
+        ]);
+        if (nr.ok) setNearExpiryBatches(await nr.json());
+        if (er.ok) setExpiredCount(await er.json());
     }, []);
 
     const fetchExportDetail = useCallback(async (id) => {
@@ -319,9 +411,21 @@ export default function InventoryManagement() {
         fetchRequests();
         fetchExportHistory();
         fetchImportHistory();
+        fetchNearExpiry();
     }, []);
-    useEffect(() => { if (selectedBranch) fetchBranchIngredients(selectedBranch.id); }, [selectedBranch]);
-    useEffect(() => { if (selectedWh) fetchWarehouseInventory(selectedWh); }, [selectedWh]);
+    useEffect(() => {
+        if (selectedBranch) {
+            fetchBranchIngredients(selectedBranch.id);
+            fetchBranchBatches(selectedBranch.id);
+        }
+    }, [selectedBranch]);
+    useEffect(() => {
+        if (selectedWh) {
+            fetchWarehouseInventory(selectedWh);
+            fetchWhBatches(selectedWh);
+            fetchWhAggregated(selectedWh);
+        }
+    }, [selectedWh]);
     useEffect(() => {
         const id = setInterval(() => {
             if (!selectedReq && !rejectModal) {
@@ -399,6 +503,51 @@ export default function InventoryManagement() {
                     </div>
                 ))}
             </div>
+
+            {(expiredCount > 0 || nearExpiryBatches.length > 0) && (
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 4 }}>
+                    {expiredCount > 0 && (
+                        <div onClick={() => setTab('wh-stock')} style={{
+                            flex: 1, minWidth: 240, background: 'rgba(239,68,68,.1)',
+                            border: '1px solid rgba(239,68,68,.3)', borderRadius: 10,
+                            padding: '12px 16px', display: 'flex', gap: 10,
+                            alignItems: 'center', cursor: 'pointer'
+                        }}>
+                            <XCircle size={22} color="#ef4444" />
+                            <div style={{ flex: 1 }}>
+                                <div style={{ color: '#ef4444', fontWeight: 700 }}>
+                                    {expiredCount} lô nguyên liệu đã hết hạn
+                                </div>
+                                <div style={{ fontSize: 12, color: 'rgba(239,68,68,.7)', marginTop: 2 }}>
+                                    Kiểm tra và loại bỏ khỏi kho
+                                </div>
+                            </div>
+                            <span style={{ color: '#ef4444', fontSize: 12 }}>Xem →</span>
+                        </div>
+                    )}
+                    {nearExpiryBatches.length > 0 && (
+                        <div onClick={() => setTab('wh-stock')} style={{
+                            flex: 1, minWidth: 240, background: 'rgba(245,158,11,.1)',
+                            border: '1px solid rgba(245,158,11,.3)', borderRadius: 10,
+                            padding: '12px 16px', display: 'flex', gap: 10,
+                            alignItems: 'center', cursor: 'pointer'
+                        }}>
+                            <Clock size={22} color="#f59e0b" />
+                            <div style={{ flex: 1 }}>
+                                <div style={{ color: '#f59e0b', fontWeight: 700 }}>
+                                    {nearExpiryBatches.length} lô sắp hết hạn (≤ 7 ngày)
+                                </div>
+                                <div style={{ fontSize: 12, color: 'rgba(245,158,11,.75)', marginTop: 2 }}>
+                                    {[...new Set(nearExpiryBatches.map(b => b.ingredient?.name).filter(Boolean))]
+                                        .slice(0, 5).join(' · ')}
+                                    {nearExpiryBatches.length > 5 ? ` +${nearExpiryBatches.length - 5} lô nữa` : ''}
+                                </div>
+                            </div>
+                            <span style={{ color: '#f59e0b', fontSize: 12 }}>Xem →</span>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="inventory-tabs">
@@ -586,7 +735,7 @@ export default function InventoryManagement() {
                             className="search-input1"
                             style={{ maxWidth: 320 }}
                             value={selectedWh}
-                            onChange={e => setSelectedWh(e.target.value)}
+                            onChange={e => { setSelectedWh(e.target.value); setWhBatchHsdFilter('all'); }}
                         >
                             <option value="">-- Chọn kho --</option>
                             {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -595,38 +744,145 @@ export default function InventoryManagement() {
 
                     {selectedWh && (
                         <div className="branch-inventory-section">
-                            <h3 style={{ color: 'var(--color-text-secondary)' }}>
-                                {warehouses.find(w => String(w.id) === String(selectedWh))?.name}
-                                {' '}— Tồn kho ({whInventory.length} nguyên liệu)
-                            </h3>
-                            {whInventory.length === 0 ? (
-                                <div className="empty-state"><BarChart2 size={40} /><p>Kho trống</p></div>
-                            ) : (
-                                <div className="inventory-table-container">
-                                    <table className="inventory-table">
-                                        <thead>
-                                            <tr>
-                                                {['Nguyên liệu', 'Đơn vị', 'Số lượng', 'Trạng thái'].map(h => (
-                                                    <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
-                                                        {h}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {whInventory.map(item => (
-                                                <tr key={item.id}>
-                                                    <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
-                                                    <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
-                                                    <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
-                                                        {item.quantity ?? 0}
-                                                    </td>
-                                                    <td><StockBadge qty={item.quantity ?? 0} /></td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                                <h3 style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                                    {warehouses.find(w => String(w.id) === String(selectedWh))?.name}
+                                    {' — '}
+                                    {whViewMode === 'aggregate'
+                                        ? `Tổng hợp (${whInventory.length} NL)`
+                                        : `Theo lô (${whBatches.length} lô)`}
+                                </h3>
+                                <ViewToggle mode={whViewMode} setMode={setWhViewMode} />
+                            </div>
+
+                            {/* Tổng hợp */}
+                            {whViewMode === 'aggregate' && (
+                                whAggregated.length === 0
+                                    ? <div className="empty-state"><BarChart2 size={40} /><p>Kho trống (không có lô còn hạn)</p></div>
+                                    : (
+                                        <div className="inventory-table-container">
+                                            <table className="inventory-table">
+                                                <thead><tr>
+                                                    {['Nguyên liệu', 'Đơn vị', 'Số lượng (còn hạn)', 'Trạng thái'].map(h =>
+                                                        <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>{h}</th>
+                                                    )}
+                                                </tr></thead>
+                                                <tbody>
+                                                    {whAggregated.map(item => (
+                                                        <tr key={item.id}>
+                                                            <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
+                                                            <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
+                                                            <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
+                                                                {item.quantity ?? 0}
+                                                            </td>
+                                                            <td><StockBadge qty={item.quantity ?? 0} /></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )
+                            )}
+
+                            {/* Theo lô */}
+                            {whViewMode === 'batch' && (
+                                whBatches.length === 0
+                                    ? <div className="empty-state"><BarChart2 size={40} /><p>Không có lô nào</p></div>
+                                    : (() => {
+                                        const exportable = whBatches.filter(b => calcDays(b.expiryDate) > 5);
+                                        const nonExportable = whBatches.filter(b => { const d = calcDays(b.expiryDate); return d !== null && d <= 5; });
+                                        const exportableQty = (ing) => exportable
+                                            .filter(b => b.ingredient?.id === ing)
+                                            .reduce((s, b) => s + (b.remainingQuantity ?? 0), 0);
+
+                                        return (
+                                            <>
+                                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                                                    {[
+                                                        { value: 'all', label: 'Tất cả', color: '#667eea' },
+                                                        { value: 'usable', label: '✓ Xuất được', color: '#10b981' },
+                                                        { value: 'nearExpiry', label: '⏰ Sắp hết hạn', color: '#f59e0b' },
+                                                        { value: 'expired', label: '⚠ Hết hạn', color: '#ef4444' },
+                                                    ].map(p => (
+                                                        <button key={p.value} onClick={() => setWhBatchHsdFilter(p.value)} style={{
+                                                            padding: '5px 14px', borderRadius: 20,
+                                                            border: `1.5px solid ${p.color}`,
+                                                            background: whBatchHsdFilter === p.value ? p.color : 'transparent',
+                                                            color: whBatchHsdFilter === p.value ? '#fff' : p.color,
+                                                            cursor: 'pointer', fontSize: 13, fontWeight: 600, transition: 'all .15s'
+                                                        }}>{p.label}</button>
+                                                    ))}
+                                                </div>
+                                                {/* Summary bar */}
+                                                {nonExportable.length > 0 && (
+                                                    <div style={{
+                                                        display: 'flex', gap: 12, marginBottom: 12,
+                                                        padding: '10px 14px', borderRadius: 8,
+                                                        background: 'rgba(239,68,68,.08)',
+                                                        border: '1px solid rgba(239,68,68,.25)',
+                                                        fontSize: 13, flexWrap: 'wrap', alignItems: 'center'
+                                                    }}>
+                                                        <span style={{ color: '#ef4444', fontWeight: 700 }}>
+                                                            🚫 {nonExportable.length} lô không thể xuất (HSD ≤ 5 ngày hoặc đã hết hạn)
+                                                        </span>
+                                                        <span style={{ color: 'var(--color-text-secondary)', opacity: .7 }}>
+                                                            Tổng lô xuất được: {exportable.length} / {whBatches.length}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                <div className="inventory-table-container">
+                                                    <table className="inventory-table">
+                                                        <thead><tr>
+                                                            {['Nguyên liệu', 'Đơn vị', 'Còn lại', 'Nhập ban đầu', 'Ngày nhập', 'Hạn sử dụng', 'Trạng thái HSD', 'Xuất kho'].map(h =>
+                                                                <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>{h}</th>
+                                                            )}
+                                                        </tr></thead>
+                                                        <tbody>
+                                                            {[...whBatches]
+                                                                .filter(batch => {
+                                                                    const d = calcDays(batch.expiryDate);
+                                                                    if (whBatchHsdFilter === 'all') return true;
+                                                                    if (whBatchHsdFilter === 'usable') return d !== null && d > 5;
+                                                                    if (whBatchHsdFilter === 'nearExpiry') return d !== null && d >= 0 && d <= 7;
+                                                                    if (whBatchHsdFilter === 'expired') return d !== null && d < 0;
+                                                                    return true;
+                                                                })
+                                                                .sort((a, b) => new Date(a.expiryDate || '9999') - new Date(b.expiryDate || '9999'))
+                                                                .map(batch => {
+                                                                    const d = calcDays(batch.expiryDate);
+                                                                    const blocked = d !== null && d <= 5;
+                                                                    return (
+                                                                        <tr key={batch.id} style={{
+                                                                            ...batchRowStyle(d),
+                                                                            // làm mờ hàng bị chặn
+                                                                            opacity: blocked ? 0.7 : 1,
+                                                                        }}>
+                                                                            <td className="ingredient-name">{batch.ingredient?.name || 'N/A'}</td>
+                                                                            <td className="ingredient-unit">{batch.ingredient?.unit || '—'}</td>
+                                                                            <td className={qtyClass(batch.remainingQuantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
+                                                                                {batch.remainingQuantity ?? 0}
+                                                                            </td>
+                                                                            <td style={{ color: 'var(--color-text-secondary)', opacity: .6 }}>
+                                                                                {batch.quantity ?? 0}
+                                                                            </td>
+                                                                            <td style={{ color: 'var(--color-text-secondary)' }}>
+                                                                                {batch.importedAt ? fmtDate(batch.importedAt) : '—'}
+                                                                            </td>
+                                                                            <td style={{ color: 'var(--color-text-secondary)', fontWeight: blocked ? 700 : 400 }}>
+                                                                                {fmtLocalDate(batch.expiryDate)}
+                                                                            </td>
+                                                                            <td><ExpiryBadge date={batch.expiryDate} /></td>
+                                                                            <td><ExportBadge expiryDate={batch.expiryDate} /></td>
+                                                                        </tr>
+                                                                    );
+                                                                })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </>
+                                        );
+                                    })()
                             )}
                         </div>
                     )}
@@ -643,7 +899,7 @@ export default function InventoryManagement() {
                             {branches.map(b => (
                                 <button
                                     key={b.id}
-                                    onClick={() => setSelectedBranch(b)}
+                                    onClick={() => { setSelectedBranch(b); setWhBatchHsdFilter('all'); }}
                                     className={`branch-button${selectedBranch?.id === b.id ? ' active' : ''}`}
                                 >
                                     <MapPin size={13} /> {b.name}
@@ -661,507 +917,614 @@ export default function InventoryManagement() {
 
                     {selectedBranch && (
                         <div className="branch-inventory-section">
-                            <h3 style={{ color: 'var(--color-text-secondary)' }}>
-                                Tồn kho — {selectedBranch.name}</h3>
-                            {branchIngredients.length === 0 ? (
-                                <div className="empty-state"><Store size={40} /><p>Chưa có nguyên liệu</p></div>
-                            ) : (
-                                <div className="inventory-table-container">
-                                    <table className="inventory-table">
-                                        <thead>
-                                            <tr>
-                                                {['Nguyên liệu', 'Đơn vị', 'Tồn kho', 'Trạng thái'].map(h => (
-                                                    <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
-                                                        {h}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {branchIngredients.map(item => (
-                                                <tr key={item.id}>
-                                                    <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
-                                                    <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
-                                                    <td style={{ color: 'var(--color-text-secondary)' }} className={qtyClass(item.quantity ?? 0)}>{item.quantity ?? 0}</td>
-                                                    <td><StockBadge qty={item.quantity ?? 0} /></td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                                <h3 style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
+                                    Tồn kho — {selectedBranch.name}{' '}
+                                    ({branchViewMode === 'aggregate'
+                                        ? `${branchIngredients.length} nguyên liệu`
+                                        : `${branchBatches.length} lô`})
+                                </h3>
+                                <ViewToggle mode={branchViewMode} setMode={setBranchViewMode} />
+                            </div>
 
-            {/* Yêu cầu */}
-            {tab === 'requests' && (
-                <div style={{ display: 'grid', gap: 2 }}>
-                    {/* Filters */}
-                    <div className="filters-container">
-                        <div className="search-wrapper">
-                            <input
-                                className="search-input"
-                                placeholder="Tìm kiếm..."
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                            />
-                        </div>
-                        <select className="search-input1" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                            <option value="all">Tất cả trạng thái</option>
-                            <option value="PENDING">Chờ duyệt</option>
-                            <option value="APPROVED">Đã duyệt</option>
-                            <option value="RECEIVED">Đã nhận hàng</option>
-                            <option value="REJECTED">Từ chối</option>
-                        </select>
-                        <select className="search-input1" value={filterType} onChange={e => setFilterType(e.target.value)}>
-                            <option value="all">Tất cả loại</option>
-                            <option value="IMPORT">Nhập kho</option>
-                            <option value="EXPORT">Xuất kho</option>
-                        </select>
-                    </div>
-
-                    {filteredReqs.length === 0 ? (
-                        <div className="empty-state"><FileText size={40} /><p>Không tìm thấy yêu cầu nào</p></div>
-                    ) : (
-                        <div className="requests-list">
-                            {filteredReqs.map(req => {
-                                const items = getItems(req.id);
-                                const first = getFirst(req.id);
-                                const title = !first
-                                    ? 'Không có nguyên liệu'
-                                    : items.length === 1
-                                        ? first.ingredient?.name
-                                        : `${first.ingredient?.name} (+${items.length - 1} NL)`;
-                                return (
-                                    <div key={req.id} className="request-card" onClick={() => setSelectedReq(req)}>
-                                        <div className="request-header">
-                                            <div className="request-content">
-                                                <div className="request-badges">
-                                                    <TypeBadge type={req.type} />
-                                                    <StatusBadge status={req.status} />
-                                                </div>
-                                                <div className="request-title">{title}</div>
-                                                <div className="request-details">
-                                                    <span className="request-detail-item"><MapPin size={12} />{req.branch?.name}</span>
-                                                    <span className="request-detail-item"><User size={12} />{req.requestedBy?.fullName}</span>
-                                                    <span className="request-detail-item"><Calendar size={12} />{fmtDate(req.requestedAt)}</span>
-                                                </div>
-                                            </div>
-                                            {req.status === 'PENDING' && (
-                                                <div className="request-actions">
-                                                    <button
-                                                        className="btn-approve"
-                                                        onClick={e => { e.stopPropagation(); approveReq(req.id); }}
-                                                        disabled={reqLoading}
-                                                    >
-                                                        <Check size={13} /> Duyệt
-                                                    </button>
-                                                    <button
-                                                        className="btn-reject"
-                                                        onClick={e => { e.stopPropagation(); setRejectModal(req); }}
-                                                    >
-                                                        <X size={13} /> Từ chối
-                                                    </button>
-                                                </div>
-                                            )}
+                            {/* Tổng hợp */}
+                            {branchViewMode === 'aggregate' && (
+                                branchIngredients.length === 0
+                                    ? <div className="empty-state"><Store size={40} /><p>Chưa có nguyên liệu</p></div>
+                                    : (
+                                        <div className="inventory-table-container">
+                                            <table className="inventory-table">
+                                                <thead><tr>
+                                                    {['Nguyên liệu', 'Đơn vị', 'Tồn kho', 'Trạng thái'].map(h =>
+                                                        <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>{h}</th>
+                                                    )}
+                                                </tr></thead>
+                                                <tbody>
+                                                    {branchIngredients.map(item => (
+                                                        <tr key={item.id}>
+                                                            <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
+                                                            <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
+                                                            <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
+                                                                {item.quantity ?? 0}
+                                                            </td>
+                                                            <td><StockBadge qty={item.quantity ?? 0} /></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
+                                    )
+                            )}
+                            {branchViewMode === 'batch' && (() => {
+                                const pills = [
+                                    { value: 'all', label: 'Tất cả', color: '#667eea' },
+                                    { value: 'usable', label: '✓ Xuất được', color: '#10b981' },
+                                    { value: 'nearExpiry', label: '⏰ Sắp hết hạn', color: '#f59e0b' },
+                                    { value: 'expired', label: '⚠ Hết hạn', color: '#ef4444' },
+                                ];
+                                return (
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                                        {pills.map(p => (
+                                            <button key={p.value} onClick={() => setWhBatchHsdFilter(p.value)} style={{
+                                                padding: '5px 14px', borderRadius: 20,
+                                                border: `1.5px solid ${p.color}`,
+                                                background: whBatchHsdFilter === p.value ? p.color : 'transparent',
+                                                color: whBatchHsdFilter === p.value ? '#fff' : p.color,
+                                                cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                                                transition: 'all .15s'
+                                            }}>{p.label}</button>
+                                        ))}
                                     </div>
                                 );
-                            })}
+                            })()}
+                            {/* Theo lô */}
+                            {branchViewMode === 'batch' && (
+
+                                branchBatches.length === 0
+                                    ? <div className="empty-state"><Store size={40} /><p>Không có lô nào</p></div>
+                                    : (
+                                        <div className="inventory-table-container">
+                                            <table className="inventory-table">
+                                                <thead><tr>
+                                                    {['Nguyên liệu', 'Đơn vị', 'Còn lại', 'Tổng nhập', 'Từ kho', 'Ngày nhập', 'HSD', 'Trạng thái HSD'].map(h =>
+                                                        <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>{h}</th>
+                                                    )}
+                                                </tr></thead>
+                                                <tbody>
+                                                    {[...whBatches]
+                                                        .filter(batch => {
+                                                            const d = calcDays(batch.expiryDate);
+                                                            if (whBatchHsdFilter === 'all') return true;
+                                                            if (whBatchHsdFilter === 'usable') return d !== null && d > 5;
+                                                            if (whBatchHsdFilter === 'nearExpiry') return d !== null && d >= 0 && d <= 7;
+                                                            if (whBatchHsdFilter === 'expired') return d !== null && d < 0;
+                                                            return true;
+                                                        })
+                                                        .sort((a, b) => new Date(a.expiryDate || '9999') - new Date(b.expiryDate || '9999'))
+                                                        .sort((a, b) => (a.daysToExpire ?? 9999) - (b.daysToExpire ?? 9999))
+                                                        .map(batch => {
+                                                            // Ước tính ngày HSD từ daysToExpire
+                                                            const approxExpiry = (() => {
+                                                                if (batch.daysToExpire === undefined) return '—';
+                                                                const d = new Date();
+                                                                d.setDate(d.getDate() + batch.daysToExpire);
+                                                                return d.toLocaleDateString('vi-VN');
+                                                            })();
+                                                            return (
+                                                                <tr key={batch.id} style={batchRowStyle(batch.daysToExpire)}>
+                                                                    <td className="ingredient-name">{batch.ingredientName || 'N/A'}</td>
+                                                                    <td className="ingredient-unit">{batch.unit || '—'}</td>
+                                                                    <td className={qtyClass(batch.remainingQuantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
+                                                                        {batch.remainingQuantity ?? 0}
+                                                                    </td>
+                                                                    <td style={{ color: 'var(--color-text-secondary)', opacity: .6 }}>
+                                                                        {batch.quantity ?? 0}
+                                                                    </td>
+                                                                    <td style={{ color: 'var(--color-text-secondary)' }}>
+                                                                        {batch.warehouseName || '—'}
+                                                                    </td>
+                                                                    <td style={{ color: 'var(--color-text-secondary)' }}>
+                                                                        {batch.createdAt ? fmtDate(batch.createdAt) : '—'}
+                                                                    </td>
+                                                                    <td style={{ color: 'var(--color-text-secondary)', fontWeight: (batch.nearExpired || batch.expired) ? 600 : 400 }}>
+                                                                        {approxExpiry}
+                                                                    </td>
+                                                                    <td><ExpiryBadge daysOverride={batch.daysToExpire} /></td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )
+
+                            )}
                         </div>
+
                     )}
                 </div>
-            )}
+            )
+            }
+
+            {/* Yêu cầu */}
+            {
+                tab === 'requests' && (
+                    <div style={{ display: 'grid', gap: 2 }}>
+                        {/* Filters */}
+                        <div className="filters-container">
+                            <div className="search-wrapper">
+                                <input
+                                    className="search-input"
+                                    placeholder="Tìm kiếm..."
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                />
+                            </div>
+                            <select className="search-input1" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                                <option value="all">Tất cả trạng thái</option>
+                                <option value="PENDING">Chờ duyệt</option>
+                                <option value="APPROVED">Đã duyệt</option>
+                                <option value="RECEIVED">Đã nhận hàng</option>
+                                <option value="REJECTED">Từ chối</option>
+                            </select>
+                            <select className="search-input1" value={filterType} onChange={e => setFilterType(e.target.value)}>
+                                <option value="all">Tất cả loại</option>
+                                <option value="IMPORT">Nhập kho</option>
+                                <option value="EXPORT">Xuất kho</option>
+                            </select>
+                        </div>
+
+                        {filteredReqs.length === 0 ? (
+                            <div className="empty-state"><FileText size={40} /><p>Không tìm thấy yêu cầu nào</p></div>
+                        ) : (
+                            <div className="requests-list">
+                                {filteredReqs.map(req => {
+                                    const items = getItems(req.id);
+                                    const first = getFirst(req.id);
+                                    const title = !first
+                                        ? 'Không có nguyên liệu'
+                                        : items.length === 1
+                                            ? first.ingredient?.name
+                                            : `${first.ingredient?.name} (+${items.length - 1} NL)`;
+                                    return (
+                                        <div key={req.id} className="request-card" onClick={() => setSelectedReq(req)}>
+                                            <div className="request-header">
+                                                <div className="request-content">
+                                                    <div className="request-badges">
+                                                        <TypeBadge type={req.type} />
+                                                        <StatusBadge status={req.status} />
+                                                    </div>
+                                                    <div className="request-title">{title}</div>
+                                                    <div className="request-details">
+                                                        <span className="request-detail-item"><MapPin size={12} />{req.branch?.name}</span>
+                                                        <span className="request-detail-item"><User size={12} />{req.requestedBy?.fullName}</span>
+                                                        <span className="request-detail-item"><Calendar size={12} />{fmtDate(req.requestedAt)}</span>
+                                                    </div>
+                                                </div>
+                                                {req.status === 'PENDING' && (
+                                                    <div className="request-actions">
+                                                        <button
+                                                            className="btn-approve"
+                                                            onClick={e => { e.stopPropagation(); approveReq(req.id); }}
+                                                            disabled={reqLoading}
+                                                        >
+                                                            <Check size={13} /> Duyệt
+                                                        </button>
+                                                        <button
+                                                            className="btn-reject"
+                                                            onClick={e => { e.stopPropagation(); setRejectModal(req); }}
+                                                        >
+                                                            <X size={13} /> Từ chối
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )
+            }
 
             {/* Lịch sử */}
-            {tab === 'history' && (
-                <div style={{ display: 'grid', gap: 20 }}>
-                    {/* Sub-tabs */}
-                    <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 0 }}>
-                        {[
-                            { id: 'export', label: '📤 Lịch sử xuất kho' },
-                            { id: 'import', label: '📥 Lịch sử nhập kho' },
-                        ].map(t => (
-                            <button
-                                key={t.id}
-                                onClick={() => setHistoryTab(t.id)}
-                                className={`inventory-tab${historyTab === t.id ? ' active' : ''}`}
-                            >
-                                {t.label}
-                            </button>
-                        ))}
+            {
+                tab === 'history' && (
+                    <div style={{ display: 'grid', gap: 20 }}>
+                        {/* Sub-tabs */}
+                        <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 0 }}>
+                            {[
+                                { id: 'export', label: '📤 Lịch sử xuất kho' },
+                                { id: 'import', label: '📥 Lịch sử nhập kho' },
+                            ].map(t => (
+                                <button
+                                    key={t.id}
+                                    onClick={() => setHistoryTab(t.id)}
+                                    className={`inventory-tab${historyTab === t.id ? ' active' : ''}`}
+                                >
+                                    {t.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Xuất kho */}
+                        {historyTab === 'export' && (
+                            <div className="branch-inventory-section">
+                                <h3 style={{ color: 'var(--color-text-secondary)' }}><ArrowUpCircle size={16} /> Lịch sử xuất kho ({exportHistory.length})</h3>
+                                {exportHistory.length === 0 ? (
+                                    <div className="empty-state"><ArrowUpCircle size={40} /><p>Chưa có dữ liệu</p></div>
+                                ) : (
+                                    <div className="inventory-table-container">
+                                        <table className="inventory-table">
+                                            <thead>
+                                                <tr>
+                                                    {['Ngày', 'Kho', 'Chi nhánh', 'Người duyệt', ''].map(h => (
+                                                        <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
+                                                            {h}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {[...exportHistory]
+                                                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                                                    .map(ex => (
+                                                        <tr key={ex.id} style={{ cursor: 'pointer' }}
+                                                            onClick={async () => {
+                                                                setSelectedExport(ex);
+                                                                await fetchExportDetail(ex.id);
+                                                            }}
+                                                        >
+                                                            <td style={{ color: 'var(--color-text-secondary)' }}>{fmtDate(ex.createdAt)}</td>
+                                                            <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>{ex.warehouse?.name || '—'}</td>
+                                                            <td style={{ color: 'var(--color-text-secondary)' }}>{ex.branch?.name || '—'}</td>
+                                                            <td style={{ color: 'var(--color-text-secondary)' }}>{ex.createdBy?.fullName || ex.createdBy?.username || '—'}</td>
+                                                            <td>
+                                                                <span style={{
+                                                                    fontSize: 12, color: '#667eea',
+                                                                    border: '1px solid #667eea',
+                                                                    borderRadius: 6, padding: '3px 10px'
+                                                                }}>
+                                                                    Chi tiết
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Nhập kho */}
+                        {historyTab === 'import' && (
+                            <div className="branch-inventory-section">
+                                <h3 style={{ color: 'var(--color-text-secondary)' }}><ArrowDownCircle size={16} /> Lịch sử nhập kho (tồn kho hiện tại)</h3>
+                                {importHistory.length === 0 ? (
+                                    <div className="empty-state"><ArrowDownCircle size={40} /><p>Chưa có dữ liệu</p></div>
+                                ) : (
+                                    <div className="inventory-table-container">
+                                        <table className="inventory-table">
+                                            <thead>
+                                                <tr>
+                                                    {['Kho', 'Nguyên liệu', 'Đơn vị', 'Tồn kho', 'Trạng thái'].map(h => (
+                                                        <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
+                                                            {h}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {[...importHistory]
+                                                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                                                    .map(item => (
+                                                        <tr key={item.id}>
+                                                            <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>
+                                                                {item.warehouse?.name || '—'}
+                                                            </td>
+                                                            <td style={{ color: 'var(--color-text-secondary)' }}>
+                                                                {item.ingredient?.name || '—'}
+                                                            </td>
+                                                            <td className="ingredient-unit" style={{ color: 'var(--color-text-secondary)' }}>
+                                                                {item.ingredient?.unit || '—'}
+                                                            </td>
+                                                            <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
+                                                                {item.quantity ?? 0}
+                                                            </td>
+                                                            <td><StockBadge qty={item.quantity ?? 0} /></td>
+                                                        </tr>
+                                                    ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
-
-                    {/* Xuất kho */}
-                    {historyTab === 'export' && (
-                        <div className="branch-inventory-section">
-                            <h3 style={{ color: 'var(--color-text-secondary)' }}><ArrowUpCircle size={16} /> Lịch sử xuất kho ({exportHistory.length})</h3>
-                            {exportHistory.length === 0 ? (
-                                <div className="empty-state"><ArrowUpCircle size={40} /><p>Chưa có dữ liệu</p></div>
-                            ) : (
-                                <div className="inventory-table-container">
-                                    <table className="inventory-table">
-                                        <thead>
-                                            <tr>
-                                                {['Ngày', 'Kho', 'Chi nhánh', 'Người duyệt', ''].map(h => (
-                                                    <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
-                                                        {h}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {[...exportHistory]
-                                                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                                                .map(ex => (
-                                                    <tr key={ex.id} style={{ cursor: 'pointer' }}
-                                                        onClick={async () => {
-                                                            setSelectedExport(ex);
-                                                            await fetchExportDetail(ex.id);
-                                                        }}
-                                                    >
-                                                        <td style={{ color: 'var(--color-text-secondary)' }}>{fmtDate(ex.createdAt)}</td>
-                                                        <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>{ex.warehouse?.name || '—'}</td>
-                                                        <td style={{ color: 'var(--color-text-secondary)' }}>{ex.branch?.name || '—'}</td>
-                                                        <td style={{ color: 'var(--color-text-secondary)' }}>{ex.createdBy?.fullName || ex.createdBy?.username || '—'}</td>
-                                                        <td>
-                                                            <span style={{
-                                                                fontSize: 12, color: '#667eea',
-                                                                border: '1px solid #667eea',
-                                                                borderRadius: 6, padding: '3px 10px'
-                                                            }}>
-                                                                Chi tiết
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Nhập kho */}
-                    {historyTab === 'import' && (
-                        <div className="branch-inventory-section">
-                            <h3 style={{ color: 'var(--color-text-secondary)' }}><ArrowDownCircle size={16} /> Lịch sử nhập kho (tồn kho hiện tại)</h3>
-                            {importHistory.length === 0 ? (
-                                <exportHistorydiv className="empty-state"><ArrowDownCircle size={40} /><p>Chưa có dữ liệu</p></exportHistorydiv>
-                            ) : (
-                                <div className="inventory-table-container">
-                                    <table className="inventory-table">
-                                        <thead>
-                                            <tr>
-                                                {['Kho', 'Nguyên liệu', 'Đơn vị', 'Tồn kho', 'Trạng thái'].map(h => (
-                                                    <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>
-                                                        {h}
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {[...importHistory]
-                                                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                                                .map(item => (
-                                                    <tr key={item.id}>
-                                                        <td className="ingredient-name" style={{ color: 'var(--color-text-secondary)' }}>
-                                                            {item.warehouse?.name || '—'}
-                                                        </td>
-                                                        <td style={{ color: 'var(--color-text-secondary)' }}>
-                                                            {item.ingredient?.name || '—'}
-                                                        </td>
-                                                        <td className="ingredient-unit" style={{ color: 'var(--color-text-secondary)' }}>
-                                                            {item.ingredient?.unit || '—'}
-                                                        </td>
-                                                        <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
-                                                            {item.quantity ?? 0}
-                                                        </td>
-                                                        <td><StockBadge qty={item.quantity ?? 0} /></td>
-                                                    </tr>
-                                                ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
+                )
+            }
 
             {/* Chi tiết yêu cầu */}
-            {selectedReq && (
-                <div className="modal-overlay" onClick={() => setSelectedReq(null)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2 className="modal-title">Chi tiết yêu cầu #{selectedReq.id}</h2>
-                            <button className="modal-close" onClick={() => setSelectedReq(null)}>
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div className="modal-badges">
-                            <TypeBadge type={selectedReq.type} />
-                            <StatusBadge status={selectedReq.status} />
-                        </div>
-                        <div className="modal-body">
-                            {/* Items */}
-                            <div className="modal-field">
-                                <div className="modal-field-label">Nguyên liệu</div>
-                                {getItems(selectedReq.id).map((item, i) => (
-                                    <div key={i} style={{
-                                        display: 'flex', justifyContent: 'space-between',
-                                        padding: '10px 14px', background: 'rgba(255,255,255,.05)',
-                                        borderRadius: 8, marginBottom: 6, fontSize: 14
-                                    }}>
-                                        <span style={{ fontWeight: 500 }}>{item.ingredient?.name}</span>
-                                        <span style={{ opacity: .6 }}>{item.quantity} {item.ingredient?.unit}</span>
-                                    </div>
-                                ))}
+            {
+                selectedReq && (
+                    <div className="modal-overlay" onClick={() => setSelectedReq(null)}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2 className="modal-title">Chi tiết yêu cầu #{selectedReq.id}</h2>
+                                <button className="modal-close" onClick={() => setSelectedReq(null)}>
+                                    <X size={16} />
+                                </button>
                             </div>
-
-                            {/* Timeline */}
-                            <div className="modal-timeline">
-                                <div className="modal-timeline-title">Thông tin</div>
-                                <div className="modal-timeline-items">
-                                    <div className="modal-timeline-item">
-                                        <span className="modal-timeline-item-label"><MapPin size={13} /> Chi nhánh</span>
-                                        <span className="modal-timeline-item-value">{selectedReq.branch?.name}</span>
-                                    </div>
-                                    <div className="modal-timeline-divider" />
-                                    <div className="modal-timeline-item">
-                                        <span className="modal-timeline-item-label"><User size={13} /> Người yêu cầu</span>
-                                        <span className="modal-timeline-item-value">
-                                            {selectedReq.requestedBy?.fullName || selectedReq.requestedBy?.username || 'N/A'}
-                                        </span>
-                                    </div>
-                                    <div className="modal-timeline-divider" />
-                                    <div className="modal-timeline-item">
-                                        <span className="modal-timeline-item-label"><Calendar size={13} /> Thời gian</span>
-                                        <span className="modal-timeline-item-value">{fmtDate(selectedReq.requestedAt)}</span>
-                                    </div>
-                                    {selectedReq.reason && (
-                                        <>
-                                            <div className="modal-timeline-divider" />
-                                            <div className="modal-timeline-item">
-                                                <span className="modal-timeline-item-label"><FileText size={13} /> Lý do</span>
-                                                <span className="modal-timeline-item-value">{selectedReq.reason}</span>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
+                            <div className="modal-badges">
+                                <TypeBadge type={selectedReq.type} />
+                                <StatusBadge status={selectedReq.status} />
                             </div>
-
-                            {selectedReq.status === 'PENDING' && (
-                                <div className="modal-actions">
-                                    <button
-                                        className="btn-modal-approve"
-                                        onClick={() => approveReq(selectedReq.id)}
-                                        disabled={reqLoading}
-                                    >
-                                        <CheckCircle size={15} /> Duyệt
-                                    </button>
-                                    <button
-                                        className="btn-modal-reject"
-                                        onClick={() => { setRejectModal(selectedReq); setSelectedReq(null); }}
-                                        disabled={reqLoading}
-                                    >
-                                        <XCircle size={15} /> Từ chối
-                                    </button>
+                            <div className="modal-body">
+                                {/* Items */}
+                                <div className="modal-field">
+                                    <div className="modal-field-label">Nguyên liệu</div>
+                                    {getItems(selectedReq.id).map((item, i) => (
+                                        <div key={i} style={{
+                                            display: 'flex', justifyContent: 'space-between',
+                                            padding: '10px 14px', background: 'rgba(255,255,255,.05)',
+                                            borderRadius: 8, marginBottom: 6, fontSize: 14
+                                        }}>
+                                            <span style={{ fontWeight: 500 }}>{item.ingredient?.name}</span>
+                                            <span style={{ opacity: .6 }}>{item.quantity} {item.ingredient?.unit}</span>
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
 
-            {/* Chi tiết xuất kho */}
-            {selectedExport && exportDetail && (
-                <div className="modal-overlay" onClick={() => { setSelectedExport(null); setExportDetail(null); }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2 className="modal-title">
-                                Chi tiết xuất kho #{selectedExport.id}
-                            </h2>
-                            <button className="modal-close" onClick={() => { setSelectedExport(null); setExportDetail(null); }}>
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            {/* Thông tin chung */}
-                            <div className="modal-timeline" style={{ marginBottom: 20 }}>
-                                <div className="modal-timeline-title">Thông tin phiếu xuất</div>
-                                <div className="modal-timeline-items">
-                                    <div className="modal-timeline-item">
-                                        <span className="modal-timeline-item-label"><Warehouse size={13} /> Kho</span>
-                                        <span className="modal-timeline-item-value">{exportDetail.export?.warehouse?.name || '—'}</span>
-                                    </div>
-                                    <div className="modal-timeline-divider" />
-                                    <div className="modal-timeline-item">
-                                        <span className="modal-timeline-item-label"><MapPin size={13} /> Chi nhánh</span>
-                                        <span className="modal-timeline-item-value">{exportDetail.export?.branch?.name || '—'}</span>
-                                    </div>
-                                    <div className="modal-timeline-divider" />
-                                    {(exportDetail.export?.status === 'RECEIVED' || exportDetail.export?.status === 'APPROVED')
-                                        && exportDetail.export?.approvedBy && (
+                                {/* Timeline */}
+                                <div className="modal-timeline">
+                                    <div className="modal-timeline-title">Thông tin</div>
+                                    <div className="modal-timeline-items">
+                                        <div className="modal-timeline-item">
+                                            <span className="modal-timeline-item-label"><MapPin size={13} /> Chi nhánh</span>
+                                            <span className="modal-timeline-item-value">{selectedReq.branch?.name}</span>
+                                        </div>
+                                        <div className="modal-timeline-divider" />
+                                        <div className="modal-timeline-item">
+                                            <span className="modal-timeline-item-label"><User size={13} /> Người yêu cầu</span>
+                                            <span className="modal-timeline-item-value">
+                                                {selectedReq.requestedBy?.fullName || selectedReq.requestedBy?.username || 'N/A'}
+                                            </span>
+                                        </div>
+                                        <div className="modal-timeline-divider" />
+                                        <div className="modal-timeline-item">
+                                            <span className="modal-timeline-item-label"><Calendar size={13} /> Thời gian</span>
+                                            <span className="modal-timeline-item-value">{fmtDate(selectedReq.requestedAt)}</span>
+                                        </div>
+                                        {selectedReq.reason && (
                                             <>
                                                 <div className="modal-timeline-divider" />
                                                 <div className="modal-timeline-item">
-                                                    <span className="modal-timeline-item-label"><CheckCircle size={13} /> Người duyệt</span>
+                                                    <span className="modal-timeline-item-label"><FileText size={13} /> Lý do</span>
+                                                    <span className="modal-timeline-item-value">{selectedReq.reason}</span>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {selectedReq.status === 'PENDING' && (
+                                    <div className="modal-actions">
+                                        <button
+                                            className="btn-modal-approve"
+                                            onClick={() => approveReq(selectedReq.id)}
+                                            disabled={reqLoading}
+                                        >
+                                            <CheckCircle size={15} /> Duyệt
+                                        </button>
+                                        <button
+                                            className="btn-modal-reject"
+                                            onClick={() => { setRejectModal(selectedReq); setSelectedReq(null); }}
+                                            disabled={reqLoading}
+                                        >
+                                            <XCircle size={15} /> Từ chối
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Chi tiết xuất kho */}
+            {
+                selectedExport && exportDetail && (
+                    <div className="modal-overlay" onClick={() => { setSelectedExport(null); setExportDetail(null); }}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2 className="modal-title">
+                                    Chi tiết xuất kho #{selectedExport.id}
+                                </h2>
+                                <button className="modal-close" onClick={() => { setSelectedExport(null); setExportDetail(null); }}>
+                                    <X size={16} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                {/* Thông tin chung */}
+                                <div className="modal-timeline" style={{ marginBottom: 20 }}>
+                                    <div className="modal-timeline-title">Thông tin phiếu xuất</div>
+                                    <div className="modal-timeline-items">
+                                        <div className="modal-timeline-item">
+                                            <span className="modal-timeline-item-label"><Warehouse size={13} /> Kho</span>
+                                            <span className="modal-timeline-item-value">{exportDetail.export?.warehouse?.name || '—'}</span>
+                                        </div>
+                                        <div className="modal-timeline-divider" />
+                                        <div className="modal-timeline-item">
+                                            <span className="modal-timeline-item-label"><MapPin size={13} /> Chi nhánh</span>
+                                            <span className="modal-timeline-item-value">{exportDetail.export?.branch?.name || '—'}</span>
+                                        </div>
+                                        <div className="modal-timeline-divider" />
+                                        {(exportDetail.export?.status === 'RECEIVED' || exportDetail.export?.status === 'APPROVED')
+                                            && exportDetail.export?.approvedBy && (
+                                                <>
+                                                    <div className="modal-timeline-divider" />
+                                                    <div className="modal-timeline-item">
+                                                        <span className="modal-timeline-item-label"><CheckCircle size={13} /> Người duyệt</span>
+                                                        <span className="modal-timeline-item-value">
+                                                            {exportDetail.export?.approvedBy?.fullName}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        {exportDetail.export?.status === 'RECEIVED' && exportDetail.export?.receivedBy && (
+                                            <>
+                                                <div className="modal-timeline-divider" />
+                                                <div className="modal-timeline-item">
+                                                    <span className="modal-timeline-item-label"><Check size={13} /> Người nhận hàng</span>
                                                     <span className="modal-timeline-item-value">
-                                                        {exportDetail.export?.approvedBy?.fullName}
+                                                        {exportDetail.export?.receivedBy?.fullName}
                                                     </span>
                                                 </div>
                                             </>
                                         )}
-                                    {exportDetail.export?.status === 'RECEIVED' && exportDetail.export?.receivedBy && (
-                                        <>
-                                            <div className="modal-timeline-divider" />
-                                            <div className="modal-timeline-item">
-                                                <span className="modal-timeline-item-label"><Check size={13} /> Người nhận hàng</span>
-                                                <span className="modal-timeline-item-value">
-                                                    {exportDetail.export?.receivedBy?.fullName}
-                                                </span>
-                                            </div>
-                                        </>
-                                    )}
-                                    <div className="modal-timeline-divider" />
-                                    <div className="modal-timeline-item">
-                                        <span className="modal-timeline-item-label"><Calendar size={13} /> Ngày xuất</span>
-                                        <span className="modal-timeline-item-value">{fmtDate(exportDetail.export?.createdAt)}</span>
+                                        <div className="modal-timeline-divider" />
+                                        <div className="modal-timeline-item">
+                                            <span className="modal-timeline-item-label"><Calendar size={13} /> Ngày xuất</span>
+                                            <span className="modal-timeline-item-value">{fmtDate(exportDetail.export?.createdAt)}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Danh sách nguyên liệu */}
-                            <div className="modal-field-label" style={{ marginBottom: 8 }}>Nguyên liệu xuất</div>
-                            {(exportDetail.items || []).length === 0 ? (
-                                <div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: 24 }}>
-                                    Không có nguyên liệu
-                                </div>
-                            ) : (
-                                <div className="inventory-table-container">
-                                    <table className="inventory-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Nguyên liệu</th>
-                                                <th>Đơn vị</th>
-                                                <th>Số lượng</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {(exportDetail.items || []).map((item, i) => (
-                                                <tr key={i}>
-                                                    <td className="ingredient-name">{item.ingredient?.name || '—'}</td>
-                                                    <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
-                                                    <td className="quantity-value">{item.quantity}</td>
+                                {/* Danh sách nguyên liệu */}
+                                <div className="modal-field-label" style={{ marginBottom: 8 }}>Nguyên liệu xuất</div>
+                                {(exportDetail.items || []).length === 0 ? (
+                                    <div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: 24 }}>
+                                        Không có nguyên liệu
+                                    </div>
+                                ) : (
+                                    <div className="inventory-table-container">
+                                        <table className="inventory-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nguyên liệu</th>
+                                                    <th>Đơn vị</th>
+                                                    <th>Số lượng</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
+                                            </thead>
+                                            <tbody>
+                                                {(exportDetail.items || []).map((item, i) => (
+                                                    <tr key={i}>
+                                                        <td className="ingredient-name">{item.ingredient?.name || '—'}</td>
+                                                        <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
+                                                        <td className="quantity-value">{item.quantity}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Từ chối */}
-            {rejectModal && (
-                <div className="modal-overlay" onClick={() => setRejectModal(null)}>
-                    <div className="modal-content" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2 className="modal-title">Từ chối yêu cầu</h2>
-                            <button className="modal-close" onClick={() => setRejectModal(null)}>
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="modal-field">
-                                <div className="modal-field-label">Chi nhánh</div>
-                                <div className="modal-field-value branch">
-                                    <MapPin size={16} color="#667eea" />
-                                    <strong>{rejectModal.branch?.name}</strong>
+            {
+                rejectModal && (
+                    <div className="modal-overlay" onClick={() => setRejectModal(null)}>
+                        <div className="modal-content" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2 className="modal-title">Từ chối yêu cầu</h2>
+                                <button className="modal-close" onClick={() => setRejectModal(null)}>
+                                    <X size={16} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="modal-field">
+                                    <div className="modal-field-label">Chi nhánh</div>
+                                    <div className="modal-field-value branch">
+                                        <MapPin size={16} color="#667eea" />
+                                        <strong>{rejectModal.branch?.name}</strong>
+                                    </div>
+                                </div>
+                                <div className="modal-field">
+                                    <label className="modal-field-label rejection">Lý do từ chối *</label>
+                                    <textarea
+                                        className="search-input"
+                                        rows={4}
+                                        placeholder="Nhập lý do..."
+                                        value={rejectNote}
+                                        onChange={e => setRejectNote(e.target.value)}
+                                        style={{ paddingLeft: 16, resize: 'vertical', minHeight: 100 }}
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                    <button
+                                        className="modal-close"
+                                        style={{ width: 'auto', padding: '8px 16px', borderRadius: 8 }}
+                                        onClick={() => setRejectModal(null)}
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        className="btn-modal-reject"
+                                        style={{ padding: '10px 20px', border: 'none', background: 'rgba(239,68,68,.9)', color: '#fff' }}
+                                        disabled={reqLoading || !rejectNote.trim()}
+                                        onClick={() => {
+                                            if (!rejectNote.trim()) {
+                                                addToast({ type: 'warning', title: 'Vui lòng nhập lý do', message: '' });
+                                                return;
+                                            }
+                                            rejectReq(rejectModal.id, rejectNote);
+                                        }}
+                                    >
+                                        <XCircle size={15} /> Xác nhận từ chối
+                                    </button>
                                 </div>
                             </div>
-                            <div className="modal-field">
-                                <label className="modal-field-label rejection">Lý do từ chối *</label>
-                                <textarea
-                                    className="search-input"
-                                    rows={4}
-                                    placeholder="Nhập lý do..."
-                                    value={rejectNote}
-                                    onChange={e => setRejectNote(e.target.value)}
-                                    style={{ paddingLeft: 16, resize: 'vertical', minHeight: 100 }}
-                                />
+                        </div>
+                    </div>
+                )
+            }
+            {
+                deletingWh && (
+                    <div className="modal-overlay" onClick={() => setDeletingWh(null)}>
+                        <div className="modal-content" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2 className="modal-title">Xác nhận xóa kho</h2>
+                                <button className="modal-close" onClick={() => setDeletingWh(null)}>
+                                    <X size={16} />
+                                </button>
                             </div>
-                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                                <button
-                                    className="modal-close"
-                                    style={{ width: 'auto', padding: '8px 16px', borderRadius: 8 }}
-                                    onClick={() => setRejectModal(null)}
-                                >
-                                    Hủy
-                                </button>
-                                <button
-                                    className="btn-modal-reject"
-                                    style={{ padding: '10px 20px', border: 'none', background: 'rgba(239,68,68,.9)', color: '#fff' }}
-                                    disabled={reqLoading || !rejectNote.trim()}
-                                    onClick={() => {
-                                        if (!rejectNote.trim()) {
-                                            addToast({ type: 'warning', title: 'Vui lòng nhập lý do', message: '' });
-                                            return;
-                                        }
-                                        rejectReq(rejectModal.id, rejectNote);
-                                    }}
-                                >
-                                    <XCircle size={15} /> Xác nhận từ chối
-                                </button>
+                            <div className="modal-body">
+                                <p style={{ color: 'var(--color-text-secondary)', marginBottom: 20 }}>
+                                    Bạn có chắc muốn xóa kho <strong>"{deletingWh.name}"</strong>?
+                                    <br />
+                                    <span style={{ color: '#ef4444', fontSize: 13 }}>
+                                        Kho phải không còn hàng tồn mới xóa được.
+                                    </span>
+                                </p>
+                                <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'stretch' }}>
+                                    <button
+                                        style={{ width: 'auto', padding: '10px 20px', borderRadius: 8 }}
+                                        onClick={() => setDeletingWh(null)}
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button
+                                        style={{
+                                            padding: '10px 20px', border: 'none', borderRadius: 8,
+                                            background: '#ef4444', color: '#fff', cursor: 'pointer',
+                                            fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6
+                                        }}
+                                        onClick={() => deleteWarehouse(deletingWh.id)}
+                                    >
+                                        <X size={15} /> Xác nhận xóa
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-            {deletingWh && (
-                <div className="modal-overlay" onClick={() => setDeletingWh(null)}>
-                    <div className="modal-content" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2 className="modal-title">Xác nhận xóa kho</h2>
-                            <button className="modal-close" onClick={() => setDeletingWh(null)}>
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 20 }}>
-                                Bạn có chắc muốn xóa kho <strong>"{deletingWh.name}"</strong>?
-                                <br />
-                                <span style={{ color: '#ef4444', fontSize: 13 }}>
-                                    Kho phải không còn hàng tồn mới xóa được.
-                                </span>
-                            </p>
-                            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'stretch' }}>
-                                <button
-                                    style={{ width: 'auto', padding: '10px 20px', borderRadius: 8 }}
-                                    onClick={() => setDeletingWh(null)}
-                                >
-                                    Hủy
-                                </button>
-                                <button
-                                    style={{
-                                        padding: '10px 20px', border: 'none', borderRadius: 8,
-                                        background: '#ef4444', color: '#fff', cursor: 'pointer',
-                                        fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6
-                                    }}
-                                    onClick={() => deleteWarehouse(deletingWh.id)}
-                                >
-                                    <X size={15} /> Xác nhận xóa
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
