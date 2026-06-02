@@ -1,9 +1,9 @@
-// Orders.js - Sử dụng axiosClient, có hiển thị thời gian đã dùng
+// Orders.js - Sử dụng dữ liệu từ API tables/rooms (đã có customerName, checkInTime)
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     ClipboardList, RefreshCw, Clock, CheckCircle, XCircle,
-    MapPin, Users, Table, Home, PlusCircle
+    MapPin, Users, Table, Home, PlusCircle, Calendar
 } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import { showToast } from "../../../hooks/useToast";
@@ -24,7 +24,6 @@ const Orders = () => {
 
     // ========== HELPER FUNCTIONS ==========
 
-    // Tính thời gian đã sử dụng
     const getElapsedTime = useCallback((startTime) => {
         if (!startTime) return null;
         const start = new Date(startTime);
@@ -45,7 +44,6 @@ const Orders = () => {
         return `${diffSeconds} giây`;
     }, []);
 
-    // Lấy thời gian bắt đầu từ order
     const getStartTime = useCallback((entityId, type) => {
         const order = existingOrders[`${type}_${entityId}`];
         if (order) {
@@ -53,6 +51,17 @@ const Orders = () => {
         }
         return null;
     }, [existingOrders]);
+
+    const formatDateTime = (dateTimeStr) => {
+        if (!dateTimeStr) return "";
+        const date = new Date(dateTimeStr);
+        return date.toLocaleString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
 
     // ========== UPDATE ENTITY STATUS ==========
     const updateEntityStatus = async (entityId, type, newStatus) => {
@@ -89,13 +98,11 @@ const Orders = () => {
             const response = await axiosClient.get('/customer/orders');
             const data = response.data;
 
-            // Lọc đơn hàng theo chi nhánh và trạng thái active
             const branchOrders = data.filter(o => o.branch?.id === branchId);
             const activeOrders = branchOrders.filter(
                 o => o.status !== "PAID" && o.status !== "CANCELED"
             );
 
-            // Tạo map để truy xuất nhanh
             const orderMap = {};
             activeOrders.forEach(order => {
                 if (order.table) {
@@ -112,43 +119,21 @@ const Orders = () => {
         }
     }, [branchId]);
 
-    // Lấy danh sách khu vực
-    const fetchAreas = useCallback(async () => {
-        try {
-            const response = await axiosClient.get(`/tables/branch/${branchId}/areas`);
-            setAreas(["Tất cả", ...response.data]);
-        } catch (err) {
-            console.error("Lỗi tải khu vực:", err);
-            showToast('error', 'Lỗi', 'Không thể tải danh sách khu vực');
-        }
-    }, [branchId]);
-
-    // Lấy danh sách bàn
-    const fetchTables = useCallback(async () => {
+    // 👉 SỬA: Dùng API /reservations/tables và /reservations/rooms (đã có sẵn customerName, checkInTime)
+    const fetchTablesWithReservations = useCallback(async () => {
         setLoading(true);
         setError(null);
 
         try {
+            // Gọi API lấy bàn + thông tin đặt bàn (đã có customerName, checkInTime, hasUpcomingReservation)
+            const response = await axiosClient.get('/reservations/tables');
+            const data = response.data || [];
+
+            // Lọc theo khu vực
             if (selectedArea !== "Tất cả") {
-                const response = await axiosClient.get(
-                    `/tables/branch/${branchId}/area/${selectedArea}`
-                );
-                setTables(response.data);
+                setTables(data.filter(table => table.area === selectedArea));
             } else {
-                // Lấy tất cả bàn từ tất cả khu vực
-                const areasRes = await axiosClient.get(`/tables/branch/${branchId}/areas`);
-                const areasData = areasRes.data;
-
-                // Fetch song song để tăng tốc
-                const tablePromises = areasData.map(area =>
-                    axiosClient.get(`/tables/branch/${branchId}/area/${area}`)
-                        .then(res => res.data)
-                        .catch(() => [])
-                );
-
-                const allTablesArrays = await Promise.all(tablePromises);
-                const allTables = allTablesArrays.flat();
-                setTables(allTables);
+                setTables(data);
             }
         } catch (err) {
             console.error("Lỗi tải bàn:", err);
@@ -157,16 +142,28 @@ const Orders = () => {
         } finally {
             setLoading(false);
         }
-    }, [branchId, selectedArea]);
+    }, [selectedArea]);
 
-    // Lấy danh sách phòng
-    const fetchRooms = useCallback(async () => {
+    const fetchRoomsWithReservations = useCallback(async () => {
         try {
-            const response = await axiosClient.get(`/rooms/branch/${branchId}`);
-            setRooms(response.data);
+            // Gọi API lấy phòng + thông tin đặt bàn
+            const response = await axiosClient.get('/reservations/rooms');
+            const data = response.data || [];
+            setRooms(data);
         } catch (err) {
             console.error("Lỗi tải phòng:", err);
             showToast('error', 'Lỗi', 'Không thể tải danh sách phòng');
+        }
+    }, []);
+
+    // Lấy danh sách khu vực
+    const fetchAreas = useCallback(async () => {
+        try {
+            const response = await axiosClient.get(`/tables/branch/${branchId}/areas`);
+            setAreas(["Tất cả", ...response.data]);
+        } catch (err) {
+            console.error("Lỗi tải khu vực:", err);
+            showToast('error', 'Lỗi', 'Không thể tải danh sách khu vực');
         }
     }, [branchId]);
 
@@ -180,25 +177,17 @@ const Orders = () => {
         }
 
         fetchAreas();
-        fetchRooms();
+        fetchRoomsWithReservations();
         fetchExistingOrders();
-    }, [branchId, fetchAreas, fetchRooms, fetchExistingOrders]);
+        fetchTablesWithReservations();
+    }, [branchId, fetchAreas, fetchRoomsWithReservations, fetchExistingOrders, fetchTablesWithReservations]);
 
     // Refetch khi đổi khu vực
     useEffect(() => {
         if (branchId && activeTab === "tables") {
-            fetchTables();
+            fetchTablesWithReservations();
         }
-    }, [selectedArea, branchId, activeTab, fetchTables]);
-
-    // WebSocket listener (nếu có)
-    useEffect(() => {
-        const interval = setInterval(() => {
-            fetchExistingOrders();
-        }, 30000);
-
-        return () => clearInterval(interval);
-    }, [fetchExistingOrders]);
+    }, [selectedArea, branchId, activeTab, fetchTablesWithReservations]);
 
     // Cập nhật thời gian realtime mỗi giây
     useEffect(() => {
@@ -212,8 +201,8 @@ const Orders = () => {
     // ========== EVENT HANDLERS ==========
 
     const handleRefresh = () => {
-        fetchTables();
-        fetchRooms();
+        fetchTablesWithReservations();
+        fetchRoomsWithReservations();
         fetchExistingOrders();
         showToast('success', 'Thành công', 'Đã làm mới dữ liệu');
     };
@@ -222,13 +211,11 @@ const Orders = () => {
         let existingOrder = existingOrders[`table_${table.id}`];
         let currentTable = table;
 
-        // Nếu bàn đang TRỐNG và chưa có đơn hàng
         if (table.status === "FREE" && !existingOrder) {
             await updateEntityStatus(table.id, 'table', 'OCCUPIED');
-            await fetchTables();
+            await fetchTablesWithReservations();
             await fetchExistingOrders();
 
-            // Cập nhật lại thông tin bàn
             const updatedTable = tables.find(t => t.id === table.id);
             if (updatedTable) currentTable = updatedTable;
             existingOrder = existingOrders[`table_${table.id}`];
@@ -246,13 +233,11 @@ const Orders = () => {
         let existingOrder = existingOrders[`room_${room.id}`];
         let currentRoom = room;
 
-        // Nếu phòng đang TRỐNG (ACTIVE) và chưa có đơn hàng
         if (room.status === "ACTIVE" && !existingOrder) {
             await updateEntityStatus(room.id, 'room', 'OCCUPIED');
-            await fetchRooms();
+            await fetchRoomsWithReservations();
             await fetchExistingOrders();
 
-            // Cập nhật lại thông tin phòng
             const updatedRoom = rooms.find(r => r.id === room.id);
             if (updatedRoom) currentRoom = updatedRoom;
             existingOrder = existingOrders[`room_${room.id}`];
@@ -270,7 +255,7 @@ const Orders = () => {
         setActiveTab(tab);
         setSelectedArea("Tất cả");
         if (tab === "tables") {
-            fetchTables();
+            fetchTablesWithReservations();
         }
     };
 
@@ -281,7 +266,8 @@ const Orders = () => {
             const colors = {
                 ACTIVE: "#10b981",
                 OCCUPIED: "#ef4444",
-                MAINTENANCE: "#6b7280"
+                MAINTENANCE: "#6b7280",
+                RESERVED: "#f59e0b"
             };
             return colors[status] || "#6b7280";
         }
@@ -298,7 +284,8 @@ const Orders = () => {
             const texts = {
                 ACTIVE: "Trống",
                 OCCUPIED: "Đã có khách",
-                MAINTENANCE: "Bảo trì"
+                MAINTENANCE: "Bảo trì",
+                RESERVED: "Đã đặt"
             };
             return texts[status] || status;
         }
@@ -316,6 +303,7 @@ const Orders = () => {
                 case "ACTIVE": return <CheckCircle size={14} color="#10b981" />;
                 case "OCCUPIED": return <XCircle size={14} color="#ef4444" />;
                 case "MAINTENANCE": return <XCircle size={14} color="#6b7280" />;
+                case "RESERVED": return <Clock size={14} color="#f59e0b" />;
                 default: return null;
             }
         }
@@ -351,10 +339,18 @@ const Orders = () => {
         const elapsedTime = getElapsedTime(startTime);
         const label = type === 'table' ? 'Bàn' : 'Phòng';
 
-        // Xác định trạng thái hiển thị
-        const displayStatus = type === 'room'
-            ? (entity.status === "ACTIVE" ? "FREE" : entity.status)
-            : entity.status;
+        // 👈 DÙNG DỮ LIỆU CÓ SẴN TỪ API (entity.customerName, entity.checkInTime)
+        const hasReservation = entity.hasUpcomingReservation === true;
+        const reservationCustomer = entity.customerName;
+        const reservationTime = entity.checkInTime;
+
+        const isOccupied = (type === 'table' && entity.status === "OCCUPIED") ||
+            (type === 'room' && entity.status === "OCCUPIED");
+
+        const isReserved = entity.status === "RESERVED" || hasReservation;
+
+        const canOrder = (type === 'table' && entity.status === "FREE" && !hasOrder) ||
+            (type === 'room' && entity.status === "ACTIVE" && !hasOrder);
 
         const statusIcons = {
             FREE: '🍽️',
@@ -363,13 +359,9 @@ const Orders = () => {
             ACTIVE: '🏠'
         };
 
-        // Kiểm tra xem có thể gọi món không (trống và chưa có đơn)
-        const canOrder = (type === 'table' && entity.status === "FREE" && !hasOrder) ||
-            (type === 'room' && entity.status === "ACTIVE" && !hasOrder);
-
-        // Kiểm tra xem đã có khách chưa
-        const isOccupied = (type === 'table' && entity.status === "OCCUPIED") ||
-            (type === 'room' && entity.status === "OCCUPIED");
+        const displayStatus = type === 'room'
+            ? (entity.status === "ACTIVE" ? "FREE" : entity.status)
+            : entity.status;
 
         return (
             <div
@@ -381,7 +373,9 @@ const Orders = () => {
                         ? "#fff3e0"
                         : canOrder
                             ? "linear-gradient(135deg, #ffffff, #f8faf5)"
-                            : "#fffbeb",
+                            : isReserved
+                                ? "#fff8e7"
+                                : "#fffbeb",
                     borderRadius: "16px",
                     padding: "20px",
                     cursor: "pointer",
@@ -447,6 +441,50 @@ const Orders = () => {
                     <MapPin size={12} />
                     <span>{entity.area || "Khu vực chung"}</span>
                 </div>
+
+                {/* 👈 THÔNG TIN ĐẶT BÀN (từ dữ liệu API có sẵn) */}
+                {hasReservation && reservationCustomer && (
+                    <div style={{
+                        marginTop: "8px",
+                        padding: "6px 10px",
+                        background: "#fef3c7",
+                        borderRadius: "8px",
+                        borderLeft: "3px solid #f59e0b",
+                        textAlign: "left"
+                    }}>
+                        <div style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontSize: "11px",
+                            color: "#92400e",
+                            marginBottom: "2px"
+                        }}>
+                            <Calendar size={10} />
+                            <span style={{ fontWeight: "bold" }}>Đặt bàn bởi:</span>
+                        </div>
+                        <div style={{
+                            fontSize: "12px",
+                            fontWeight: "500",
+                            color: "#78350f"
+                        }}>
+                            {reservationCustomer}
+                        </div>
+                        {reservationTime && (
+                            <div style={{
+                                fontSize: "10px",
+                                color: "#b45309",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                marginTop: "2px"
+                            }}>
+                                <Clock size={10} />
+                                <span>{formatDateTime(reservationTime)}</span>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Trạng thái đơn hàng */}
                 {hasOrder && orderStatus && (
@@ -731,7 +769,7 @@ const Orders = () => {
                     ) : (
                         <div style={{
                             display: "grid",
-                            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
                             gap: "16px"
                         }}>
                             {tables.map(table => renderEntityCard(table, 'table'))}
@@ -741,7 +779,7 @@ const Orders = () => {
             ) : (
                 <div style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
                     gap: "16px"
                 }}>
                     {loading ? (

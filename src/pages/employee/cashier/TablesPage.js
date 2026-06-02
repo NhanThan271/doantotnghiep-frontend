@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Table, Home, Users, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, PlusCircle, MapPin } from "lucide-react";
+import { Table, Home, Users, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp, PlusCircle, MapPin, Calendar } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
 import styles from "./TablesPage.module.css";
@@ -20,6 +20,18 @@ const TablesPage = () => {
     const navigate = useNavigate();
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
+
+    // Format datetime
+    const formatDateTime = (dateTimeStr) => {
+        if (!dateTimeStr) return "";
+        const date = new Date(dateTimeStr);
+        return date.toLocaleString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
 
     // Tính thời gian đã sử dụng (từ lúc tạo order đến hiện tại)
     const getElapsedTime = (startTime) => {
@@ -48,7 +60,6 @@ const TablesPage = () => {
     const getTableStartTime = (entityId, type) => {
         const order = existingOrders[`${type}_${entityId}`];
         if (order) {
-            // Luôn lấy createdAt - thời điểm mở bàn
             return order.createdAt;
         }
         return null;
@@ -78,29 +89,38 @@ const TablesPage = () => {
         }
     };
 
-    useEffect(() => {
-        if (branchId) {
-            fetchAreas();
-            fetchTables();
-            fetchRooms();
-            fetchExistingOrders();
-        }
-    }, [branchId]);
-
-    const fetchAreas = async () => {
+    // 👉 THÊM: Lấy danh sách bàn từ API /reservations/tables (đã có thông tin đặt bàn)
+    const fetchTablesWithReservations = async () => {
+        setLoading(true);
         try {
-            const response = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
+            const response = await fetch(`${API}/api/reservations/tables`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
             if (response.ok) {
                 const data = await response.json();
-                setAreas(["Tất cả", ...data]);
+                // Lọc theo khu vực
+                if (selectedArea !== "Tất cả") {
+                    setTables(data.filter(table => table.area === selectedArea));
+                } else {
+                    setTables(data);
+                }
+            } else {
+                // Fallback: gọi API cũ nếu API mới lỗi
+                await fetchTablesLegacy();
             }
         } catch (err) {
-            console.error("Lỗi tải khu vực:", err);
+            console.error("Lỗi tải bàn từ API reservations:", err);
+            // Fallback
+            await fetchTablesLegacy();
+        } finally {
+            setLoading(false);
         }
     };
 
-    const fetchTables = async () => {
-        setLoading(true);
+    // API cũ để fallback
+    const fetchTablesLegacy = async () => {
         try {
             if (selectedArea !== "Tất cả") {
                 const response = await fetch(`${API}/api/tables/branch/${branchId}/area/${selectedArea}`);
@@ -122,13 +142,32 @@ const TablesPage = () => {
                 setTables(allTables);
             }
         } catch (err) {
-            console.error("Lỗi tải bàn:", err);
-        } finally {
-            setLoading(false);
+            console.error("Lỗi tải bàn legacy:", err);
         }
     };
 
-    const fetchRooms = async () => {
+    // 👉 THÊM: Lấy danh sách phòng từ API /reservations/rooms (đã có thông tin đặt bàn)
+    const fetchRoomsWithReservations = async () => {
+        try {
+            const response = await fetch(`${API}/api/reservations/rooms`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setRooms(data);
+            } else {
+                // Fallback: gọi API cũ
+                await fetchRoomsLegacy();
+            }
+        } catch (err) {
+            console.error("Lỗi tải phòng từ API reservations:", err);
+            await fetchRoomsLegacy();
+        }
+    };
+
+    const fetchRoomsLegacy = async () => {
         try {
             const response = await fetch(`${API}/api/rooms/branch/${branchId}`);
             if (response.ok) {
@@ -136,35 +175,61 @@ const TablesPage = () => {
                 setRooms(data);
             }
         } catch (err) {
-            console.error("Lỗi tải phòng:", err);
+            console.error("Lỗi tải phòng legacy:", err);
+        }
+    };
+
+    const fetchAreas = async () => {
+        try {
+            const response = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
+            if (response.ok) {
+                const data = await response.json();
+                setAreas(["Tất cả", ...data]);
+            }
+        } catch (err) {
+            console.error("Lỗi tải khu vực:", err);
         }
     };
 
     useEffect(() => {
+        if (branchId) {
+            fetchAreas();
+            fetchExistingOrders();
+        }
+    }, [branchId]);
+
+    // Gọi API mới khi activeTab hoặc selectedArea thay đổi
+    useEffect(() => {
+        if (branchId && activeTab === "tables") {
+            fetchTablesWithReservations();
+        }
+    }, [selectedArea, branchId, activeTab]);
+
+    useEffect(() => {
+        if (branchId && activeTab === "rooms") {
+            fetchRoomsWithReservations();
+        }
+    }, [branchId, activeTab]);
+
+    useEffect(() => {
         socket.on("update-tables", () => {
             console.log("🔄 Nhận tín hiệu cập nhật bàn từ server");
-            fetchTables();
-            fetchRooms();
+            if (activeTab === "tables") {
+                fetchTablesWithReservations();
+            } else {
+                fetchRoomsWithReservations();
+            }
             fetchExistingOrders();
         });
 
         return () => {
             socket.off("update-tables");
         };
-    }, []);
-
-    useEffect(() => {
-        if (branchId && selectedArea !== "Tất cả") {
-            fetchTables();
-        } else if (branchId && selectedArea === "Tất cả" && activeTab === "tables") {
-            fetchTables();
-        }
-    }, [selectedArea, branchId, activeTab]);
+    }, [activeTab]);
 
     // Cập nhật thời gian realtime mỗi giây
     useEffect(() => {
         const interval = setInterval(() => {
-            // Force re-render để cập nhật thời gian
             setExistingOrders(prev => ({ ...prev }));
         }, 1000);
         return () => clearInterval(interval);
@@ -189,13 +254,15 @@ const TablesPage = () => {
     const getStatusText = (status) => {
         if (status === "FREE") return "Trống";
         if (status === "RESERVED") return "Đã đặt";
-        return "Đã có khách";
+        if (status === "OCCUPIED") return "Đã có khách";
+        return status;
     };
 
     const getStatusColor = (status) => {
         if (status === "FREE") return "#10b981";
         if (status === "RESERVED") return "#f59e0b";
-        return "#ef4444";
+        if (status === "OCCUPIED") return "#ef4444";
+        return "#6b7280";
     };
 
     const hasActiveOrder = (entityId, type) => {
@@ -285,6 +352,11 @@ const TablesPage = () => {
                                 const startTime = getTableStartTime(table.id, 'table');
                                 const elapsedTime = getElapsedTime(startTime);
 
+                                // 👈 Lấy thông tin đặt bàn từ API (đã có sẵn trong table object)
+                                const hasReservation = table.hasUpcomingReservation === true;
+                                const reservationCustomer = table.customerName;
+                                const reservationTime = table.checkInTime;
+
                                 let cardClass = styles.card;
                                 if (table.status === "FREE") cardClass += ` ${styles.cardFree}`;
                                 else if (table.status === "RESERVED") cardClass += ` ${styles.cardReserved}`;
@@ -313,6 +385,25 @@ const TablesPage = () => {
                                             <span>{table.area || "Khu vực chung"}</span>
                                         </div>
 
+                                        {/* 👈 THÔNG TIN ĐẶT BÀN (giống BookingPage) */}
+                                        {hasReservation && reservationCustomer && (
+                                            <div className={styles.reservationInfo}>
+                                                <div className={styles.reservationHeader}>
+                                                    <Calendar size={10} />
+                                                    <span>Đặt bàn bởi:</span>
+                                                </div>
+                                                <div className={styles.reservationCustomer}>
+                                                    {reservationCustomer}
+                                                </div>
+                                                {reservationTime && (
+                                                    <div className={styles.reservationTime}>
+                                                        <Clock size={10} />
+                                                        <span>{formatDateTime(reservationTime)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         {hasOrder && orderStatus && (
                                             <div className={styles.orderStatus}>{orderStatus}</div>
                                         )}
@@ -330,7 +421,6 @@ const TablesPage = () => {
                                             </span>
                                         </div>
 
-                                        {/* Hiển thị thời gian đã sử dụng từ lúc mở bàn */}
                                         {table.status === "OCCUPIED" && (
                                             <div className={styles.timeInfo}>
                                                 <Clock size={12} />
@@ -362,7 +452,11 @@ const TablesPage = () => {
                             const startTime = getTableStartTime(room.id, 'room');
                             const elapsedTime = getElapsedTime(startTime);
 
-                            // Xác định class CSS dựa trên RoomStatus
+                            // 👈 Lấy thông tin đặt phòng từ API
+                            const hasReservation = room.hasUpcomingReservation === true;
+                            const reservationCustomer = room.customerName;
+                            const reservationTime = room.checkInTime;
+
                             let cardClass = styles.card;
                             if (room.status === "ACTIVE") {
                                 cardClass += ` ${styles.cardFree}`;
@@ -372,7 +466,6 @@ const TablesPage = () => {
                                 cardClass += ` ${styles.cardMaintenance}`;
                             }
 
-                            // Xác định icon cho từng trạng thái
                             const getRoomIcon = () => {
                                 if (room.status === "ACTIVE") return "🏠";
                                 if (room.status === "OCCUPIED") return "👥";
@@ -380,7 +473,6 @@ const TablesPage = () => {
                                 return "🏠";
                             };
 
-                            // Xác định text trạng thái
                             const getRoomStatusText = () => {
                                 if (room.status === "ACTIVE") return "Trống";
                                 if (room.status === "OCCUPIED") return "Đã có khách";
@@ -388,7 +480,6 @@ const TablesPage = () => {
                                 return room.status;
                             };
 
-                            // Xác định màu sắc trạng thái
                             const getRoomStatusColor = () => {
                                 if (room.status === "ACTIVE") return "#10b981";
                                 if (room.status === "OCCUPIED") return "#ef4444";
@@ -396,7 +487,6 @@ const TablesPage = () => {
                                 return "#6b7280";
                             };
 
-                            // Xác định icon trạng thái
                             const getRoomStatusIcon = () => {
                                 if (room.status === "ACTIVE") return <CheckCircle size={14} color="#10b981" />;
                                 if (room.status === "OCCUPIED") return <XCircle size={14} color="#ef4444" />;
@@ -410,7 +500,6 @@ const TablesPage = () => {
                                     onClick={() => handleRoomClick(room)}
                                     className={cardClass}
                                 >
-                                    {/* Chỉ hiển thị nút "Thêm món" khi phòng đang có khách */}
                                     {room.status === "OCCUPIED" && (
                                         <div className={styles.addButton}>
                                             <PlusCircle size={10} />
@@ -418,26 +507,40 @@ const TablesPage = () => {
                                         </div>
                                     )}
 
-                                    {/* Icon chính của phòng */}
                                     <div className={styles.cardIcon}>
                                         {getRoomIcon()}
                                     </div>
 
-                                    {/* Tên phòng */}
                                     <div className={styles.cardTitle}>Phòng {room.number}</div>
 
-                                    {/* Khu vực */}
                                     <div className={styles.location}>
                                         <MapPin size={12} />
                                         <span>{room.area || "Khu vực VIP"}</span>
                                     </div>
 
-                                    {/* Trạng thái đơn hàng (chờ bếp, đang chuẩn bị, hoàn thành) */}
+                                    {/* 👈 THÔNG TIN ĐẶT PHÒNG */}
+                                    {hasReservation && reservationCustomer && (
+                                        <div className={styles.reservationInfo}>
+                                            <div className={styles.reservationHeader}>
+                                                <Calendar size={10} />
+                                                <span>Đặt phòng bởi:</span>
+                                            </div>
+                                            <div className={styles.reservationCustomer}>
+                                                {reservationCustomer}
+                                            </div>
+                                            {reservationTime && (
+                                                <div className={styles.reservationTime}>
+                                                    <Clock size={10} />
+                                                    <span>{formatDateTime(reservationTime)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {hasOrder && orderStatus && (
                                         <div className={styles.orderStatus}>{orderStatus}</div>
                                     )}
 
-                                    {/* Trạng thái phòng */}
                                     <div className={styles.tableStatus}>
                                         {getRoomStatusIcon()}
                                         <span
@@ -448,7 +551,6 @@ const TablesPage = () => {
                                         </span>
                                     </div>
 
-                                    {/* Hiển thị thời gian đã sử dụng (chỉ khi phòng có khách) */}
                                     {room.status === "OCCUPIED" && (
                                         <div className={styles.timeInfo}>
                                             <Clock size={12} />
@@ -456,7 +558,6 @@ const TablesPage = () => {
                                         </div>
                                     )}
 
-                                    {/* Sức chứa */}
                                     <div className={styles.capacity}>
                                         <Users size={12} /> Sức chứa: {room.capacity} người
                                     </div>
