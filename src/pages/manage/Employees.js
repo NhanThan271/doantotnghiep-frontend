@@ -22,6 +22,9 @@ export default function BranchEmployeesManager() {
     const [staffMap, setStaffMap] = useState({});
     const [shiftTemplates, setShiftTemplates] = useState([]);
     const [staffList, setStaffList] = useState([]);
+    const [viewingStaffAttendance, setViewingStaffAttendance] = useState(null);
+    const [viewingStaffSchedule, setViewingStaffSchedule] = useState(null);
+    const [weekShifts, setWeekShifts] = useState([]);
 
     // State cho modal phân ca
     const [showAssignModal, setShowAssignModal] = useState(false);
@@ -36,6 +39,24 @@ export default function BranchEmployeesManager() {
         shiftId: '',
         workDay: '',
     });
+
+    const [shiftsSubTab, setShiftsSubTab] = useState('schedule');
+    const [shiftSchedules, setShiftSchedules] = useState([]);
+    const [showCreateScheduleModal, setShowCreateScheduleModal] = useState(false);
+    const [scheduleForm, setScheduleForm] = useState({
+        workDay: new Date().toISOString().split('T')[0],
+        shiftId: '',
+        requiredStaff: 1,
+        maxStaff: 10,
+        branchId: null,
+    });
+
+    const [attendanceSubTab, setAttendanceSubTab] = useState('overview');
+    const [selectedStaffForAttendance, setSelectedStaffForAttendance] = useState('');
+    const [attendanceMonth, setAttendanceMonth] = useState(new Date().getMonth() + 1);
+    const [attendanceYear, setAttendanceYear] = useState(new Date().getFullYear());
+    const [monthlyReport, setMonthlyReport] = useState(null);
+    const [attendanceLoading, setAttendanceLoading] = useState(false);
 
     const API_BASE_URL = 'http://localhost:8080';
 
@@ -146,7 +167,19 @@ export default function BranchEmployeesManager() {
         }
     };
 
-    const fetchWorkShifts = async () => {
+    const getWeekDays = (dateStr) => {
+        const date = new Date(dateStr);
+        const day = date.getDay();
+        const monday = new Date(date);
+        monday.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            return d.toISOString().split('T')[0];
+        });
+    };
+
+    const fetchWorkShifts = async (date = selectedDate) => {
         if (!currentBranch?.id) return;
         setLoading(true);
         try {
@@ -155,24 +188,43 @@ export default function BranchEmployeesManager() {
                 `${API_BASE_URL}/api/staff/branch/${currentBranch.id}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-
-            const staffList = await staffRes.json();
+            const staffListData = await staffRes.json();
+            const staffIds = new Set(staffListData.map(s => s.id));
 
             const shiftRes = await fetch(
-                `${API_BASE_URL}/api/staff-shifts/date?date=${selectedDate}`,
+                `${API_BASE_URL}/api/staff-shifts/date?date=${date}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             const allShifts = await shiftRes.json();
-
-            const staffIds = new Set(staffList.map(s => s.id));
             const branchShifts = allShifts.filter(ss => staffIds.has(ss.staff?.id));
-
             setWorkShifts(branchShifts);
         } catch (error) {
             console.error('Lỗi:', error);
-            alert('Không thể tải ca làm việc.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchWorkShiftsForWeek = async (date = selectedDate) => {
+        if (!currentBranch?.id) return;
+        try {
+            const token = localStorage.getItem('token');
+
+            const d = new Date(date);
+            const day = d.getDay();
+            const monday = new Date(d);
+            monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+            const startDate = monday.toISOString().split('T')[0];
+
+            const res = await fetch(
+                `${API_BASE_URL}/api/staff-shifts/manager/week?branchId=${currentBranch.id}&startDate=${startDate}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            setWeekShifts(data);
+        } catch (error) {
+            console.error('Lỗi fetch week:', error);
         }
     };
 
@@ -183,6 +235,25 @@ export default function BranchEmployeesManager() {
         });
         const data = await res.json();
         setShiftTemplates(data);
+    };
+
+    const fetchMonthlyAttendance = async (staffId) => {
+        if (!staffId) return;
+        setAttendanceLoading(true);
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/api/attendance/monthly/${staffId}?month=${attendanceMonth}&year=${attendanceYear}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) throw new Error('Không thể lấy báo cáo');
+            const data = await res.json();
+            setMonthlyReport(data);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setAttendanceLoading(false);
+        }
     };
 
     // Xử lý phân ca
@@ -213,7 +284,7 @@ export default function BranchEmployeesManager() {
             }
             alert('Phân ca thành công!');
             setShowAssignModal(false);
-            fetchWorkShifts();
+            fetchWorkShiftsForWeek();
         } catch (error) {
             alert(error.message);
         } finally {
@@ -227,6 +298,49 @@ export default function BranchEmployeesManager() {
             workDay: shift.workDay || selectedDate,
         });
         setShowEditModal(true);
+    };
+
+    const fetchShiftSchedules = async (date = selectedDate) => {
+        if (!currentBranch?.id) return;
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/api/shift-schedules/branch/${currentBranch.id}/work-day?workDay=${date}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            setShiftSchedules(data);
+        } catch (err) {
+            console.error('Lỗi lấy shift schedules:', err);
+        }
+    };
+
+    const handleCreateSchedule = async (e) => {
+        e.preventDefault();
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/shift-schedules`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    workDay: scheduleForm.workDay,
+                    shift: { id: parseInt(scheduleForm.shiftId) },
+                    branch: { id: currentBranch.id },
+                    requiredStaff: scheduleForm.requiredStaff,
+                    maxStaff: scheduleForm.maxStaff,
+                }),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            alert('Tạo lịch ca thành công!');
+            setShowCreateScheduleModal(false);
+            fetchShiftSchedules();
+        } catch (err) {
+            alert(err.message);
+        }
     };
 
     const handleUpdateShift = async (e) => {
@@ -255,7 +369,7 @@ export default function BranchEmployeesManager() {
             }
             alert('Cập nhật ca thành công!');
             setShowEditModal(false);
-            fetchWorkShifts();
+            fetchWorkShiftsForWeek();
         } catch (error) {
             alert(error.message);
         } finally {
@@ -273,15 +387,19 @@ export default function BranchEmployeesManager() {
         fetchStaffList();
         if (activeTab === 'employees') {
             fetchBranchEmployees();
-        } else {
-            fetchWorkShifts();
+        } else if (activeTab === 'shifts') {
+            fetchWorkShifts(selectedDate);
+            fetchWorkShiftsForWeek(selectedDate);
+            fetchShiftSchedules(selectedDate);
         }
     }, [currentBranch, activeTab]);
 
     useEffect(() => {
         if (!currentBranch || activeTab !== 'shifts') return;
-        fetchWorkShifts();
-    }, [selectedDate]);
+        fetchShiftSchedules(selectedDate);
+        fetchWorkShifts(selectedDate);
+        fetchWorkShiftsForWeek(selectedDate);
+    }, [selectedDate, activeTab, currentBranch, shiftsSubTab]);
 
     const getImageUrl = (imageUrl) => {
         if (!imageUrl) return null;
@@ -304,7 +422,9 @@ export default function BranchEmployeesManager() {
         return matchesSearch && matchesFilter;
     });
 
-    const filteredShifts = workShifts.filter(shift => shift.workDay === selectedDate);
+    const filteredShifts = workShifts.filter(shift =>
+        shift.workDay?.toString().slice(0, 10) === selectedDate
+    );
 
     const groupedShifts = filteredShifts.reduce((acc, ss) => {
         const key = ss.shift?.id;
@@ -356,7 +476,7 @@ export default function BranchEmployeesManager() {
                             </button>
                         )}
                         <button
-                            onClick={() => activeTab === 'employees' ? fetchBranchEmployees() : fetchWorkShifts()}
+                            onClick={() => activeTab === 'employees' ? fetchBranchEmployees() : fetchWorkShiftsForWeek()}
                             disabled={loading}
                             className={`${styles.refreshButton} ${loading ? styles.refreshButtonDisabled : ''}`}
                         >
@@ -476,12 +596,13 @@ export default function BranchEmployeesManager() {
                                         <th>Số điện thoại</th>
                                         <th className={styles.textCenter}>Vị trí</th>
                                         <th className={styles.textCenter}>Trạng thái</th>
+                                        <th className={styles.textCenter}>Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {filteredEmployees.length === 0 ? (
                                         <tr>
-                                            <td colSpan="5" className={styles.emptyState}>
+                                            <td colSpan="6" className={styles.emptyState}>
                                                 <Users size={48} className={styles.emptyIcon} />
                                                 <p>Không tìm thấy nhân viên nào</p>
                                             </td>
@@ -569,6 +690,52 @@ export default function BranchEmployeesManager() {
                                                         {emp.isActive ? 'Hoạt động' : 'Ngưng'}
                                                     </span>
                                                 </td>
+                                                <td className={styles.textCenter}>
+                                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                                        {/* Xem lịch ca */}
+                                                        <button
+                                                            title="Xem lịch làm"
+                                                            onClick={() => {
+                                                                setActiveTab('shifts');
+                                                                // Lọc theo nhân viên này (lưu filter nếu cần)
+                                                            }}
+                                                            style={{
+                                                                background: 'rgba(59,130,246,0.1)', border: 'none',
+                                                                borderRadius: '8px', padding: '6px 10px', cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            📅
+                                                        </button>
+
+                                                        {/* Xem chấm công */}
+                                                        <button
+                                                            title="Xem chấm công"
+                                                            onClick={() => {
+                                                                setSelectedStaffForAttendance(emp.id);
+                                                                setAttendanceSubTab('detail');
+                                                                setActiveTab('attendance');
+                                                            }}
+                                                            style={{
+                                                                background: 'rgba(16,185,129,0.1)', border: 'none',
+                                                                borderRadius: '8px', padding: '6px 10px', cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            ⏱
+                                                        </button>
+
+                                                        {/* Sửa */}
+                                                        <button
+                                                            title="Chỉnh sửa"
+                                                            onClick={() => alert('TODO: Mở modal sửa nhân viên')}
+                                                            style={{
+                                                                background: 'rgba(245,158,11,0.1)', border: 'none',
+                                                                borderRadius: '8px', padding: '6px 10px', cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            ✏️
+                                                        </button>
+                                                    </div>
+                                                </td>
                                             </tr>
                                         ))
                                     )}
@@ -580,106 +747,338 @@ export default function BranchEmployeesManager() {
             )}
 
             {/* SHIFTS TAB */}
+
             {activeTab === 'shifts' && (
                 <>
+                    {/* Date picker giữ nguyên */}
                     <div className={styles.headerCard} style={{ marginTop: '16px' }}>
                         <div className={styles.filterBar}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <Calendar size={20} style={{ color: 'var(--color-text-secondary)' }} />
+                            {/* --- Sub-tab buttons --- */}
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                    onClick={() => setShiftsSubTab('schedule')}
+                                    className={shiftsSubTab === 'schedule' ? styles.tabActive : styles.tabInactive}
+                                >
+                                    📋 Lịch ca
+                                </button>
+                                <button
+                                    onClick={() => setShiftsSubTab('assign')}
+                                    className={shiftsSubTab === 'assign' ? styles.tabActive : styles.tabInactive}
+                                >
+                                    👥 Phân công
+                                </button>
+                            </div>
+
+                            {/* Date picker */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-text-secondary)' }}>
+                                <Calendar size={20} />
                                 <input
                                     type="date"
                                     value={selectedDate}
                                     onChange={(e) => setSelectedDate(e.target.value)}
                                     className={styles.filterSelect}
-                                    style={{ width: 'auto', background: 'rgb(243, 244, 246)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+                                    style={{ width: 'auto' }}
                                 />
                             </div>
+
+                            {/* Nút tạo lịch ca (chỉ hiện ở sub-tab Lịch ca) */}
+                            {shiftsSubTab === 'schedule' && (
+                                <button
+                                    onClick={() => setShowCreateScheduleModal(true)}
+                                    className={styles.primaryButton}
+                                >
+                                    + Tạo lịch ca
+                                </button>
+                            )}
                         </div>
                     </div>
 
-                    <div className={styles.tableCard}>
-                        {Object.keys(groupedShifts).length === 0 ? (
-                            <div className={styles.emptyState} style={{ padding: '60px 20px' }}>
-                                <Clock size={48} className={styles.emptyIcon} />
-                                <p>Không có ca làm việc nào trong ngày này</p>
-                            </div>
-                        ) : (
-                            <div style={{ padding: '20px' }}>
-                                {Object.entries(groupedShifts).map(([shiftId, { shift, items }]) => {
-                                    const isExpanded = expandedShift === shiftId;
-                                    return (
-                                        <div key={shiftId} className={styles.shiftCard}>
-                                            <div
-                                                className={styles.shiftHeader}
-                                                onClick={() => setExpandedShift(isExpanded ? null : shiftId)}
-                                                style={{ cursor: 'pointer' }}
-                                            >
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                    <div className={styles.statIcon} style={{ width: '40px', height: '40px' }}>
-                                                        <Clock size={20} />
-                                                    </div>
-                                                    <div>
-                                                        <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: 'var(--color-text-secondary)' }}>
-                                                            {shift?.name} — {shift?.startTime} - {shift?.endTime}
-                                                        </h3>
-                                                        <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
-                                                            {items.length} nhân viên
-                                                        </p>
+                    {/* ---- SUB-TAB: LỊCH CA ---- */}
+                    {shiftsSubTab === 'schedule' && (
+                        <>
+                            <div className={styles.tableCard}>
+                                {shiftSchedules.length === 0 ? (
+                                    <div className={styles.emptyState} style={{ padding: '60px 20px' }}>
+                                        <Calendar size={48} className={styles.emptyIcon} />
+                                        <p>Chưa có lịch ca nào cho ngày này</p>
+                                    </div>
+                                ) : (
+                                    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        {shiftSchedules.map(sc => {
+                                            // Đếm số nhân viên đã phân công vào ca này
+                                            const assigned = workShifts.filter(ws => ws.shift?.id === sc.shift?.id).length;
+                                            const isFull = assigned >= sc.requiredStaff;
+                                            return (
+                                                <div key={sc.id} style={{
+                                                    border: '1px solid var(--color-border)',
+                                                    borderRadius: '12px',
+                                                    padding: '20px',
+                                                    background: 'var(--color-bg-card)'
+                                                }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <div>
+                                                            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '600' }}>
+                                                                🕐 {sc.shift?.name} — {sc.shift?.startTime} - {sc.shift?.endTime}
+                                                            </h3>
+                                                            <p style={{ margin: '8px 0 0', color: 'var(--color-text-secondary)', fontSize: '14px' }}>
+                                                                Cần: <strong>{sc.requiredStaff}</strong> nhân viên &nbsp;|&nbsp;
+                                                                Đã phân: <strong style={{ color: isFull ? '#10B981' : '#F59E0B' }}>{assigned}</strong>
+                                                                {!isFull && (
+                                                                    <span style={{ color: '#EF4444', marginLeft: '8px' }}>
+                                                                        ⚠ Thiếu {sc.requiredStaff - assigned} người
+                                                                    </span>
+                                                                )}
+                                                            </p>
+                                                        </div>
+                                                        {/* Progress bar */}
+                                                        <div style={{ width: '120px' }}>
+                                                            <div style={{
+                                                                height: '8px', background: '#E5E7EB', borderRadius: '4px', overflow: 'hidden'
+                                                            }}>
+                                                                <div style={{
+                                                                    height: '100%',
+                                                                    width: `${Math.min(100, (assigned / sc.requiredStaff) * 100)}%`,
+                                                                    background: isFull ? '#10B981' : '#F59E0B',
+                                                                    borderRadius: '4px',
+                                                                    transition: 'width 0.3s'
+                                                                }} />
+                                                            </div>
+                                                            <p style={{
+                                                                fontSize: '12px', textAlign: 'right', margin: '4px 0 0',
+                                                                color: 'var(--color-text-secondary)'
+                                                            }}>
+                                                                {assigned}/{sc.requiredStaff}
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                                            </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                            <div className={styles.tableCard} style={{ marginTop: '16px', padding: '20px', overflowX: 'auto' }}>
+                                <h4 style={{ marginBottom: '12px', color: 'black' }}>📅 Lịch tuần</h4>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                                    <thead>
+                                        <tr>
+                                            <th style={{ padding: '8px 12px', textAlign: 'left', background: 'var(--color-bg-card)' }}>Ca</th>
+                                            {getWeekDays(selectedDate).map(d => (
+                                                <th key={d} style={{
+                                                    padding: '8px 12px', textAlign: 'center',
+                                                    background: d === selectedDate ? 'rgba(59,130,246,0.1)' : 'var(--color-bg-card)',
+                                                    fontWeight: d === selectedDate ? '700' : '400'
+                                                }}>
+                                                    {new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {shiftTemplates.map(sh => (
+                                            <tr key={sh.id}>
+                                                <td style={{ padding: '10px 12px', color: 'var(--color-text-secondary)', fontWeight: '600', borderTop: '1px solid var(--color-border)' }}>
+                                                    {sh.name}<br />
+                                                    <span style={{ fontWeight: '400', color: 'var(--color-text-secondary)', fontSize: '11px' }}>
+                                                        {sh.startTime}–{sh.endTime}
+                                                    </span>
+                                                </td>
+                                                {getWeekDays(selectedDate).map(d => {
+                                                    // Tìm WeeklyScheduleDTO khớp ngày + ca
+                                                    const entry = weekShifts.find(ws =>
+                                                        ws.workDay?.toString().slice(0, 10) === d &&
+                                                        ws.shiftId === sh.id
+                                                    );
+                                                    const assigned = entry?.assignedStaff ?? 0;
+                                                    const required = entry?.requiredStaff ?? 0;
+                                                    const missing = entry?.missingStaff ?? 0;
+                                                    const isFull = missing === 0 && required > 0;
 
-                                            {isExpanded && (
-                                                <div className={styles.shiftContent}>
-                                                    {items.map(ss => (
-                                                        <div key={ss.id} className={styles.shiftItem}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                                    {ss.staff?.user?.imageUrl ? (
-                                                                        <img
-                                                                            src={getImageUrl(ss.staff.user.imageUrl)}
-                                                                            alt={ss.staff.user.fullName}
-                                                                            className={styles.productImage}
-                                                                            style={{ width: '40px', height: '40px' }}
-                                                                        />
-                                                                    ) : (
-                                                                        <div className={styles.productImagePlaceholder} style={{ width: '40px', height: '40px' }}>
-                                                                            <span style={{ fontWeight: '700', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                                                                                {getInitials(ss.staff?.user?.fullName || 'U')}
-                                                                            </span>
-                                                                        </div>
+                                                    return (
+                                                        <td key={d} style={{
+                                                            padding: '10px 12px', textAlign: 'center',
+                                                            borderTop: '1px solid var(--color-border)',
+                                                            background: d === selectedDate ? 'rgba(59,130,246,0.05)' : 'transparent'
+                                                        }}>
+                                                            {entry ? (
+                                                                <span style={{
+                                                                    display: 'inline-block', padding: '4px 10px',
+                                                                    borderRadius: '20px', fontWeight: '600',
+                                                                    background: isFull
+                                                                        ? 'rgba(16,185,129,0.1)'
+                                                                        : 'rgba(245,158,11,0.1)',
+                                                                    color: isFull ? '#10B981' : '#F59E0B',
+                                                                }}>
+                                                                    {assigned}/{required}
+                                                                    {missing > 0 && (
+                                                                        <span style={{ fontSize: '10px', marginLeft: '4px', color: '#EF4444' }}>
+                                                                            -{missing}
+                                                                        </span>
                                                                     )}
-                                                                    <div>
-                                                                        <div style={{ fontWeight: '600', color: 'var(--color-text-secondary)' }}>
-                                                                            {ss.staff?.user?.fullName || ss.staff?.user?.username || 'N/A'}
-                                                                        </div>
-                                                                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                                                                            {ss.staff?.position
-                                                                                ? (POSITION_MAP[ss.staff.position]?.label || ss.staff.position)
-                                                                                : '—'}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleOpenEditModal(ss); }}
-                                                                    className={styles.primaryButton}
-                                                                    title="Sửa ca làm việc"
-                                                                >
-                                                                    <Edit2 size={18} /> Sửa ca
-                                                                </button>
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{
+                                                                    display: 'inline-block', padding: '4px 10px',
+                                                                    borderRadius: '20px', fontWeight: '600',
+                                                                    background: 'rgba(239,68,68,0.08)',
+                                                                    color: '#9CA3AF'
+                                                                }}>
+                                                                    —
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+
+                    {/* ---- SUB-TAB: PHÂN CÔNG (giữ nguyên code cũ) ---- */}
+                    {shiftsSubTab === 'assign' && (
+                        <>
+                            <div className={styles.tableCard}>
+                                {Object.keys(groupedShifts).length === 0 ? (
+                                    <div className={styles.emptyState} style={{ padding: '60px 20px' }}>
+                                        <Clock size={48} className={styles.emptyIcon} />
+                                        <p>Không có ca làm việc nào trong ngày này</p>
+                                    </div>
+                                ) : (
+                                    <div style={{ padding: '20px' }}>
+                                        {Object.entries(groupedShifts).map(([shiftId, { shift, items }]) => {
+                                            const isExpanded = expandedShift === shiftId;
+                                            return (
+                                                <div key={shiftId} className={styles.shiftCard}>
+                                                    <div
+                                                        className={styles.shiftHeader}
+                                                        onClick={() => setExpandedShift(isExpanded ? null : shiftId)}
+                                                        style={{ cursor: 'pointer' }}
+                                                    >
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                            <div className={styles.statIcon} style={{ width: '40px', height: '40px' }}>
+                                                                <Clock size={20} />
+                                                            </div>
+                                                            <div>
+                                                                <h3 style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: 'var(--color-text-secondary)' }}>
+                                                                    {shift?.name} — {shift?.startTime} - {shift?.endTime}
+                                                                </h3>
+                                                                <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
+                                                                    {items.length} nhân viên
+                                                                </p>
                                                             </div>
                                                         </div>
-                                                    ))}
+                                                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                                    </div>
+
+                                                    {isExpanded && (
+                                                        <div className={styles.shiftContent}>
+                                                            {items.map(ss => (
+                                                                <div key={ss.id} className={styles.shiftItem}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                            {ss.staff?.user?.imageUrl ? (
+                                                                                <img
+                                                                                    src={getImageUrl(ss.staff.user.imageUrl)}
+                                                                                    alt={ss.staff.user.fullName}
+                                                                                    className={styles.productImage}
+                                                                                    style={{ width: '40px', height: '40px' }}
+                                                                                />
+                                                                            ) : (
+                                                                                <div className={styles.productImagePlaceholder} style={{ width: '40px', height: '40px' }}>
+                                                                                    <span style={{ fontWeight: '700', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                                                                                        {getInitials(ss.staff?.user?.fullName || 'U')}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                            <div>
+                                                                                <div style={{ fontWeight: '600', color: 'var(--color-text-secondary)' }}>
+                                                                                    {ss.staff?.user?.fullName || ss.staff?.user?.username || 'N/A'}
+                                                                                </div>
+                                                                                <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                                                                                    {ss.staff?.position
+                                                                                        ? (POSITION_MAP[ss.staff.position]?.label || ss.staff.position)
+                                                                                        : '—'}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); handleOpenEditModal(ss); }}
+                                                                            className={styles.primaryButton}
+                                                                            title="Sửa ca làm việc"
+                                                                        >
+                                                                            <Edit2 size={18} /> Sửa ca
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </>
+            )}
+
+            {showCreateScheduleModal && (
+                <div className={styles.modalOverlay} onClick={() => setShowCreateScheduleModal(false)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3 className={styles.modalTitle}>📋 Tạo lịch ca</h3>
+                            <button onClick={() => setShowCreateScheduleModal(false)} className={styles.modalClose}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className={styles.modalBody}>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Ngày làm việc *</label>
+                                <input type="date" value={scheduleForm.workDay}
+                                    onChange={e => setScheduleForm({ ...scheduleForm, workDay: e.target.value })}
+                                    className={styles.formInput} required />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Ca làm việc *</label>
+                                <select value={scheduleForm.shiftId}
+                                    onChange={e => setScheduleForm({ ...scheduleForm, shiftId: e.target.value })}
+                                    className={styles.formInput} required>
+                                    <option value="">-- Chọn ca --</option>
+                                    {shiftTemplates.map(sh => (
+                                        <option key={sh.id} value={sh.id}>
+                                            {sh.name} ({sh.startTime} - {sh.endTime})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Số nhân viên cần *</label>
+                                <input type="number" min="1" value={scheduleForm.requiredStaff}
+                                    onChange={e => setScheduleForm({ ...scheduleForm, requiredStaff: parseInt(e.target.value) })}
+                                    className={styles.formInput} required />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Số nhân viên tối đa</label>
+                                <input type="number" min="1" value={scheduleForm.maxStaff}
+                                    onChange={e => setScheduleForm({ ...scheduleForm, maxStaff: parseInt(e.target.value) })}
+                                    className={styles.formInput} />
+                            </div>
+                        </div>
+                        <div className={styles.modalFooter}>
+                            <button onClick={() => setShowCreateScheduleModal(false)} className={styles.secondaryButton}>
+                                Hủy
+                            </button>
+                            <button onClick={handleCreateSchedule} className={styles.primaryButton}>
+                                <Save size={18} /> Tạo lịch
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* ATTENDANCE TAB */}
@@ -687,80 +1086,137 @@ export default function BranchEmployeesManager() {
                 <>
                     <div className={styles.headerCard} style={{ marginTop: '16px' }}>
                         <div className={styles.filterBar}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <Calendar size={20} style={{ color: 'var(--color-text-secondary)' }} />
-                                <input
-                                    type="date"
-                                    value={selectedDate}
-                                    onChange={(e) => setSelectedDate(e.target.value)}
-                                    className={styles.filterSelect}
-                                    style={{ width: 'auto', background: 'rgb(243, 244, 246)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
-                                />
+                            {/* Sub-tab */}
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                    onClick={() => setAttendanceSubTab('overview')}
+                                    className={attendanceSubTab === 'overview' ? styles.tabActive : styles.tabInactive}
+                                >
+                                    📊 Tổng quan
+                                </button>
+                                <button
+                                    onClick={() => setAttendanceSubTab('detail')}
+                                    className={attendanceSubTab === 'detail' ? styles.tabActive : styles.tabInactive}
+                                >
+                                    👤 Chi tiết nhân viên
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <div className={styles.tableCard}>
-                        <div className={styles.tableWrapper}>
-                            <table className={styles.table}>
-                                <thead>
-                                    <tr>
-                                        <th>Nhân viên</th>
-                                        <th className={styles.textCenter}>Ca làm</th>
-                                        <th className={styles.textCenter}>Vị trí</th>
-                                        <th className={styles.textCenter}>Trạng thái</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredShifts.length === 0 ? (
-                                        <tr>
-                                            <td colSpan="4" className={styles.emptyState}>
-                                                <CheckCircle size={48} className={styles.emptyIcon} />
-                                                <p>Không có ca làm việc nào trong ngày này</p>
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        filteredShifts.map(shift => (
-                                            <tr key={shift.id}>
-                                                <td>
-                                                    <div className={styles.productCell}>
-                                                        {shift.user?.imageUrl ? (
-                                                            <img
-                                                                src={getImageUrl(shift.user.imageUrl)}
-                                                                alt={shift.user.fullName}
-                                                                className={styles.productImage}
-                                                            />
-                                                        ) : (
-                                                            <div className={styles.productImagePlaceholder}>
-                                                                <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--color-text-secondary)' }}>
-                                                                    {getInitials(shift.user?.fullName || 'U')}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                        <span className={styles.productName}>
-                                                            {shift.user?.fullName || shift.user?.username || 'N/A'}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td className={styles.textCenter}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--color-text-secondary)' }}>
-                                                        <Clock size={16} style={{ color: 'var(--color-text-secondary)' }} />
-                                                        {shift.startTime} - {shift.endTime}
-                                                    </div>
-                                                </td>
-                                                <td className={styles.textCenter}>
-                                                    <span className={styles.badgePrimary}>{shift.role}</span>
-                                                </td>
-                                                <td className={styles.textCenter}>
-                                                    <span className={styles.badgeSuccess}>Có mặt</span>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                    {/* ---- TỔNG QUAN ---- */}
+                    {attendanceSubTab === 'overview' && (
+                        <div className={styles.tableCard} style={{ padding: '24px' }}>
+                            <h3 style={{ marginTop: 0, fontSize: '18px', fontWeight: '600' }}>
+                                Tháng {attendanceMonth}/{attendanceYear} — {currentBranch?.name}
+                            </h3>
+                            {/* Thống kê nhanh toàn chi nhánh nếu bạn có API aggregate,
+            hiện tại để placeholder đẹp */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginTop: '20px' }}>
+                                {[
+                                    { label: 'Đúng giờ', color: '#10B981', bg: 'rgba(16,185,129,0.1)', icon: '🟢', key: 'presentDays' },
+                                    { label: 'Đi trễ', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', icon: '🟠', key: 'lateDays' },
+                                    { label: 'Nghỉ phép', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', icon: '🔵', key: 'leaveDays' },
+                                    { label: 'Vắng mặt', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', icon: '🔴', key: 'absentDays' },
+                                ].map(item => (
+                                    <div key={item.key} style={{
+                                        background: item.bg, borderRadius: '12px', padding: '20px',
+                                        border: `1px solid ${item.color}30`
+                                    }}>
+                                        <div style={{ fontSize: '28px' }}>{item.icon}</div>
+                                        <div style={{ fontSize: '28px', fontWeight: '700', color: item.color, marginTop: '8px' }}>
+                                            —
+                                        </div>
+                                        <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                                            {item.label}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* ---- CHI TIẾT NHÂN VIÊN ---- */}
+                    {attendanceSubTab === 'detail' && (
+                        <div className={styles.tableCard} style={{ padding: '24px' }}>
+                            {/* Bộ lọc */}
+                            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '24px' }}>
+                                <select
+                                    value={selectedStaffForAttendance}
+                                    onChange={e => {
+                                        setSelectedStaffForAttendance(e.target.value);
+                                        setMonthlyReport(null);
+                                    }}
+                                    className={styles.formInput}
+                                    style={{ minWidth: '220px' }}
+                                >
+                                    <option value="">-- Chọn nhân viên --</option>
+                                    {staffList.map(s => (
+                                        <option key={s.id} value={s.id}>
+                                            {s.fullName || s.username} — {POSITION_MAP[s.position]?.label || s.position}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                <select
+                                    value={attendanceMonth}
+                                    onChange={e => setAttendanceMonth(parseInt(e.target.value))}
+                                    className={styles.formInput}
+                                    style={{ width: '120px' }}
+                                >
+                                    {Array.from({ length: 12 }, (_, i) => (
+                                        <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>
+                                    ))}
+                                </select>
+
+                                <input
+                                    type="number"
+                                    value={attendanceYear}
+                                    onChange={e => setAttendanceYear(parseInt(e.target.value))}
+                                    className={styles.formInput}
+                                    style={{ width: '100px' }}
+                                    min="2020" max="2030"
+                                />
+
+                                <button
+                                    onClick={() => fetchMonthlyAttendance(selectedStaffForAttendance)}
+                                    className={styles.primaryButton}
+                                    disabled={!selectedStaffForAttendance || attendanceLoading}
+                                >
+                                    {attendanceLoading ? '...' : '🔍 Xem'}
+                                </button>
+                            </div>
+
+                            {/* Kết quả */}
+                            {monthlyReport ? (
+                                <div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+                                        {[
+                                            { label: 'Tổng ngày', value: monthlyReport.totalDays, color: '#6B7280', icon: '📆' },
+                                            { label: 'Đúng giờ', value: monthlyReport.presentDays, color: '#10B981', icon: '✅' },
+                                            { label: 'Đi trễ', value: monthlyReport.lateDays, color: '#F59E0B', icon: '⏰' },
+                                            { label: 'Nghỉ phép', value: monthlyReport.leaveDays, color: '#3B82F6', icon: '📝' },
+                                        ].map(item => (
+                                            <div key={item.label} style={{
+                                                textAlign: 'center', padding: '16px',
+                                                background: `${item.color}15`, borderRadius: '12px',
+                                                border: `1px solid ${item.color}30`
+                                            }}>
+                                                <div style={{ fontSize: '24px' }}>{item.icon}</div>
+                                                <div style={{ fontSize: '32px', fontWeight: '700', color: item.color }}>{item.value}</div>
+                                                <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{item.label}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className={styles.emptyState} style={{ padding: '40px' }}>
+                                    <CheckCircle size={48} className={styles.emptyIcon} />
+                                    <p>Chọn nhân viên và nhấn Xem để hiển thị báo cáo</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </>
             )}
 
