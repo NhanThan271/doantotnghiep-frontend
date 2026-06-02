@@ -45,6 +45,44 @@ const CashierLayout = () => {
     useEffect(() => {
         const userData = JSON.parse(localStorage.getItem('user') || '{}');
         setUser(userData);
+
+        // Đăng ký role cashier
+        if (userData?.id && userData?.branch?.id) {
+            socket.emit("register-role", {
+                role: "cashier",
+                userId: userData.id,
+                branchId: userData.branch.id
+            });
+        }
+
+        // 👇 THÊM LISTENER NÀY
+        const handleStaffReservation = (data) => {
+            console.log("📢 Cashier nhận thông báo đặt bàn:", data);
+
+            // Hiển thị toast
+            const event = new CustomEvent('cashier-notification', {
+                detail: {
+                    message: data.message || `📅 Khách ${data.customerName} sẽ đến lúc ${new Date(data.checkInTime).toLocaleTimeString('vi-VN')}`,
+                    type: 'info'
+                }
+            });
+            window.dispatchEvent(event);
+
+            // Thêm vào notification panel
+            const newNotification = {
+                id: Date.now() + Math.random(),
+                message: data.message,
+                type: 'info',
+                timestamp: new Date()
+            };
+            setNotifications(prev => [newNotification, ...prev].slice(0, 50));
+        };
+
+        socket.on("staff-reservation-notification", handleStaffReservation);
+
+        return () => {
+            socket.off("staff-reservation-notification", handleStaffReservation);
+        };
     }, []);
 
     // ===== LƯU NOTIFICATIONS VÀO LOCALSTORAGE =====
@@ -159,13 +197,8 @@ const CashierLayout = () => {
     }, [location.pathname]);
 
     const toggleSidebar = () => {
-        const newState = !isSidebarOpen;
-        setIsSidebarOpen(newState);
-        if (newState) {
-            navigate("/cashier/dashboard");
-        }
+        setIsSidebarOpen(!isSidebarOpen);
     };
-
     const handleLogout = () => {
         localStorage.removeItem(CASHIER_NOTIFICATIONS_KEY);
         localStorage.removeItem('token');
@@ -191,6 +224,7 @@ const CashierLayout = () => {
 
     // Hàm xử lý navigation với scroll
     const handleNavigation = (path) => {
+        setIsSidebarOpen(true);
         navigate(path);
         if (contentRef.current) {
             contentRef.current.scrollTop = 0;
@@ -558,7 +592,9 @@ const CashierLayout = () => {
                         flex: 1,
                         background: "linear-gradient(135deg,#1e3a8a,#2563eb)",
                         padding: 20,
-                        overflowY: "auto"
+                        overflowY: "auto",
+                        overflowX: "hidden",
+                        maxWidth: "100%",
                     }}
                 >
                     <Outlet />

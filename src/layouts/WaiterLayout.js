@@ -220,6 +220,7 @@ const WaiterLayout = () => {
         const handleConnect = () => registerAsWaiter();
         socket.on("connect", handleConnect);
 
+        // ===== ĐƠN HÀNG MỚI =====
         const handleNewOrder = (data) => {
             if (data.branchId === branchId) {
                 fetchUnreadCount();
@@ -229,6 +230,7 @@ const WaiterLayout = () => {
             }
         };
 
+        // ===== CẬP NHẬT ĐƠN HÀNG (THÊM MÓN) =====
         const handleOrderUpdated = (data) => {
             if (data.branchId === branchId) {
                 fetchUnreadCount();
@@ -238,19 +240,29 @@ const WaiterLayout = () => {
             }
         };
 
+        // ===== BẾP CẬP NHẬT TRẠNG THÁI MÓN =====
         const handleUpdateOrderItemStatus = (data) => {
             if (data.branchId === branchId) {
                 let statusText, notiType;
                 switch (data.status) {
-                    case 'PREPARING': statusText = '🔪 ĐANG NẤU'; notiType = 'info'; break;
-                    case 'READY': statusText = '✅ HOÀN THÀNH'; notiType = 'success'; break;
-                    default: statusText = `📋 ${data.status}`; notiType = 'info';
+                    case 'PREPARING':
+                        statusText = '🔪 ĐANG NẤU';
+                        notiType = 'info';
+                        break;
+                    case 'READY':
+                        statusText = '✅ HOÀN THÀNH';
+                        notiType = 'success';
+                        break;
+                    default:
+                        statusText = `📋 ${data.status}`;
+                        notiType = 'info';
                 }
                 const tableInfo = data.tables?.join(', ') || '';
                 addNotification(`${statusText}: ${data.itemName} - ${tableInfo}`, notiType);
             }
         };
 
+        // ===== MÓN HOÀN THÀNH =====
         const handleItemCompleted = (data) => {
             if (data.branchId === branchId) {
                 fetchUnreadCount();
@@ -258,14 +270,49 @@ const WaiterLayout = () => {
             }
         };
 
+        // ===== CẬP NHẬT BÀN =====
         const handleUpdateTables = () => fetchUnreadCount();
 
+        // ===== 👇 THÊM: THÔNG BÁO ĐẶT BÀN TỪ SCHEDULER (4 GIỜ TRƯỚC) =====
+        const handleStaffReservation = (data) => {
+            if (data.branchId === branchId) {
+                console.log("📢 Waiter nhận thông báo đặt bàn:", data);
+
+                const location = data.tableNumber ? `Bàn ${data.tableNumber}` : `Phòng ${data.roomNumber}`;
+                const time = data.checkInTime
+                    ? new Date(data.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                    : '';
+                const message = `📅 Khách ${data.customerName} sẽ đến lúc ${time} tại ${location}`;
+
+                addNotification(message, 'info');
+            }
+        };
+
+        // ===== 👇 THÊM: THÔNG BÁO ĐẶT BÀN CHO BẾP (1 GIỜ TRƯỚC) - NẾU WAITER CŨNG CẦN NHẬN =====
+        const handleKitchenReservation = (data) => {
+            if (data.branchId === branchId) {
+                console.log("👨‍🍳 Waiter nhận thông báo bếp (đặt bàn sắp tới):", data);
+
+                const location = data.tableNumber ? `Bàn ${data.tableNumber}` : `Phòng ${data.roomNumber}`;
+                const time = data.checkInTime
+                    ? new Date(data.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                    : '';
+                const message = `🍳 Chuẩn bị phục vụ - Khách ${data.customerName} sẽ đến lúc ${time} tại ${location}`;
+
+                addNotification(message, 'warning');
+            }
+        };
+
+        // ===== ĐĂNG KÝ CÁC SOCKET EVENTS =====
         socket.on("new-order", handleNewOrder);
         socket.on("order-updated", handleOrderUpdated);
         socket.on("update-order-item-status", handleUpdateOrderItemStatus);
         socket.on("item-completed", handleItemCompleted);
         socket.on("update-tables", handleUpdateTables);
+        socket.on("staff-reservation-notification", handleStaffReservation);
+        socket.on("kitchen-reservation-notification", handleKitchenReservation); // Optional: nếu waiter cũng cần biết
 
+        // ===== CLEANUP =====
         return () => {
             socket.off("connect", handleConnect);
             socket.off("new-order", handleNewOrder);
@@ -273,6 +320,8 @@ const WaiterLayout = () => {
             socket.off("update-order-item-status", handleUpdateOrderItemStatus);
             socket.off("item-completed", handleItemCompleted);
             socket.off("update-tables", handleUpdateTables);
+            socket.off("staff-reservation-notification", handleStaffReservation);
+            socket.off("kitchen-reservation-notification", handleKitchenReservation);
         };
     }, [branchId, addNotification]);
 

@@ -487,7 +487,7 @@ const ChefDashboard = () => {
             newSocket.off("order-updated", handleOrderUpdated);
             newSocket.off("update-tables", handleUpdateTables);
             newSocket.off("order-item-updated", handleItemUpdated);
-            newSocket.off("reservation-upcoming", handleReservationUpcoming);
+            newSocket.on("kitchen-reservation-notification", handleReservationUpcoming);
         };
     }, [branchId, user?.id, fetchData, playNotificationSound, showToast, sendNotificationToLayout, speakVietnamese]);
 
