@@ -48,7 +48,6 @@ export default function ManagerOrderManagement() {
 
     // Fetch all orders
     const fetchOrders = async () => {
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/api/customer/orders`, {
@@ -91,8 +90,6 @@ export default function ManagerOrderManagement() {
         } catch (error) {
             console.error('Lỗi khi tải đơn hàng:', error);
             alert('Không thể tải đơn hàng. Vui lòng thử lại.');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -101,9 +98,12 @@ export default function ManagerOrderManagement() {
     }, []);
 
     useEffect(() => {
-        if (currentBranch) {
-            fetchOrders();
-        }
+        const interval = setInterval(() => {
+            if (currentBranch) {
+                fetchOrders();
+            }
+        }, 300);
+        return () => clearInterval(interval);
     }, [currentBranch]);
 
     // Filter orders
@@ -265,14 +265,6 @@ export default function ManagerOrderManagement() {
                             </p>
                         )}
                     </div>
-                    <button
-                        onClick={fetchOrders}
-                        disabled={loading}
-                        className={`${styles.refreshButton} ${loading ? styles.refreshButtonDisabled : ''}`}
-                    >
-                        <RefreshCw size={18} className={loading ? styles.spinIcon : ''} />
-                        Làm mới
-                    </button>
                 </div>
 
                 {/* Statistics Cards */}

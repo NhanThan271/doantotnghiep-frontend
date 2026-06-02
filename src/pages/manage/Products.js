@@ -62,8 +62,6 @@ export default function BranchMenuManager() {
 
     const fetchBranchMenu = async () => {
         if (!currentBranch?.id) return;
-
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(
@@ -81,8 +79,6 @@ export default function BranchMenuManager() {
         } catch (error) {
             console.error('Lỗi khi tải menu:', error);
             alert('Không thể tải menu. Vui lòng thử lại.');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -91,9 +87,12 @@ export default function BranchMenuManager() {
     }, []);
 
     useEffect(() => {
-        if (currentBranch) {
-            fetchBranchMenu();
-        }
+        const interval = setInterval(() => {
+            if (currentBranch) {
+                fetchBranchMenu();
+            }
+        }, 300);
+        return () => clearInterval(interval);
     }, [currentBranch]);
 
     const toggleProductStatus = async (branchFoodId, currentStatus) => {
@@ -171,15 +170,6 @@ export default function BranchMenuManager() {
                             )}
                         </p>
                     </div>
-
-                    <button
-                        onClick={fetchBranchMenu}
-                        disabled={loading}
-                        className={`${styles.refreshButton} ${loading ? styles.refreshButtonDisabled : ''}`}
-                    >
-                        <RefreshCw size={18} className={loading ? styles.spinIcon : ''} />
-                        Làm mới
-                    </button>
                 </div>
 
                 {/* Stats Cards */}

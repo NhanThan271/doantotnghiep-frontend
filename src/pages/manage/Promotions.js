@@ -207,15 +207,6 @@ export default function ApplyPromotions() {
                             )}
                         </p>
                     </div>
-
-                    <button
-                        onClick={fetchPromotions}
-                        disabled={loading}
-                        className={`${styles.refreshButton} ${loading ? styles.refreshButtonDisabled : ''}`}
-                    >
-                        <RefreshCw size={18} className={loading ? styles.spinIcon : ''} />
-                        Làm mới
-                    </button>
                 </div>
             </div>
 

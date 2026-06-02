@@ -52,7 +52,6 @@ export default function ManagerTableManagement() {
 
     // Fetch all tables
     const fetchTables = async () => {
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/api/tables`, {
@@ -70,8 +69,6 @@ export default function ManagerTableManagement() {
         } catch (error) {
             console.error('Lỗi khi tải danh sách bàn:', error);
             alert('Không thể tải danh sách bàn. Vui lòng thử lại.');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -106,10 +103,13 @@ export default function ManagerTableManagement() {
     }, []);
 
     useEffect(() => {
-        if (currentBranch) {
-            fetchTables();
-            fetchOrders();
-        }
+        const interval = setInterval(() => {
+            if (currentBranch) {
+                fetchTables();
+                fetchOrders();
+            }
+        }, 100);
+        return () => clearInterval(interval);
     }, [currentBranch]);
 
     // Filter tables
@@ -274,17 +274,6 @@ export default function ManagerTableManagement() {
                             </p>
                         )}
                     </div>
-                    <button
-                        onClick={() => {
-                            fetchTables();
-                            fetchOrders();
-                        }}
-                        disabled={loading}
-                        className={`${styles.refreshButton} ${loading ? styles.refreshButtonDisabled : ''}`}
-                    >
-                        <RefreshCw size={18} className={loading ? styles.spinIcon : ''} />
-                        Làm mới
-                    </button>
                 </div>
 
                 {/* Statistics Cards */}

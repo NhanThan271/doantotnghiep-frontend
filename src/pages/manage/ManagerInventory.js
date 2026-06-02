@@ -293,10 +293,12 @@ export default function ManagerInventoryManagement() {
             if (!showRequestModal) {
                 fetchInventoryRequests();
                 fetchBranchIngredients();
+                fetchBranchAggregated();
+                fetchBranchBatches();
             }
-        }, POLLING_INTERVAL);
+        }, 5000);
         return () => clearInterval(intervalId);
-    }, [currentBranch?.id, showRequestModal, fetchInventoryRequests, fetchBranchIngredients]);
+    }, [currentBranch?.id, showRequestModal, fetchInventoryRequests, fetchBranchIngredients, fetchBranchAggregated, fetchBranchBatches]);
 
     useEffect(() => {
         let filtered = branchIngredients;
@@ -810,7 +812,7 @@ export default function ManagerInventoryManagement() {
                                                             onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.04)'}
                                                             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                                         >
-                                                            <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                                                            <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
                                                                 {item.ingredientName}
                                                             </td>
                                                             <td style={{ padding: '14px 16px', color: 'var(--color-text-secondary)' }}>
