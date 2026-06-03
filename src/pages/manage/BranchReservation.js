@@ -137,20 +137,21 @@ export default function BranchReservationManager() {
             ? confirmedReservations
             : checkedInReservations;
     const filtered = currentList
-        .filter(r => {
-            const matchSearch =
-                r.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                r.phone?.includes(searchTerm) ||
-                r.email?.toLowerCase().includes(searchTerm.toLowerCase());
-
+    .filter(r => {
+        const matchSearch =
+            r.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            r.phone?.includes(searchTerm) ||
+            r.email?.toLowerCase().includes(searchTerm.toLowerCase());
+        let matchDate = true;
+        if (activeTab !== 'pending' && filterDate) {
             const checkIn = new Date(r.checkInTime);
-            const selected = new Date(filterDate);
-            selected.setHours(23, 59, 59, 999);
-            const matchDate = checkIn <= selected;
+            const checkInStr = checkIn.toISOString().split('T')[0];
+            matchDate = checkInStr === filterDate; 
+        }
 
-            return matchSearch && matchDate;
-        })
-        .sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime));
+        return matchSearch && matchDate;
+    })
+    .sort((a, b) => new Date(a.checkInTime) - new Date(b.checkInTime));
 
     const stats = {
         total: pendingReservations.length,
