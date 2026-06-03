@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, Search, Clock, Users, Phone, Mail, CheckCircle, XCircle, RefreshCw, Store, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import { showToast } from '../../hooks/useToast';
 
 export default function BranchReservationManager() {
     const [reservations, setReservations] = useState([]);
@@ -13,6 +14,12 @@ export default function BranchReservationManager() {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [selectedReservation, setSelectedReservation] = useState(null);
     const [confirmAction, setConfirmAction] = useState(null);
+
+    const [pendingReservations, setPendingReservations] = useState([]);
+    const [confirmedReservations, setConfirmedReservations] = useState([]);
+    const [activeTab, setActiveTab] = useState('pending');
+    const [checkedInReservations, setCheckedInReservations] = useState([]);
+    const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
 
     const API_BASE_URL = 'http://localhost:8080';
     const token = () => localStorage.getItem('token');
@@ -43,34 +50,47 @@ export default function BranchReservationManager() {
             });
             if (res.ok) setCurrentBranch(await res.json());
         } catch {
-            alert('Không thể lấy thông tin chi nhánh.');
+            showToast('error', 'Lỗi', 'Không thể tải thông tin chi nhánh. Vui lòng thử lại.');
         }
     };
 
     // ── Lấy danh sách PENDING theo chi nhánh ──
     const fetchReservations = async () => {
         if (!currentBranch?.id) return;
-        setLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/api/reservations/pending`, {
-                headers: { Authorization: `Bearer ${token()}` }
-            });
-            if (!res.ok) throw new Error();
-            const data = await res.json();
-            // Lọc theo chi nhánh hiện tại
-            setReservations(data.filter(r => r.branchName === currentBranch.name));
+            const [pendingRes, confirmedRes, checkedInRes] = await Promise.all([
+                fetch(`${API_BASE_URL}/api/reservations/status?status=PENDING`, {
+                    headers: { Authorization: `Bearer ${token()}` }
+                }),
+                fetch(`${API_BASE_URL}/api/reservations/status?status=CONFIRMED`, {
+                    headers: { Authorization: `Bearer ${token()}` }
+                }),
+                fetch(`${API_BASE_URL}/api/reservations/status?status=CHECKED_IN`, {
+                    headers: { Authorization: `Bearer ${token()}` }
+                })
+            ]);
+            if (pendingRes.ok) {
+                const data = await pendingRes.json();
+                setPendingReservations(data.filter(r => r.branchName === currentBranch.name));
+            }
+            if (confirmedRes.ok) {
+                const data = await confirmedRes.json();
+                setConfirmedReservations(data.filter(r => r.branchName === currentBranch.name));
+            }
+            if (checkedInRes.ok) {
+                const data = await checkedInRes.json();
+                setCheckedInReservations(data.filter(r => r.branchName === currentBranch.name));
+            }
         } catch {
-            alert('Không thể tải danh sách đặt bàn.');
-        } finally {
-            setLoading(false);
+            showToast('error', 'Lỗi', 'Không thể tải danh sách đặt bàn. Vui lòng thử lại.');
         }
     };
 
     useEffect(() => { fetchCurrentBranch(); }, []);
     useEffect(() => {
-        const interval = setInterval(() => {
-            if (currentBranch) fetchReservations();
-        }, 300);
+        if (!currentBranch) return;
+        fetchReservations();
+        const interval = setInterval(fetchReservations, 15000);
         return () => clearInterval(interval);
     }, [currentBranch]);
 
@@ -86,8 +106,17 @@ export default function BranchReservationManager() {
             setShowConfirmModal(false);
             setSelectedReservation(null);
             fetchReservations();
+
+            if (status === 'CONFIRMED') {
+                showToast('success', 'Xác nhận thành công', 'Đơn đặt chỗ đã được xác nhận!');
+            } else if (status === 'CHECKED_IN') {
+                showToast('success', 'Check-in thành công', 'Khách đã được check-in!');
+            } else {
+                showToast('warning', 'Đã từ chối', 'Đơn đặt chỗ đã bị hủy.');
+            }
+
         } catch {
-            alert('Không thể cập nhật trạng thái.');
+            showToast('error', 'Lỗi', 'Không thể cập nhật trạng thái. Vui lòng thử lại.');
         } finally {
             setLoading(false);
         }
@@ -102,16 +131,31 @@ export default function BranchReservationManager() {
     };
 
     // ── Filter tìm kiếm ──
-    const filtered = reservations.filter(r =>
-        r.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.phone?.includes(searchTerm) ||
-        r.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const currentList = activeTab === 'pending'
+        ? pendingReservations
+        : activeTab === 'confirmed'
+            ? confirmedReservations
+            : checkedInReservations;
+    const filtered = currentList
+        .filter(r => {
+            const matchSearch =
+                r.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                r.phone?.includes(searchTerm) ||
+                r.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+            const checkIn = new Date(r.checkInTime);
+            const selected = new Date(filterDate);
+            selected.setHours(23, 59, 59, 999);
+            const matchDate = checkIn <= selected;
+
+            return matchSearch && matchDate;
+        })
+        .sort((a, b) => new Date(b.checkInTime) - new Date(a.checkInTime));
 
     const stats = {
-        total: reservations.length,
-        withTable: reservations.filter(r => r.tableNumber).length,
-        withRoom: reservations.filter(r => r.roomNumber).length,
+        total: pendingReservations.length,
+        withTable: pendingReservations.filter(r => r.tableNumber != null).length,
+        withRoom: pendingReservations.filter(r => r.roomNumber != null).length,
     };
 
     if (!currentBranch) return (
@@ -177,6 +221,61 @@ export default function BranchReservationManager() {
                         />
                     </div>
                 </div>
+                <div className={styles.filterBar} style={{ marginTop: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                            onClick={() => setActiveTab('pending')}
+                            className={activeTab === 'pending' ? styles.tabActive : styles.tabInactive}
+                        >
+                            <Clock size={16} />
+                            Chờ xác nhận
+                            {pendingReservations.length > 0 && (
+                                <span style={{
+                                    marginLeft: 6, background: '#EF4444', color: '#fff',
+                                    borderRadius: '50%', width: 20, height: 20,
+                                    display: 'inline-flex', alignItems: 'center',
+                                    justifyContent: 'center', fontSize: 11, fontWeight: 700
+                                }}>
+                                    {pendingReservations.length}
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('confirmed')}
+                            className={activeTab === 'confirmed' ? styles.tabActive : styles.tabInactive}
+                        >
+                            <CheckCircle size={16} />
+                            Đã xác nhận
+                            {confirmedReservations.length > 0 && (
+                                <span style={{
+                                    marginLeft: 6, background: '#10B981', color: '#fff',
+                                    borderRadius: '50%', width: 20, height: 20,
+                                    display: 'inline-flex', alignItems: 'center',
+                                    justifyContent: 'center', fontSize: 11, fontWeight: 700
+                                }}>
+                                    {confirmedReservations.length}
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('checkedIn')}
+                            className={activeTab === 'checkedIn' ? styles.tabActive : styles.tabInactive}
+                        >
+                            <Users size={16} />
+                            Đang phục vụ
+                            {checkedInReservations.length > 0 && (
+                                <span style={{
+                                    marginLeft: 6, background: '#3B82F6', color: '#fff',
+                                    borderRadius: '50%', width: 20, height: 20,
+                                    display: 'inline-flex', alignItems: 'center',
+                                    justifyContent: 'center', fontSize: 11, fontWeight: 700
+                                }}>
+                                    {checkedInReservations.length}
+                                </span>
+                            )}
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* ── DANH SÁCH ── */}
@@ -236,7 +335,16 @@ export default function BranchReservationManager() {
                                             {isTable ? `Bàn ${reservation.tableNumber}` : isRoom ? `Phòng ${reservation.roomNumber}` : 'Chưa chọn chỗ'}
                                         </span>
                                         {/* Badge PENDING */}
-                                        <span className={styles.badgePending}>Chờ xác nhận</span>
+                                        <span style={{
+                                            padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                                            ...(activeTab === 'pending'
+                                                ? { background: '#FEF3C7', color: '#D97706', border: '1px solid #FCD34D' }
+                                                : activeTab === 'confirmed'
+                                                    ? { background: 'rgba(16,185,129,0.1)', color: '#10B981', border: '1px solid rgba(16,185,129,0.3)' }
+                                                    : { background: 'rgba(59,130,246,0.1)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)' })
+                                        }}>
+                                            {activeTab === 'pending' ? 'Chờ xác nhận' : activeTab === 'confirmed' ? 'Đã xác nhận' : 'Đang phục vụ'}
+                                        </span>
                                     </div>
 
                                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -291,24 +399,59 @@ export default function BranchReservationManager() {
                                     )}
 
                                     {/* Action buttons */}
-                                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                                        <button
-                                            onClick={e => openActionModal(e, reservation, 'CANCELLED')}
-                                            className={styles.buttonDanger}
-                                            disabled={loading}
-                                            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                                        >
-                                            <XCircle size={16} /> Từ chối
-                                        </button>
-                                        <button
-                                            onClick={e => openActionModal(e, reservation, 'CONFIRMED')}
-                                            className={styles.buttonSuccess}
-                                            disabled={loading}
-                                            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                                        >
-                                            <CheckCircle size={16} /> Xác nhận
-                                        </button>
-                                    </div>
+                                    {/* Action buttons — chỉ hiện ở tab pending */}
+                                    {activeTab === 'pending' && (
+                                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                                            <button
+                                                onClick={e => openActionModal(e, reservation, 'CANCELLED')}
+                                                className={styles.buttonDanger}
+                                                disabled={loading}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                                            >
+                                                <XCircle size={16} /> Từ chối
+                                            </button>
+                                            <button
+                                                onClick={e => openActionModal(e, reservation, 'CONFIRMED')}
+                                                className={styles.buttonSuccess}
+                                                disabled={loading}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                                            >
+                                                <CheckCircle size={16} /> Xác nhận
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Tab confirmed: hiện badge trạng thái + nút Check-in */}
+                                    {activeTab === 'confirmed' && (
+                                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
+                                            <span style={{
+                                                padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                                                background: 'rgba(16,185,129,0.1)', color: '#10B981',
+                                                border: '1px solid rgba(16,185,129,0.3)'
+                                            }}>
+                                                ✓ Đã xác nhận
+                                            </span>
+                                            <button
+                                                onClick={e => openActionModal(e, reservation, 'CHECKED_IN')}
+                                                className={styles.primaryButton}
+                                                disabled={loading}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                                            >
+                                                <Users size={16} /> Check-in
+                                            </button>
+                                        </div>
+                                    )}
+                                    {activeTab === 'checkedIn' && (
+                                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
+                                            <span style={{
+                                                padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                                                background: 'rgba(59,130,246,0.1)', color: '#3B82F6',
+                                                border: '1px solid rgba(59,130,246,0.3)'
+                                            }}>
+                                                🍽 Đang phục vụ
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -325,11 +468,13 @@ export default function BranchReservationManager() {
                         boxShadow: '0 20px 60px rgba(0,0,0,0.25)'
                     }}>
                         <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 700, color: '#1f2937' }}>
-                            {confirmAction === 'CONFIRMED' ? '✓ Xác nhận đặt chỗ' : '✕ Từ chối đặt chỗ'}
+                            {confirmAction === 'CONFIRMED' ? '✓ Xác nhận đặt chỗ'
+                                : confirmAction === 'CHECKED_IN' ? '🚪 Check-in khách'
+                                    : '✕ Từ chối đặt chỗ'}
                         </h3>
 
                         <div style={{ background: '#f9fafb', borderRadius: 10, padding: '12px 16px', marginBottom: 20, border: '1px solid #e5e7eb' }}>
-                            <div style={{ fontWeight: 700, marginBottom: 4 }}>{selectedReservation.customerName}</div>
+                            <div style={{ fontWeight: 700, marginBottom: 4, color: '#6b7280' }}>{selectedReservation.customerName}</div>
                             <div style={{ fontSize: 13, color: '#6b7280', display: 'flex', flexDirection: 'column', gap: 4 }}>
                                 {selectedReservation.phone && <span><Phone size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />{selectedReservation.phone}</span>}
                                 <span><Calendar size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
@@ -342,8 +487,10 @@ export default function BranchReservationManager() {
 
                         <p style={{ fontSize: 14, color: '#6b7280', marginBottom: 20 }}>
                             {confirmAction === 'CONFIRMED'
-                                ? 'Xác nhận sẽ chuyển trạng thái sang CONFIRMED. Khách hàng sẽ được thông báo.'
-                                : 'Từ chối sẽ hủy đặt chỗ này. Hành động không thể hoàn tác.'}
+                                ? 'Xác nhận sẽ chuyển trạng thái sang CONFIRMED. Nhân viên sẽ được thông báo.'
+                                : confirmAction === 'CHECKED_IN'
+                                    ? 'Xác nhận khách đã đến. Bàn/phòng sẽ chuyển sang trạng thái đang sử dụng.'
+                                    : 'Từ chối sẽ hủy đặt chỗ này. Hành động không thể hoàn tác.'}
                         </p>
 
                         <div style={{ display: 'flex', gap: 10 }}>
@@ -357,14 +504,20 @@ export default function BranchReservationManager() {
                                 onClick={() => updateStatus(selectedReservation.id, confirmAction)}
                                 disabled={loading}
                                 style={{
-                                    flex: 2, padding: '10px', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14,
+                                    flex: 2, padding: '10px', border: 'none', borderRadius: 10,
+                                    cursor: 'pointer', fontWeight: 700, fontSize: 14,
                                     background: confirmAction === 'CONFIRMED'
                                         ? 'linear-gradient(135deg, #22c55e, #16a34a)'
-                                        : 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                        : confirmAction === 'CHECKED_IN'
+                                            ? 'linear-gradient(135deg, #3B82F6, #2563EB)'
+                                            : 'linear-gradient(135deg, #ef4444, #dc2626)',
                                     color: '#fff'
                                 }}
                             >
-                                {loading ? 'Đang xử lý...' : confirmAction === 'CONFIRMED' ? '✓ Xác nhận' : '✕ Từ chối'}
+                                {loading ? 'Đang xử lý...'
+                                    : confirmAction === 'CONFIRMED' ? '✓ Xác nhận'
+                                        : confirmAction === 'CHECKED_IN' ? '🚪 Check-in'
+                                            : '✕ Từ chối'}
                             </button>
                         </div>
                     </div>

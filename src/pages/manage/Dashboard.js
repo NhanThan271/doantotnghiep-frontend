@@ -261,33 +261,6 @@ export default function BranchDashboard() {
         return texts[status] || status;
     };
 
-    // ==================== RENDER ====================
-
-    if (loading) {
-        return (
-            <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100vh',
-                color: '#94A3B8'
-            }}>
-                <div style={{ textAlign: 'center' }}>
-                    <div style={{
-                        width: '48px',
-                        height: '48px',
-                        border: '4px solid #2D2D2D',
-                        borderTop: '4px solid #8B5CF6',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        margin: '0 auto 16px'
-                    }}></div>
-                    <p style={{ fontSize: '16px' }}>Đang tải dữ liệu chi nhánh...</p>
-                </div>
-            </div>
-        );
-    }
-
     if (error) {
         return (
             <div style={{

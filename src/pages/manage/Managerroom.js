@@ -4,6 +4,7 @@ import {
     Check, Users, Clock, Layers, DoorOpen
 } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import { showToast } from '../../hooks/useToast';
 
 export default function ManagerRoomManagement() {
     const [rooms, setRooms] = useState([]);
@@ -47,6 +48,7 @@ export default function ManagerRoomManagement() {
             }
         } catch (error) {
             console.error('Lỗi khi lấy thông tin chi nhánh:', error);
+            showToast('error', 'Lỗi', 'Không thể lấy thông tin chi nhánh. Vui lòng thử lại.');
         }
     };
 
@@ -65,7 +67,7 @@ export default function ManagerRoomManagement() {
             setFilteredRooms(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Lỗi khi tải danh sách phòng:', error);
-            alert('Không thể tải danh sách phòng. Vui lòng thử lại.');
+            showToast('error', 'Lỗi', 'Không thể tải danh sách phòng. Vui lòng thử lại.');
         }
     };
 
@@ -83,10 +85,10 @@ export default function ManagerRoomManagement() {
             if (!response.ok) throw new Error('Không thể cập nhật trạng thái phòng');
             await fetchRooms();
             const msg = status === 'OCCUPIED' ? 'Đã mở phòng thành công!' : 'Đã đóng phòng thành công!';
-            alert(msg);
+            showToast('success', 'Thành công', msg);
         } catch (error) {
             console.error('Lỗi khi cập nhật trạng thái phòng:', error);
-            alert('Không thể cập nhật trạng thái phòng. Vui lòng thử lại.');
+            showToast('error', 'Lỗi', 'Không thể cập nhật trạng thái phòng. Vui lòng thử lại.');
         }
     };
 

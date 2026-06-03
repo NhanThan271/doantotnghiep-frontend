@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Tag, Calendar, Percent, DollarSign, Eye, Package, ChevronUp, Store, RefreshCw } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import { showToast } from '../../hooks/useToast';
 
 export default function ApplyPromotions() {
     const [promotions, setPromotions] = useState([]);
@@ -41,7 +42,7 @@ export default function ApplyPromotions() {
             }
 
             if (!branchId) {
-                alert('Tài khoản của bạn chưa được gán chi nhánh. Vui lòng liên hệ quản trị viên.');
+                showToast('error', 'Lỗi', 'Tài khoản chưa được gán chi nhánh. Vui lòng liên hệ quản trị viên.');
                 return;
             }
 
@@ -56,7 +57,7 @@ export default function ApplyPromotions() {
 
         } catch (error) {
             console.error('Lỗi khi lấy thông tin chi nhánh:', error);
-            alert('Không thể lấy thông tin chi nhánh. Vui lòng thử lại.');
+            showToast('error', 'Lỗi', 'Không thể lấy thông tin chi nhánh. Vui lòng thử lại.');
         }
     };
 
@@ -104,7 +105,7 @@ export default function ApplyPromotions() {
 
         } catch (err) {
             console.error('Lỗi khi lấy dữ liệu promotions:', err);
-            alert('Không thể tải danh sách khuyến mãi. Vui lòng thử lại.');
+            showToast('error', 'Lỗi', 'Không thể tải danh sách khuyến mãi. Vui lòng thử lại.');
             setPromotions([]);
         } finally {
             setLoading(false);
@@ -150,12 +151,12 @@ export default function ApplyPromotions() {
                 throw new Error('Cập nhật thất bại');
             }
 
-            alert(`${promotion.isActive ? 'Tắt' : 'Bật'} khuyến mãi thành công!`);
+            showToast('success', 'Thành công', `${promotion.isActive ? 'Tắt' : 'Bật'} khuyến mãi thành công!`);
             fetchPromotions();
 
         } catch (err) {
             console.error(err);
-            alert('Không thể cập nhật khuyến mãi. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', 'Không thể cập nhật khuyến mãi. Vui lòng thử lại.');
         }
     };
 

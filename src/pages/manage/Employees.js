@@ -26,6 +26,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
     const [staffList, setStaffList] = useState([]);
     const [weekShifts, setWeekShifts] = useState([]);
     const [positionForm, setPositionForm] = useState(null);
+    const [employmentTypes, setEmploymentTypes] = useState([]);
 
     // State cho modal phân ca
     const [showAssignModal, setShowAssignModal] = useState(false);
@@ -58,6 +59,16 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
     const [attendanceYear, setAttendanceYear] = useState(new Date().getFullYear());
     const [monthlyReport, setMonthlyReport] = useState(null);
     const [attendanceLoading, setAttendanceLoading] = useState(false);
+    const [showEmploymentModal, setShowEmploymentModal] = useState(false);
+    const [employmentTarget, setEmploymentTarget] = useState(null); // { staffId, currentType }
+    const [selectedEmploymentTypeId, setSelectedEmploymentTypeId] = useState('');
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [overviewStats, setOverviewStats] = useState(null);
+    const [overviewLoading, setOverviewLoading] = useState(false);
+    const [filterStaffId, setFilterStaffId] = useState(null);
+    const [staffWeekShifts, setStaffWeekShifts] = useState([]);
+    const [staffWeekLoading, setStaffWeekLoading] = useState(false);
 
     const API_BASE_URL = 'http://localhost:8080';
 
@@ -85,7 +96,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             }
 
             if (!branchId) {
-                alert('Tài khoản của bạn chưa được gán chi nhánh.');
+                showToast('error', 'Lỗi', 'Tài khoản của bạn chưa được gán chi nhánh.');
                 return;
             }
 
@@ -99,7 +110,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             }
         } catch (error) {
             console.error('Lỗi:', error);
-            alert('Không thể lấy thông tin chi nhánh.');
+            showToast('error', 'Lỗi', 'Không thể lấy thông tin chi nhánh.');
         }
     };
 
@@ -120,6 +131,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             setStaffMap(map);
         } catch (err) {
             console.error('Lỗi lấy staff info:', err);
+            showToast('error', 'Lỗi', 'Không thể lấy thông tin nhân viên.');
         }
     };
 
@@ -141,6 +153,71 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             setStaffMap(map);
         } catch (err) {
             console.error('Lỗi lấy staff list:', err);
+            showToast('error', 'Lỗi', 'Không thể tải danh sách nhân viên.');
+        }
+    };
+
+    const fetchOverviewStats = async () => {
+        if (!staffList.length) return;
+        setOverviewLoading(true);
+        const token = localStorage.getItem('token');
+        try {
+            const results = await Promise.all(
+                staffList.map(s =>
+                    fetch(`${API_BASE_URL}/api/attendance/monthly/${s.id}?month=${attendanceMonth}&year=${attendanceYear}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    }).then(r => r.ok ? r.json() : null).catch(() => null)
+                )
+            );
+            const valid = results.filter(Boolean);
+            setOverviewStats({
+                presentDays: valid.reduce((sum, r) => sum + (r.presentDays || 0), 0),
+                lateDays: valid.reduce((sum, r) => sum + (r.lateDays || 0), 0),
+                leaveDays: valid.reduce((sum, r) => sum + (r.leaveDays || 0), 0),
+                totalDays: valid.reduce((sum, r) => sum + (r.totalDays || 0), 0),
+            });
+        } finally {
+            setOverviewLoading(false);
+        }
+    };
+
+    const fetchStaffWeeklySchedule = async (staffId, date = selectedDate) => {
+        if (!staffId) return;
+        setStaffWeekLoading(true);
+        const token = localStorage.getItem('token');
+        try {
+            // Tính thứ 2 đầu tuần
+            const d = new Date(date);
+            const day = d.getDay();
+            const monday = new Date(d);
+            monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+            const startDate = monday.toISOString().split('T')[0];
+
+            const res = await fetch(
+                `${API_BASE_URL}/api/staff-shifts/staff/${staffId}/week?startDate=${startDate}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            setStaffWeekShifts(data);
+        } catch (err) {
+            console.error('Lỗi fetch lịch tuần nhân viên:', err);
+        } finally {
+            setStaffWeekLoading(false);
+        }
+    };
+
+    const fetchEmploymentTypes = async () => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/employment-types`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+            setEmploymentTypes(await res.json());
+        } catch (err) {
+            console.error('Lỗi lấy employment types:', err);
+            showToast('error', 'Lỗi', 'Không thể tải danh sách loại hình làm việc.');
         }
     };
 
@@ -162,7 +239,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             await fetchStaffInfo(branchEmployees);
         } catch (error) {
             console.error('Lỗi:', error);
-            alert('Không thể tải danh sách nhân viên.');
+            showToast('error', 'Lỗi', 'Không thể tải danh sách nhân viên.');
         } finally {
             setLoading(false);
         }
@@ -261,7 +338,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
     const handleAssignShift = async (e) => {
         e.preventDefault();
         if (!assignForm.staffId || !assignForm.shiftId) {
-            alert('Vui lòng chọn nhân viên và ca làm việc!');
+            showToast('error', 'Lỗi', 'Vui lòng chọn nhân viên và ca làm việc!');
             return;
         }
         setLoading(true);
@@ -283,7 +360,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                 const msg = await response.text();
                 throw new Error(msg || 'Phân ca thất bại');
             }
-            alert('Phân ca thành công!');
+            showToast('success', 'Thành công', 'Đã phân ca thành công!');
             setShowAssignModal(false);
             fetchWorkShiftsForWeek();
         } catch (error) {
@@ -336,11 +413,11 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                 }),
             });
             if (!res.ok) throw new Error(await res.text());
-            alert('Tạo lịch ca thành công!');
+            showToast('success', 'Thành công', 'Đã tạo lịch ca làm việc!');
             setShowCreateScheduleModal(false);
             fetchShiftSchedules();
         } catch (err) {
-            alert(err.message);
+            showToast('error', 'Lỗi', err.message);
         }
     };
 
@@ -377,10 +454,57 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             });
     };
 
+    const handleAssignEmploymentType = async () => {
+        if (!selectedEmploymentTypeId || !employmentTarget?.staffId) {
+            showToast('error', 'Lỗi', 'Vui lòng chọn loại hợp đồng!');
+            return;
+        }
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(
+                `${API_BASE_URL}/api/staff/${employmentTarget.staffId}/employment-type?employmentTypeId=${selectedEmploymentTypeId}`,
+                {
+                    method: 'PUT',
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+            if (!res.ok) throw new Error(await res.text());
+            showToast('success', 'Thành công', 'Đã cập nhật loại hợp đồng!');
+            setShowEmploymentModal(false);
+            fetchStaffList();
+        } catch (err) {
+            showToast('error', 'Lỗi', err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteEmployee = async () => {
+        if (!deleteTarget) return;
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE_URL}/api/users/${deleteTarget.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error(await res.text());
+            showToast('success', 'Thành công', 'Đã xóa nhân viên!');
+            setShowDeleteModal(false);
+            setDeleteTarget(null);
+            fetchBranchEmployees();
+        } catch (err) {
+            showToast('error', 'Lỗi', err.message || 'Không thể xóa nhân viên');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleUpdateShift = async (e) => {
         e.preventDefault();
         if (!editForm.shiftId || !editForm.workDay) {
-            alert('Vui lòng chọn ca làm việc và ngày!');
+            showToast('error', 'Lỗi', 'Vui lòng chọn ca làm việc và ngày!');
             return;
         }
         setLoading(true);
@@ -401,11 +525,11 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                 const msg = await response.text();
                 throw new Error(msg || 'Cập nhật thất bại');
             }
-            alert('Cập nhật ca thành công!');
+            showToast('success', 'Thành công', 'Đã cập nhật ca làm việc!');
             setShowEditModal(false);
             fetchWorkShiftsForWeek();
         } catch (error) {
-            alert(error.message);
+            showToast('error', 'Lỗi', error.message);
         } finally {
             setLoading(false);
         }
@@ -419,8 +543,10 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
         if (!currentBranch) return;
         fetchShiftTemplates();
         fetchStaffList();
+        fetchEmploymentTypes();
         if (activeTab === 'employees') {
             fetchBranchEmployees();
+            setFilterStaffId(null);
         } else if (activeTab === 'shifts') {
             fetchWorkShifts(selectedDate);
             fetchWorkShiftsForWeek(selectedDate);
@@ -434,6 +560,25 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
         fetchWorkShifts(selectedDate);
         fetchWorkShiftsForWeek(selectedDate);
     }, [selectedDate, activeTab, currentBranch, shiftsSubTab]);
+
+
+    useEffect(() => {
+        if (activeTab === 'attendance' && attendanceSubTab === 'overview' && staffList.length > 0) {
+            fetchOverviewStats();
+        }
+    }, [activeTab, attendanceSubTab, attendanceMonth, attendanceYear, staffList]);
+
+    useEffect(() => {
+        if (activeTab === 'attendance' && attendanceSubTab === 'detail' && selectedStaffForAttendance) {
+            fetchMonthlyAttendance(selectedStaffForAttendance);
+        }
+    }, [activeTab, attendanceSubTab, selectedStaffForAttendance]);
+
+    useEffect(() => {
+        if (activeTab === 'shifts' && shiftsSubTab === 'staffWeek' && filterStaffId) {
+            fetchStaffWeeklySchedule(filterStaffId, selectedDate);
+        }
+    }, [selectedDate, activeTab, shiftsSubTab, filterStaffId]);
 
     const getImageUrl = (imageUrl) => {
         if (!imageUrl) return null;
@@ -456,9 +601,11 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
         return matchesSearch && matchesFilter;
     });
 
-    const filteredShifts = workShifts.filter(shift =>
-        shift.workDay?.toString().slice(0, 10) === selectedDate
-    );
+    const filteredShifts = workShifts.filter(shift => {
+        const matchDate = shift.workDay?.toString().slice(0, 10) === selectedDate;
+        const matchStaff = filterStaffId ? shift.staff?.id === filterStaffId : true;
+        return matchDate && matchStaff;
+    });
 
     const groupedShifts = filteredShifts.reduce((acc, ss) => {
         const key = ss.shift?.id;
@@ -643,7 +790,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                         <th>Email</th>
                                         <th>Số điện thoại</th>
                                         <th className={styles.textCenter}>Vị trí</th>
-                                        <th className={styles.textCenter}>Trạng thái</th>
+                                        <th className={styles.textCenter}>Hợp đồng</th>
                                         <th className={styles.textCenter}>Thao tác</th>
                                     </tr>
                                 </thead>
@@ -729,9 +876,37 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                 </td>
 
                                                 <td className={styles.textCenter}>
-                                                    <span className={emp.isActive ? styles.badgeSuccess : styles.badgeInactive}>
-                                                        {emp.isActive ? 'Hoạt động' : 'Ngưng'}
-                                                    </span>
+                                                    {(() => {
+                                                        const staffInfo = staffMap[emp.id];
+                                                        const staff = staffList.find(s => s.id === staffInfo?.id);
+                                                        const etName = staff?.employmentTypeName || staff?.employmentType?.name;
+                                                        return etName ? (
+                                                            <span style={{
+                                                                display: 'inline-block',
+                                                                padding: '4px 12px',
+                                                                background: 'rgba(16,185,129,0.1)',
+                                                                color: '#10B981',
+                                                                border: '1px solid rgba(16,185,129,0.3)',
+                                                                borderRadius: '8px',
+                                                                fontSize: '13px',
+                                                                fontWeight: '600'
+                                                            }}>
+                                                                {etName}
+                                                            </span>
+                                                        ) : (
+                                                            <span style={{
+                                                                display: 'inline-block',
+                                                                padding: '4px 12px',
+                                                                background: 'rgba(107,114,128,0.1)',
+                                                                color: '#9CA3AF',
+                                                                border: '1px solid rgba(107,114,128,0.2)',
+                                                                borderRadius: '8px',
+                                                                fontSize: '13px'
+                                                            }}>
+                                                                Chưa có
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </td>
                                                 <td className={styles.textCenter}>
                                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
@@ -739,8 +914,17 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                         <button
                                                             title="Xem lịch làm"
                                                             onClick={() => {
+                                                                const staffInfo = staffMap[emp.id];
+                                                                if (!staffInfo?.id) {
+                                                                    showToast('error', 'Lỗi', 'Nhân viên này chưa được gán chức vụ!');
+                                                                    return;
+                                                                }
+                                                                setFilterStaffId(staffInfo.id);
+                                                                setStaffWeekShifts([]);
+                                                                fetchStaffWeeklySchedule(staffInfo.id);
+                                                                setShiftsSubTab('staffWeek');
                                                                 setActiveTab('shifts');
-                                                                // Lọc theo nhân viên này (lưu filter nếu cần)
+
                                                             }}
                                                             style={{
                                                                 background: 'rgba(88, 253, 107, 0.1)',
@@ -758,7 +942,12 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                         <button
                                                             title="Xem chấm công"
                                                             onClick={() => {
-                                                                setSelectedStaffForAttendance(emp.id);
+                                                                const staffInfo = staffMap[emp.id];
+                                                                if (!staffInfo?.id) {
+                                                                    showToast('error', 'Lỗi', 'Nhân viên này chưa được gán chức vụ!');
+                                                                    return;
+                                                                }
+                                                                setSelectedStaffForAttendance(staffInfo.id);
                                                                 setAttendanceSubTab('detail');
                                                                 setActiveTab('attendance');
                                                             }}
@@ -815,6 +1004,51 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                         >
                                                             <Briefcase size={16} />
                                                         </button>
+
+                                                        <button
+                                                            title="Gán loại hợp đồng"
+                                                            onClick={() => {
+                                                                const staffInfo = staffMap[emp.id];
+                                                                if (!staffInfo?.id) {
+                                                                    showToast('error', 'Lỗi', 'Nhân viên này chưa được gán chức vụ. Hãy gán chức vụ trước!');
+                                                                    return;
+                                                                }
+                                                                setEmploymentTarget({
+                                                                    staffId: staffInfo?.id,
+                                                                    empName: emp.fullName || emp.username,
+                                                                });
+                                                                setSelectedEmploymentTypeId('');
+                                                                setShowEmploymentModal(true);
+                                                            }}
+                                                            style={{
+                                                                background: 'rgba(245,158,11,0.1)',
+                                                                border: '1px solid rgba(245,158,11,0.3)',
+                                                                borderRadius: '8px',
+                                                                padding: '6px 10px',
+                                                                cursor: 'pointer',
+                                                                color: '#F59E0B'
+                                                            }}
+                                                        >
+                                                            <FileText size={16} />
+                                                        </button>
+
+                                                        <button
+                                                            title="Xóa nhân viên"
+                                                            onClick={() => {
+                                                                setDeleteTarget(emp);
+                                                                setShowDeleteModal(true);
+                                                            }}
+                                                            style={{
+                                                                background: 'rgba(239,68,68,0.1)',
+                                                                border: '1px solid rgba(239,68,68,0.3)',
+                                                                borderRadius: '8px',
+                                                                padding: '6px 10px',
+                                                                cursor: 'pointer',
+                                                                color: '#EF4444'
+                                                            }}
+                                                        >
+                                                            <UserX size={16} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -847,6 +1081,12 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                     className={shiftsSubTab === 'assign' ? styles.tabActive : styles.tabInactive}
                                 >
                                     <Users size={16} /> Phân công
+                                </button>
+                                <button
+                                    onClick={() => setShiftsSubTab('staffWeek')}
+                                    className={shiftsSubTab === 'staffWeek' ? styles.tabActive : styles.tabInactive}
+                                >
+                                    <UserCheck size={16} /> Lịch cá nhân
                                 </button>
                             </div>
 
@@ -1113,6 +1353,199 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                             </div>
                         </>
                     )}
+                    {shiftsSubTab === 'staffWeek' && (() => {
+                        const staff = staffList.find(s => s.id === filterStaffId);
+                        const weekDays = getWeekDays(selectedDate);
+
+                        return (
+                            <div className={styles.tableCard} style={{ marginTop: '16px', padding: '24px' }}>
+
+                                {/* Header thông tin nhân viên */}
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                    marginBottom: '20px', flexWrap: 'wrap', gap: '12px'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div className={styles.productImagePlaceholder} style={{ width: 48, height: 48 }}>
+                                            <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--color-text-secondary)' }}>
+                                                {getInitials(staff?.fullName || staff?.username)}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, fontSize: 17, color: 'var(--color-text-secondary)' }}>
+                                                {staff?.fullName || staff?.username}
+                                            </div>
+                                            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                                {POSITION_MAP[staff?.position]?.label || staff?.position}
+                                                {' '}•{' '}
+                                                Tuần: {weekDays[0]} → {weekDays[6]}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => {
+                                            setFilterStaffId(null);
+                                            setStaffWeekShifts([]);
+                                            setShiftsSubTab('assign');
+                                        }}
+                                        style={{
+                                            background: 'none', border: '1px solid var(--color-border)',
+                                            borderRadius: 8, padding: '6px 14px',
+                                            cursor: 'pointer', color: 'var(--color-text-secondary)',
+                                            display: 'flex', alignItems: 'center', gap: 6, fontSize: 13
+                                        }}
+                                    >
+                                        <X size={14} /> Đóng
+                                    </button>
+                                </div>
+
+                                {/* Bảng lịch tuần */}
+                                {staffWeekLoading ? (
+                                    <div style={{ textAlign: 'center', padding: 40 }}>
+                                        <RefreshCw size={32} className={styles.spinIcon} />
+                                    </div>
+                                ) : (
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                                            <thead>
+                                                <tr>
+                                                    <th style={{
+                                                        padding: '10px 14px', textAlign: 'left',
+                                                        background: 'var(--color-bg-card)',
+                                                        borderBottom: '2px solid var(--color-border)',
+                                                        color: 'var(--color-text-secondary)', fontWeight: 600
+                                                    }}>
+                                                        Ca làm việc
+                                                    </th>
+                                                    {weekDays.map(d => {
+                                                        const isToday = d === new Date().toISOString().split('T')[0];
+                                                        const isSelected = d === selectedDate;
+                                                        return (
+                                                            <th key={d} style={{
+                                                                padding: '10px 14px', textAlign: 'center',
+                                                                background: isSelected
+                                                                    ? 'rgba(59,130,246,0.1)'
+                                                                    : isToday
+                                                                        ? 'rgba(16,185,129,0.06)'
+                                                                        : 'var(--color-bg-card)',
+                                                                borderBottom: '2px solid var(--color-border)',
+                                                                color: isSelected ? '#3B82F6' : isToday ? '#10B981' : 'var(--color-text-secondary)',
+                                                                fontWeight: isSelected || isToday ? 700 : 400,
+                                                                whiteSpace: 'nowrap'
+                                                            }}>
+                                                                {new Date(d).toLocaleDateString('vi-VN', {
+                                                                    weekday: 'short', day: '2-digit', month: '2-digit'
+                                                                })}
+                                                                {isToday && (
+                                                                    <div style={{ fontSize: 10, color: '#10B981', marginTop: 2 }}>
+                                                                        Hôm nay
+                                                                    </div>
+                                                                )}
+                                                            </th>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {shiftTemplates.map(sh => {
+                                                    const hasAnyShift = weekDays.some(d =>
+                                                        staffWeekShifts.some(ws =>
+                                                            ws.shift?.id === sh.id &&
+                                                            ws.workDay?.toString().slice(0, 10) === d
+                                                        )
+                                                    );
+
+                                                    return (
+                                                        <tr key={sh.id}>
+                                                            <td style={{
+                                                                padding: '12px 14px',
+                                                                borderTop: '1px solid var(--color-border)',
+                                                                fontWeight: 600,
+                                                                color: 'var(--color-text-secondary)',
+                                                                whiteSpace: 'nowrap'
+                                                            }}>
+                                                                {sh.name}
+                                                                <div style={{ fontSize: 11, fontWeight: 400, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                                                                    {sh.startTime} – {sh.endTime}
+                                                                </div>
+                                                            </td>
+                                                            {weekDays.map(d => {
+                                                                const shift = staffWeekShifts.find(ws =>
+                                                                    ws.shift?.id === sh.id &&
+                                                                    ws.workDay?.toString().slice(0, 10) === d
+                                                                );
+                                                                const isSelected = d === selectedDate;
+
+                                                                return (
+                                                                    <td key={d} style={{
+                                                                        padding: '12px 14px', textAlign: 'center',
+                                                                        borderTop: '1px solid var(--color-border)',
+                                                                        background: isSelected ? 'rgba(59,130,246,0.03)' : 'transparent'
+                                                                    }}>
+                                                                        {shift ? (
+                                                                            <span style={{
+                                                                                display: 'inline-flex',
+                                                                                alignItems: 'center',
+                                                                                gap: 4,
+                                                                                padding: '5px 12px',
+                                                                                borderRadius: 20,
+                                                                                fontWeight: 600,
+                                                                                fontSize: 12,
+                                                                                background: 'rgba(16,185,129,0.12)',
+                                                                                color: '#10B981',
+                                                                                border: '1px solid rgba(16,185,129,0.3)'
+                                                                            }}>
+                                                                                <CheckCircle size={12} />
+                                                                                Có ca
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span style={{
+                                                                                display: 'inline-block',
+                                                                                padding: '5px 12px',
+                                                                                borderRadius: 20,
+                                                                                fontSize: 12,
+                                                                                background: 'rgba(107,114,128,0.08)',
+                                                                                color: '#9CA3AF'
+                                                                            }}>
+                                                                                không có
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+
+                                        {/* Thống kê nhanh */}
+                                        <div style={{
+                                            marginTop: 20, padding: '14px 16px',
+                                            background: 'rgba(59,130,246,0.05)',
+                                            border: '1px solid rgba(59,130,246,0.15)',
+                                            borderRadius: 10,
+                                            display: 'flex', gap: 24, flexWrap: 'wrap'
+                                        }}>
+                                            <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                                📊 Tuần này:{' '}
+                                                <strong style={{ color: '#3B82F6' }}>
+                                                    {staffWeekShifts.length} ca
+                                                </strong>
+                                            </span>
+                                            <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                                📅 Số ngày có ca:{' '}
+                                                <strong style={{ color: '#10B981' }}>
+                                                    {new Set(staffWeekShifts.map(ws => ws.workDay?.toString().slice(0, 10))).size} ngày
+                                                </strong>
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
                 </>
             )}
 
@@ -1196,28 +1629,46 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                     {/* ---- TỔNG QUAN ---- */}
                     {attendanceSubTab === 'overview' && (
                         <div className={styles.tableCard} style={{ padding: '24px' }}>
-                            <h3 style={{ marginTop: 0, fontSize: '18px', fontWeight: '600' }}>
-                                Tháng {attendanceMonth}/{attendanceYear} — {currentBranch?.name}
-                            </h3>
-                            {/* Thống kê nhanh toàn chi nhánh nếu bạn có API aggregate,
-            hiện tại để placeholder đẹp */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginTop: '20px' }}>
-                                {[
-                                    { label: 'Đúng giờ', color: '#10B981', bg: 'rgba(16,185,129,0.1)', icon: CheckCircle, key: 'presentDays' },
-                                    { label: 'Đi trễ', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', icon: Clock, key: 'lateDays' },
-                                    { label: 'Nghỉ phép', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', icon: FileText, key: 'leaveDays' },
-                                    { label: 'Vắng mặt', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', icon: Calendar, key: 'absentDays' },
-                                ].map(item => {
-                                    const IconComponent = item.icon;
-                                    return (
-                                        <div key={item.key} style={{ background: item.bg, borderRadius: '12px', padding: '20px', border: `1px solid ${item.color}30`, textAlign: 'center' }}>
-                                            <IconComponent size={28} color={item.color} style={{ marginBottom: '8px' }} />
-                                            <div style={{ fontSize: '28px', fontWeight: '700', color: item.color, marginTop: '8px' }}>—</div>
-                                            <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>{item.label}</div>
-                                        </div>
-                                    );
-                                })}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+                                    Tháng {attendanceMonth}/{attendanceYear} — {currentBranch?.name}
+                                </h3>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <select value={attendanceMonth} onChange={e => setAttendanceMonth(parseInt(e.target.value))} className={styles.formInput} style={{ width: 120 }}>
+                                        {Array.from({ length: 12 }, (_, i) => (
+                                            <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>
+                                        ))}
+                                    </select>
+                                    <input type="number" value={attendanceYear} onChange={e => setAttendanceYear(parseInt(e.target.value))}
+                                        className={styles.formInput} style={{ width: 90 }} min="2020" max="2030" />
+                                </div>
                             </div>
+
+                            {overviewLoading ? (
+                                <div style={{ textAlign: 'center', padding: 40 }}>
+                                    <RefreshCw size={32} className={styles.spinIcon} />
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                                    {[
+                                        { label: 'Đúng giờ', color: '#10B981', bg: 'rgba(16,185,129,0.1)', icon: CheckCircle, key: 'presentDays' },
+                                        { label: 'Đi trễ', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', icon: Clock, key: 'lateDays' },
+                                        { label: 'Nghỉ phép', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', icon: FileText, key: 'leaveDays' },
+                                        { label: 'Tổng lượt', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', icon: Calendar, key: 'totalDays' },
+                                    ].map(item => {
+                                        const IconComponent = item.icon;
+                                        return (
+                                            <div key={item.key} style={{ background: item.bg, borderRadius: '12px', padding: '20px', border: `1px solid ${item.color}30`, textAlign: 'center' }}>
+                                                <IconComponent size={28} color={item.color} />
+                                                <div style={{ fontSize: '28px', fontWeight: '700', color: item.color, marginTop: '8px' }}>
+                                                    {overviewStats ? (overviewStats[item.key] ?? 0) : '—'}
+                                                </div>
+                                                <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>{item.label}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -1285,13 +1736,15 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                             { label: 'Đúng giờ', color: '#10B981', bg: 'rgba(16,185,129,0.1)', icon: CheckCircle, key: 'presentDays' },
                                             { label: 'Đi trễ', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', icon: Clock, key: 'lateDays' },
                                             { label: 'Nghỉ phép', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', icon: FileText, key: 'leaveDays' },
-                                            { label: 'Vắng mặt', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', icon: Calendar, key: 'absentDays' },
+                                            { label: 'Tổng ngày', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', icon: Calendar, key: 'totalDays' },
                                         ].map(item => {
                                             const IconComponent = item.icon;
                                             return (
                                                 <div key={item.key} style={{ background: item.bg, borderRadius: '12px', padding: '20px', border: `1px solid ${item.color}30`, textAlign: 'center' }}>
                                                     <IconComponent size={32} color={item.color} style={{ marginBottom: '8px' }} />
-                                                    <div style={{ fontSize: '28px', fontWeight: '700', color: item.color, marginTop: '8px' }}>—</div>
+                                                    <div style={{ fontSize: '28px', fontWeight: '700', color: item.color, marginTop: '8px' }}>
+                                                        {monthlyReport[item.key] ?? 0}
+                                                    </div>
                                                     <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>{item.label}</div>
                                                 </div>
                                             );
@@ -1486,6 +1939,132 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                         showToast('success', 'Thành công', 'Chức vụ đã được cập nhật');
                     }}
                 />
+            )}
+
+            {showEmploymentModal && employmentTarget && (
+                <div className={styles.modalOverlay} onClick={() => setShowEmploymentModal(false)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3 className={styles.modalTitle}>
+                                <FileText size={20} /> Gán loại hợp đồng
+                            </h3>
+                            <button onClick={() => setShowEmploymentModal(false)} className={styles.modalClose}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className={styles.modalBody}>
+                            {/* Tên nhân viên readonly */}
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Nhân viên</label>
+                                <input
+                                    type="text"
+                                    value={employmentTarget.empName}
+                                    className={styles.formInput}
+                                    disabled
+                                />
+                            </div>
+
+                            {/* Chọn loại hợp đồng */}
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Loại hợp đồng *</label>
+                                {employmentTypes.length === 0 ? (
+                                    <div style={{
+                                        padding: '12px',
+                                        background: 'rgba(239,68,68,0.08)',
+                                        borderRadius: '8px',
+                                        fontSize: '13px',
+                                        color: '#EF4444'
+                                    }}>
+                                        Chưa có loại hợp đồng nào. Vui lòng tạo trước trong phần cấu hình.
+                                    </div>
+                                ) : (
+                                    <select
+                                        value={selectedEmploymentTypeId}
+                                        onChange={e => setSelectedEmploymentTypeId(e.target.value)}
+                                        className={styles.formInput}
+                                    >
+                                        <option value="">-- Chọn loại hợp đồng --</option>
+                                        {employmentTypes.map(et => (
+                                            <option key={et.id} value={et.id}>
+                                                {et.name} {et.description ? `— ${et.description}` : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className={styles.modalFooter}>
+                            <button
+                                onClick={() => setShowEmploymentModal(false)}
+                                className={styles.secondaryButton}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleAssignEmploymentType}
+                                className={styles.primaryButton}
+                                disabled={loading || !selectedEmploymentTypeId || employmentTypes.length === 0}
+                            >
+                                <Save size={18} />
+                                {loading ? 'Đang lưu...' : 'Lưu'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showDeleteModal && deleteTarget && (
+                <div className={styles.modalOverlay} onClick={() => setShowDeleteModal(false)}>
+                    <div onClick={e => e.stopPropagation()} style={{
+                        background: 'rgba(0,0,0,0.6)', borderRadius: 16, padding: 28,
+                        width: '100%', maxWidth: 400,
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.25)'
+                    }}>
+                        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                            <div style={{
+                                width: 56, height: 56, borderRadius: '50%',
+                                background: 'rgba(239,68,68,0.1)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                margin: '0 auto 16px'
+                            }}>
+                                <UserX size={28} color="#EF4444" />
+                            </div>
+                            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700, color: '#f1f3f7' }}>
+                                Xóa nhân viên
+                            </h3>
+                            <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>
+                                Bạn có chắc muốn xóa <strong>{deleteTarget.fullName || deleteTarget.username}</strong>?
+                                <br />Hành động này không thể hoàn tác.
+                            </p>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <button
+                                onClick={() => { setShowDeleteModal(false); setDeleteTarget(null); }}
+                                style={{
+                                    flex: 1, padding: '10px', border: '1px solid #e5e7eb',
+                                    borderRadius: 10, background: '#f9fafb',
+                                    cursor: 'pointer', fontWeight: 600, fontSize: 14
+                                }}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleDeleteEmployee}
+                                disabled={loading}
+                                style={{
+                                    flex: 2, padding: '10px', border: 'none',
+                                    borderRadius: 10, cursor: 'pointer',
+                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                    color: '#fff', fontWeight: 700, fontSize: 14
+                                }}
+                            >
+                                {loading ? 'Đang xóa...' : '🗑 Xác nhận xóa'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

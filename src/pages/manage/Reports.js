@@ -886,16 +886,6 @@ export default function BranchReports() {
                     </div>
                 </div>
             )}
-
-            {/* Loading Overlay */}
-            {loading && (
-                <div className={styles.loadingOverlay}>
-                    <div className={styles.loadingModal}>
-                        <RefreshCw size={48} className={styles.spinIcon} />
-                        <p>Đang tải dữ liệu...</p>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
