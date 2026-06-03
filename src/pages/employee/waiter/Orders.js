@@ -769,7 +769,7 @@ const Orders = () => {
                     ) : (
                         <div style={{
                             display: "grid",
-                            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                            gridTemplateColumns: "repeat(5,1fr)",
                             gap: "16px"
                         }}>
                             {tables.map(table => renderEntityCard(table, 'table'))}
@@ -779,7 +779,7 @@ const Orders = () => {
             ) : (
                 <div style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                    gridTemplateColumns: "repeat(5,1fr)",
                     gap: "16px"
                 }}>
                     {loading ? (
