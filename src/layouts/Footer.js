@@ -27,7 +27,7 @@ const Footer = () => {
             {/* Top Section */}
             <div className="footer-top">
                 <div className="footer-logo">
-                    <h2 className="logo-text">Noir</h2>
+                    <h2 className="logo-text">La Costa</h2>
                     <span className="logo-sub">PREMIER DINING EXPERIENCE</span>
                 </div>
             </div>
@@ -37,7 +37,7 @@ const Footer = () => {
             {/* Middle Section */}
             <div className="footer-content">
                 <div className="footer-grid">
-                    
+
                     {/* Render danh sách chi nhánh từ API */}
                     {loading ? (
                         <p className="branch-col">Đang tải dữ liệu...</p>
@@ -74,7 +74,7 @@ const Footer = () => {
 
             {/* Bottom Section */}
             <div className="footer-bottom">
-                <p>© {new Date().getFullYear()} GOLDEN NOIR GROUP. All rights reserved.</p>
+                <p>© {new Date().getFullYear()} GOLDEN La Costa GROUP. All rights reserved.</p>
                 <div className="legal-info">
                     <span>GPĐK: 0102721191 cấp ngày 09/04/2008</span>
                 </div>

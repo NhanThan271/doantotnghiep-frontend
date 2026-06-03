@@ -15,8 +15,8 @@ const CouponCard = ({ coupon }) => {
                 style={{ backgroundColor: coupon.backgroundColor }}
             >
                 <div className="coupon-logo">
-                    <img src={logo} alt="NOIR Logo" />
-                    <span className="logo-text">GOLDEN NOIR</span>
+                    <img src={logo} alt="La Costa Logo" />
+                    <span className="logo-text">GOLDEN La Costa</span>
                 </div>
                 <div className="coupon-value-display">
                     <div className="coupon-label">Coupon</div>
