@@ -19,7 +19,7 @@ export default function BranchReservationManager() {
     const [confirmedReservations, setConfirmedReservations] = useState([]);
     const [activeTab, setActiveTab] = useState('pending');
     const [checkedInReservations, setCheckedInReservations] = useState([]);
-    const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+    const [filterDate, setFilterDate] = useState('');
 
     const API_BASE_URL = 'http://localhost:8080';
     const token = () => localStorage.getItem('token');
@@ -137,21 +137,21 @@ export default function BranchReservationManager() {
             ? confirmedReservations
             : checkedInReservations;
     const filtered = currentList
-    .filter(r => {
-        const matchSearch =
-            r.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            r.phone?.includes(searchTerm) ||
-            r.email?.toLowerCase().includes(searchTerm.toLowerCase());
-        let matchDate = true;
-        if (activeTab !== 'pending' && filterDate) {
-            const checkIn = new Date(r.checkInTime);
-            const checkInStr = checkIn.toISOString().split('T')[0];
-            matchDate = checkInStr === filterDate; 
-        }
+        .filter(r => {
+            const matchSearch =
+                r.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                r.phone?.includes(searchTerm) ||
+                r.email?.toLowerCase().includes(searchTerm.toLowerCase());
+            let matchDate = true;
+            if (activeTab !== 'checkedIn' && filterDate) {
+                const checkIn = new Date(r.checkInTime);
+                const checkInStr = checkIn.toISOString().split('T')[0];
+                matchDate = checkInStr === filterDate;
+            }
 
-        return matchSearch && matchDate;
-    })
-    .sort((a, b) => new Date(a.checkInTime) - new Date(b.checkInTime));
+            return matchSearch && matchDate;
+        })
+        .sort((a, b) => b.id - a.id);
 
     const stats = {
         total: pendingReservations.length,

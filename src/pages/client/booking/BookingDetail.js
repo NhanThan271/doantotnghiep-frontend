@@ -144,10 +144,14 @@ const BookingDetail = () => {
     useEffect(() => {
         try {
             const u = JSON.parse(localStorage.getItem("user") || "{}");
+            const rawPhone = u.phone || "";
+            const normalizedPhone = rawPhone
+                .replace(/\s|-/g, "")
+                .replace(/^\+84/, "0");
             setData(prev => ({
                 ...prev,
                 customerName: u.fullName || u.username || "",
-                phone: u.phone || "",
+                phone: normalizedPhone,
                 email: u.email || "",
             }));
         } catch { }
@@ -298,11 +302,13 @@ const BookingDetail = () => {
 
     /* ── validation ── */
     const validateName = v => !v?.trim() ? "Vui lòng nhập họ tên"
-        : v.trim().length < 2 ? "Ít nhất 2 ký tự"
-            : /[0-9]/.test(v) ? "Họ tên không chứa số" : "";
-    const validatePhone = v => !v?.trim() ? "Vui lòng nhập số điện thoại"
-        : !/^(0|84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-9])[0-9]{7}$/.test(v.replace(/\s/g, ""))
-            ? "SĐT không hợp lệ" : "";
+        : v.trim().length < 2 ? "Ít nhất 2 ký tự" : "";
+    const validatePhone = v => {
+        if (!v?.trim()) return "Vui lòng nhập số điện thoại";
+        const normalized = v.replace(/\s|-/g, "").replace(/^\+84/, "0");
+        if (!/^0[0-9]{9,10}$/.test(normalized)) return "SĐT không hợp lệ";
+        return "";
+    };
     const validateEmail = v => v?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
         ? "Email không hợp lệ" : "";
 
