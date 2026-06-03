@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import io from 'socket.io-client';
 import styles from '../../layouts/AdminLayout.module.css';
+import { showToast } from '../../hooks/useToast';
 
 const socket = io('http://localhost:3001');
 
@@ -36,7 +37,6 @@ export default function ManagerInventoryManagement() {
 
     const API_BASE_URL = 'http://localhost:8080';
     const user = JSON.parse(localStorage.getItem('user'));
-    const POLLING_INTERVAL = 10000;
     const processedResponses = useRef(new Set());
 
     const [branchAggregated, setBranchAggregated] = useState([]);
@@ -151,6 +151,7 @@ export default function ManagerInventoryManagement() {
             setAllIngredients(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Lỗi khi tải danh sách nguyên liệu:', error);
+            showToast('error', 'Lỗi', 'Không thể tải danh sách nguyên liệu. Vui lòng thử lại.');
         }
     };
 
@@ -182,6 +183,7 @@ export default function ManagerInventoryManagement() {
             }
         } catch (error) {
             console.error('Lỗi khi lấy thông tin chi nhánh:', error);
+            showToast('error', 'Lỗi', 'Không thể lấy thông tin chi nhánh. Vui lòng thử lại.');
         }
     };
 
@@ -194,7 +196,10 @@ export default function ManagerInventoryManagement() {
             if (!res.ok) return;
             const data = await res.json();
             setWarehouses(Array.isArray(data) ? data : []);
-        } catch (e) { console.error('Lỗi khi tải kho tổng:', e); }
+        } catch (e) {
+            console.error('Lỗi khi tải kho tổng:', e);
+            showToast('error', 'Lỗi', 'Không thể tải danh sách kho tổng. Vui lòng thử lại.');
+        }
     };
 
     const fetchBranchIngredients = useCallback(async () => {
@@ -211,6 +216,7 @@ export default function ManagerInventoryManagement() {
             setFilteredIngredients(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Lỗi khi tải nguyên liệu:', error);
+            showToast('error', 'Lỗi', 'Không thể tải danh sách nguyên liệu. Vui lòng thử lại.');
         }
     }, [currentBranch?.id]);
 
@@ -242,6 +248,7 @@ export default function ManagerInventoryManagement() {
             setRequestItems(itemsMap);
         } catch (error) {
             console.error('Lỗi khi tải yêu cầu kho:', error);
+            showToast('error', 'Lỗi', 'Không thể tải yêu cầu kho. Vui lòng thử lại.');
         }
     }, [currentBranch?.id]);
 
@@ -259,6 +266,7 @@ export default function ManagerInventoryManagement() {
             setInventoryHistory(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Lỗi khi tải lịch sử kho:', error);
+            showToast('error', 'Lỗi', 'Không thể tải lịch sử kho. Vui lòng thử lại.');
         } finally {
             setHistoryLoading(false);
         }
@@ -359,7 +367,7 @@ export default function ManagerInventoryManagement() {
             fetchInventoryRequests();
             fetchBranchIngredients();
         } catch {
-            addNotification({ type: 'error', title: 'Lỗi', message: 'Không thể xác nhận. Vui lòng thử lại.' });
+            showToast('error', 'Lỗi', 'Không thể xác nhận. Vui lòng thử lại.');
         }
     };
 
@@ -593,7 +601,6 @@ export default function ManagerInventoryManagement() {
                                         {expiredItems.map(i => i.ingredientName).join(' · ')}
                                     </div>
                                 </div>
-                                <span style={{ color: '#ef4444', fontSize: 12 }}>Xem →</span>
                             </div>
                         )}
                         {nearExpiryItems.length > 0 && (
@@ -612,7 +619,6 @@ export default function ManagerInventoryManagement() {
                                         {nearExpiryItems.map(i => `${i.ingredientName} (còn ${i.daysToExpire}d)`).join(' · ')}
                                     </div>
                                 </div>
-                                <span style={{ color: '#f59e0b', fontSize: 12 }}>Xem →</span>
                             </div>
                         )}
                     </div>

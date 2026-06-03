@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Grid3x3, Search, Eye, RefreshCw, MapPin, X, ShoppingCart, Check, AlertCircle, Users, Clock, Layers } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import { showToast } from '../../hooks/useToast';
 
 export default function ManagerTableManagement() {
     const [tables, setTables] = useState([]);
@@ -47,6 +48,7 @@ export default function ManagerTableManagement() {
             }
         } catch (error) {
             console.error('Lỗi khi lấy thông tin chi nhánh:', error);
+            showToast('error', 'Lỗi', 'Không thể lấy thông tin chi nhánh. Vui lòng thử lại.');
         }
     };
 
@@ -68,7 +70,7 @@ export default function ManagerTableManagement() {
             setFilteredTables(branchTables);
         } catch (error) {
             console.error('Lỗi khi tải danh sách bàn:', error);
-            alert('Không thể tải danh sách bàn. Vui lòng thử lại.');
+            showToast('error', 'Lỗi', 'Không thể tải danh sách bàn. Vui lòng thử lại.');
         }
     };
 
@@ -95,6 +97,7 @@ export default function ManagerTableManagement() {
             setPendingOrders(pending);
         } catch (error) {
             console.error('Lỗi khi tải đơn hàng:', error);
+            showToast('error', 'Lỗi', 'Không thể tải đơn hàng. Vui lòng thử lại.');
         }
     };
 
@@ -149,10 +152,10 @@ export default function ManagerTableManagement() {
             if (!response.ok) throw new Error('Không thể mở bàn');
 
             await fetchTables();
-            alert('Đã mở bàn thành công!');
+            showToast('success', 'Thành công', 'Đã mở bàn thành công!');
         } catch (error) {
             console.error('Lỗi khi mở bàn:', error);
-            alert('Không thể mở bàn. Vui lòng thử lại.');
+            showToast('error', 'Lỗi', 'Không thể mở bàn. Vui lòng thử lại.');
         }
     };
 
@@ -168,10 +171,10 @@ export default function ManagerTableManagement() {
             if (!response.ok) throw new Error('Không thể đóng bàn');
 
             await fetchTables();
-            alert('Đã đóng bàn thành công!');
+            showToast('success', 'Thành công', 'Đã đóng bàn thành công!');
         } catch (error) {
             console.error('Lỗi khi đóng bàn:', error);
-            alert('Không thể đóng bàn. Vui lòng thử lại.');
+            showToast('error', 'Lỗi', 'Không thể đóng bàn. Vui lòng thử lại.');
         }
     };
 

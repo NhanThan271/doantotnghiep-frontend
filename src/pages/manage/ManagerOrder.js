@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Eye, Check, X, RefreshCw, Clock, CreditCard, Calendar, User, Package, MapPin, FileText, TrendingUp, Activity } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
+import { showToast } from '../../hooks/useToast';
 
 export default function ManagerOrderManagement() {
     const [orders, setOrders] = useState([]);
@@ -43,6 +44,7 @@ export default function ManagerOrderManagement() {
             }
         } catch (error) {
             console.error('Lỗi khi lấy thông tin chi nhánh:', error);
+            showToast('error', 'Lỗi', 'Không thể lấy thông tin chi nhánh. Vui lòng thử lại.');
         }
     };
 
@@ -89,7 +91,7 @@ export default function ManagerOrderManagement() {
             setFilteredOrders(sorted);
         } catch (error) {
             console.error('Lỗi khi tải đơn hàng:', error);
-            alert('Không thể tải đơn hàng. Vui lòng thử lại.');
+            showToast('error', 'Lỗi', 'Không thể tải đơn hàng. Vui lòng thử lại.');
         }
     };
 
@@ -158,10 +160,10 @@ export default function ManagerOrderManagement() {
                 const updatedOrder = await fetchOrderDetail(orderId);
                 setSelectedOrder(updatedOrder);
             }
-            alert(`Đơn hàng #${orderId} đã được cập nhật thành ${getStatusText(newStatus)}`);
+            showToast('success', 'Thành công', `Đơn hàng #${orderId} đã được cập nhật thành ${getStatusText(newStatus)}`);
         } catch (error) {
             console.error('Lỗi khi cập nhật đơn hàng:', error);
-            alert('Không thể cập nhật đơn hàng. Vui lòng thử lại.');
+            showToast('error', 'Lỗi', 'Không thể cập nhật đơn hàng. Vui lòng thử lại.');
         }
     };
 
@@ -178,6 +180,7 @@ export default function ManagerOrderManagement() {
             return data;
         } catch (error) {
             console.error('Lỗi khi tải chi tiết đơn hàng:', error);
+            showToast('error', 'Lỗi', 'Không thể tải chi tiết đơn hàng. Vui lòng thử lại.');
             return null;
         }
     };
