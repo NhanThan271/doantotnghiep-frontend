@@ -1474,16 +1474,6 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                 </div>
             )}
 
-            {/* Loading Overlay */}
-            {loading && (
-                <div className={styles.loadingOverlay}>
-                    <div className={styles.loadingModal}>
-                        <RefreshCw size={48} className={styles.spinIcon} />
-                        <p>Đang xử lý...</p>
-                    </div>
-                </div>
-            )}
-
             {positionForm && (
                 <StaffPositionForm
                     employee={positionForm.emp}
