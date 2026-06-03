@@ -1,13 +1,20 @@
 /* ==========================================
    REPORT PAGE MODULE CSS - BÁO CÁO DOANH THU
+   CHỮ TO HƠN - DỄ ĐỌC HƠN
    ========================================== */
+
+/* ========== GLOBAL ========== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap');
+
+* {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
 
 /* ========== CONTAINER ========== */
 .container {
-    padding: 20px;
-    background: #f0f2f5;
+    padding: 28px;
+    background: linear-gradient(135deg, #f0f9ff 0%, #d9f0f7 50%, #e0f2fe 100%);
     min-height: 100vh;
-    font-family: 'Segoe UI', 'Roboto', sans-serif;
 }
 
 /* ========== HEADER ========== */
@@ -17,21 +24,25 @@
     align-items: center;
     background: white;
     padding: 24px 32px;
-    border-radius: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-    margin-bottom: 20px;
+    border-radius: 24px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    margin-bottom: 28px;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 20px;
+    border: 1px solid #e2e8f0;
 }
 
 .header h2 {
-    font-size: 30px;
+    font-size: 28px;
     font-weight: 800;
-    color: #1a1a2e;
     margin: 0;
     display: flex;
     align-items: center;
     gap: 12px;
+    background: linear-gradient(135deg, #1e293b, #dc2626);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .exportBtn {
@@ -39,20 +50,20 @@
     color: white;
     border: none;
     padding: 14px 28px;
-    border-radius: 14px;
+    border-radius: 40px;
     font-weight: 700;
-    font-size: 17px;
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 10px;
-    transition: all 0.3s;
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 
 .exportBtn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
 }
 
 .exportBtn:disabled {
@@ -64,121 +75,130 @@
 /* ========== FILTER SECTION ========== */
 .filterSection {
     background: white;
-    padding: 24px 28px;
-    border-radius: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-    margin-bottom: 24px;
+    padding: 28px;
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 28px;
+    border: 1px solid #e2e8f0;
 }
 
 .reportTypeBtns {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .btn {
-    padding: 12px 22px;
+    padding: 12px 24px;
     border: 2px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: 40px;
     background: white;
     cursor: pointer;
     font-weight: 700;
     font-size: 16px;
     color: #475569;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .btn:hover {
-    border-color: #6366f1;
-    color: #6366f1;
-    background: #f0f0ff;
+    border-color: #dc2626;
+    color: #dc2626;
+    background: #fef2f2;
+    transform: translateY(-2px);
 }
 
 .activeBtn {
-    padding: 12px 22px;
-    border: 2px solid #6366f1;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    padding: 12px 24px;
+    border: 2px solid #dc2626;
+    border-radius: 40px;
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
     cursor: pointer;
     font-weight: 700;
     font-size: 16px;
     color: white;
     display: flex;
     align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    transition: all 0.3s ease;
+}
+
+.activeBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4);
 }
 
 .dateRange {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     flex-wrap: wrap;
-    margin-top: 8px;
+    margin-top: 12px;
 }
 
 .dateInput {
-    padding: 12px 16px;
+    padding: 12px 18px;
     border: 2px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: 14px;
     font-size: 16px;
     font-weight: 600;
-    color: #1a1a2e;
+    color: #1e293b;
     background: #f8fafc;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
 }
 
 .dateInput:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: #dc2626;
     background: white;
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
 }
 
 .dateRange span {
-    font-size: 20px;
-    font-weight: 700;
-    color: #6366f1;
+    font-size: 22px;
+    font-weight: 800;
+    color: #dc2626;
 }
 
 .viewReportBtn {
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
     color: white;
     border: none;
-    padding: 12px 24px;
-    border-radius: 12px;
+    padding: 12px 28px;
+    border-radius: 40px;
     font-weight: 700;
     font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
-    transition: all 0.3s;
+    gap: 10px;
+    transition: all 0.3s ease;
 }
 
 .viewReportBtn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.35);
 }
 
 .reportInfo {
-    margin-top: 12px;
+    margin-top: 16px;
 }
 
 .dateRangeInfo {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 18px;
-    background: #f0f0ff;
-    border-radius: 10px;
-    font-size: 16px;
+    gap: 10px;
+    padding: 10px 20px;
+    background: #fef2f2;
+    border-radius: 40px;
+    font-size: 15px;
     font-weight: 700;
-    color: #6366f1;
+    color: #dc2626;
+    border: 1px solid #fecaca;
 }
 
 /* ========== LOADING ========== */
@@ -187,20 +207,21 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 60px;
+    padding: 80px;
     background: white;
-    border-radius: 16px;
-    gap: 16px;
+    border-radius: 24px;
+    gap: 20px;
     font-size: 18px;
     font-weight: 700;
     color: #64748b;
+    border: 1px solid #e2e8f0;
 }
 
 .spinner {
-    width: 48px;
-    height: 48px;
+    width: 56px;
+    height: 56px;
     border: 4px solid #e2e8f0;
-    border-top-color: #6366f1;
+    border-top-color: #dc2626;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -214,40 +235,46 @@
 /* ========== SUMMARY CARDS ========== */
 .summaryCards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 18px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
 }
 
 .summaryCard {
     background: white;
     padding: 28px;
-    border-radius: 18px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     display: flex;
     align-items: center;
-    gap: 18px;
-    transition: all 0.3s;
+    gap: 20px;
+    transition: all 0.3s ease;
     overflow: hidden;
     border: 2px solid transparent;
+    cursor: pointer;
 }
 
 .summaryCard:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
-    border-color: #6366f1;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+    border-color: #dc2626;
 }
 
 .cardIcon {
     width: 64px;
     height: 64px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    border-radius: 20px;
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
     flex-shrink: 0;
+}
+
+.cardIcon svg {
+    width: 32px;
+    height: 32px;
 }
 
 .cardInfo {
@@ -257,10 +284,10 @@
 }
 
 .cardTitle {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     color: #64748b;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -268,31 +295,31 @@
 .cardValue {
     font-size: 34px;
     font-weight: 800;
-    color: #1a1a2e;
+    color: #1e293b;
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-
 /* ========== PAYMENT BREAKDOWN ========== */
 .paymentBreakdown {
     background: white;
     padding: 28px;
-    border-radius: 18px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-    margin-bottom: 24px;
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 28px;
+    border: 1px solid #e2e8f0;
 }
 
 .paymentBreakdown h3 {
     font-size: 22px;
     font-weight: 800;
-    color: #1a1a2e;
+    color: #1e293b;
     margin: 0 0 20px 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .breakdownTable {
@@ -302,10 +329,10 @@
 
 .breakdownTable th {
     background: #f8fafc;
-    padding: 16px 18px;
+    padding: 16px 20px;
     text-align: left;
     font-weight: 700;
-    font-size: 17px;
+    font-size: 16px;
     color: #475569;
     border-bottom: 2px solid #e2e8f0;
     text-transform: uppercase;
@@ -313,10 +340,10 @@
 }
 
 .breakdownTable td {
-    padding: 16px 18px;
+    padding: 16px 20px;
     border-bottom: 1px solid #f1f5f9;
-    font-size: 17px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 500;
     color: #334155;
 }
 
@@ -327,56 +354,63 @@
 .breakdownTable tbody tr td:first-child {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     font-weight: 700;
+}
+
+.breakdownTable tbody tr td:last-child {
+    font-weight: 800;
+    color: #059669;
 }
 
 /* ========== TOP DISHES ========== */
 .topDishes {
     background: white;
     padding: 28px;
-    border-radius: 18px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-    margin-bottom: 24px;
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 28px;
+    border: 1px solid #e2e8f0;
 }
 
 .topDishes h3 {
     font-size: 22px;
     font-weight: 800;
-    color: #1a1a2e;
+    color: #1e293b;
     margin: 0 0 20px 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .dishesList {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
 }
 
 .dishItem {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px 20px;
+    gap: 18px;
+    padding: 18px 22px;
     background: #f8fafc;
-    border-radius: 12px;
-    transition: all 0.3s;
+    border-radius: 16px;
+    transition: all 0.3s ease;
     border: 2px solid transparent;
 }
 
 .dishItem:hover {
     background: white;
-    border-color: #6366f1;
-    transform: translateX(4px);
+    border-color: #dc2626;
+    transform: translateX(6px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .dishRank {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -412,72 +446,103 @@
 
 .dishName {
     flex: 1;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
-    color: #1a1a2e;
+    color: #1e293b;
 }
 
 .dishQuantity {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     color: #64748b;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
 }
 
 .dishRevenue {
     font-size: 20px;
     font-weight: 800;
     color: #059669;
-    min-width: 120px;
+    min-width: 140px;
     text-align: right;
 }
 
 /* ========== EMPTY STATE ========== */
 .emptyState {
     background: white;
-    padding: 80px 24px;
-    border-radius: 18px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    padding: 80px 28px;
+    border-radius: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     text-align: center;
+    border: 1px solid #e2e8f0;
 }
 
 .emptyIcon {
     color: #94a3b8;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .emptyState h3 {
     font-size: 28px;
     font-weight: 800;
-    color: #1a1a2e;
-    margin: 0 0 8px 0;
+    color: #1e293b;
+    margin: 0 0 10px 0;
 }
 
 .emptyState p {
     font-size: 18px;
     color: #64748b;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 /* ========== RESPONSIVE ========== */
+@media (max-width: 1024px) {
+    .container {
+        padding: 24px;
+    }
+
+    .summaryCards {
+        gap: 16px;
+    }
+
+    .cardValue {
+        font-size: 28px;
+    }
+}
+
 @media (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
     .header {
         flex-direction: column;
         align-items: flex-start;
+        padding: 20px;
     }
 
     .header h2 {
         font-size: 24px;
     }
 
+    .exportBtn {
+        width: 100%;
+        justify-content: center;
+    }
+
     .summaryCards {
         grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
     }
 
     .cardValue {
-        font-size: 26px;
+        font-size: 24px;
+    }
+
+    .cardIcon {
+        width: 48px;
+        height: 48px;
     }
 
     .reportTypeBtns {
@@ -487,6 +552,7 @@
     .btn,
     .activeBtn {
         justify-content: center;
+        width: 100%;
     }
 
     .dateRange {
@@ -494,13 +560,138 @@
         align-items: stretch;
     }
 
+    .dateRange span {
+        text-align: center;
+    }
+
+    .viewReportBtn {
+        width: 100%;
+        justify-content: center;
+    }
+
     .breakdownTable th,
     .breakdownTable td {
-        padding: 12px 10px;
-        font-size: 15px;
+        padding: 12px 12px;
+        font-size: 14px;
     }
 
     .dishItem {
         flex-wrap: wrap;
+        gap: 12px;
     }
+
+    .dishRevenue {
+        text-align: left;
+        min-width: auto;
+        width: 100%;
+        padding-left: 56px;
+    }
+
+    .filterSection {
+        padding: 20px;
+    }
+
+    .paymentBreakdown,
+    .topDishes {
+        padding: 20px;
+    }
+
+    .paymentBreakdown h3,
+    .topDishes h3 {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 16px;
+    }
+
+    .summaryCards {
+        grid-template-columns: 1fr;
+    }
+
+    .cardValue {
+        font-size: 22px;
+    }
+
+    .cardTitle {
+        font-size: 13px;
+    }
+
+    .emptyState h3 {
+        font-size: 22px;
+    }
+
+    .emptyState p {
+        font-size: 16px;
+    }
+
+    .breakdownTable {
+        display: block;
+        overflow-x: auto;
+        min-width: 500px;
+    }
+}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #dc2626;
+}
+
+/* ========== UTILITY ========== */
+.text-gradient {
+    background: linear-gradient(135deg, #1e293b, #dc2626);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.text-success {
+    color: #059669;
+    font-weight: 700;
+}
+
+.text-warning {
+    color: #d97706;
+    font-weight: 700;
+}
+
+.text-danger {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+/* ========== ANIMATIONS ========== */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.summaryCard,
+.paymentBreakdown,
+.topDishes {
+    animation: fadeInUp 0.4s ease forwards;
 }

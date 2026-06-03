@@ -4,6 +4,7 @@ import { Table, Home, Users, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
 import styles from "./TablesPage.module.css";
+import { Utensils, Coffee } from "lucide-react";
 
 const API = "http://localhost:8080";
 const socket = io('http://localhost:3001');
@@ -376,7 +377,9 @@ const TablesPage = () => {
                                         )}
 
                                         <div className={styles.cardIcon}>
-                                            {table.status === "FREE" ? "🍽️" : table.status === "RESERVED" ? "📅" : "🍜"}
+                                            {table.status === "FREE" ? <Utensils size={48} color="#10b981" /> :
+                                                table.status === "RESERVED" ? <Calendar size={48} color="#f59e0b" /> :
+                                                    <Coffee size={48} color="#ef4444" />}
                                         </div>
                                         <div className={styles.cardTitle}>Bàn {table.number}</div>
 

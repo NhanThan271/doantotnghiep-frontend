@@ -2,16 +2,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-    Table, Home, Users, Clock, CheckCircle, XCircle,
+    Table, Home, Users, Clock, CheckCircle,
     ChevronDown, ChevronUp, X, Calendar, Phone, User,
-    AlertCircle, Edit2, Bell, Check, List, RefreshCw,
-    MapPin, Clock3, AlertTriangle
+    AlertCircle, Bell, Check, List, RefreshCw,
+    MapPin, Clock3, AlertTriangle, Utensils, Coffee,
+    Building, DollarSign, Mail, PenSquare, Lock
 } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
 import styles from "./BookingPage.module.css";
 
-const API_BASE_URL = "http://localhost:8080";
 const SOCKET_URL = "http://localhost:3001";
 const socket = io(SOCKET_URL, {
     transports: ['websocket'],
@@ -32,7 +32,6 @@ const BookingPage = () => {
     const [showAreas, setShowAreas] = useState(true);
     const [activeTab, setActiveTab] = useState("tables");
     const [reservations, setReservations] = useState([]);
-    const [notifications, setNotifications] = useState([]);
     const [isSocketConnected, setIsSocketConnected] = useState(true);
 
     // Modal states
@@ -50,16 +49,6 @@ const BookingPage = () => {
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState({});
 
-    // Status modal
-    const [showStatusModal, setShowStatusModal] = useState(false);
-    const [statusEntity, setStatusEntity] = useState(null);
-    const [newStatus, setNewStatus] = useState("");
-    const [updatingStatus, setUpdatingStatus] = useState(false);
-
-    // Reservation detail modal
-    const [showReservationDetail, setShowReservationDetail] = useState(false);
-    const [selectedReservation, setSelectedReservation] = useState(null);
-
     // Toast
     const [toast, setToast] = useState({ show: false, message: "", type: "" });
 
@@ -67,10 +56,6 @@ const BookingPage = () => {
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = userData.branch?.id;
     const branchName = userData.branch?.name;
-    const userRole = userData.role?.name || userData.role;
-    const token = localStorage.getItem('token');
-
-    const canEditStatus = ['ADMIN', 'MANAGER', 'EMPLOYEE'].includes(userRole);
 
     // ==================== SOCKET.IO SETUP ====================
     useEffect(() => {
@@ -104,7 +89,6 @@ const BookingPage = () => {
         socket.on("staff-reservation-notification", (data) => {
             console.log("📢 Nhận thông báo đặt bàn:", data);
             showToast(data.message, "info");
-            setNotifications(prev => [data, ...prev]);
             fetchReservations();
             fetchTables();
             fetchRooms();
@@ -138,6 +122,7 @@ const BookingPage = () => {
             socket.off("new-reservation");
             socket.off("reservation-updated");
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userData.id, branchId]);
 
     // ==================== UTILITY FUNCTIONS ====================
@@ -167,80 +152,55 @@ const BookingPage = () => {
         }, 4000);
     }, []);
 
-    // ==================== API CALLS ====================
-    const fetchAreas = async () => {
+    // ==================== API CALLS USING AXIOS ====================
+    const fetchAreas = useCallback(async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/tables/branch/${branchId}/areas`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setAreas(["Tất cả", ...data]);
-            }
+            const response = await axiosClient.get(`/tables/branch/${branchId}/areas`);
+            setAreas(["Tất cả", ...response.data]);
         } catch (err) {
             console.error("Lỗi tải khu vực:", err);
         }
-    };
+    }, [branchId]);
 
-    // 👉 QUAN TRỌNG: Dùng API /reservations/tables (đã có sẵn customerName, checkInTime)
     const fetchTables = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/api/reservations/tables`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await axiosClient.get(`/reservations/tables`);
+            let data = response.data;
+            console.log("✅ API /reservations/tables trả về:", data.length, "bàn");
 
-            if (response.ok) {
-                let data = await response.json();
-                console.log("✅ API /reservations/tables trả về:", data.length, "bàn");
-                console.log("📋 Dữ liệu bàn mẫu:", data[0]); // Kiểm tra xem có customerName không
-
-                // Lọc theo khu vực
-                if (selectedArea !== "Tất cả") {
-                    data = data.filter(table => table.area === selectedArea);
-                }
-
-                setTables(data);
-            } else {
-                console.error("API /reservations/tables lỗi:", response.status);
-                setTables([]);
+            if (selectedArea !== "Tất cả") {
+                data = data.filter(table => table.area === selectedArea);
             }
+            setTables(data);
         } catch (err) {
             console.error("Lỗi tải bàn:", err);
             setTables([]);
         } finally {
             setLoading(false);
         }
-    }, [selectedArea, token]);
+    }, [selectedArea]);
 
     const fetchRooms = useCallback(async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/reservations/rooms`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setRooms(data);
-            }
+            const response = await axiosClient.get(`/reservations/rooms`);
+            setRooms(response.data);
         } catch (err) {
             console.error("Lỗi tải phòng:", err);
+            setRooms([]);
         }
-    }, [token]);
+    }, []);
 
     const fetchReservations = useCallback(async () => {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/reservations/pending`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                const pendingOnly = data.filter(r => r.status === "PENDING");
-                setReservations(pendingOnly);
-            }
+            const response = await axiosClient.get(`/reservations/pending`);
+            const pendingOnly = response.data.filter(r => r.status === "PENDING");
+            setReservations(pendingOnly);
         } catch (err) {
             console.error("Lỗi tải đặt bàn:", err);
+            setReservations([]);
         }
-    }, [token]);
+    }, []);
 
     const refreshAllData = useCallback(() => {
         setLoading(true);
@@ -253,7 +213,7 @@ const BookingPage = () => {
             setLoading(false);
             showToast("Đã làm mới dữ liệu", "info");
         });
-    }, [fetchTables, fetchRooms, fetchReservations, showToast]);
+    }, [fetchTables, fetchRooms, fetchReservations, fetchAreas, showToast]);
 
     useEffect(() => {
         if (branchId) {
@@ -264,37 +224,24 @@ const BookingPage = () => {
     // ==================== RESERVATION ACTIONS ====================
     const confirmReservation = async (reservationId) => {
         try {
-            const response = await fetch(
-                `${API_BASE_URL}/api/reservations/${reservationId}/status?status=CONFIRMED`,
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
+            await axiosClient.put(`/reservations/${reservationId}/status?status=CONFIRMED`);
+            showToast("Đã xác nhận đặt bàn thành công!", "success");
+            socket.emit("reservation-confirmed", { reservationId });
 
-            if (response.ok || response.status === 500) {
-                const result = await response.json();
-                showToast("✅ Đã xác nhận đặt bàn thành công!", "success");
-                socket.emit("reservation-confirmed", result);
+            await Promise.all([
+                fetchReservations(),
+                fetchTables(),
+                fetchRooms()
+            ]);
 
-                await Promise.all([
-                    fetchReservations(),
-                    fetchTables(),
-                    fetchRooms()
-                ]);
-
-                socket.emit("update-tables");
-                socket.emit("reservation-updated", {
-                    reservationId,
-                    status: "CONFIRMED"
-                });
-            }
+            socket.emit("update-tables");
+            socket.emit("reservation-updated", {
+                reservationId,
+                status: "CONFIRMED"
+            });
         } catch (err) {
             console.error("Lỗi xác nhận:", err);
-            showToast("❌ Xác nhận thất bại: " + err.message, "error");
+            showToast("Xác nhận thất bại: " + (err.response?.data?.message || err.message), "error");
         }
     };
 
@@ -302,35 +249,23 @@ const BookingPage = () => {
         if (!window.confirm("Bạn có chắc chắn muốn hủy đặt bàn này?")) return;
 
         try {
-            const response = await fetch(
-                `${API_BASE_URL}/api/reservations/${reservationId}/status?status=CANCELLED`,
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
+            await axiosClient.put(`/reservations/${reservationId}/status?status=CANCELLED`);
+            showToast("Đã hủy đặt bàn thành công!", "success");
 
-            if (response.ok || response.status === 500) {
-                showToast("🗑️ Đã hủy đặt bàn thành công!", "success");
+            await Promise.all([
+                fetchReservations(),
+                fetchTables(),
+                fetchRooms()
+            ]);
 
-                await Promise.all([
-                    fetchReservations(),
-                    fetchTables(),
-                    fetchRooms()
-                ]);
-
-                socket.emit("update-tables");
-                socket.emit("reservation-updated", {
-                    reservationId,
-                    status: "CANCELLED"
-                });
-            }
+            socket.emit("update-tables");
+            socket.emit("reservation-updated", {
+                reservationId,
+                status: "CANCELLED"
+            });
         } catch (err) {
             console.error("Lỗi hủy đặt bàn:", err);
-            showToast("❌ Hủy thất bại: " + err.message, "error");
+            showToast("Hủy thất bại: " + (err.response?.data?.message || err.message), "error");
         }
     };
 
@@ -418,24 +353,10 @@ const BookingPage = () => {
                 }
             });
 
-            const response = await fetch(`${API_BASE_URL}/api/reservations/full`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(requestData)
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || "Đặt bàn thất bại");
-            }
-
-            const result = await response.json();
+            const response = await axiosClient.post(`/reservations/full`, requestData);
 
             showToast(
-                `✅ Đặt ${selectedEntity.type === "table" ? "bàn" : "phòng"} ${selectedEntity.number} thành công! Đang chờ xác nhận.`,
+                `Đặt ${selectedEntity.type === "table" ? "bàn" : "phòng"} ${selectedEntity.number} thành công! Đang chờ xác nhận.`,
                 "success"
             );
 
@@ -447,12 +368,12 @@ const BookingPage = () => {
                 fetchRooms()
             ]);
 
-            socket.emit("new-reservation", result);
+            socket.emit("new-reservation", response.data);
             socket.emit("update-tables");
 
         } catch (err) {
             console.error("❌ Lỗi đặt bàn:", err);
-            showToast(`Đặt bàn thất bại: ${err.message}`, "error");
+            showToast(`Đặt bàn thất bại: ${err.response?.data?.message || err.message}`, "error");
         } finally {
             setSubmitting(false);
         }
@@ -482,7 +403,7 @@ const BookingPage = () => {
                 await updateReservationStatus(pendingReservation.id, "CHECKED_IN");
             }
 
-            showToast(`✅ Check-in ${type === "table" ? "bàn" : "phòng"} ${entity.number} thành công!`, "success");
+            showToast(`Check-in ${type === "table" ? "bàn" : "phòng"} ${entity.number} thành công!`, "success");
 
             await Promise.all([
                 fetchReservations(),
@@ -500,21 +421,7 @@ const BookingPage = () => {
 
     const updateReservationStatus = async (reservationId, status) => {
         try {
-            const response = await fetch(
-                `${API_BASE_URL}/api/reservations/${reservationId}/status?status=${status}`,
-                {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-
-            if (!response.ok && response.status !== 500) {
-                throw new Error("Cập nhật trạng thái thất bại");
-            }
-
+            await axiosClient.put(`/reservations/${reservationId}/status?status=${status}`);
             return true;
         } catch (err) {
             console.error("Lỗi cập nhật trạng thái:", err);
@@ -572,7 +479,7 @@ const BookingPage = () => {
         <div className={styles.bookingPage}>
             {!isSocketConnected && (
                 <div className={styles.warningBanner}>
-                    <AlertCircle size={16} color="#fbbf24" />
+                    <AlertCircle size={16} />
                     <span>Đang mất kết nối real-time. Dữ liệu có thể không được cập nhật ngay!</span>
                 </div>
             )}
@@ -589,7 +496,7 @@ const BookingPage = () => {
 
             <div className={styles.header}>
                 <div className={styles.headerInfo}>
-                    <h2 className={styles.headerTitle}>🏨 Đặt bàn & Phòng</h2>
+                    <h2 className={styles.headerTitle}>Đặt bàn & Phòng</h2>
                     <div className={styles.headerMeta}>
                         <MapPin size={14} /><span>{branchName || "Nhà hàng"}</span>
                         <Clock3 size={14} /><span>{new Date().toLocaleTimeString('vi-VN')}</span>
@@ -624,7 +531,8 @@ const BookingPage = () => {
                         <div className={styles.areaList}>
                             {areas.map(area => (
                                 <button key={area} onClick={() => setSelectedArea(area)} className={`${styles.areaButton} ${selectedArea === area ? styles.activeArea : ""}`}>
-                                    {area === "Tất cả" ? "🏠 Tất cả" : `📍 ${area}`}
+                                    {area === "Tất cả" ? <Building size={14} /> : <MapPin size={14} />}
+                                    <span>{area}</span>
                                 </button>
                             ))}
                         </div>
@@ -644,7 +552,6 @@ const BookingPage = () => {
                                 const isOccupied = table.status === "OCCUPIED";
                                 const isReserved = table.status === "RESERVED";
                                 const isFree = table.status === "FREE";
-                                // 👉 Dùng dữ liệu có sẵn từ API
                                 const hasReservation = table.hasUpcomingReservation === true;
                                 const customerName = table.customerName;
                                 const checkInTime = table.checkInTime;
@@ -654,14 +561,13 @@ const BookingPage = () => {
                                         <div className={styles.statusIndicator} style={{ backgroundColor: getStatusColor(table.status) }} />
                                         <div className={styles.cardContent}>
                                             <div className={styles.cardHeader}>
-                                                <span className={styles.cardIcon}>{isFree ? "🍽️" : isReserved ? "📅" : "🍜"}</span>
+                                                <span className={styles.cardIcon}>{isFree ? <Utensils size={48} /> : isReserved ? <Calendar size={48} /> : <Coffee size={48} />}</span>
                                                 {hasReservation && <span className={styles.upcomingBadge} title="Có đặt bàn sắp tới"><Clock size={10} /></span>}
                                             </div>
                                             <h3 className={styles.cardTitle}>Bàn {table.number}</h3>
                                             <div className={styles.cardStatus}><span style={{ color: getStatusColor(table.status) }}>{getStatusText(table.status)}</span></div>
                                             {table.capacity && <div className={styles.cardInfo}><Users size={12} /><span>{table.capacity} người</span></div>}
                                             {table.area && <div className={styles.cardInfo}><MapPin size={12} /><span>{table.area}</span></div>}
-                                            {/* 👉 HIỂN THỊ THÔNG TIN KHÁCH ĐẶT BÀN */}
                                             {(isReserved || hasReservation) && customerName && (
                                                 <div className={styles.upcomingInfo}>
                                                     <AlertTriangle size={12} />
@@ -703,7 +609,7 @@ const BookingPage = () => {
                                         <div className={styles.statusIndicator} style={{ backgroundColor: getStatusColor(room.status) }} />
                                         <div className={styles.cardContent}>
                                             <div className={styles.cardHeader}>
-                                                <span className={styles.cardIcon}>{isFree ? "🏠" : isReserved ? "📅" : "🔒"}</span>
+                                                <span className={styles.cardIcon}>{isFree ? <Home size={48} /> : isReserved ? <Calendar size={48} /> : <Lock size={48} />}</span>
                                                 {hasReservation && <span className={styles.upcomingBadge}><Clock size={10} /></span>}
                                             </div>
                                             <h3 className={styles.cardTitle}>Phòng {room.number}</h3>
@@ -739,7 +645,7 @@ const BookingPage = () => {
                             <span className={styles.reservationCount}>{reservations.length} đơn</span>
                         </div>
                         {reservations.length === 0 ? (
-                            <div className={styles.emptyState}><CheckCircle size={48} color="#10b981" /><p>Tất cả đặt bàn đã được xử lý</p></div>
+                            <div className={styles.emptyState}><CheckCircle size={48} /><p>Tất cả đặt bàn đã được xử lý</p></div>
                         ) : (
                             <div className={styles.reservationsList}>
                                 {reservations.map((res) => (
@@ -775,13 +681,13 @@ const BookingPage = () => {
                 <div className={styles.modalOverlay} onClick={() => setShowBookingModal(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
-                            <h3>📅 Đặt {selectedEntity.type === "table" ? "bàn" : "phòng"} {selectedEntity.number}</h3>
+                            <h3><Calendar size={18} /> Đặt {selectedEntity.type === "table" ? "bàn" : "phòng"} {selectedEntity.number}</h3>
                             <button onClick={() => setShowBookingModal(false)} className={styles.modalClose}><X size={20} /></button>
                         </div>
                         <div className={styles.modalBody}>
                             <div className={styles.infoBox}>
                                 <div className={styles.infoItem}>
-                                    <span>{selectedEntity.type === "table" ? "🍽️" : "🏠"}<strong>{selectedEntity.type === "table" ? "Bàn" : "Phòng"} {selectedEntity.number}</strong></span>
+                                    <span>{selectedEntity.type === "table" ? <Utensils size={16} /> : <Home size={16} />}<strong>{selectedEntity.type === "table" ? "Bàn" : "Phòng"} {selectedEntity.number}</strong></span>
                                     {selectedEntity.capacity && <span><Users size={14} />{selectedEntity.capacity} người</span>}
                                 </div>
                                 {selectedEntity.area && <div className={styles.infoItem}><MapPin size={14} /><span>{selectedEntity.area}</span></div>}
@@ -804,9 +710,9 @@ const BookingPage = () => {
                                 </div>
                                 <div className={styles.formGroup}><label><User size={14} /> Họ tên khách hàng *</label><input type="text" value={bookingForm.customerName} onChange={(e) => setBookingForm({ ...bookingForm, customerName: e.target.value })} className={errors.customerName ? styles.inputError : styles.input} placeholder="Nhập họ tên khách hàng" />{errors.customerName && <span className={styles.errorMessage}>{errors.customerName}</span>}</div>
                                 <div className={styles.formGroup}><label><Phone size={14} /> Số điện thoại *</label><input type="tel" value={bookingForm.phone} onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })} className={errors.phone ? styles.inputError : styles.input} placeholder="0987 654 321" />{errors.phone && <span className={styles.errorMessage}>{errors.phone}</span>}</div>
-                                <div className={styles.formGroup}><label>✉️ Email (không bắt buộc)</label><input type="email" value={bookingForm.email} onChange={(e) => setBookingForm({ ...bookingForm, email: e.target.value })} className={errors.email ? styles.inputError : styles.input} placeholder="example@email.com" />{errors.email && <span className={styles.errorMessage}>{errors.email}</span>}</div>
-                                <div className={styles.formGroup}><label>💰 Tiền cọc (VNĐ)</label><input type="number" min="0" step="10000" value={bookingForm.depositAmount} onChange={(e) => setBookingForm({ ...bookingForm, depositAmount: parseInt(e.target.value) || 0 })} className={errors.depositAmount ? styles.inputError : styles.input} placeholder="0" />{errors.depositAmount && <span className={styles.errorMessage}>{errors.depositAmount}</span>}</div>
-                                <div className={styles.formGroup}><label>📝 Ghi chú</label><textarea value={bookingForm.note} onChange={(e) => setBookingForm({ ...bookingForm, note: e.target.value })} className={styles.textarea} rows="3" placeholder="Yêu cầu đặc biệt của khách hàng..." /></div>
+                                <div className={styles.formGroup}><label><Mail size={14} /> Email (không bắt buộc)</label><input type="email" value={bookingForm.email} onChange={(e) => setBookingForm({ ...bookingForm, email: e.target.value })} className={errors.email ? styles.inputError : styles.input} placeholder="example@email.com" />{errors.email && <span className={styles.errorMessage}>{errors.email}</span>}</div>
+                                <div className={styles.formGroup}><label><DollarSign size={14} /> Tiền cọc (VNĐ)</label><input type="number" min="0" step="10000" value={bookingForm.depositAmount} onChange={(e) => setBookingForm({ ...bookingForm, depositAmount: parseInt(e.target.value) || 0 })} className={errors.depositAmount ? styles.inputError : styles.input} placeholder="0" />{errors.depositAmount && <span className={styles.errorMessage}>{errors.depositAmount}</span>}</div>
+                                <div className={styles.formGroup}><label><PenSquare size={14} /> Ghi chú</label><textarea value={bookingForm.note} onChange={(e) => setBookingForm({ ...bookingForm, note: e.target.value })} className={styles.textarea} rows="3" placeholder="Yêu cầu đặc biệt của khách hàng..." /></div>
                                 <div className={styles.notificationInfo}><Bell size={14} /><span>Đặt bàn sẽ ở trạng thái chờ xác nhận. Hệ thống sẽ gửi thông báo cho phục vụ và bếp.</span></div>
                             </form>
                         </div>

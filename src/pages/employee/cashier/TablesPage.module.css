@@ -1,173 +1,307 @@
-/* ========== CONTAINER ========== */
+/* TablesPage.module.css - Full màn hình với 5 bàn mỗi hàng */
+
+/* ========== GLOBAL ========== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap');
+
+* {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ========== CONTAINER FULL MÀN HÌNH ========== */
 .container {
-    padding: 20px;
+    width: 100%;
     min-height: 100vh;
-    background: linear-gradient(135deg, #f8faf5 0%, #f0f4ec 100%);
+    margin: 0;
+    padding: 28px 32px;
+    background: linear-gradient(135deg, #f0f9ff 0%, #d9f0f7 50%, #e0f2fe 100%);
+    animation: fadeIn 0.3s ease;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ========== HEADER ========== */
 .header {
-    background: white;
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 28px;
 }
 
 .headerTitle {
+    font-size: 32px;
+    font-weight: 800;
     margin: 0;
-    color: #2c3e2f;
+    background: linear-gradient(135deg, #1e293b, #dc2626, #b91c1c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
 }
 
-.headerSubtitle {
-    margin: 8px 0 0;
-    color: #8a9b8c;
-    font-size: 14px;
-}
-
-/* ========== TAB BUTTONS ========== */
+/* ========== TAB CONTAINER ========== */
 .tabContainer {
     display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
 }
 
 .tabButton {
-    padding: 12px 24px;
-    background: white;
-    color: #5d6e5f;
-    border: none;
-    border-radius: 12px;
-    font-weight: bold;
-    cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 8px;
-    transition: all 0.2s;
+    gap: 10px;
+    padding: 14px 28px;
+    background: white;
+    border: 2px solid transparent;
+    border-radius: 60px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.tabButton:hover {
+    border-color: #e2e8f0;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    color: #1e293b;
 }
 
 .tabButtonActive {
-    background: #d32f2f;
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
     color: white;
+    border-color: #dc2626;
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.3);
 }
 
-.tabButton:hover:not(.tabButtonActive) {
-    background: #f1f3ee;
+.tabButtonActive:hover {
+    color: white;
     transform: translateY(-2px);
 }
 
-/* ========== AREA FILTER ========== */
+/* ========== AREA CARD ========== */
 .areaCard {
     background: white;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 20px;
+    border-radius: 20px;
+    margin-bottom: 28px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
 }
 
 .areaHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 18px 24px;
     cursor: pointer;
+    background: #f8fafc;
+    transition: all 0.25s ease;
+}
+
+.areaHeader:hover {
+    background: #f1f5f9;
 }
 
 .areaTitle {
-    font-weight: bold;
-    color: #2c3e2f;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .areaContent {
+    padding: 20px 24px;
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 12px;
+    border-top: 1px solid #e2e8f0;
 }
 
 .areaButton {
-    padding: 8px 16px;
-    background: #f1f3ee;
-    color: #5d6e5f;
-    border: none;
-    border-radius: 20px;
+    padding: 10px 22px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
     cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.areaButton:hover {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
 }
 
 .areaButtonActive {
-    background: #d32f2f;
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
     color: white;
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
 }
 
-.areaButton:hover:not(.areaButtonActive) {
-    background: #e5e9e0;
-    transform: translateY(-2px);
-}
-
-/* ========== GRID ========== */
+/* ========== GRID CONTAINER - 5 BÀN MỖI HÀNG ========== */
 .gridContainer {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 24px;
+    width: 100%;
 }
 
-/* ========== TABLE/ROOM CARD ========== */
+/* Responsive */
+@media (max-width: 1400px) {
+    .gridContainer {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .gridContainer {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 18px;
+    }
+}
+
+@media (max-width: 768px) {
+    .gridContainer {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .gridContainer {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
+
+@media (min-width: 1600px) {
+    .gridContainer {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 28px;
+    }
+}
+
+/* ========== CARD STYLES ========== */
 .card {
-    position: relative;
-    border-radius: 16px;
-    padding: 20px;
+    background: white;
+    border-radius: 24px;
+    padding: 24px;
     cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    text-align: center;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    border: 2px solid transparent;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    transform: translateY(-8px);
+    box-shadow: 0 24px 40px rgba(0, 0, 0, 0.14);
 }
 
 .cardFree {
-    background: linear-gradient(135deg, #ffffff, #f8faf5);
-    border: 2px solid #10b981;
+    border-color: #d1fae5;
+    background: linear-gradient(to bottom, white, #f0fdf4);
+}
+
+.cardFree:hover {
+    border-color: #10b981;
+    box-shadow: 0 12px 28px rgba(16, 185, 129, 0.2);
 }
 
 .cardReserved {
-    background: #fffbeb;
-    border: 2px solid #f59e0b;
+    border-color: #fef3c7;
+    background: linear-gradient(to bottom, white, #fffbeb);
+}
+
+.cardReserved:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 12px 28px rgba(245, 158, 11, 0.2);
 }
 
 .cardOccupied {
-    background: #fff3e0;
-    border: 2px solid #ef4444;
+    border-color: #fee2e2;
+    background: linear-gradient(to bottom, white, #fef2f2);
+}
+
+.cardOccupied:hover {
+    border-color: #ef4444;
+    box-shadow: 0 12px 28px rgba(239, 68, 68, 0.2);
+}
+
+.cardMaintenance {
+    border-color: #e2e8f0;
+    background: #f8fafc;
+    opacity: 0.8;
+}
+
+.cardMaintenance:hover {
+    border-color: #64748b;
 }
 
 /* ========== ADD BUTTON ========== */
 .addButton {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    background: #10b981;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 20px;
-    font-size: 10px;
-    font-weight: bold;
+    top: 20px;
+    right: 20px;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 40px;
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0;
+    transition: all 0.25s ease;
+    z-index: 10;
+}
+
+.card:hover .addButton {
+    opacity: 1;
+    transform: scale(1.02);
 }
 
 /* ========== CARD ICON ========== */
 .cardIcon {
-    font-size: 40px;
-    margin-bottom: 8px;
+    font-size: 56px;
+    margin-bottom: 20px;
+    text-align: center;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 }
 
+/* ========== CARD TITLE ========== */
 .cardTitle {
-    font-size: 18px;
-    font-weight: bold;
-    color: #2c3e2f;
+    font-size: 22px;
+    font-weight: 800;
+    color: #1e293b;
+    text-align: center;
+    margin-bottom: 14px;
+    letter-spacing: -0.3px;
 }
 
 /* ========== LOCATION ========== */
@@ -175,18 +309,74 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    margin-top: 4px;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 18px;
+    padding: 6px 14px;
+    background: #f1f5f9;
+    border-radius: 40px;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.location svg {
+    color: #dc2626;
+    width: 16px;
+    height: 16px;
+}
+
+/* ========== RESERVATION INFO ========== */
+.reservationInfo {
+    background: #fef3c7;
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 14px;
+    border-left: 4px solid #f59e0b;
+}
+
+.reservationHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #92400e;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+.reservationCustomer {
+    font-size: 15px;
+    font-weight: 800;
+    color: #78350f;
+    margin-bottom: 6px;
+}
+
+.reservationTime {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 12px;
-    color: #8a9b8c;
+    font-weight: 500;
+    color: #92400e;
 }
 
 /* ========== ORDER STATUS ========== */
 .orderStatus {
-    font-size: 11px;
-    color: #f59e0b;
-    margin-top: 4px;
-    font-weight: 500;
+    display: inline-block;
+    background: #eff6ff;
+    color: #2563eb;
+    padding: 8px 14px;
+    border-radius: 40px;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 14px;
+    width: 100%;
 }
 
 /* ========== TABLE STATUS ========== */
@@ -194,59 +384,104 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    margin-top: 8px;
-    font-size: 13px;
+    gap: 10px;
+    margin-bottom: 14px;
 }
 
 .statusText {
-    font-weight: 500;
+    font-size: 15px;
+    font-weight: 700;
 }
 
-.statusFree {
-    color: #10b981;
-}
-
-.statusReserved {
-    color: #f59e0b;
-}
-
-.statusOccupied {
-    color: #ef4444;
-}
-
-/* ========== TIME ========== */
+/* ========== TIME INFO ========== */
 .timeInfo {
-    font-size: 11px;
-    color: #8a9b8c;
-    margin-top: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ef4444;
+    background: #fef2f2;
+    padding: 8px 14px;
+    border-radius: 40px;
+    margin-bottom: 14px;
 }
 
 /* ========== CAPACITY ========== */
 .capacity {
-    font-size: 11px;
-    color: #8a9b8c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
     margin-top: 8px;
+}
+
+.capacity svg {
+    width: 16px;
+    height: 16px;
+    color: #dc2626;
+}
+
+/* ========== UPCOMING INFO ========== */
+.upcomingInfo {
+    margin-top: 12px;
+    padding: 14px;
+    background: #fff7ed;
+    border-radius: 16px;
+    border-left: 4px solid #f59e0b;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.upcomingInfo svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #f59e0b;
+    width: 16px;
+    height: 16px;
+}
+
+.upcomingName {
+    margin: 0;
+    font-weight: 700;
+    color: #92400e;
+    font-size: 14px;
+}
+
+.upcomingTime {
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #d97706;
 }
 
 /* ========== LOADING STATE ========== */
 .loadingContainer {
-    text-align: center;
-    padding: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: 80px 20px;
+    background: white;
+    border-radius: 24px;
+    border: 1px solid #e2e8f0;
 }
 
 .spinner {
-    width: 48px;
-    height: 48px;
-    border: 4px solid #e2e8e0;
-    border-top-color: #d32f2f;
+    width: 56px;
+    height: 56px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #dc2626;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
-    margin: 0 auto 20px;
 }
 
 @keyframes spin {
@@ -256,50 +491,248 @@
 }
 
 .loadingText {
-    color: #8a9b8c;
+    margin-top: 24px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #64748b;
 }
 
 /* ========== EMPTY STATE ========== */
 .emptyState {
     text-align: center;
-    padding: 60px;
+    padding: 80px 20px;
     background: white;
-    border-radius: 16px;
+    border-radius: 24px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
-.emptyText {
-    color: #8a9b8c;
+.emptyState svg {
+    color: #cbd5e1;
+    margin-bottom: 20px;
 }
 
-/* ========== FULL WIDTH COLUMN ========== */
+.emptyState p {
+    color: #64748b;
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0;
+}
+
 .fullWidth {
     grid-column: 1 / -1;
 }
 
+.emptyText {
+    font-size: 16px;
+    font-weight: 500;
+    color: #94a3b8;
+}
+
 /* ========== RESPONSIVE ========== */
-@media (max-width: 768px) {
+@media (min-width: 1600px) {
     .container {
-        padding: 12px;
+        padding: 40px 60px;
     }
 
-    .gridContainer {
-        grid-template-columns: 1fr;
+    .cardTitle {
+        font-size: 24px;
+    }
+
+    .cardIcon {
+        font-size: 64px;
+    }
+
+    .headerTitle {
+        font-size: 36px;
+    }
+}
+
+@media (max-width: 1400px) {
+    .cardTitle {
+        font-size: 20px;
+    }
+
+    .cardIcon {
+        font-size: 48px;
+    }
+}
+
+@media (max-width: 1100px) {
+    .cardTitle {
+        font-size: 18px;
+    }
+
+    .cardIcon {
+        font-size: 44px;
+    }
+
+    .card {
+        padding: 18px;
+    }
+}
+
+@media (max-width: 992px) {
+    .container {
+        padding: 24px 28px;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
+    .headerTitle {
+        font-size: 24px;
+    }
+
+    .tabContainer {
+        gap: 12px;
     }
 
     .tabButton {
-        padding: 10px 16px;
-        font-size: 13px;
+        padding: 10px 20px;
+        font-size: 14px;
+        flex: 1;
+        justify-content: center;
+    }
+
+    .tabButton span:not(.tabCount) {
+        display: none;
     }
 
     .card {
         padding: 16px;
     }
 
+    .cardTitle {
+        font-size: 18px;
+    }
+
     .cardIcon {
-        font-size: 32px;
+        font-size: 40px;
+        margin-bottom: 12px;
+    }
+
+    .areaHeader {
+        padding: 14px 20px;
+    }
+
+    .areaContent {
+        padding: 14px 20px;
+    }
+
+    .areaButton {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 16px;
+    }
+
+    .tabButton {
+        padding: 8px 14px;
+        font-size: 13px;
+        gap: 6px;
+    }
+
+    .tabButton svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .card {
+        padding: 16px;
+        border-radius: 20px;
     }
 
     .cardTitle {
-        font-size: 16px;
+        font-size: 18px;
     }
+
+    .cardIcon {
+        font-size: 40px;
+        margin-bottom: 12px;
+    }
+
+    .location {
+        font-size: 12px;
+        padding: 4px 12px;
+    }
+
+    .capacity,
+    .timeInfo {
+        font-size: 12px;
+    }
+
+    .areaButton {
+        padding: 6px 14px;
+        font-size: 12px;
+    }
+}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #dc2626;
+}
+
+/* ========== UTILITY CLASSES ========== */
+.text-gradient {
+    background: linear-gradient(135deg, #1e293b, #dc2626);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hover-lift {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* ========== ACCESSIBILITY ========== */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+.tabButton:focus-visible,
+.areaButton:focus-visible,
+.card:focus-visible,
+.addButton:focus-visible {
+    outline: 2px solid #dc2626;
+    outline-offset: 2px;
+}
+
+::selection {
+    background: rgba(220, 38, 38, 0.2);
+    color: #1e293b;
 }
