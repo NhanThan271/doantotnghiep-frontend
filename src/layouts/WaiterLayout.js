@@ -1,12 +1,14 @@
-// WaiterLayout.js - MENU CÙNG HÀNG HEADER
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import io from 'socket.io-client';
+import {
+    Bell, LogOut, ChefHat, ClipboardList, Calendar, Home,
+    CheckCircle2, AlertTriangle, XCircle, Info, X, Building2, User
+} from 'lucide-react';
 
 const socket = io('http://localhost:3001');
 const API = "http://localhost:8080";
 
-// Key lưu trong localStorage
 const NOTIFICATIONS_KEY = 'waiter_notifications';
 
 const WaiterLayout = () => {
@@ -17,7 +19,6 @@ const WaiterLayout = () => {
 
     const [unreadCount, setUnreadCount] = useState(0);
 
-    // ===== KHÔI PHỤC NOTIFICATIONS TỪ LOCALSTORAGE KHI MOUNT =====
     const [notifications, setNotifications] = useState(() => {
         try {
             const saved = localStorage.getItem(NOTIFICATIONS_KEY);
@@ -26,14 +27,13 @@ const WaiterLayout = () => {
                 return parsed.map(n => ({ ...n, timestamp: new Date(n.timestamp) }));
             }
         } catch (e) {
-            console.error("Lỗi đọc notifications từ localStorage:", e);
+            console.error("Lỗi đọc notifications:", e);
         }
         return [];
     });
 
     const [showNotificationPanel, setShowNotificationPanel] = useState(false);
 
-    // ===== LƯU NOTIFICATIONS VÀO LOCALSTORAGE =====
     useEffect(() => {
         try {
             localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
@@ -42,7 +42,6 @@ const WaiterLayout = () => {
         }
     }, [notifications]);
 
-    // Phát âm thanh thông báo
     const playNotificationSound = useCallback(() => {
         try {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -73,107 +72,69 @@ const WaiterLayout = () => {
         }
     }, []);
 
-    // Thêm thông báo mới
     const addNotification = useCallback((message, type = 'info') => {
         const id = Date.now() + Math.random();
         const timestamp = new Date();
-
-        setNotifications(prev => {
-            const newNotifications = [{ id, message, type, timestamp }, ...prev];
-            return newNotifications.slice(0, 50);
-        });
+        setNotifications(prev => [{ id, message, type, timestamp }, ...prev].slice(0, 50));
         playNotificationSound();
     }, [playNotificationSound]);
 
-    // ===== NHẬN NOTIFICATIONS TỪ PAYMENT SUCCESS (CÙNG TAB) =====
     useEffect(() => {
         const handleWaiterNotification = (event) => {
             const { message, type, timestamp } = event.detail;
-            const id = Date.now() + Math.random();
-
-            console.log('🔔 WaiterLayout nhận notification từ PaymentSuccess:', { message, type });
-
             setNotifications(prev => [{
-                id,
+                id: Date.now() + Math.random(),
                 message,
                 type: type || 'info',
                 timestamp: new Date(timestamp || Date.now())
             }, ...prev].slice(0, 50));
-
             playNotificationSound();
         };
-
         window.addEventListener('waiter-notification', handleWaiterNotification);
-
-        return () => {
-            window.removeEventListener('waiter-notification', handleWaiterNotification);
-        };
+        return () => window.removeEventListener('waiter-notification', handleWaiterNotification);
     }, [playNotificationSound]);
 
-    // ===== LẮNG NGHE PAYMENT SUCCESS QUA SOCKET (GIỮA CÁC TAB/TRÌNH DUYỆT) =====
     useEffect(() => {
         if (!branchId) return;
-
         const handlePaymentSuccess = (data) => {
             if (data.branchId === branchId) {
-                console.log('💰 [Waiter] Nhận payment success qua socket:', data);
-                addNotification(`💰 ${data.entityType} ${data.entityNumber} đã thanh toán thành công${data.amount || ''}`, 'success');
-
-                // Lưu vào localStorage
+                addNotification(`${data.entityType} ${data.entityNumber} đã thanh toán thành công${data.amount || ''}`, 'success');
                 const saved = localStorage.getItem(NOTIFICATIONS_KEY);
                 const current = saved ? JSON.parse(saved) : [];
-                const newNoti = {
+                current.unshift({
                     id: Date.now() + Math.random(),
-                    message: `💰 ${data.entityType} ${data.entityNumber} đã thanh toán thành công${data.amount || ''}`,
+                    message: `${data.entityType} ${data.entityNumber} đã thanh toán thành công${data.amount || ''}`,
                     type: 'success',
                     timestamp: new Date().toISOString()
-                };
-                current.unshift(newNoti);
+                });
                 localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(current.slice(0, 50)));
             }
         };
-
         socket.on("payment-success", handlePaymentSuccess);
-
-        return () => {
-            socket.off("payment-success", handlePaymentSuccess);
-        };
+        return () => socket.off("payment-success", handlePaymentSuccess);
     }, [branchId, addNotification]);
 
-    // ===== LẮNG NGHE THAY ĐỔI LOCALSTORAGE TỪ TAB KHÁC (DỰ PHÒNG) =====
     useEffect(() => {
         const handleStorageChange = (e) => {
             if (e.key === NOTIFICATIONS_KEY && e.newValue) {
                 try {
                     const newNotifications = JSON.parse(e.newValue);
-                    console.log('📦 [Waiter] Nhận notification từ storage change:', newNotifications);
-                    setNotifications(newNotifications.map(n => ({
-                        ...n,
-                        timestamp: new Date(n.timestamp)
-                    })));
+                    setNotifications(newNotifications.map(n => ({ ...n, timestamp: new Date(n.timestamp) })));
                     playNotificationSound();
-                } catch (err) {
-                    console.error("Lỗi parse storage data:", err);
-                }
+                } catch (err) { }
             }
         };
-
         window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, [playNotificationSound]);
 
     const menuItems = [
-        { label: "🍽️ Gọi món", path: "/waiter/orders" },
-        { label: "👨‍🍳 Theo dõi bếp", path: "/waiter/kitchen" },
-        { label: "📅 Ca làm", path: "/waiter/shift" },
+        { label: "Gọi món", path: "/waiter/orders", icon: <ClipboardList size={18} /> },
+        { label: "Theo dõi bếp", path: "/waiter/kitchen", icon: <ChefHat size={18} /> },
+        { label: "Ca làm", path: "/waiter/shift", icon: <Calendar size={18} /> },
     ];
 
-    const isActive = (path) => {
-        return location.pathname === path;
-    };
+    const isActive = (path) => location.pathname === path;
 
     const handleLogout = () => {
         localStorage.removeItem(NOTIFICATIONS_KEY);
@@ -191,130 +152,88 @@ const WaiterLayout = () => {
             if (response.ok) {
                 const data = await response.json();
                 const branchOrders = data.filter(o => o.branch?.id === branchId);
-                const activeOrders = branchOrders.filter(o =>
-                    o.status === "PENDING" || o.status === "PREPARING"
-                );
+                const activeOrders = branchOrders.filter(o => o.status === "PENDING" || o.status === "PREPARING");
                 setUnreadCount(activeOrders.length);
             }
-        } catch (err) {
-            console.error("Lỗi tải đơn bếp:", err);
-        }
+        } catch (err) { }
     };
 
-    // ========== SOCKET ==========
     useEffect(() => {
         if (!branchId) return;
-
         fetchUnreadCount();
 
         const registerAsWaiter = () => {
-            socket.emit("register-role", {
-                role: "waiter",
-                userId: user?.id,
-                branchId: branchId
-            });
+            socket.emit("register-role", { role: "waiter", userId: user?.id, branchId });
         };
 
         if (socket.connected) registerAsWaiter();
+        socket.on("connect", registerAsWaiter);
 
-        const handleConnect = () => registerAsWaiter();
-        socket.on("connect", handleConnect);
-
-        // ===== ĐƠN HÀNG MỚI =====
         const handleNewOrder = (data) => {
             if (data.branchId === branchId) {
                 fetchUnreadCount();
                 const locationName = data.locationName || `Bàn ${data.tableNumber}`;
                 const itemList = data.items?.map(item => `${item.name} x${item.quantity}`).join(', ') || '';
-                addNotification(`🆕 Đơn mới - ${locationName}: ${itemList}`, 'info');
+                addNotification(`Đơn mới - ${locationName}: ${itemList}`, 'info');
             }
         };
 
-        // ===== CẬP NHẬT ĐƠN HÀNG (THÊM MÓN) =====
         const handleOrderUpdated = (data) => {
             if (data.branchId === branchId) {
                 fetchUnreadCount();
                 const locationName = data.locationName || `Bàn ${data.tableNumber}`;
                 const itemList = data.items?.map(item => `${item.name} x${item.quantity}`).join(', ') || '';
-                addNotification(`➕ Thêm món - ${locationName}: ${itemList}`, 'info');
+                addNotification(`Thêm món - ${locationName}: ${itemList}`, 'info');
             }
         };
 
-        // ===== BẾP CẬP NHẬT TRẠNG THÁI MÓN =====
         const handleUpdateOrderItemStatus = (data) => {
             if (data.branchId === branchId) {
                 let statusText, notiType;
                 switch (data.status) {
-                    case 'PREPARING':
-                        statusText = '🔪 ĐANG NẤU';
-                        notiType = 'info';
-                        break;
-                    case 'READY':
-                        statusText = '✅ HOÀN THÀNH';
-                        notiType = 'success';
-                        break;
-                    default:
-                        statusText = `📋 ${data.status}`;
-                        notiType = 'info';
+                    case 'PREPARING': statusText = 'ĐANG NẤU'; notiType = 'info'; break;
+                    case 'READY': statusText = 'HOÀN THÀNH'; notiType = 'success'; break;
+                    default: statusText = data.status; notiType = 'info';
                 }
-                const tableInfo = data.tables?.join(', ') || '';
-                addNotification(`${statusText}: ${data.itemName} - ${tableInfo}`, notiType);
+                addNotification(`${statusText}: ${data.itemName}`, notiType);
             }
         };
 
-        // ===== MÓN HOÀN THÀNH =====
         const handleItemCompleted = (data) => {
             if (data.branchId === branchId) {
                 fetchUnreadCount();
-                addNotification(`✅ Món hoàn thành: ${data.itemName || 'Món ăn'}`, 'success');
+                addNotification(`Món hoàn thành: ${data.itemName || 'Món ăn'}`, 'success');
             }
         };
 
-        // ===== CẬP NHẬT BÀN =====
         const handleUpdateTables = () => fetchUnreadCount();
 
-        // ===== 👇 THÊM: THÔNG BÁO ĐẶT BÀN TỪ SCHEDULER (4 GIỜ TRƯỚC) =====
         const handleStaffReservation = (data) => {
             if (data.branchId === branchId) {
-                console.log("📢 Waiter nhận thông báo đặt bàn:", data);
-
                 const location = data.tableNumber ? `Bàn ${data.tableNumber}` : `Phòng ${data.roomNumber}`;
-                const time = data.checkInTime
-                    ? new Date(data.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-                    : '';
-                const message = `📅 Khách ${data.customerName} sẽ đến lúc ${time} tại ${location}`;
-
-                addNotification(message, 'info');
+                const time = data.checkInTime ? new Date(data.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+                addNotification(`Khách ${data.customerName} sẽ đến lúc ${time} tại ${location}`, 'info');
             }
         };
 
-        // ===== 👇 THÊM: THÔNG BÁO ĐẶT BÀN CHO BẾP (1 GIỜ TRƯỚC) - NẾU WAITER CŨNG CẦN NHẬN =====
         const handleKitchenReservation = (data) => {
             if (data.branchId === branchId) {
-                console.log("👨‍🍳 Waiter nhận thông báo bếp (đặt bàn sắp tới):", data);
-
                 const location = data.tableNumber ? `Bàn ${data.tableNumber}` : `Phòng ${data.roomNumber}`;
-                const time = data.checkInTime
-                    ? new Date(data.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-                    : '';
-                const message = `🍳 Chuẩn bị phục vụ - Khách ${data.customerName} sẽ đến lúc ${time} tại ${location}`;
-
-                addNotification(message, 'warning');
+                const time = data.checkInTime ? new Date(data.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+                addNotification(`Chuẩn bị phục vụ - Khách ${data.customerName} sẽ đến lúc ${time} tại ${location}`, 'warning');
             }
         };
 
-        // ===== ĐĂNG KÝ CÁC SOCKET EVENTS =====
         socket.on("new-order", handleNewOrder);
         socket.on("order-updated", handleOrderUpdated);
         socket.on("update-order-item-status", handleUpdateOrderItemStatus);
         socket.on("item-completed", handleItemCompleted);
         socket.on("update-tables", handleUpdateTables);
         socket.on("staff-reservation-notification", handleStaffReservation);
-        socket.on("kitchen-reservation-notification", handleKitchenReservation); // Optional: nếu waiter cũng cần biết
+        socket.on("kitchen-reservation-notification", handleKitchenReservation);
 
-        // ===== CLEANUP =====
         return () => {
-            socket.off("connect", handleConnect);
+            socket.off("connect", registerAsWaiter);
             socket.off("new-order", handleNewOrder);
             socket.off("order-updated", handleOrderUpdated);
             socket.off("update-order-item-status", handleUpdateOrderItemStatus);
@@ -325,7 +244,6 @@ const WaiterLayout = () => {
         };
     }, [branchId, addNotification]);
 
-    // Click outside để đóng panel
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (showNotificationPanel && !e.target.closest('#notification-panel') &&
@@ -338,74 +256,71 @@ const WaiterLayout = () => {
     }, [showNotificationPanel]);
 
     const getNotificationIcon = (type) => {
+        const size = 18;
         switch (type) {
-            case 'success': return '✅';
-            case 'warning': return '⚠️';
-            case 'error': return '❌';
-            default: return '🔔';
+            case 'success': return <CheckCircle2 size={size} color="#10b981" />;
+            case 'warning': return <AlertTriangle size={size} color="#f59e0b" />;
+            case 'error': return <XCircle size={size} color="#ef4444" />;
+            default: return <Info size={size} color="#3b82f6" />;
+        }
+    };
+
+    const getNotificationBorderColor = (type) => {
+        switch (type) {
+            case 'success': return '#10b981';
+            case 'warning': return '#f59e0b';
+            case 'error': return '#ef4444';
+            default: return '#3b82f6';
+        }
+    };
+
+    const getNotificationBg = (type) => {
+        switch (type) {
+            case 'success': return '#f0fdf4';
+            case 'warning': return '#fffbeb';
+            case 'error': return '#fef2f2';
+            default: return '#f9fafb';
         }
     };
 
     return (
         <div style={{ minHeight: '100vh', background: '#f1f5f9' }}>
-            {/* ===== HEADER + MENU CÙNG HÀNG ===== */}
+            {/* HEADER + MENU */}
             <div style={{
-                background: '#1e293b',
-                color: 'white',
-                padding: '12px 24px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 10,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                background: '#1e293b', color: 'white', padding: '12px 24px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                flexWrap: 'wrap', gap: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
             }}>
-                {/* Left: Logo + Info */}
+                {/* Left */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <h2 style={{ margin: 0, fontSize: 20 }}>🍽️ Waiter</h2>
+                    <ChefHat size={24} color="#f59e0b" />
+                    <h2 style={{ margin: 0, fontSize: 20 }}>Waiter</h2>
                     <span style={{ fontSize: 12, color: '#94a3b8' }}>| {user.username || 'Nhân viên'}</span>
                     {user.branch && (
-                        <span style={{
-                            fontSize: 12, background: '#334155', padding: '4px 12px',
-                            borderRadius: 20, color: '#94a3b8'
-                        }}>
-                            🏢 {user.branch.name}
+                        <span style={{ fontSize: 12, background: '#334155', padding: '4px 12px', borderRadius: 20, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Building2 size={12} color="#94a3b8" /> {user.branch.name}
                         </span>
                     )}
                 </div>
 
-                {/* Center: Menu Items - NẰM CÙNG HÀNG */}
+                {/* Center: Menu */}
                 <div style={{ display: 'flex', gap: 4 }}>
                     {menuItems.map((item, index) => (
-                        <button
-                            key={index}
-                            onClick={() => navigate(item.path)}
-                            style={{
-                                position: 'relative',
-                                padding: '8px 18px',
-                                background: isActive(item.path) ? '#f59e0b' : 'transparent',
-                                border: isActive(item.path) ? 'none' : '1px solid rgba(255,255,255,0.2)',
-                                color: isActive(item.path) ? '#1e293b' : 'white',
-                                borderRadius: 6,
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                fontWeight: isActive(item.path) ? 600 : 500,
-                                transition: 'all 0.2s',
-                                whiteSpace: 'nowrap'
-                            }}
-                            onMouseEnter={(e) => {
-                                if (!isActive(item.path)) {
-                                    e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                if (!isActive(item.path)) {
-                                    e.currentTarget.style.background = 'transparent';
-                                }
-                            }}
+                        <button key={index} onClick={() => navigate(item.path)} style={{
+                            position: 'relative', padding: '8px 18px',
+                            background: isActive(item.path) ? '#f59e0b' : 'transparent',
+                            border: isActive(item.path) ? 'none' : '1px solid rgba(255,255,255,0.2)',
+                            color: isActive(item.path) ? '#1e293b' : 'white',
+                            borderRadius: 6, cursor: 'pointer', fontSize: 14,
+                            fontWeight: isActive(item.path) ? 600 : 500,
+                            transition: 'all 0.2s', whiteSpace: 'nowrap',
+                            display: 'flex', alignItems: 'center', gap: 6
+                        }}
+                            onMouseEnter={(e) => { if (!isActive(item.path)) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                            onMouseLeave={(e) => { if (!isActive(item.path)) e.currentTarget.style.background = 'transparent'; }}
                         >
+                            {React.cloneElement(item.icon, { color: isActive(item.path) ? '#1e293b' : 'white' })}
                             {item.label}
-                            {/* Badge cho Kitchen */}
                             {item.path === "/waiter/kitchen" && unreadCount > 0 && (
                                 <span style={{
                                     position: 'absolute', top: -6, right: -6,
@@ -414,84 +329,48 @@ const WaiterLayout = () => {
                                     padding: '2px 6px', borderRadius: 10,
                                     minWidth: 18, textAlign: 'center',
                                     border: '2px solid #1e293b'
-                                }}>
-                                    {unreadCount}
-                                </span>
+                                }}>{unreadCount}</span>
                             )}
                         </button>
                     ))}
                 </div>
 
-                {/* Right: Notification + Logout */}
+                {/* Right */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    {/* Notification Bell */}
-                    <div
-                        id="notification-bell"
-                        onClick={() => setShowNotificationPanel(!showNotificationPanel)}
-                        style={{
-                            position: 'relative',
-                            background: showNotificationPanel ? '#334155' : 'transparent',
-                            width: 42, height: 42, borderRadius: '50%',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer',
-                            border: '2px solid rgba(255,255,255,0.2)',
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            if (!showNotificationPanel) {
-                                e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                            }
-                        }}
-                        onMouseLeave={(e) => {
-                            if (!showNotificationPanel) {
-                                e.currentTarget.style.background = 'transparent';
-                            }
-                        }}
-                    >
-                        <span style={{ fontSize: 22 }}>🔔</span>
+                    <div id="notification-bell" onClick={() => setShowNotificationPanel(!showNotificationPanel)} style={{
+                        position: 'relative', background: showNotificationPanel ? '#334155' : 'transparent',
+                        width: 42, height: 42, borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', border: '2px solid rgba(255,255,255,0.2)', transition: 'all 0.2s'
+                    }}>
+                        <Bell size={22} color="white" />
                         {notifications.length > 0 && (
                             <span style={{
                                 position: 'absolute', top: -4, right: -4,
                                 background: '#ef4444', color: 'white',
                                 fontSize: 11, fontWeight: 'bold',
                                 minWidth: 20, height: 20, borderRadius: 10,
-                                display: 'flex', alignItems: 'center',
-                                justifyContent: 'center', padding: '0 4px',
-                                border: '2px solid #1e293b',
-                            }}>
-                                {notifications.length > 99 ? '99+' : notifications.length}
-                            </span>
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                border: '2px solid #1e293b'
+                            }}>{notifications.length > 99 ? '99+' : notifications.length}</span>
                         )}
                     </div>
 
-                    {/* Logout Button */}
-                    <button
-                        onClick={handleLogout}
-                        style={{
-                            padding: '8px 16px',
-                            background: 'rgba(239, 68, 68, 0.2)',
-                            color: '#fca5a5',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#ef4444';
-                            e.currentTarget.style.color = 'white';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                            e.currentTarget.style.color = '#fca5a5';
-                        }}
+                    <button onClick={handleLogout} style={{
+                        padding: '8px 16px', background: 'rgba(239, 68, 68, 0.2)',
+                        color: '#fca5a5', border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: 6, cursor: 'pointer', fontSize: 14,
+                        display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s'
+                    }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#ef4444'; e.currentTarget.style.color = 'white'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.color = '#fca5a5'; }}
                     >
-                        🚪 Đăng xuất
+                        <LogOut size={16} /> Đăng xuất
                     </button>
                 </div>
             </div>
 
-            {/* ===== NOTIFICATION PANEL ===== */}
+            {/* NOTIFICATION PANEL */}
             {showNotificationPanel && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 998 }}>
                     <div id="notification-panel" style={{
@@ -504,32 +383,26 @@ const WaiterLayout = () => {
                             padding: '16px 20px', background: '#1e293b', color: 'white',
                             borderBottom: '2px solid #334155'
                         }}>
-                            <h4 style={{ margin: 0, fontSize: 16 }}>
-                                🔔 Thông báo ({notifications.length})
+                            <h4 style={{ margin: 0, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Bell size={18} color="white" /> Thông báo ({notifications.length})
                             </h4>
                             <div style={{ display: 'flex', gap: 8 }}>
                                 {notifications.length > 0 && (
                                     <button onClick={() => setNotifications([])} style={{
-                                        background: 'rgba(255,255,255,0.2)',
-                                        border: '1px solid rgba(255,255,255,0.3)',
-                                        color: 'white', padding: '4px 12px',
-                                        borderRadius: 6, fontSize: 12, cursor: 'pointer',
-                                    }}>
-                                        ✕ Xóa tất cả
-                                    </button>
+                                        background: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.3)',
+                                        color: 'white', padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: 4
+                                    }}><X size={14} /> Xóa tất cả</button>
                                 )}
                                 <button onClick={() => setShowNotificationPanel(false)} style={{
-                                    background: 'transparent', border: 'none',
-                                    color: 'white', cursor: 'pointer', fontSize: 18,
-                                }}>
-                                    ✕
-                                </button>
+                                    background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', fontSize: 18,
+                                }}><X size={18} /></button>
                             </div>
                         </div>
                         <div style={{ maxHeight: 420, overflowY: 'auto', padding: 8 }}>
                             {notifications.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
-                                    <div style={{ fontSize: 48, marginBottom: 12 }}>🔔</div>
+                                    <Bell size={48} color="#9ca3af" style={{ marginBottom: 12 }} />
                                     <p>Chưa có thông báo nào</p>
                                 </div>
                             ) : (
@@ -537,25 +410,18 @@ const WaiterLayout = () => {
                                     <div key={noti.id} style={{
                                         display: 'flex', alignItems: 'flex-start', gap: 12,
                                         padding: 12, borderRadius: 8, marginBottom: 6,
-                                        background: noti.type === 'success' ? '#f0fdf4' :
-                                            noti.type === 'warning' ? '#fffbeb' : '#f9fafb',
-                                        borderLeft: `4px solid ${noti.type === 'success' ? '#10b981' :
-                                            noti.type === 'warning' ? '#f59e0b' : '#3b82f6'
-                                            }`,
+                                        background: getNotificationBg(noti.type),
+                                        borderLeft: `4px solid ${getNotificationBorderColor(noti.type)}`,
                                     }}>
-                                        <span style={{ fontSize: 18, flexShrink: 0, marginTop: 2 }}>
+                                        <span style={{ flexShrink: 0, marginTop: 2 }}>
                                             {getNotificationIcon(noti.type)}
                                         </span>
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{
-                                                fontSize: 13, color: '#1f2937',
-                                                lineHeight: 1.5, wordBreak: 'break-word'
-                                            }}>
+                                            <div style={{ fontSize: 13, color: '#1f2937', lineHeight: 1.5, wordBreak: 'break-word' }}>
                                                 {noti.message}
                                             </div>
                                             <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
-                                                {noti.timestamp.toLocaleTimeString('vi-VN')} - {' '}
-                                                {noti.timestamp.toLocaleDateString('vi-VN')}
+                                                {noti.timestamp.toLocaleTimeString('vi-VN')} - {noti.timestamp.toLocaleDateString('vi-VN')}
                                             </div>
                                         </div>
                                     </div>
@@ -566,7 +432,7 @@ const WaiterLayout = () => {
                 </div>
             )}
 
-            {/* ===== MAIN CONTENT ===== */}
+            {/* MAIN CONTENT */}
             <div style={{ padding: 24 }}>
                 <Outlet />
             </div>
