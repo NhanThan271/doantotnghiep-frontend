@@ -1,22 +1,18 @@
 // src/pages/client/TuyenDung.js
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
     Briefcase,
     MapPin,
     Clock,
     DollarSign,
     Users,
-    Award,
     Coffee,
     ChefHat,
     Phone,
     Mail,
     Send,
     CheckCircle,
-    ChevronLeft,
     User,
-    Calendar,
     GraduationCap,
     Heart,
     TrendingUp,
@@ -25,7 +21,6 @@ import {
 import './TuyenDung.css';
 
 const TuyenDung = () => {
-    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
@@ -164,7 +159,11 @@ const TuyenDung = () => {
                 <div className="hero-overlay"></div>
                 <div className="container">
                     <div className="hero-content">
-                        <h1 className="hero-title">Gia nhập đội ngũ của chúng tôi</h1>
+                        <span className="hero-eyebrow">Cơ hội nghề nghiệp</span>
+                        <h1 className="hero-title">
+                            Gia nhập đội ngũ
+                            <span>của chúng tôi</span>
+                        </h1>
                         <p className="hero-subtitle">
                             Cùng chúng tôi tạo nên những trải nghiệm ẩm thực tuyệt vời nhất
                         </p>
@@ -184,34 +183,39 @@ const TuyenDung = () => {
                         </div>
                     </div>
                 </div>
+                <div className="scroll-indicator">Scroll</div>
             </div>
 
             {/* Why Join Us */}
-            <div className="container">
-                <div className="why-join">
-                    <h2 className="section-title">Tại sao nên chọn chúng tôi?</h2>
+            <div className="why-join">
+                <div className="container">
+                    <span className="section-label">Vì sao chọn chúng tôi</span>
+                    <h2 className="section-title">Môi trường làm việc lý tưởng</h2>
                     <div className="benefits-grid">
                         <div className="benefit-card">
-                            <div className="benefit-icon"><TrendingUp size={32} /></div>
+                            <div className="benefit-icon"><TrendingUp size={22} /></div>
                             <h3>Cơ hội thăng tiến</h3>
-                            <p>Lộ trình phát triển rõ ràng, đào tạo bài bản cho nhân viên</p>
+                            <p>Lộ trình phát triển rõ ràng, đào tạo bài bản cho nhân viên tại mọi cấp độ.</p>
                         </div>
                         <div className="benefit-card">
-                            <div className="benefit-icon"><Heart size={32} /></div>
+                            <div className="benefit-icon"><Heart size={22} /></div>
                             <h3>Môi trường thân thiện</h3>
-                            <p>Văn hóa làm việc chuyên nghiệp, năng động và sáng tạo</p>
+                            <p>Văn hóa làm việc chuyên nghiệp, năng động và sáng tạo, nơi mỗi người đều được trân trọng.</p>
                         </div>
                         <div className="benefit-card">
-                            <div className="benefit-icon"><Shield size={32} /></div>
+                            <div className="benefit-icon"><Shield size={22} /></div>
                             <h3>Đãi ngộ tốt</h3>
-                            <p>Lương thưởng hấp dẫn, bảo hiểm đầy đủ, nhiều phúc lợi</p>
+                            <p>Lương thưởng hấp dẫn, bảo hiểm đầy đủ, cùng nhiều phúc lợi hấp dẫn khác.</p>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Positions */}
-                <div className="positions">
-                    <h2 className="section-title">Vị trí đang tuyển</h2>
+            {/* Positions */}
+            <div className="positions">
+                <div className="container">
+                    <span className="section-label">Đang tuyển dụng</span>
+                    <h2 className="section-title">Vị trí mở tuyển</h2>
                     <div className="positions-grid">
                         {positions.map(position => (
                             <div key={position.id} className="position-card">
@@ -221,20 +225,20 @@ const TuyenDung = () => {
                                 </div>
                                 <div className="position-details">
                                     <div className="detail">
-                                        <DollarSign size={16} />
+                                        <DollarSign size={15} />
                                         <span>{position.salary}</span>
                                     </div>
                                     <div className="detail">
-                                        <Clock size={16} />
+                                        <Clock size={15} />
                                         <span>{position.time}</span>
                                     </div>
                                     <div className="detail">
-                                        <MapPin size={16} />
+                                        <MapPin size={15} />
                                         <span>{position.location}</span>
                                     </div>
                                 </div>
                                 <div className="position-section">
-                                    <strong>Yêu cầu:</strong>
+                                    <strong>Yêu cầu</strong>
                                     <ul>
                                         {position.requirements.map((req, idx) => (
                                             <li key={idx}>{req}</li>
@@ -242,7 +246,7 @@ const TuyenDung = () => {
                                     </ul>
                                 </div>
                                 <div className="position-section">
-                                    <strong>Quyền lợi:</strong>
+                                    <strong>Quyền lợi</strong>
                                     <ul>
                                         {position.benefits.map((benefit, idx) => (
                                             <li key={idx}>{benefit}</li>
@@ -262,9 +266,12 @@ const TuyenDung = () => {
                         ))}
                     </div>
                 </div>
+            </div>
 
-                {/* Application Form */}
-                <div id="application-form" className="application-form">
+            {/* Application Form */}
+            <div id="application-form" className="application-form">
+                <div className="container">
+                    <span className="section-label">Tham gia cùng chúng tôi</span>
                     <h2 className="section-title">Gửi đơn ứng tuyển</h2>
                     {submitStatus && (
                         <div className={`submit-status ${submitStatus.type}`}>
@@ -277,7 +284,7 @@ const TuyenDung = () => {
                             <div className="form-group">
                                 <label>Họ và tên *</label>
                                 <div className="input-icon">
-                                    <User size={18} />
+                                    <User size={16} />
                                     <input
                                         type="text"
                                         name="fullName"
@@ -291,7 +298,7 @@ const TuyenDung = () => {
                             <div className="form-group">
                                 <label>Email *</label>
                                 <div className="input-icon">
-                                    <Mail size={18} />
+                                    <Mail size={16} />
                                     <input
                                         type="email"
                                         name="email"
@@ -308,7 +315,7 @@ const TuyenDung = () => {
                             <div className="form-group">
                                 <label>Số điện thoại *</label>
                                 <div className="input-icon">
-                                    <Phone size={18} />
+                                    <Phone size={16} />
                                     <input
                                         type="tel"
                                         name="phone"
@@ -322,7 +329,7 @@ const TuyenDung = () => {
                             <div className="form-group">
                                 <label>Vị trí ứng tuyển *</label>
                                 <div className="input-icon">
-                                    <Briefcase size={18} />
+                                    <Briefcase size={16} />
                                     <select
                                         name="position"
                                         value={formData.position}
@@ -341,7 +348,7 @@ const TuyenDung = () => {
                         <div className="form-group">
                             <label>Kinh nghiệm làm việc</label>
                             <div className="input-icon">
-                                <GraduationCap size={18} />
+                                <GraduationCap size={16} />
                                 <textarea
                                     name="experience"
                                     value={formData.experience}
@@ -353,7 +360,7 @@ const TuyenDung = () => {
                         </div>
 
                         <div className="form-group">
-                            <label>Thư giới thiệu (optional)</label>
+                            <label>Thư giới thiệu (tùy chọn)</label>
                             <textarea
                                 name="message"
                                 value={formData.message}
@@ -372,7 +379,7 @@ const TuyenDung = () => {
                                     onChange={handleFileChange}
                                 />
                                 <span className="file-name">
-                                    {formData.cv ? formData.cv.name : 'Chưa có file nào được chọn'}
+                                    {formData.cv ? formData.cv.name : 'Nhấn để chọn file CV của bạn'}
                                 </span>
                             </div>
                         </div>
@@ -385,27 +392,29 @@ const TuyenDung = () => {
                                 </>
                             ) : (
                                 <>
-                                    <Send size={18} />
+                                    <Send size={16} />
                                     Gửi đơn ứng tuyển
                                 </>
                             )}
                         </button>
                     </form>
                 </div>
+            </div>
 
-                {/* Contact Info */}
-                <div className="contact-info">
-                    <h3>Liên hệ với chúng tôi</h3>
+            {/* Contact Info */}
+            <div className="contact-info">
+                <div className="container">
+                    <h3>Liên hệ tuyển dụng</h3>
                     <div className="contact-details">
                         <div className="contact-item">
-                            <Phone size={20} />
+                            <Phone size={22} />
                             <div>
                                 <strong>Hotline tuyển dụng</strong>
                                 <p>1900 1234</p>
                             </div>
                         </div>
                         <div className="contact-item">
-                            <Mail size={20} />
+                            <Mail size={22} />
                             <div>
                                 <strong>Email</strong>
                                 <p>hr@nhahang.com</p>

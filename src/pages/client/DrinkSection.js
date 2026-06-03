@@ -123,7 +123,7 @@ const PriceSection = () => {
                         thống và phong cách hiện đại.
                     </p>
                     <p className="prs__body">
-                        Đội ngũ pha chế của NOIR luôn sẵn sàng tư vấn và mang đến trải
+                        Đội ngũ pha chế của La Costa luôn sẵn sàng tư vấn và mang đến trải
                         nghiệm thưởng thức độc đáo cho từng thực khách.
                     </p>
                     <Link to="/thuc-don" className="prs__cta" onClick={() => window.scrollTo(0, 0)}>
