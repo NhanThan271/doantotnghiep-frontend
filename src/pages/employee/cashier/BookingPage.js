@@ -177,7 +177,7 @@ const BookingPage = () => {
 
     const fetchReservations = useCallback(async () => {
         try {
-            const res = await axiosClient.get(`/reservations/confirmed`);
+            const res = await axiosClient.get(`/reservations/status?status=CONFIRMED`);
             console.log("✅ Đã xác nhận:", res.data.length, "đơn");
             setReservations(res.data);
         } catch (err) {
