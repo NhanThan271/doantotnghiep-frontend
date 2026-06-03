@@ -503,8 +503,12 @@ const BookingPage = () => {
                                 return (
                                     <div key={table.id} className={`${styles.card} ${isOcc ? styles.cardOccupied : isRes ? styles.cardReserved : styles.cardFree}`}>
                                         <div className={styles.statusIndicator} style={{ backgroundColor: getStatusColor(table.status) }} />
-                                        <button onClick={(e) => openStatusModal(table, "table", e)} className={styles.editStatusButton} title="Sửa trạng thái"><Edit size={16} /></button>
+
+                                        {/* ← XÓA NÚT EDIT Ở ĐÂY */}
+
+                                        {/* NÚT HỦY DO KHÁCH CHƯA ĐẾN */}
                                         {isRes && <button onClick={(e) => handleNoShow(table, "table", e)} className={styles.noShowButton} title="Khách chưa đến"><UserX size={16} /></button>}
+
                                         <div className={styles.cardContent}>
                                             <div className={styles.cardHeader}>
                                                 <span className={styles.cardIcon}>{isFree ? <Utensils size={48} /> : isRes ? <Calendar size={48} /> : <Coffee size={48} />}</span>
@@ -545,24 +549,48 @@ const BookingPage = () => {
                                 const isOcc = room.status === "OCCUPIED";
                                 const isRes = room.status === "RESERVED";
                                 const isFree = room.status === "FREE" || room.status === "ACTIVE";
+                                const hasReservation = room.hasUpcomingReservation === true;
+                                const customerName = room.customerName;
+                                const checkInTime = room.checkInTime;
+
                                 return (
                                     <div key={room.id} className={`${styles.card} ${isOcc ? styles.cardOccupied : isRes ? styles.cardReserved : styles.cardFree}`}>
                                         <div className={styles.statusIndicator} style={{ backgroundColor: getStatusColor(room.status) }} />
-                                        <button onClick={(e) => openStatusModal(room, "room", e)} className={styles.editStatusButton} title="Sửa trạng thái"><Edit size={16} /></button>
-                                        {isRes && <button onClick={(e) => handleNoShow(room, "room", e)} className={styles.noShowButton} title="Khách chưa đến"><UserX size={16} /></button>}
+
+                                        {/* ← ĐÃ XÓA NÚT SỬA TRẠNG THÁI */}
+
+                                        {/* NÚT HỦY DO KHÁCH CHƯA ĐẾN */}
+                                        {isRes && (
+                                            <button
+                                                onClick={(e) => handleNoShow(room, "room", e)}
+                                                className={styles.noShowButton}
+                                                title="Hủy đặt phòng do khách chưa đến"
+                                            >
+                                                <UserX size={16} />
+                                            </button>
+                                        )}
+
                                         <div className={styles.cardContent}>
                                             <div className={styles.cardHeader}>
-                                                <span className={styles.cardIcon}>{isFree ? <Home size={48} /> : isRes ? <Calendar size={48} /> : <Lock size={48} />}</span>
-                                                {room.hasUpcomingReservation && <span className={styles.upcomingBadge}><Clock size={10} /></span>}
+                                                <span className={styles.cardIcon}>
+                                                    {isFree ? <Home size={48} /> : isRes ? <Calendar size={48} /> : <Lock size={48} />}
+                                                </span>
+                                                {hasReservation && <span className={styles.upcomingBadge}><Clock size={10} /></span>}
                                             </div>
                                             <h3 className={styles.cardTitle}>Phòng {room.number}</h3>
-                                            <div className={styles.cardStatus}><span className={`${styles.statusBadge} ${getStatusBadgeClass(room.status)}`}>{getStatusText(room.status)}</span></div>
+                                            <div className={styles.cardStatus}>
+                                                <span className={`${styles.statusBadge} ${getStatusBadgeClass(room.status)}`}>
+                                                    {getStatusText(room.status)}
+                                                </span>
+                                            </div>
                                             {room.area && <div className={styles.cardInfo}><MapPin size={12} /><span>{room.area}</span></div>}
-                                            {(isRes || room.hasUpcomingReservation) && room.customerName && (
+                                            {(isRes || hasReservation) && customerName && (
                                                 <div className={styles.upcomingInfo}>
                                                     <AlertTriangle size={12} />
-                                                    <div><p className={styles.upcomingName}>{room.customerName}</p>
-                                                        {room.checkInTime && <p className={styles.upcomingTime}>{formatDateTime(room.checkInTime)}</p>}</div>
+                                                    <div>
+                                                        <p className={styles.upcomingName}>{customerName}</p>
+                                                        {checkInTime && <p className={styles.upcomingTime}>{formatDateTime(checkInTime)}</p>}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

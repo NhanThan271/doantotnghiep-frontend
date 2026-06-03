@@ -21,7 +21,9 @@ const socket = io('http://localhost:3001');
 const CASHIER_NOTIFICATIONS_KEY = 'cashier_notifications';
 
 const CashierLayout = () => {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+        return sessionStorage.getItem('cashier_sidebar') !== 'closed';
+    });
     const [user, setUser] = useState({});
     const navigate = useNavigate();
     const location = useLocation();
@@ -56,16 +58,9 @@ const CashierLayout = () => {
             });
         }
 
+        // ← CHỈ thêm trực tiếp, KHÔNG dispatch custom event
         const handleStaffReservation = (data) => {
             console.log("📢 Cashier nhận thông báo đặt bàn:", data);
-
-            const event = new CustomEvent('cashier-notification', {
-                detail: {
-                    message: data.message || `Khách ${data.customerName} sẽ đến lúc ${new Date(data.checkInTime).toLocaleTimeString('vi-VN')}`,
-                    type: 'info'
-                }
-            });
-            window.dispatchEvent(event);
 
             const newNotification = {
                 id: Date.now() + Math.random(),
@@ -91,27 +86,7 @@ const CashierLayout = () => {
         }
     }, [notifications]);
 
-    useEffect(() => {
-        const handleCashierNotification = (event) => {
-            const { message, type, timestamp } = event.detail;
-            const id = Date.now() + Math.random();
-
-            console.log('🔔 CashierLayout nhận notification:', { message, type });
-
-            setNotifications(prev => [{
-                id,
-                message,
-                type: type || 'info',
-                timestamp: new Date(timestamp || Date.now())
-            }, ...prev].slice(0, 50));
-        };
-
-        window.addEventListener('cashier-notification', handleCashierNotification);
-
-        return () => {
-            window.removeEventListener('cashier-notification', handleCashierNotification);
-        };
-    }, []);
+    // ← ĐÃ XÓA TOÀN BỘ useEffect cashier-notification listener
 
     useEffect(() => {
         if (!branchId) return;
@@ -148,7 +123,6 @@ const CashierLayout = () => {
             if (e.key === CASHIER_NOTIFICATIONS_KEY && e.newValue) {
                 try {
                     const newNotifications = JSON.parse(e.newValue);
-                    console.log('📦 [Cashier] Nhận notification từ storage change:', newNotifications);
                     setNotifications(newNotifications.map(n => ({
                         ...n,
                         timestamp: new Date(n.timestamp)
@@ -160,10 +134,7 @@ const CashierLayout = () => {
         };
 
         window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
     useEffect(() => {
@@ -180,18 +151,20 @@ const CashierLayout = () => {
 
     useEffect(() => {
         if (contentRef.current) {
-            contentRef.current.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
+            contentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }, [location.pathname]);
 
     const toggleSidebar = () => {
-        setIsSidebarOpen(!isSidebarOpen);
+        setIsSidebarOpen(prev => {
+            const newState = !prev;
+            sessionStorage.setItem('cashier_sidebar', newState ? 'open' : 'closed');
+            return newState;
+        });
     };
 
     const handleLogout = () => {
+        sessionStorage.removeItem('cashier_sidebar');
         localStorage.removeItem(CASHIER_NOTIFICATIONS_KEY);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -214,8 +187,12 @@ const CashierLayout = () => {
         }
     };
 
-    const handleNavigation = (path) => {
+    const handleNavigation = (path, closeSidebar = false) => {
         navigate(path);
+        if (closeSidebar) {
+            setIsSidebarOpen(false);
+            sessionStorage.setItem('cashier_sidebar', 'closed');
+        }
         if (contentRef.current) {
             contentRef.current.scrollTop = 0;
         }
@@ -223,163 +200,56 @@ const CashierLayout = () => {
 
     return (
         <div className={styles.layout}>
-            {/* SIDEBAR */}
             <div className={`${styles.sidebar} ${!isSidebarOpen ? styles.closed : ''}`}>
-                <div className={styles.sidebarHeader}>
-                    QUẢN LÝ CA
-                </div>
-
+                <div className={styles.sidebarHeader}>QUẢN LÝ CA</div>
                 <div className={styles.sidebarMenu}>
-                    <div
-                        onClick={() => handleNavigation("/cashier/dashboard")}
-                        className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/dashboard" ? styles.active : ''}`}
-                    >
-                        <LayoutDashboard size={18} />
-                        <span>Dashboard</span>
-                    </div>
-
-                    <div
-                        onClick={() => handleNavigation("/cashier/bill")}
-                        className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/bill" ? styles.active : ''}`}
-                    >
-                        <Receipt size={18} />
-                        <span>Đơn hàng</span>
-                    </div>
-
-                    <div
-                        onClick={() => handleNavigation("/cashier/report")}
-                        className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/report" ? styles.active : ''}`}
-                    >
-                        <BarChart3 size={18} />
-                        <span>Báo cáo</span>
-                    </div>
-
-                    <div
-                        onClick={() => handleNavigation("/cashier/shift")}
-                        className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/shift" ? styles.active : ''}`}
-                    >
-                        <Calendar size={18} />
-                        <span>Ca làm việc</span>
-                    </div>
-
-                    <div
-                        onClick={() => handleNavigation("/cashier/setting")}
-                        className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/setting" ? styles.active : ''}`}
-                    >
-                        <Settings size={18} />
-                        <span>Cài đặt</span>
-                    </div>
+                    <div onClick={() => handleNavigation("/cashier/dashboard")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/dashboard" ? styles.active : ''}`}><LayoutDashboard size={18} /><span>Dashboard</span></div>
+                    <div onClick={() => handleNavigation("/cashier/bill")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/bill" ? styles.active : ''}`}><Receipt size={18} /><span>Đơn hàng</span></div>
+                    <div onClick={() => handleNavigation("/cashier/report")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/report" ? styles.active : ''}`}><BarChart3 size={18} /><span>Báo cáo</span></div>
+                    <div onClick={() => handleNavigation("/cashier/shift")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/shift" ? styles.active : ''}`}><Calendar size={18} /><span>Ca làm việc</span></div>
+                    <div onClick={() => handleNavigation("/cashier/setting")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/setting" ? styles.active : ''}`}><Settings size={18} /><span>Cài đặt</span></div>
                 </div>
-
                 <div className={styles.sidebarFooter}>
-                    <div className={styles.sidebarInfoLabel}>
-                        <Store size={12} />
-                        <span>Chi nhánh</span>
-                    </div>
-                    <div className={styles.sidebarInfoValue}>
-                        {user.branch?.name || "Đang tải..."}
-                    </div>
-
-                    <div className={styles.sidebarInfoLabel}>
-                        <User size={12} />
-                        <span>Nhân viên</span>
-                    </div>
-                    <div className={`${styles.sidebarInfoValue} ${styles.light}`}>
-                        {user.fullName || "Nhân viên"}
-                    </div>
-
-                    <button onClick={handleLogout} className={styles.logoutButton}>
-                        <LogOut size={16} />
-                        <span>Đăng xuất</span>
-                    </button>
+                    <div className={styles.sidebarInfoLabel}><Store size={12} /><span>Chi nhánh</span></div>
+                    <div className={styles.sidebarInfoValue}>{user.branch?.name || "Đang tải..."}</div>
+                    <div className={styles.sidebarInfoLabel}><User size={12} /><span>Nhân viên</span></div>
+                    <div className={`${styles.sidebarInfoValue} ${styles.light}`}>{user.fullName || "Nhân viên"}</div>
+                    <button onClick={handleLogout} className={styles.logoutButton}><LogOut size={16} /><span>Đăng xuất</span></button>
                 </div>
             </div>
 
-            {/* MAIN CONTENT */}
             <div className={styles.mainContent}>
-                {/* TOPBAR */}
                 <div className={styles.topbar}>
-                    <div onClick={toggleSidebar} className={styles.menuIcon}>
-                        {isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
-                    </div>
-
-                    <div
-                        onClick={() => {
-                            handleNavigation("/cashier/tables");
-                            setIsSidebarOpen(false);
-                        }}
-                        className={styles.topbarNavItem}
-                    >
-                        <Table size={16} />
-                        <span>Tất cả bàn</span>
-                    </div>
-
-                    <div
-                        onClick={() => {
-                            handleNavigation("/cashier/booking");
-                            setIsSidebarOpen(false);
-                        }}
-                        className={styles.topbarNavItem}
-                    >
-                        <Calendar size={16} />
-                        <span>Đặt bàn</span>
-                    </div>
-
+                    <div onClick={toggleSidebar} className={styles.menuIcon}>{isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}</div>
+                    <div onClick={() => handleNavigation("/cashier/tables", true)} className={styles.topbarNavItem}><Table size={16} /><span>Tất cả bàn</span></div>
+                    <div onClick={() => handleNavigation("/cashier/booking", true)} className={styles.topbarNavItem}><Calendar size={16} /><span>Đặt bàn</span></div>
                     <div className={styles.spacer} />
-
-                    {/* NOTIFICATION BELL */}
-                    <div
-                        id="cashier-notification-bell"
-                        onClick={() => setShowNotificationPanel(!showNotificationPanel)}
-                        className={`${styles.notificationBell} ${showNotificationPanel ? styles.active : ''}`}
-                    >
+                    <div id="cashier-notification-bell" onClick={() => setShowNotificationPanel(!showNotificationPanel)} className={`${styles.notificationBell} ${showNotificationPanel ? styles.active : ''}`}>
                         <Bell size={20} />
-                        {notifications.length > 0 && (
-                            <span className={styles.notificationBadge}>
-                                {notifications.length > 99 ? '99+' : notifications.length}
-                            </span>
-                        )}
+                        {notifications.length > 0 && <span className={styles.notificationBadge}>{notifications.length > 99 ? '99+' : notifications.length}</span>}
                     </div>
                 </div>
 
-                {/* NOTIFICATION PANEL */}
                 {showNotificationPanel && (
                     <div className={styles.notificationOverlay}>
                         <div id="cashier-notification-panel" className={styles.notificationPanel}>
                             <div className={styles.notificationHeader}>
                                 <h4>🔔 Thông báo ({notifications.length})</h4>
                                 <div className={styles.notificationHeaderActions}>
-                                    {notifications.length > 0 && (
-                                        <button onClick={clearAllNotifications} className={styles.clearAllBtn}>
-                                            ✕ Xóa tất cả
-                                        </button>
-                                    )}
-                                    <button onClick={() => setShowNotificationPanel(false)} className={styles.closePanelBtn}>
-                                        ✕
-                                    </button>
+                                    {notifications.length > 0 && <button onClick={clearAllNotifications} className={styles.clearAllBtn}>✕ Xóa tất cả</button>}
+                                    <button onClick={() => setShowNotificationPanel(false)} className={styles.closePanelBtn}>✕</button>
                                 </div>
                             </div>
-
                             <div className={styles.notificationBody}>
                                 {notifications.length === 0 ? (
-                                    <div className={styles.notificationEmpty}>
-                                        <div className={styles.notificationEmptyIcon}>🔔</div>
-                                        <p>Chưa có thông báo nào</p>
-                                    </div>
+                                    <div className={styles.notificationEmpty}><div className={styles.notificationEmptyIcon}>🔔</div><p>Chưa có thông báo nào</p></div>
                                 ) : (
                                     notifications.map(noti => (
                                         <div key={noti.id} className={`${styles.notificationItem} ${styles[noti.type]}`}>
-                                            <span className={styles.notificationIcon}>
-                                                {getNotificationIcon(noti.type)}
-                                            </span>
+                                            <span className={styles.notificationIcon}>{getNotificationIcon(noti.type)}</span>
                                             <div className={styles.notificationContent}>
-                                                <div className={styles.notificationMessage}>
-                                                    {noti.message}
-                                                </div>
-                                                <div className={styles.notificationTime}>
-                                                    {noti.timestamp?.toLocaleTimeString('vi-VN')} -{' '}
-                                                    {noti.timestamp?.toLocaleDateString('vi-VN')}
-                                                </div>
+                                                <div className={styles.notificationMessage}>{noti.message}</div>
+                                                <div className={styles.notificationTime}>{noti.timestamp?.toLocaleTimeString('vi-VN')} - {noti.timestamp?.toLocaleDateString('vi-VN')}</div>
                                             </div>
                                         </div>
                                     ))
@@ -389,10 +259,7 @@ const CashierLayout = () => {
                     </div>
                 )}
 
-                {/* CONTENT AREA */}
-                <div ref={contentRef} className={styles.contentArea}>
-                    <Outlet />
-                </div>
+                <div ref={contentRef} className={styles.contentArea}><Outlet /></div>
             </div>
         </div>
     );
