@@ -196,6 +196,8 @@ const TablesPage = () => {
         if (branchId) {
             fetchAreas();
             fetchExistingOrders();
+            fetchTablesWithReservations();
+            fetchRoomsWithReservations();
         }
     }, [branchId]);
 
