@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Store, TrendingUp, DollarSign, Users, Clock, Calendar, Activity, CheckCircle, LayoutGrid } from 'lucide-react';
+import { Store, TrendingUp, DollarSign, Users, Clock, Calendar, Activity, CheckCircle, LayoutGrid, DoorOpen } from 'lucide-react';
 
 export default function BranchDashboard() {
     const [stats, setStats] = useState({
@@ -10,7 +10,9 @@ export default function BranchDashboard() {
         occupiedTables: 0,
         totalTables: 0,
         activeEmployees: 0,
-        completedOrders: 0
+        completedOrders: 0,
+        occupiedRooms: 0,
+        totalRooms: 0,
     });
     const [loading, setLoading] = useState(true);
     const [recentOrders, setRecentOrders] = useState([]);
@@ -48,11 +50,12 @@ export default function BranchDashboard() {
             }
 
             // 2. GỌI TẤT CẢ API SONG SONG
-            const [branchData, ordersData, tablesData, shiftsData] = await Promise.all([
+            const [branchData, ordersData, tablesData, shiftsData, roomsData] = await Promise.all([
                 fetchBranch(branchId, headers),
                 fetchOrders(headers),
                 fetchTables(headers),
-                fetchShifts(branchId, headers)
+                fetchShifts(branchId, headers),
+                fetchRooms(branchId, headers)
             ]);
 
             // 3. LỌC DỮ LIỆU THEO CHI NHÁNH
@@ -72,7 +75,11 @@ export default function BranchDashboard() {
                 occupiedTables: countOccupiedTables(branchTables),
                 totalTables: branchTables.length,
                 activeEmployees: todayShifts.length,
-                completedOrders: countCompletedOrders(todayOrders)
+                completedOrders: countCompletedOrders(todayOrders),
+                occupiedRooms: Array.isArray(roomsData)
+                    ? roomsData.filter(r => r.status === 'MAINTENANCE').length
+                    : 0,
+                totalRooms: Array.isArray(roomsData) ? roomsData.length : 0,
             };
 
             setStats(calculatedStats);
@@ -129,6 +136,11 @@ export default function BranchDashboard() {
     const fetchShifts = async (branchId, headers) => {
         const res = await fetch(`${API_BASE}/api/shifts`, { headers });
         if (!res.ok) throw new Error('Không thể tải ca làm việc');
+        return res.json();
+    };
+    const fetchRooms = async (branchId, headers) => {
+        const res = await fetch(`${API_BASE}/api/rooms/branch/${branchId}`, { headers });
+        if (!res.ok) return [];
         return res.json();
     };
 
@@ -331,12 +343,14 @@ export default function BranchDashboard() {
                 : '0% công suất'
         },
         {
-            title: 'Nhân viên làm việc',
-            value: stats.activeEmployees,
-            icon: Users,
+            title: 'Phòng đang sử dụng',
+            value: `${stats.occupiedRooms}/${stats.totalRooms}`,
+            icon: DoorOpen,
             color: '#F59E0B',
             bgColor: 'rgba(245, 158, 11, 0.1)',
-            subtitle: 'Ca hôm nay'
+            subtitle: stats.totalRooms > 0
+                ? `${Math.round(stats.occupiedRooms / stats.totalRooms * 100)}% công suất`
+                : '0% công suất'
         },
         {
             title: 'Đơn hoàn thành',

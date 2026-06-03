@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Tag, Percent, Calendar, Package } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function AddPromotionForm({ closeForm, onSave }) {
     const [formData, setFormData] = useState({
@@ -15,7 +16,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
     const [foods, setFoods] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [discountType, setDiscountType] = useState('percentage'); // 'percentage' or 'amount'
+    const [discountType, setDiscountType] = useState('percentage');
 
     const API_BASE_URL = 'http://localhost:8080';
 
@@ -57,34 +58,34 @@ export default function AddPromotionForm({ closeForm, onSave }) {
 
     const validateForm = () => {
         if (!formData.name.trim()) {
-            setError('Vui lòng nhập tên khuyến mãi');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên khuyến mãi');
             return false;
         }
 
         if (discountType === 'percentage') {
             if (!formData.discountPercentage || formData.discountPercentage <= 0 || formData.discountPercentage > 100) {
-                setError('Vui lòng nhập phần trăm giảm giá hợp lệ (1-100)');
+                showToast('error', 'Thiếu thông tin', 'Vui lòng nhập phần trăm giảm giá hợp lệ (1-100)');
                 return false;
             }
         } else {
             if (!formData.discountAmount || formData.discountAmount <= 0) {
-                setError('Vui lòng nhập số tiền giảm giá hợp lệ');
+                showToast('error', 'Thiếu thông tin', 'Vui lòng nhập số tiền giảm giá hợp lệ');
                 return false;
             }
         }
 
         if (!formData.startDate) {
-            setError('Vui lòng chọn ngày bắt đầu');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng chọn ngày bắt đầu');
             return false;
         }
 
         if (!formData.endDate) {
-            setError('Vui lòng chọn ngày kết thúc');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng chọn ngày kết thúc');
             return false;
         }
 
         if (new Date(formData.endDate) < new Date(formData.startDate)) {
-            setError('Ngày kết thúc phải sau ngày bắt đầu');
+            showToast('error', 'Lỗi ngày', 'Ngày kết thúc phải sau ngày bắt đầu');
             return false;
         }
 
@@ -92,7 +93,6 @@ export default function AddPromotionForm({ closeForm, onSave }) {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
 
         if (!validateForm()) return;
 
@@ -130,7 +130,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
             const newPromotion = await response.json();
             console.log('Thêm khuyến mãi thành công:', newPromotion);
 
-            alert('Thêm khuyến mãi thành công!');
+            showToast('success', 'Thành công', 'Thêm khuyến mãi thành công!');
 
             if (onSave) {
                 onSave(newPromotion, 'promotion');
@@ -139,7 +139,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
             closeForm();
         } catch (err) {
             console.error('Lỗi khi thêm khuyến mãi:', err);
-            setError(err.message || 'Không thể thêm khuyến mãi. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', err.message || 'Không thể thêm khuyến mãi. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -220,7 +220,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit}>
+                <div className="modalForm">
                     {/* Error message */}
                     {error && (
                         <div style={{
@@ -264,7 +264,6 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                                 value={formData.name}
                                 onChange={(e) => handleChange('name', e.target.value)}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                     </div>
@@ -376,7 +375,6 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                                 max={discountType === 'percentage' ? 100 : undefined}
                                 step={discountType === 'percentage' ? '0.1' : '1000'}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                     </div>
@@ -416,7 +414,6 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                                     value={formData.startDate}
                                     onChange={(e) => handleChange('startDate', e.target.value)}
                                     style={{ paddingLeft: '44px' }}
-                                    required
                                 />
                             </div>
                         </div>
@@ -449,7 +446,6 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                                     value={formData.endDate}
                                     onChange={(e) => handleChange('endDate', e.target.value)}
                                     style={{ paddingLeft: '44px' }}
-                                    required
                                 />
                             </div>
                         </div>
@@ -598,7 +594,8 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                             Hủy
                         </button>
                         <button
-                            type="submit"
+                            type="button"
+                            onClick={handleSubmit}
                             disabled={loading}
                             style={{
                                 flex: 1,
@@ -625,7 +622,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
                             {loading ? 'Đang xử lý...' : 'Tạo khuyến mãi'}
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

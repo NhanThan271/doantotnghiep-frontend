@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Calendar, Clock, Search, CalendarPlus, AlertCircle, RefreshCw, Store, Edit2, Mail, Phone, Briefcase, UserCheck, ChevronDown, ChevronUp, X, Save, CheckCircle, ClipboardList, BarChart3, FileText, UserX } from 'lucide-react';
+import { Users, Calendar, Clock, Search, CalendarPlus, AlertCircle, RefreshCw, Store, Edit2, Mail, Phone, Briefcase, UserCheck, ChevronDown, ChevronUp, X, Save, CheckCircle, ClipboardList, BarChart3, FileText, UserX, BarChart2, CalendarDays } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
 import StaffPositionForm from './forms/StaffPositionForm';
 import { showToast } from '../../hooks/useToast';
@@ -1528,14 +1528,16 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                             borderRadius: 10,
                                             display: 'flex', gap: 24, flexWrap: 'wrap'
                                         }}>
-                                            <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                                                📊 Tuần này:{' '}
+                                            <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <BarChart2 size={14} color="#3B82F6" />
+                                                Tuần này:{' '}
                                                 <strong style={{ color: '#3B82F6' }}>
                                                     {staffWeekShifts.length} ca
                                                 </strong>
                                             </span>
-                                            <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                                                📅 Số ngày có ca:{' '}
+                                            <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <CalendarDays size={14} color="#10B981" />
+                                                Số ngày có ca:{' '}
                                                 <strong style={{ color: '#10B981' }}>
                                                     {new Set(staffWeekShifts.map(ws => ws.workDay?.toString().slice(0, 10))).size} ngày
                                                 </strong>

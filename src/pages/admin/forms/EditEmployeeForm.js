@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Lock, Mail, Phone, UserCircle, Shield, Upload, Building2 } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function EditEmployeeForm({ employee, closeForm, onSave, refreshCallback }) {
     const [formData, setFormData] = useState({
@@ -82,12 +83,12 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
         const file = e.target.files[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                setError('Kích thước ảnh không được vượt quá 5MB');
+                showToast('error', 'Sai định dạng', 'Kích thước ảnh không được vượt quá 5MB');
                 return;
             }
 
             if (!file.type.startsWith('image/')) {
-                setError('Vui lòng chọn file ảnh');
+                showToast('error', 'Sai định dạng', 'Vui lòng chọn file ảnh');
                 return;
             }
 
@@ -115,37 +116,37 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
 
     const validateForm = () => {
         if (!formData.username.trim()) {
-            setError('Vui lòng nhập tên đăng nhập');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên đăng nhập');
             return false;
         }
         if (formData.username.length < 3) {
-            setError('Tên đăng nhập phải có ít nhất 3 ký tự');
+            showToast('error', 'Sai định dạng', 'Tên đăng nhập phải có ít nhất 3 ký tự');
             return false;
         }
         if (changePassword) {
             if (!formData.password) {
-                setError('Vui lòng nhập mật khẩu mới');
+                showToast('error', 'Thiếu thông tin', 'Vui lòng nhập mật khẩu mới');
                 return false;
             }
             if (formData.password.length < 6) {
-                setError('Mật khẩu phải có ít nhất 6 ký tự');
+                showToast('error', 'Sai định dạng', 'Mật khẩu phải có ít nhất 6 ký tự');
                 return false;
             }
         }
         if (!formData.fullName.trim()) {
-            setError('Vui lòng nhập họ tên đầy đủ');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập họ tên đầy đủ');
             return false;
         }
         if (formData.email && !formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-            setError('Email không hợp lệ');
+            showToast('error', 'Sai định dạng', 'Email không hợp lệ');
             return false;
         }
         if (formData.phone && !formData.phone.match(/^[0-9]{10,11}$/)) {
-            setError('Số điện thoại không hợp lệ (10-11 số)');
+            showToast('error', 'Sai định dạng', 'Số điện thoại không hợp lệ (10-11 số)');
             return false;
         }
         if (!formData.branchId) {
-            setError('Vui lòng chọn chi nhánh');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng chọn chi nhánh');
             return false;
         }
         return true;
@@ -198,7 +199,7 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
             const updatedUser = await response.json();
             console.log('✅ Cập nhật nhân viên thành công:', updatedUser);
 
-            alert('Cập nhật nhân viên thành công!');
+            showToast('success', 'Thành công!', 'Cập nhật nhân viên thành công!');
 
             if (refreshCallback && typeof refreshCallback === 'function') {
                 console.log('🔄 Đang refresh danh sách nhân viên...');
@@ -212,7 +213,7 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
             closeForm();
         } catch (err) {
             console.error('❌ Lỗi khi cập nhật nhân viên:', err);
-            setError(err.message || 'Không thể cập nhật nhân viên. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', 'Không thể cập nhật nhân viên. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -460,7 +461,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                                 value={formData.username}
                                 onChange={(e) => handleChange('username', e.target.value)}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                         <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
@@ -526,7 +526,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                                     value={formData.password}
                                     onChange={(e) => handleChange('password', e.target.value)}
                                     style={{ paddingLeft: '44px', paddingRight: '80px' }}
-                                    required={changePassword}
                                 />
                                 <button
                                     type="button"
@@ -581,7 +580,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                                 value={formData.fullName}
                                 onChange={(e) => handleChange('fullName', e.target.value)}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                     </div>
@@ -688,7 +686,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                                     backgroundRepeat: 'no-repeat',
                                     backgroundPosition: 'right 14px center'
                                 }}
-                                required
                             >
                                 <option value="EMPLOYEE">Nhân viên</option>
                                 <option value="MANAGER">Quản lý</option>
@@ -729,7 +726,6 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
                                     backgroundRepeat: 'no-repeat',
                                     backgroundPosition: 'right 14px center'
                                 }}
-                                required
                                 disabled={branches.length === 0}
                             >
                                 {branches.length === 0 ? (

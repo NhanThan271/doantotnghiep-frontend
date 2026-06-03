@@ -27,7 +27,7 @@ export default function RoomFormModal({
                 </div>
 
                 {/* Modal Body */}
-                <form onSubmit={onSubmit} className="modalForm">
+                <div className="modalForm">
                     <div className="formGrid">
                         <div className="formGroup">
                             <label className="formLabel">Số phòng *</label>
@@ -37,7 +37,6 @@ export default function RoomFormModal({
                                 value={formData.number}
                                 onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                                 placeholder="VD: 1, 2, 3..."
-                                required
                                 min="1"
                                 disabled={!!editingRoom}
                             />
@@ -56,7 +55,6 @@ export default function RoomFormModal({
                                 value={formData.capacity}
                                 onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
                                 placeholder="VD: 2, 4, 6..."
-                                required
                                 min="1"
                             />
                         </div>
@@ -69,7 +67,6 @@ export default function RoomFormModal({
                                 value={formData.area}
                                 onChange={(e) => setFormData({ ...formData, area: e.target.value })}
                                 placeholder="VD: Tầng 1, Khu A, Khu VIP..."
-                                required
                             />
                         </div>
 
@@ -81,7 +78,6 @@ export default function RoomFormModal({
                                 value={formData.roomFee}
                                 onChange={(e) => setFormData({ ...formData, roomFee: e.target.value })}
                                 placeholder="VD: 500000, 1000000..."
-                                required
                                 min="0"
                                 step="1000"
                             />
@@ -109,16 +105,12 @@ export default function RoomFormModal({
                         >
                             Hủy
                         </button>
-                        <button
-                            type="submit"
-                            className="btnSubmit"
-                            disabled={loading}
-                        >
+                        <button type="button" onClick={onSubmit} className="btnSubmit" disabled={loading}>
                             <Save size={18} />
                             {loading ? 'Đang lưu...' : (editingRoom ? 'Cập nhật' : 'Tạo mới')}
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

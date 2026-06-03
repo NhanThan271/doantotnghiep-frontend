@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, MapPin, Phone, FileText, Navigation } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function AddBranch({ onClose, closeForm, onSuccess, onSave }) {
     const [formData, setFormData] = useState({
@@ -28,19 +29,19 @@ export default function AddBranch({ onClose, closeForm, onSuccess, onSave }) {
 
     const validateForm = () => {
         if (!formData.name.trim()) {
-            setError('Vui lòng nhập tên chi nhánh');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên chi nhánh');
             return false;
         }
         if (formData.phone && !/^[0-9]{10,11}$/.test(formData.phone.trim())) {
-            setError('Số điện thoại không hợp lệ (10-11 số)');
+            showToast('error', 'Sai định dạng', 'Số điện thoại không hợp lệ (10-11 số)');
             return false;
         }
         if (!formData.latitude || isNaN(Number(formData.latitude))) {
-            setError('Vui lòng nhập vĩ độ hợp lệ');
+            showToast('error', 'Sai định dạng', 'Vui lòng nhập vĩ độ hợp lệ');
             return false;
         }
         if (!formData.longitude || isNaN(Number(formData.longitude))) {
-            setError('Vui lòng nhập kinh độ hợp lệ');
+            showToast('error', 'Sai định dạng', 'Vui lòng nhập kinh độ hợp lệ');
             return false;
         }
         return true;
@@ -79,12 +80,12 @@ export default function AddBranch({ onClose, closeForm, onSuccess, onSave }) {
             }
 
             const newBranch = await response.json();
-            alert('Thêm chi nhánh thành công!');
+            showToast('success', 'Thành công!', 'Thêm chi nhánh thành công!');
             if (onSuccess) onSuccess(newBranch);
             handleClose();
         } catch (err) {
             console.error('Lỗi khi thêm chi nhánh:', err);
-            setError(err.message || 'Không thể thêm chi nhánh. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', 'Không thể thêm chi nhánh. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }

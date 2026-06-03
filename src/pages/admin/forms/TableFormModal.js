@@ -27,7 +27,7 @@ export default function TableFormModal({
                 </div>
 
                 {/* Modal Body */}
-                <form onSubmit={onSubmit} className="modalForm">
+                <div className="modalForm">
                     <div className="formGrid">
 
                         {/* Loại bàn — đặt đầu tiên vì ảnh hưởng các field sau */}
@@ -85,7 +85,6 @@ export default function TableFormModal({
                                 value={formData.number}
                                 onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                                 placeholder="VD: 1, 2, 3..."
-                                required
                                 min="1"
                             />
                         </div>
@@ -99,7 +98,6 @@ export default function TableFormModal({
                                 value={formData.capacity}
                                 onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
                                 placeholder="VD: 2, 4, 6..."
-                                required
                                 min="1"
                             />
                         </div>
@@ -114,7 +112,6 @@ export default function TableFormModal({
                                     value={formData.area}
                                     onChange={(e) => setFormData({ ...formData, area: e.target.value })}
                                     placeholder="VD: Tầng 1, Khu A, Ngoài trời..."
-                                    required
                                 />
                             </div>
                         )}
@@ -137,12 +134,12 @@ export default function TableFormModal({
                         <button type="button" className="btnCancel" onClick={onClose}>
                             Hủy
                         </button>
-                        <button type="submit" className="btnSubmit" disabled={loading}>
+                        <button type="button" onClick={onSubmit} className="btnSubmit" disabled={loading}>
                             <Save size={18} />
                             {loading ? 'Đang lưu...' : (editingTable ? 'Cập nhật' : 'Tạo mới')}
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

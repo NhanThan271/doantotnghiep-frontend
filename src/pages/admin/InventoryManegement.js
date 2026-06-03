@@ -2,7 +2,12 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     Clock, CheckCircle, XCircle, Check, X,
     MapPin, Calendar, User, FileText, ArrowUpCircle, ArrowDownCircle,
-    History, Warehouse, PlusCircle, Download, BarChart2, Store
+    History, Warehouse, PlusCircle, Download, BarChart2, Store,
+    Package,
+    Upload,
+    AlertTriangle,
+    Ban,
+    ChevronRight
 } from 'lucide-react';
 import './InventoryManegement.css';
 import io from 'socket.io-client';
@@ -43,7 +48,7 @@ const TypeBadge = ({ type }) => {
 const StockBadge = ({ qty }) => {
     if (qty === 0) return <span className="badge status-rejected">Hết hàng</span>;
     if (qty < 10) return <span className="badge status-pending">Sắp hết</span>;
-    return <span className="badge status-approved">Đủ hàng</span>;
+    return <span className="badge status-approved"><Check size={12} /> Đủ hàng</span>;
 };
 
 const calcDays = (date) =>
@@ -55,31 +60,31 @@ const fmtLocalDate = (date) =>
 const ExpiryBadge = ({ date, daysOverride }) => {
     const d = daysOverride !== undefined ? daysOverride : calcDays(date);
     if (d === null) return <span className="badge status-pending">Không rõ HSD</span>;
-    if (d < 0) return <span className="badge status-rejected">⚠ Hết hạn ({Math.abs(d)}d)</span>;
-    if (d === 0) return <span className="badge status-rejected">⚠ Hết hôm nay</span>;
+    if (d < 0) return <span className="badge status-rejected"><AlertTriangle size={12} /> Hết hạn ({Math.abs(d)}d)</span>;
+    if (d === 0) return <span className="badge status-rejected"><AlertTriangle size={12} /> Hết hôm nay</span>;
     if (d <= 3) return (
         <span className="badge" style={{
             background: 'rgba(239,68,68,.15)', color: '#ef4444',
             border: '1px solid rgba(239,68,68,.35)', borderRadius: 6,
             padding: '3px 8px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 3
-        }}> Còn {d}d</span>
+        }}> <Clock size={12} /> Còn {d} ngày</span>
     );
-    if (d <= 7) return <span className="badge status-pending">⏰ Còn {d} ngày</span>;
-    return <span className="badge status-approved">✓ {d} ngày</span>;
+    if (d <= 7) return <span className="badge status-pending"><Clock size={12} /> Còn {d} ngày</span>;
+    return <span className="badge status-approved"><Check size={12} /> {d} ngày</span>;
 };
 
 const ExportBadge = ({ expiryDate }) => {
     const d = calcDays(expiryDate);
     if (d === null) return null;
-    if (d < 0) return <span className="badge status-rejected">🚫 Hết hạn</span>;
+    if (d < 0) return <span className="badge status-rejected"><Ban size={12} /> Hết hạn</span>;
     if (d <= 5) return (
         <span className="badge" style={{
             background: 'rgba(239,68,68,.12)', color: '#ef4444',
             border: '1px solid rgba(239,68,68,.3)', borderRadius: 6,
             padding: '3px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 3
-        }}> Không thể xuất</span>
+        }}> <Ban size={12} /> Không thể xuất</span>
     );
-    return <span className="badge status-approved" style={{ fontSize: 11 }}>✓ Xuất được</span>;
+    return <span className="badge status-approved" style={{ fontSize: 11 }}><Check size={12} /> Xuất được</span>;
 };
 
 const batchRowStyle = (d) => {
@@ -92,13 +97,17 @@ const batchRowStyle = (d) => {
 
 const ViewToggle = ({ mode, setMode }) => (
     <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,.05)', borderRadius: 8, padding: 3 }}>
-        {[{ id: 'aggregate', label: '📊 Tổng hợp' }, { id: 'batch', label: '📦 Theo lô (HSD)' }].map(m => (
+        {[
+            { id: 'aggregate', label: <><BarChart2 size={13} /> Tổng hợp</> },
+            { id: 'batch', label: <><Package size={13} /> Theo lô (HSD)</> }
+        ].map(m => (
             <button key={m.id} onClick={() => setMode(m.id)} style={{
                 padding: '6px 14px', borderRadius: 6, border: 'none',
                 background: mode === m.id ? '#667eea' : 'transparent',
                 color: mode === m.id ? '#fff' : 'inherit',
                 cursor: 'pointer', fontSize: 13, fontWeight: mode === m.id ? 600 : 400,
-                transition: 'all .15s'
+                transition: 'all .15s',
+                display: 'flex', alignItems: 'center', gap: 5
             }}>{m.label}</button>
         ))}
     </div>
@@ -522,7 +531,7 @@ export default function InventoryManagement() {
                                     Kiểm tra và loại bỏ khỏi kho
                                 </div>
                             </div>
-                            <span style={{ color: '#ef4444', fontSize: 12 }}>Xem →</span>
+                            <span style={{ color: '#ef4444', fontSize: 12 }}>Xem <ChevronRight size={14} /></span>
                         </div>
                     )}
                     {nearExpiryBatches.length > 0 && (
@@ -543,7 +552,7 @@ export default function InventoryManagement() {
                                     {nearExpiryBatches.length > 5 ? ` +${nearExpiryBatches.length - 5} lô nữa` : ''}
                                 </div>
                             </div>
-                            <span style={{ color: '#f59e0b', fontSize: 12 }}>Xem →</span>
+                            <span style={{ color: '#f59e0b', fontSize: 12 }}>Xem <ChevronRight size={14} /></span>
                         </div>
                     )}
                 </div>
@@ -800,9 +809,9 @@ export default function InventoryManagement() {
                                                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
                                                     {[
                                                         { value: 'all', label: 'Tất cả', color: '#667eea' },
-                                                        { value: 'usable', label: '✓ Xuất được', color: '#10b981' },
-                                                        { value: 'nearExpiry', label: '⏰ Sắp hết hạn', color: '#f59e0b' },
-                                                        { value: 'expired', label: '⚠ Hết hạn', color: '#ef4444' },
+                                                        { value: 'usable', label: <><Check size={12} /> Xuất được</>, color: '#10b981' },
+                                                        { value: 'nearExpiry', label: <><Clock size={12} /> Sắp hết hạn</>, color: '#f59e0b' },
+                                                        { value: 'expired', label: <><AlertTriangle size={12} /> Hết hạn</>, color: '#ef4444' },
                                                     ].map(p => (
                                                         <button key={p.value} onClick={() => setWhBatchHsdFilter(p.value)} style={{
                                                             padding: '5px 14px', borderRadius: 20,
@@ -823,7 +832,7 @@ export default function InventoryManagement() {
                                                         fontSize: 13, flexWrap: 'wrap', alignItems: 'center'
                                                     }}>
                                                         <span style={{ color: '#ef4444', fontWeight: 700 }}>
-                                                            🚫 {nonExportable.length} lô không thể xuất (HSD ≤ 5 ngày hoặc đã hết hạn)
+                                                            <Ban size={14} color="#ef4444" /> {nonExportable.length} lô không thể xuất (HSD ≤ 5 ngày hoặc đã hết hạn)
                                                         </span>
                                                         <span style={{ color: 'var(--color-text-secondary)', opacity: .7 }}>
                                                             Tổng lô xuất được: {exportable.length} / {whBatches.length}
@@ -958,9 +967,9 @@ export default function InventoryManagement() {
                             {branchViewMode === 'batch' && (() => {
                                 const pills = [
                                     { value: 'all', label: 'Tất cả', color: '#667eea' },
-                                    { value: 'usable', label: '✓ Xuất được', color: '#10b981' },
-                                    { value: 'nearExpiry', label: '⏰ Sắp hết hạn', color: '#f59e0b' },
-                                    { value: 'expired', label: '⚠ Hết hạn', color: '#ef4444' },
+                                    { value: 'usable', label: <><Check size={12} /> Xuất được</>, color: '#10b981' },
+                                    { value: 'nearExpiry', label: <><Clock size={12} /> Sắp hết hạn</>, color: '#f59e0b' },
+                                    { value: 'expired', label: <><AlertTriangle size={12} /> Hết hạn</>, color: '#ef4444' },
                                 ];
                                 return (
                                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -991,7 +1000,7 @@ export default function InventoryManagement() {
                                                     )}
                                                 </tr></thead>
                                                 <tbody>
-                                                    {[...whBatches]
+                                                    {[...branchBatches]
                                                         .filter(batch => {
                                                             const d = calcDays(batch.expiryDate);
                                                             if (whBatchHsdFilter === 'all') return true;
@@ -1135,8 +1144,8 @@ export default function InventoryManagement() {
                         {/* Sub-tabs */}
                         <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 0 }}>
                             {[
-                                { id: 'export', label: '📤 Lịch sử xuất kho' },
-                                { id: 'import', label: '📥 Lịch sử nhập kho' },
+                                { id: 'export', label: <><Upload size={13} /> Lịch sử xuất kho</> },
+                                { id: 'import', label: <><Download size={13} /> Lịch sử nhập kho</> }
                             ].map(t => (
                                 <button
                                     key={t.id}

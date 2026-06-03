@@ -84,7 +84,7 @@ export default function ManagerRoomManagement() {
             );
             if (!response.ok) throw new Error('Không thể cập nhật trạng thái phòng');
             await fetchRooms();
-            const msg = status === 'OCCUPIED' ? 'Đã mở phòng thành công!' : 'Đã đóng phòng thành công!';
+            const msg = status === 'MAINTENANCE' ? 'Đã đóng phòng thành công!' : 'Đã mở phòng thành công!';
             showToast('success', 'Thành công', msg);
         } catch (error) {
             console.error('Lỗi khi cập nhật trạng thái phòng:', error);
@@ -99,7 +99,7 @@ export default function ManagerRoomManagement() {
     useEffect(() => {
         const interval = setInterval(() => {
             if (currentBranch) fetchRooms();
-        }, 300); 
+        }, 300);
         return () => clearInterval(interval);
     }, [currentBranch]);
 
@@ -363,22 +363,16 @@ export default function ManagerRoomManagement() {
                                             Chi tiết
                                         </button>
                                         {room.status === 'ACTIVE' ? (
-                                            <button
-                                                onClick={() => updateRoomStatus(room.id, 'MAINTENANCE')}
-                                                className={styles.actionButtonSuccess}
-                                                style={{ flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                            >
-                                                <Check size={16} />
-                                                Mở phòng
+                                            <button onClick={() => updateRoomStatus(room.id, 'MAINTENANCE')}
+                                                className={styles.actionButtonDanger}
+                                                style={{ flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                                <X size={16} /> Đóng phòng
                                             </button>
                                         ) : (
-                                            <button
-                                                onClick={() => updateRoomStatus(room.id, 'ACTIVE')}
-                                                className={styles.actionButtonDanger}
-                                                style={{ flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                            >
-                                                <X size={16} />
-                                                Đóng phòng
+                                            <button onClick={() => updateRoomStatus(room.id, 'ACTIVE')}
+                                                className={styles.actionButtonSuccess}
+                                                style={{ flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                                <Check size={16} /> Mở phòng
                                             </button>
                                         )}
                                     </div>
@@ -446,26 +440,14 @@ export default function ManagerRoomManagement() {
 
                             <div className={styles.modalActions}>
                                 {selectedRoom.status === 'ACTIVE' ? (
-                                    <button
-                                        onClick={() => {
-                                            updateRoomStatus(selectedRoom.id, 'MAINTENANCE');
-                                            setShowDetailModal(false);
-                                        }}
-                                        className={styles.buttonSuccess}
-                                    >
-                                        <Check size={20} />
-                                        Mở phòng
+                                    <button onClick={() => { updateRoomStatus(selectedRoom.id, 'MAINTENANCE'); setShowDetailModal(false); }}
+                                        className={styles.buttonDanger}>
+                                        <X size={20} /> Đóng phòng
                                     </button>
                                 ) : (
-                                    <button
-                                        onClick={() => {
-                                            updateRoomStatus(selectedRoom.id, 'ACTIVE');
-                                            setShowDetailModal(false);
-                                        }}
-                                        className={styles.buttonDanger}
-                                    >
-                                        <X size={20} />
-                                        Đóng phòng
+                                    <button onClick={() => { updateRoomStatus(selectedRoom.id, 'ACTIVE'); setShowDetailModal(false); }}
+                                        className={styles.buttonSuccess}>
+                                        <Check size={20} /> Mở phòng
                                     </button>
                                 )}
                             </div>

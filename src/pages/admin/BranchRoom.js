@@ -89,8 +89,20 @@ export default function RoomManagement() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!formData.number || !formData.capacity || !formData.area || !formData.roomFee) {
-            alert('Vui lòng nhập đầy đủ thông tin (bao gồm cả khu vực/tầng và giá phòng)');
+        if (!formData.number) {
+            showToast('error', 'Thiếu thông tin', 'Vui lòng điền số phòng');
+            return;
+        }
+        if (!formData.capacity) {
+            showToast('error', 'Thiếu thông tin', 'Vui lòng điền sức chứa');
+            return;
+        }
+        if (!formData.area.trim()) {
+            showToast('error', 'Thiếu thông tin', 'Vui lòng điền khu vực/tầng');
+            return;
+        }
+        if (!formData.roomFee) {
+            showToast('error', 'Thiếu thông tin', 'Vui lòng điền giá phòng');
             return;
         }
 
@@ -131,12 +143,12 @@ export default function RoomManagement() {
                 throw new Error(errorData.message || 'Failed to save room');
             }
 
-            alert(editingRoom ? 'Cập nhật phòng thành công!' : 'Tạo phòng thành công!');
+            showToast('success', 'Thành công', editingRoom ? 'Cập nhật phòng thành công!' : 'Tạo phòng thành công!');
             setShowModal(false);
             fetchRooms();
         } catch (error) {
             console.error('Error saving room:', error);
-            alert(error.message || 'Không thể lưu phòng. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', error.message || 'Không thể lưu phòng. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -244,19 +256,19 @@ export default function RoomManagement() {
                         <>
                             {/* Stats */}
                             <div className="stats-grid">
-                                <div className="stat-card free">
+                                <div className="stat-card.free">
                                     <div className="stat-content">
                                         <div className="stat-icon free">
                                             <Grid size={24} />
                                         </div>
                                         <div>
                                             <div className="stat-value free">{activeCount}</div>
-                                            <div className="stat-label">Phòng hoạt động</div>
+                                            <div className="stat-label">Phòng trống</div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="stat-card occupied">
+                                <div className="stat-card.occupied">
                                     <div className="stat-content">
                                         <div className="stat-icon occupied">
                                             <Users size={24} />
@@ -268,7 +280,7 @@ export default function RoomManagement() {
                                     </div>
                                 </div>
 
-                                <div className="stat-card total">
+                                <div className="stat-card.total">
                                     <div className="stat-content">
                                         <div className="stat-icon total">
                                             <Layers size={24} />
