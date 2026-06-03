@@ -1,29 +1,25 @@
-/* Dashboard.module.css */
+/* ==========================================
+   DASHBOARD MODULE CSS - THU NGÂN
+   ========================================== */
+
+/* ========== CONTAINER ========== */
 .container {
     padding: 20px;
-    height: 100%;
-    max-width: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    box-sizing: border-box;
+    background: #f0f2f5;
+    min-height: 100vh;
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
 }
 
-.container * {
-    max-width: 100%;
-    box-sizing: border-box;
-}
-
-/* Header */
+/* ========== HEADER ========== */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
     background: white;
-    padding: 16px 24px;
+    padding: 20px 28px;
     border-radius: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 20px;
     flex-wrap: wrap;
     gap: 12px;
 }
@@ -32,132 +28,201 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    flex-wrap: wrap;
 }
 
 .headerLeft h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a1a2e;
     margin: 0;
-    color: #1e3a8a;
-    font-size: 22px;
-    white-space: nowrap;
-}
-
-.shiftStatus {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.statusBadge {
-    color: #10b981;
-    font-size: 14px;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.shiftTimer {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    color: #6b7280;
-    font-family: monospace;
-    white-space: nowrap;
-}
-
-.lastUpdated {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: #9ca3af;
-    white-space: nowrap;
 }
 
 .headerRight {
     display: flex;
     gap: 10px;
-    flex-wrap: wrap;
     align-items: center;
 }
 
+/* ========== SHIFT STATUS ========== */
+.shiftStatus {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.shiftTimer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+/* ========== BUTTONS ========== */
 .startShiftBtn {
-    background: #10b981;
+    background: linear-gradient(135deg, #10b981, #059669);
     color: white;
     border: none;
-    padding: 8px 20px;
-    border-radius: 8px;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 500;
-    font-size: 14px;
-    white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .startShiftBtn:hover {
-    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
 }
 
 .createOrderBtn {
-    background: #3b82f6;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: white;
     border: none;
-    padding: 8px 20px;
-    border-radius: 8px;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 500;
-    font-size: 14px;
-    white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .createOrderBtn:hover {
-    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
 }
 
 .endShiftBtn {
-    background: #ef4444;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
     color: white;
     border: none;
-    padding: 8px 20px;
-    border-radius: 8px;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 500;
-    font-size: 14px;
-    white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .endShiftBtn:hover {
-    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
 }
 
 .refreshBtn {
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    padding: 8px 12px;
-    border-radius: 8px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 2px solid #e2e8f0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 14px;
-    white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .refreshBtn:hover {
-    background: #e5e7eb;
+    background: #e2e8f0;
+}
+
+.startShiftLargeBtn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 18px 36px;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 24px;
+    transition: all 0.3s;
+}
+
+.startShiftLargeBtn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 24px rgba(16, 185, 129, 0.5);
+}
+
+/* ========== ALERTS ========== */
+.successAlert {
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    color: #065f46;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 16px;
+    border: 2px solid #10b981;
+    animation: slideIn 0.3s ease;
+}
+
+.errorAlert {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    color: #991b1b;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 16px;
+    border: 2px solid #ef4444;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ========== LOADING ========== */
+.loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    gap: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #475569;
 }
 
 .spinning {
@@ -174,118 +239,81 @@
     }
 }
 
-/* Error Alert */
-.errorAlert {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #dc2626;
-    padding: 12px 16px;
-    border-radius: 10px;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-}
-
-.errorClose {
-    margin-left: auto;
-    background: none;
-    border: none;
-    color: #dc2626;
-    cursor: pointer;
-    font-size: 18px;
-    padding: 0 4px;
-}
-
-/* Loading Overlay */
-.loadingOverlay {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 40px;
-    color: #6b7280;
-    font-size: 16px;
-}
-
-/* Stats Grid */
+/* ========== STATS GRID ========== */
 .statsGrid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
 }
 
 .statCard {
     background: white;
+    padding: 24px;
     border-radius: 16px;
-    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
     display: flex;
     align-items: center;
     gap: 16px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s;
+    transition: all 0.3s;
+    border: 2px solid transparent;
 }
 
 .statCard:hover {
-    transform: translateY(-2px);
-}
-
-.primaryCard {
-    border: 2px solid #10b98130;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .warningCard {
-    border: 2px solid #f59e0b30;
+    border-color: #f59e0b;
+    background: #fffbeb;
 }
 
 .statIcon {
     width: 60px;
     height: 60px;
-    border-radius: 16px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-}
-
-.statInfo {
-    flex: 1;
-    min-width: 0;
+    font-size: 28px;
 }
 
 .statTitle {
-    font-size: 14px;
-    color: #6b7280;
-    margin-bottom: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 6px;
 }
 
 .statValue {
-    font-size: 24px;
-    font-weight: bold;
-    color: #1e3a8a;
-    word-break: break-all;
+    font-size: 32px;
+    font-weight: 800;
+    color: #1a1a2e;
+    line-height: 1.2;
 }
 
 .statSub {
-    font-size: 12px;
-    color: #9ca3af;
+    font-size: 14px;
+    color: #94a3b8;
+    font-weight: 500;
     margin-top: 4px;
 }
 
-/* Payment Methods */
+/* ========== PAYMENT METHODS CARD ========== */
 .paymentMethodsCard {
     background: white;
+    padding: 24px;
     border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 20px;
 }
 
 .paymentMethodsCard h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
     margin: 0 0 16px 0;
-    color: #1e3a8a;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -293,76 +321,73 @@
 
 .methodsGrid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
 }
 
 .methodItem {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     padding: 16px;
-    background: #f9fafb;
+    background: #f8fafc;
     border-radius: 12px;
-    position: relative;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .methodItem:hover {
-    background: #f3f4f6;
+    background: #f1f5f9;
 }
 
 .methodIcon {
-    flex-shrink: 0;
-}
-
-.methodInfo {
-    flex: 1;
-    min-width: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
 }
 
 .methodName {
-    font-size: 13px;
-    color: #6b7280;
-    margin-bottom: 4px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a2e;
 }
 
 .methodValue {
-    font-size: 18px;
-    font-weight: bold;
-    color: #1e3a8a;
+    font-size: 20px;
+    font-weight: 800;
+    color: #1e293b;
 }
 
 .methodCount {
-    font-size: 11px;
-    color: #9ca3af;
-    margin-top: 2px;
+    font-size: 13px;
+    color: #94a3b8;
 }
 
 .methodBar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: #e5e7eb;
-    border-radius: 0 0 12px 12px;
+    flex: 1;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
     overflow: hidden;
+    margin-top: 4px;
 }
 
 .methodBarFill {
     height: 100%;
-    border-radius: 0 0 12px 12px;
+    border-radius: 3px;
     transition: width 0.5s ease;
 }
 
-/* Shift Info */
+/* ========== SHIFT INFO CARD ========== */
 .shiftInfoCard {
     background: white;
+    padding: 24px;
     border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 20px;
 }
 
 .shiftInfoHeader {
@@ -375,8 +400,10 @@
 }
 
 .shiftInfoHeader h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a2e;
     margin: 0;
-    color: #1e3a8a;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -385,91 +412,96 @@
 .actionButtons {
     display: flex;
     gap: 8px;
-    flex-wrap: wrap;
 }
 
 .withdrawBtn {
-    background: #fef3c7;
-    color: #d97706;
-    border: none;
-    padding: 6px 16px;
-    border-radius: 6px;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 2px solid #fecaca;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 15px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
-    white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .withdrawBtn:hover {
-    background: #fde68a;
+    background: #fee2e2;
 }
 
 .depositBtn {
-    background: #d1fae5;
+    background: #ecfdf5;
     color: #059669;
-    border: none;
-    padding: 6px 16px;
-    border-radius: 6px;
+    border: 2px solid #a7f3d0;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 15px;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
-    white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .depositBtn:hover {
-    background: #a7f3d0;
+    background: #d1fae5;
 }
 
 .shiftInfoGrid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
 }
 
 .infoItem {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: #f8fafc;
+    border-radius: 10px;
 }
 
 .infoLabel {
-    font-size: 12px;
-    color: #6b7280;
+    font-size: 15px;
+    color: #64748b;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
 }
 
 .infoValue {
-    font-size: 16px;
-    font-weight: 600;
-    color: #1f2937;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a2e;
 }
 
 .infoValueHighlight {
-    font-size: 18px;
-    font-weight: 700;
-    color: #10b981;
+    font-size: 22px;
+    font-weight: 800;
+    color: #059669;
 }
 
-/* Hourly Revenue */
+/* ========== HOURLY REVENUE ========== */
 .hourlyRevenueCard {
     background: white;
+    padding: 24px;
     border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 20px;
 }
 
 .hourlyRevenueCard h3 {
-    margin: 0 0 20px 0;
-    color: #1e3a8a;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 0 0 16px 0;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -477,184 +509,138 @@
 
 .chartContainer {
     display: flex;
+    gap: 3px;
     align-items: flex-end;
-    gap: 8px;
+    height: 180px;
+    padding: 0 4px;
     overflow-x: auto;
-    overflow-y: hidden;
-    padding: 10px 0;
-    min-height: 200px;
-}
-
-.chartContainer::-webkit-scrollbar {
-    height: 6px;
-}
-
-.chartContainer::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 3px;
-}
-
-.chartContainer::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
 }
 
 .chartBarGroup {
+    flex: 1;
+    min-width: 28px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 50px;
-    position: relative;
+    gap: 4px;
 }
 
 .chartBar {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    height: 180px;
     width: 100%;
+    height: 140px;
+    display: flex;
+    align-items: flex-end;
+    background: #f1f5f9;
+    border-radius: 6px 6px 0 0;
+    overflow: hidden;
 }
 
 .chartBarFill {
-    width: 36px;
-    border-radius: 4px 4px 0 0;
-    transition: height 0.3s;
-    min-height: 4px;
+    width: 100%;
+    border-radius: 6px 6px 0 0;
+    transition: height 0.5s ease;
+    min-height: 2px;
 }
 
 .chartBarLabel {
     font-size: 11px;
-    color: #6b7280;
-    margin-top: 8px;
-    white-space: nowrap;
+    color: #94a3b8;
+    font-weight: 600;
 }
 
-.chartBarTooltip {
-    position: absolute;
-    top: -40px;
-    background: #1f2937;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    white-space: nowrap;
-    pointer-events: none;
-}
-
-.chartLegend {
-    display: flex;
-    gap: 20px;
-    margin-top: 12px;
-    justify-content: center;
-}
-
-.legendItem {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: #6b7280;
-}
-
-.legendColor {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-}
-
-/* Transactions */
+/* ========== TRANSACTIONS TABLE ========== */
 .transactionsCard {
     background: white;
+    padding: 24px;
     border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 20px;
 }
 
 .transactionsCard h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
     margin: 0 0 16px 0;
-    color: #1e3a8a;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+}
+
+.tableWrapper {
+    overflow-x: auto;
 }
 
 .transactionsTable {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 15px;
 }
 
 .transactionsTable th {
+    background: #f8fafc;
+    padding: 14px 16px;
     text-align: left;
-    padding: 10px;
-    background: #f9fafb;
-    font-weight: 600;
-    color: #374151;
-    white-space: nowrap;
+    font-weight: 700;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    font-size: 16px;
 }
 
 .transactionsTable td {
-    padding: 10px;
-    border-bottom: 1px solid #e5e7eb;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    font-weight: 500;
 }
 
 .withdrawRow {
-    background: #fffbeb;
+    background: #fef2f2;
 }
 
 .depositRow {
-    background: #f0fdf4;
+    background: #ecfdf5;
 }
 
 .withdrawBadge {
-    color: #d97706;
-    font-weight: 500;
+    background: #fee2e2;
+    color: #dc2626;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 14px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
 }
 
 .depositBadge {
+    background: #d1fae5;
     color: #059669;
-    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 14px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
 }
 
 .withdrawAmount {
-    color: #d97706;
-    font-weight: 600;
+    color: #dc2626;
+    font-weight: 700;
+    font-size: 17px;
 }
 
 .depositAmount {
     color: #059669;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 17px;
 }
 
-.transactionReason {
-    color: #6b7280;
-    font-size: 12px;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.balanceAfter {
-    font-weight: 500;
-    color: #1f2937;
-}
-
-/* Recent Orders */
+/* ========== RECENT ORDERS ========== */
 .recentOrdersCard {
     background: white;
+    padding: 24px;
     border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    margin-bottom: 20px;
 }
 
 .cardHeader {
@@ -665,53 +651,48 @@
 }
 
 .cardHeader h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
     margin: 0;
-    color: #1e3a8a;
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
 .viewAllBtn {
-    background: #eff6ff;
-    border: 1px solid #dbeafe;
-    color: #3b82f6;
-    padding: 6px 16px;
-    border-radius: 6px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 15px;
     cursor: pointer;
-    font-size: 13px;
-    white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .viewAllBtn:hover {
-    background: #dbeafe;
-}
-
-.tableWrapper {
-    overflow-x: hidden;
-    overflow-y: visible;
-    width: 100%;
+    background: #2563eb;
 }
 
 .ordersTable {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 15px;
 }
 
 .ordersTable th {
+    background: #f8fafc;
+    padding: 14px 12px;
     text-align: left;
-    padding: 12px;
-    background: #f9fafb;
-    font-weight: 600;
-    color: #374151;
-    white-space: nowrap;
+    font-weight: 700;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    font-size: 16px;
 }
 
 .ordersTable td {
     padding: 12px;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #f1f5f9;
+    font-weight: 500;
 }
 
 .paidRow {
@@ -722,162 +703,76 @@
     background: #fffbeb;
 }
 
-.orderId {
-    font-weight: 600;
-    color: #1e3a8a;
-}
-
-.orderAmount {
-    font-weight: 600;
-    color: #059669;
-}
-
-.paymentMethod {
-    font-size: 12px;
-    padding: 4px 8px;
-    background: #f3f4f6;
-    border-radius: 4px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    white-space: nowrap;
-}
-
 .paidBadge {
-    padding: 4px 12px;
     background: #d1fae5;
     color: #059669;
+    padding: 6px 14px;
     border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    white-space: nowrap;
+    font-weight: 700;
+    font-size: 14px;
 }
 
 .unpaidBadge {
-    padding: 4px 12px;
-    background: #fee2e2;
-    color: #dc2626;
+    background: #fef3c7;
+    color: #d97706;
+    padding: 6px 14px;
     border-radius: 20px;
-    font-size: 12px;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    white-space: nowrap;
+    font-weight: 700;
+    font-size: 14px;
 }
 
 .viewBtn {
-    background: #eff6ff;
+    background: #3b82f6;
+    color: white;
     border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
     cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: #3b82f6;
-    white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .viewBtn:hover {
-    background: #dbeafe;
+    background: #2563eb;
 }
 
 .noData {
     text-align: center;
-    padding: 40px;
-    color: #9ca3af;
-    font-size: 14px;
+    padding: 40px !important;
+    color: #94a3b8;
+    font-size: 17px;
+    font-weight: 600;
 }
 
-/* No Shift State */
+/* ========== NO SHIFT STATE ========== */
 .noShiftCard {
     background: white;
+    padding: 60px 24px;
     border-radius: 16px;
-    padding: 60px 20px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
     text-align: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .noShiftContent {
-    max-width: 400px;
+    max-width: 500px;
     margin: 0 auto;
 }
 
-.noShiftIcon {
-    color: #9ca3af;
-    margin-bottom: 20px;
-}
-
 .noShiftContent h3 {
-    margin: 20px 0 8px;
-    color: #374151;
-    font-size: 20px;
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin: 16px 0 8px;
 }
 
 .noShiftContent p {
-    color: #6b7280;
-    margin-bottom: 24px;
-    font-size: 14px;
+    font-size: 18px;
+    color: #64748b;
+    margin-bottom: 8px;
 }
 
-.noShiftInstructions {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 24px;
-    text-align: left;
-}
-
-.instructionItem {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 14px;
-    color: #374151;
-}
-
-.stepNumber {
-    width: 28px;
-    height: 28px;
-    background: #dbeafe;
-    color: #3b82f6;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 14px;
-    flex-shrink: 0;
-}
-
-.startShiftLargeBtn {
-    background: #10b981;
-    color: white;
-    border: none;
-    padding: 12px 32px;
-    border-radius: 10px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 600;
-    font-size: 16px;
-    transition: all 0.2s;
-}
-
-.startShiftLargeBtn:hover {
-    background: #059669;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-/* ===== MODAL ===== */
+/* ========== MODAL ========== */
 .modalOverlay {
     position: fixed;
     top: 0;
@@ -888,435 +783,285 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 10000;
     padding: 20px;
 }
 
 .modal {
     background: white;
-    border-radius: 16px;
-    width: 650px;
-    max-width: 95%;
-    max-height: 95vh;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    animation: modalIn 0.3s ease;
+}
+
+@keyframes modalIn {
+    from {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 .modalHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px 12px;
-    border-bottom: 1px solid #e5e7eb;
+    padding: 24px;
+    border-bottom: 2px solid #f1f5f9;
 }
 
 .modalHeader h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a2e;
     margin: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: #1e3a8a;
-    font-size: 18px;
+    gap: 10px;
 }
 
-.modalClose {
-    background: none;
+.modalHeader button {
+    background: #f1f5f9;
     border: none;
-    font-size: 22px;
-    color: #9ca3af;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: all 0.2s;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
 }
 
-.modalClose:hover {
-    background: #f3f4f6;
-    color: #374151;
+.modalHeader button:hover {
+    background: #e2e8f0;
 }
 
 .modalContent {
-    padding: 16px 20px;
+    padding: 24px;
 }
 
+.modalFooter {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 20px 24px;
+    border-top: 2px solid #f1f5f9;
+}
+
+/* ========== FORM ========== */
 .formGroup {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .formGroup label {
     display: flex;
     align-items: center;
     gap: 6px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a2e;
     margin-bottom: 8px;
-    font-weight: 500;
-    color: #374151;
-    font-size: 14px;
-}
-
-.required {
-    color: #ef4444;
 }
 
 .modalInput {
     width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    font-size: 14px;
-    box-sizing: border-box;
-    transition: all 0.2s;
+    padding: 14px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a1a2e;
+    transition: all 0.3s;
+    background: #f8fafc;
 }
 
 .modalInput:focus {
     outline: none;
     border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
-.inputHint {
-    font-size: 12px;
-    color: #6b7280;
-    margin-top: 6px;
-}
-
-.modalInfo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px;
-    background: #fef3c7;
-    border-radius: 8px;
-    font-size: 13px;
-    color: #d97706;
-    margin-bottom: 16px;
-}
-
-.developmentNote {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px;
-    background: #fffbeb;
-    border-radius: 8px;
-    font-size: 13px;
-    margin-top: 12px;
-}
-
+/* ========== QUICK AMOUNTS ========== */
 .quickAmounts {
     display: flex;
-    align-items: center;
     gap: 8px;
-    margin-top: 12px;
     flex-wrap: wrap;
-}
-
-.quickAmounts span {
-    font-size: 13px;
-    color: #6b7280;
+    margin-top: 12px;
 }
 
 .quickAmountBtn {
-    padding: 6px 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    padding: 8px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
     background: white;
     cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s;
-    white-space: nowrap;
+    font-weight: 700;
+    font-size: 15px;
+    transition: all 0.3s;
 }
 
 .quickAmountBtn:hover {
-    background: #f3f4f6;
-}
-
-.quickAmountBtn.active {
-    background: #dbeafe;
     border-color: #3b82f6;
     color: #3b82f6;
 }
 
-.modalFooter {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    padding: 12px 20px 16px;
-    border-top: 1px solid #e5e7eb;
+.quickAmountBtn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
 }
 
+/* ========== BUTTONS IN MODAL ========== */
 .cancelBtn {
-    padding: 8px 20px;
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 2px solid #e2e8f0;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 16px;
     cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .cancelBtn:hover {
-    background: #e5e7eb;
-}
-
-.confirmBtn,
-.endShiftConfirmBtn,
-.withdrawConfirmBtn,
-.depositConfirmBtn {
-    padding: 8px 20px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 14px;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    background: #e2e8f0;
 }
 
 .confirmBtn {
-    background: #10b981;
+    background: linear-gradient(135deg, #10b981, #059669);
     color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .confirmBtn:hover {
-    background: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+}
+
+.confirmBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .endShiftConfirmBtn {
-    background: #ef4444;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
     color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .endShiftConfirmBtn:hover {
-    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.4);
 }
 
-.withdrawConfirmBtn {
-    background: #d97706;
-    color: white;
-}
-
-.withdrawConfirmBtn:hover {
-    background: #b45309;
-}
-
-.depositConfirmBtn {
-    background: #059669;
-    color: white;
-}
-
-.depositConfirmBtn:hover {
-    background: #047857;
-}
-
-button:disabled {
+.endShiftConfirmBtn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
 }
 
-/* ===== END SHIFT SUMMARY - 2 CỘT ===== */
+/* ========== END SHIFT SUMMARY ========== */
 .endShiftSummary {
-    padding: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-.summarySection {
-    margin-bottom: 12px;
-}
-
-.summarySection:last-child {
-    grid-column: 1 / -1;
-}
-
-.summarySection h4 {
+.endShiftSummary h4 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a1a2e;
     margin: 0 0 8px 0;
-    color: #1e3a8a;
-    font-size: 14px;
 }
 
 .summaryRow {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 5px 0;
-    font-size: 13px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 10px;
+    font-size: 16px;
 }
 
 .summaryRow span {
+    color: #64748b;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 6px;
-    color: #6b7280;
+    gap: 8px;
+}
+
+.summaryRow strong {
+    font-size: 18px;
+    color: #1a1a2e;
 }
 
 .summaryRowHighlight {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 12px;
-    background: #f0fdf4;
-    border-radius: 8px;
-    margin-bottom: 6px;
-    font-size: 13px;
+    background: #ecfdf5;
+    border: 2px solid #a7f3d0;
 }
 
-.summaryRowHighlight span {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: #6b7280;
+.summaryRowHighlight strong {
+    color: #059669;
+    font-size: 22px;
 }
 
-.divider {
-    display: none;
-}
-
-.cashHighlight {
-    color: #10b981;
-    font-size: 18px;
-}
-
-.totalHighlight {
-    color: #ef4444;
-    font-size: 18px;
-}
-
-.calculationNote {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
-    background: #fef3c7;
-    border-radius: 8px;
-    font-size: 12px;
-    color: #d97706;
-    margin-top: 10px;
-    grid-column: 1 / -1;
-}
-
-.calculationNote span {
-    line-height: 1.6;
-}
-
-/* Scrollbar Styles */
-.container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.container::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 4px;
-}
-
-.container::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-}
-
-.container::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 1200px) {
-    .statsGrid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .shiftInfoGrid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .methodsGrid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .modal {
-        width: 90%;
-    }
-
-    .endShiftSummary {
-        grid-template-columns: 1fr;
-    }
-}
-
+/* ========== RESPONSIVE ========== */
 @media (max-width: 768px) {
-    .container {
-        padding: 12px;
-    }
-
     .header {
-        padding: 12px 16px;
+        padding: 16px;
     }
 
     .headerLeft h2 {
-        font-size: 18px;
+        font-size: 22px;
+    }
+
+    .statsGrid {
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .statValue {
-        font-size: 20px;
-    }
-
-    .statIcon {
-        width: 48px;
-        height: 48px;
-    }
-
-    .chartBarFill {
-        width: 24px;
-    }
-
-    .chartBarGroup {
-        min-width: 40px;
-    }
-
-    .modal {
-        width: 95%;
-    }
-
-    .endShiftSummary {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 480px) {
-    .statsGrid {
-        grid-template-columns: 1fr;
-    }
-
-    .methodsGrid {
-        grid-template-columns: 1fr;
+        font-size: 26px;
     }
 
     .shiftInfoGrid {
         grid-template-columns: 1fr;
     }
 
-    .header {
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .headerRight {
-        width: 100%;
-    }
-
-    .actionButtons {
-        width: 100%;
-    }
-
-    .actionButtons button {
-        flex: 1;
-    }
-
-    .chartBarGroup {
-        min-width: 30px;
-    }
-
-    .chartBarFill {
-        width: 16px;
+    .modal {
+        max-width: 100%;
+        margin: 10px;
     }
 }

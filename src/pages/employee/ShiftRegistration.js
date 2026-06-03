@@ -11,6 +11,16 @@ import { showToast } from '../../hooks/useToast';
 import axiosClient from '../../api/axiosClient';
 import './ShiftRegistration.css';
 
+// Import icons from react-icons
+import {
+    FaChartBar, FaCheckCircle, FaExclamationTriangle,
+    FaCalendarAlt, FaUser, FaBuilding, FaClock, FaHourglassHalf,
+    FaSyncAlt, FaCheck, FaTimes, FaTrashAlt, FaInfoCircle,
+    FaClipboardList, FaList, FaEye, FaDollarSign
+} from 'react-icons/fa';
+import { FiClock, FiCalendar, FiUser, FiHome, FiRefreshCw } from 'react-icons/fi';
+import { TiTick, TiCancel, TiArrowRight, TiArrowLeft } from 'react-icons/ti';
+
 moment.locale('vi');
 const localizer = momentLocalizer(moment);
 
@@ -44,7 +54,7 @@ const ShiftSkeleton = () => (
 );
 
 // ========== STAT CARD ==========
-const StatCard = ({ icon, label, value, variant }) => (
+const StatCard = ({ icon: IconComponent, label, value, variant }) => (
     <Card className={`stat-card ${variant} fade-in-up`}>
         <Card.Body>
             <div className="d-flex justify-content-between align-items-center">
@@ -52,7 +62,7 @@ const StatCard = ({ icon, label, value, variant }) => (
                     <div className="stat-label">{label}</div>
                     <div className="stat-value">{value || 0}</div>
                 </div>
-                <i className={`ti ti-${icon} stat-icon`}></i>
+                <IconComponent className="stat-icon" size={40} />
             </div>
         </Card.Body>
     </Card>
@@ -60,10 +70,10 @@ const StatCard = ({ icon, label, value, variant }) => (
 
 // ========== ATTENDANCE BADGE ==========
 const AttendanceBadge = ({ status, checkIn, checkOut }) => {
-    if (checkOut) return <Badge bg="success" className="px-3 py-2">✅ Đã hoàn thành</Badge>;
-    if (checkIn) return <Badge bg="primary" className="px-3 py-2">🟢 Đang làm việc</Badge>;
-    if (status === 'LATE') return <Badge bg="warning" className="px-3 py-2">⚠️ Check-in trễ</Badge>;
-    return <Badge bg="secondary" className="px-3 py-2">⏳ Chưa check-in</Badge>;
+    if (checkOut) return <Badge bg="success" className="px-3 py-2"><FaCheck className="me-1" /> Đã hoàn thành</Badge>;
+    if (checkIn) return <Badge bg="primary" className="px-3 py-2"><FaClock className="me-1" /> Đang làm việc</Badge>;
+    if (status === 'LATE') return <Badge bg="warning" className="px-3 py-2"><FaExclamationTriangle className="me-1" /> Check-in trễ</Badge>;
+    return <Badge bg="secondary" className="px-3 py-2"><FaClock className="me-1" /> Chưa check-in</Badge>;
 };
 
 // ========== SHIFT CARD COMPONENT ==========
@@ -90,7 +100,7 @@ const ShiftCard = ({ shift, assignedCount, requiredStaff, maxStaff, registered, 
         progressVariant = 'info';
     } else {
         statusColor = '#ffc107';
-        statusText = `Thiếu ${requiredStaff - assignedCount} người`;
+        statusText = `Thiếu ${requiredStaff - assignedCount}`;
         progressVariant = 'warning';
     }
 
@@ -108,22 +118,22 @@ const ShiftCard = ({ shift, assignedCount, requiredStaff, maxStaff, registered, 
                             <h6 className="mb-0 fw-bold">{shift.name || 'Ca'}</h6>
                             {shift.shiftAllowance > 0 && (
                                 <Badge bg="warning" text="dark" className="px-2">
-                                    💰 +{formatCurrency(shift.shiftAllowance)}
+                                    <FaDollarSign className="me-1" /> +{formatCurrency(shift.shiftAllowance)}
                                 </Badge>
                             )}
                             {registered && (
-                                <Badge bg="success" className="px-2">✅ Đã đăng ký</Badge>
+                                <Badge bg="success" className="px-2"><FaCheck className="me-1" /> Đã đăng ký</Badge>
                             )}
                         </div>
 
                         <div className="d-flex align-items-center gap-3 text-muted small mb-2">
                             <span>
-                                <i className="ti ti-clock me-1"></i>
+                                <FiClock className="me-1" size={14} />
                                 {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
                             </span>
                             {shift.workingHours && (
                                 <span>
-                                    <i className="ti ti-hourglass me-1"></i>
+                                    <FaHourglassHalf className="me-1" size={14} />
                                     {shift.workingHours}h
                                 </span>
                             )}
@@ -179,8 +189,7 @@ const ShiftRegistration = () => {
     const [error, setError] = useState(null);
 
     const [shifts, setShifts] = useState([]);
-    const [staffShifts, setStaffShifts] = useState([]); // Ca của CHÍNH MÌNH
-    const [allDayShifts, setAllDayShifts] = useState([]); // TẤT CẢ ca trong ngày
+    const [staffShifts, setStaffShifts] = useState([]);
     const [shiftSchedules, setShiftSchedules] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -206,7 +215,7 @@ const ShiftRegistration = () => {
     const [preloading, setPreloading] = useState(false);
     const cacheRef = useRef({});
 
-    // ========== INIT USER ==========
+    // ========== INIT ==========
     useEffect(() => { initUserData(); }, []);
 
     const initUserData = async () => {
@@ -240,10 +249,10 @@ const ShiftRegistration = () => {
         finally { setLoadingUser(false); }
     };
 
-    // ========== FETCH SHIFTS ==========
+    // ========== SHIFTS ==========
     useEffect(() => { axiosClient.get('/shifts').then(r => setShifts(r.data)).catch(() => { }); }, []);
 
-    // ========== LOAD MONTH DATA ==========
+    // ========== MONTH DATA ==========
     useEffect(() => { if (staffId && branchId) preloadMonthData(currentMonth); }, [staffId, branchId, currentMonth]);
 
     const preloadMonthData = useCallback(async (date) => {
@@ -259,26 +268,19 @@ const ShiftRegistration = () => {
         } catch (e) { } finally { setPreloading(false); }
     }, [staffId, branchId]);
 
-    // ========== LOAD DAY DATA ==========
+    // ========== DAY DATA ==========
     const loadDayData = useCallback(async (date) => {
         if (!staffId) return;
         setSelectedDate(date);
         const ds = moment(date).format('YYYY-MM-DD');
         setLoading(true);
         try {
-            // Lấy ca của CHÍNH MÌNH + TẤT CẢ ca trong ngày
-            const [myRes, allRes] = await Promise.all([
-                axiosClient.get('/staff-shifts/staff-date', { params: { staffId, date: ds } }).catch(() => ({ data: [] })),
-                axiosClient.get('/staff-shifts/date', { params: { date: ds } }).catch(() => ({ data: [] }))
-            ]);
-
+            const ssRes = await axiosClient.get('/staff-shifts/staff-date', { params: { staffId, date: ds } }).catch(() => ({ data: [] }));
             const filtered = allMonthSchedules.filter(s => {
                 const sd = s.workDay || s.work_day;
                 return sd === ds || moment(sd).format('YYYY-MM-DD') === ds;
             });
-
-            setStaffShifts(myRes.data || []);
-            setAllDayShifts(allRes.data || []); // Lưu TẤT CẢ shifts trong ngày
+            setStaffShifts(ssRes.data || []);
             setShiftSchedules(filtered || []);
         } catch (e) { } finally { setLoading(false); }
     }, [staffId, allMonthSchedules]);
@@ -298,7 +300,7 @@ const ShiftRegistration = () => {
         setRegisteringShiftId(shiftId);
         try {
             await axiosClient.post('/staff-shifts', null, { params: { staffId, shiftId, workDay: moment(selectedDate).format('YYYY-MM-DD') } });
-            showToast('success', 'Thành công', '🎉 Đăng ký ca thành công!');
+            showToast('success', 'Thành công', 'Đăng ký ca thành công!');
             preloadMonthData(currentMonth);
             loadDayData(selectedDate);
         } catch (err) {
@@ -312,7 +314,7 @@ const ShiftRegistration = () => {
         setCancellingShiftId(id);
         try {
             await axiosClient.delete(`/staff-shifts/${id}`);
-            showToast('success', 'Thành công', '✅ Đã hủy!');
+            showToast('success', 'Thành công', 'Đã hủy!');
             setShowDetailModal(false);
             preloadMonthData(currentMonth);
             loadDayData(selectedDate);
@@ -355,7 +357,7 @@ const ShiftRegistration = () => {
         setCheckingIn(true);
         try {
             await axiosClient.post(`/attendance/check-in/${staffId}`, null, { params: { shiftScheduleId: sc.id } });
-            showToast('success', 'OK', '✅ Check-in!');
+            showToast('success', 'OK', 'Check-in thành công!');
             fetchAttendance(sc.id);
             fetchMonthlyStats();
         } catch (err) { showToast('error', 'Lỗi', err.response?.data?.message); }
@@ -373,7 +375,7 @@ const ShiftRegistration = () => {
         setCheckingOut(true);
         try {
             await axiosClient.post(`/attendance/check-out/${staffId}`, null, { params: { shiftScheduleId: sc.id } });
-            showToast('success', 'OK', '🏠 Check-out!');
+            showToast('success', 'OK', 'Check-out thành công!');
             fetchAttendance(sc.id);
             fetchMonthlyStats();
         } catch (err) { showToast('error', 'Lỗi', err.response?.data?.message); }
@@ -385,7 +387,7 @@ const ShiftRegistration = () => {
         return allMonthShifts.map(ss => {
             const shift = shifts.find(s => s.id === (ss.shift?.id || ss.shiftId));
             return {
-                id: ss.id, title: `✅ ${shift?.name || 'Ca'}`,
+                id: ss.id, title: `${shift?.name || 'Ca'}`,
                 start: moment(`${ss.workDay} ${shift?.startTime || '08:00'}`).toDate(),
                 end: moment(`${ss.workDay} ${shift?.endTime || '17:00'}`).toDate(),
                 resource: ss, allDay: false
@@ -407,15 +409,15 @@ const ShiftRegistration = () => {
                         <div className="d-flex justify-content-between align-items-center">
                             <div>
                                 <h3 className="mb-1" style={{ color: '#2c3e50', fontWeight: 700 }}>
-                                    📅 Quản lý ca làm việc
+                                    <FaCalendarAlt className="me-2" /> Quản lý ca làm việc
                                 </h3>
                                 <div className="d-flex align-items-center gap-3 mt-2">
                                     <span className="text-muted">
-                                        👤 <strong>{staffInfo?.user?.fullName}</strong>
+                                        <FaUser className="me-1" size={14} /> <strong>{staffInfo?.user?.fullName}</strong>
                                     </span>
                                     <span className="text-muted">|</span>
                                     <span className="text-muted">
-                                        🏢 <strong>{staffInfo?.branch?.name}</strong>
+                                        <FaBuilding className="me-1" size={14} /> <strong>{staffInfo?.branch?.name}</strong>
                                     </span>
                                     {staffInfo?.position && (
                                         <Badge bg="primary" className="px-3 py-2 rounded-pill">{staffInfo.position}</Badge>
@@ -423,7 +425,7 @@ const ShiftRegistration = () => {
                                 </div>
                             </div>
                             <Button variant="outline-secondary" size="sm" className="rounded-pill" onClick={() => preloadMonthData(currentMonth)}>
-                                🔄 Tải lại
+                                <FaSyncAlt className="me-1" size={12} /> Tải lại
                             </Button>
                         </div>
                     </Card.Body>
@@ -433,19 +435,13 @@ const ShiftRegistration = () => {
                 {monthlyStats && (
                     <Row className="mb-4 g-3">
                         {[
-                            { icon: '📊', label: 'Tổng ngày', val: monthlyStats.totalDays, color: '#4361ee' },
-                            { icon: '✅', label: 'Đúng giờ', val: monthlyStats.presentDays, color: '#06d6a0' },
-                            { icon: '⚠️', label: 'Đi trễ', val: monthlyStats.lateDays, color: '#f59e0b' },
-                            { icon: '📅', label: 'Nghỉ phép', val: monthlyStats.leaveDays, color: '#118ab2' },
+                            { icon: FaChartBar, label: 'Tổng ngày', val: monthlyStats.totalDays, variant: 'primary' },
+                            { icon: FaCheckCircle, label: 'Đúng giờ', val: monthlyStats.presentDays, variant: 'success' },
+                            { icon: FaExclamationTriangle, label: 'Đi trễ', val: monthlyStats.lateDays, variant: 'warning' },
+                            { icon: FaCalendarAlt, label: 'Nghỉ phép', val: monthlyStats.leaveDays, variant: 'info' },
                         ].map((s, i) => (
                             <Col key={i} xs={6} md={3}>
-                                <Card className="text-center border-0 shadow-sm" style={{ borderRadius: '12px', borderLeft: `4px solid ${s.color}` }}>
-                                    <Card.Body className="py-3">
-                                        <div style={{ fontSize: '1.8rem' }}>{s.icon}</div>
-                                        <h3 className="mb-0 fw-bold">{s.val}</h3>
-                                        <small className="text-muted">{s.label}</small>
-                                    </Card.Body>
-                                </Card>
+                                <StatCard icon={s.icon} label={s.label} value={s.val} variant={s.variant} />
                             </Col>
                         ))}
                     </Row>
@@ -455,7 +451,7 @@ const ShiftRegistration = () => {
                 <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
                     <Card.Body className="py-2 px-4">
                         <div className="d-flex align-items-center gap-2">
-                            <span className="fw-bold">📊 Thống kê:</span>
+                            <span className="fw-bold"><FaChartBar className="me-1" /> Thống kê:</span>
                             <Form.Select size="sm" value={selectedMonth} onChange={e => setSelectedMonth(+e.target.value)} style={{ width: 130 }}>
                                 {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>Tháng {m}</option>)}
                             </Form.Select>
@@ -470,20 +466,30 @@ const ShiftRegistration = () => {
                 <Card className="border-0 shadow-sm" style={{ borderRadius: '16px', overflow: 'hidden' }}>
                     <Card.Header className="bg-white border-0 pt-3 px-4">
                         <Tabs activeKey={viewMode} onSelect={k => setViewMode(k)} className="border-0">
-                            <Tab eventKey="list" title={<span className="px-2">📋 Danh sách ca</span>} />
-                            <Tab eventKey="calendar" title={<span className="px-2">📅 Lịch tháng</span>} />
+                            <Tab eventKey="list" title={<span className="px-2"><FaClipboardList className="me-2" /> Danh sách ca</span>} />
+                            <Tab eventKey="calendar" title={<span className="px-2"><FaCalendarAlt className="me-2" /> Lịch tháng</span>} />
                         </Tabs>
                     </Card.Header>
                     <Card.Body className="p-4">
                         {viewMode === 'list' && (
                             <>
                                 <div className="d-flex justify-content-between align-items-center mb-4">
-                                    <h5 className="mb-0">
-                                        📅 {moment(selectedDate).format('dddd, DD/MM/YYYY')}
-                                        {isToday(selectedDate) && <Badge bg="warning" className="ms-2 rounded-pill px-3">Hôm nay</Badge>}
-                                    </h5>
-                                    <Form.Control type="date" value={moment(selectedDate).format('YYYY-MM-DD')}
-                                        onChange={e => loadDayData(new Date(e.target.value))} style={{ width: 180, borderRadius: '10px' }} />
+                                    <div className="date-display">
+                                        <h5 className="mb-0 d-flex align-items-center">
+                                            <FaCalendarAlt className="me-2" />
+                                            <span>{moment(selectedDate).format('dddd, DD/MM/YYYY')}</span>
+                                            {isToday(selectedDate) && (
+                                                <Badge className="ms-2 rounded-pill px-3">Hôm nay</Badge>
+                                            )}
+                                        </h5>
+                                    </div>
+                                    <Form.Control
+                                        type="date"
+                                        className="date-picker"
+                                        value={moment(selectedDate).format('YYYY-MM-DD')}
+                                        onChange={e => loadDayData(new Date(e.target.value))}
+                                        style={{ width: 180 }}
+                                    />
                                 </div>
 
                                 {loading ? <ShiftSkeleton /> : (
@@ -492,7 +498,7 @@ const ShiftRegistration = () => {
                                         {staffShifts.length > 0 && (
                                             <div className="mb-4">
                                                 <h6 className="fw-bold mb-3" style={{ color: '#28a745' }}>
-                                                    ✅ Ca đã đăng ký ({staffShifts.length})
+                                                    <FaCheckCircle className="me-2" /> Ca đã đăng ký ({staffShifts.length})
                                                 </h6>
                                                 {staffShifts.map(ss => (
                                                     <Card key={ss.id} className="mb-2 border-0 shadow-sm"
@@ -503,12 +509,12 @@ const ShiftRegistration = () => {
                                                                 <div>
                                                                     <strong className="text-success">{ss.shift?.name}</strong>
                                                                     <span className="text-muted ms-3">
-                                                                        🕐 {formatTime(ss.shift?.startTime)} - {formatTime(ss.shift?.endTime)}
+                                                                        <FiClock className="me-1" size={14} /> {formatTime(ss.shift?.startTime)} - {formatTime(ss.shift?.endTime)}
                                                                     </span>
                                                                 </div>
                                                                 <div className="d-flex gap-2">
                                                                     {isToday(ss.workDay) && <Badge bg="warning" className="rounded-pill px-3">Hôm nay</Badge>}
-                                                                    <Badge bg="success" className="rounded-pill px-3">✅ Đã đăng ký</Badge>
+                                                                    <Badge bg="success" className="rounded-pill px-3"><FaCheck className="me-1" /> Đã đăng ký</Badge>
                                                                 </div>
                                                             </div>
                                                         </Card.Body>
@@ -517,23 +523,19 @@ const ShiftRegistration = () => {
                                             </div>
                                         )}
 
-                                        {/* CA CÓ SẴN - ĐẾM TỪ allDayShifts */}
+                                        {/* CA CÓ SẴN */}
                                         {shiftSchedules.length > 0 && (
                                             <div>
                                                 <h6 className="fw-bold mb-3" style={{ color: '#4361ee' }}>
-                                                    📝 Ca có sẵn để đăng ký ({shiftSchedules.length})
+                                                    <FiClock className="me-2" /> Ca có sẵn để đăng ký ({shiftSchedules.length})
                                                 </h6>
                                                 {shiftSchedules.map(sc => {
                                                     const shift = sc.shift || {};
                                                     const registered = staffShifts.some(ss => (ss.shift?.id || ss.shiftId) === shift.id);
-
-                                                    // ĐẾM TỪ TẤT CẢ SHIFTS TRONG NGÀY (allDayShifts)
-                                                    const assignedCount = (allDayShifts || []).filter(ss =>
-                                                        (ss.shift?.id || ss.shiftId) === shift.id
-                                                    ).length;
-
+                                                    const assignedCount = staffShifts.filter(ss => (ss.shift?.id || ss.shiftId) === shift.id).length;
                                                     const requiredStaff = sc.requiredStaff || 0;
                                                     const maxStaff = sc.maxStaff || 10;
+                                                    const isFull = assignedCount >= requiredStaff;
 
                                                     return (
                                                         <ShiftCard
@@ -553,7 +555,7 @@ const ShiftRegistration = () => {
 
                                         {staffShifts.length === 0 && shiftSchedules.length === 0 && (
                                             <div className="text-center py-5">
-                                                <div style={{ fontSize: '4rem' }}>📭</div>
+                                                <FaCalendarAlt style={{ fontSize: '4rem', opacity: 0.3 }} />
                                                 <p className="text-muted mt-3">Không có ca làm nào cho ngày này</p>
                                             </div>
                                         )}
@@ -577,7 +579,7 @@ const ShiftRegistration = () => {
                 {/* MODAL CHI TIẾT */}
                 <Modal show={showDetailModal} onHide={() => setShowDetailModal(false)} centered>
                     <Modal.Header closeButton style={{ background: 'linear-gradient(135deg, #4361ee, #3f37c9)', color: 'white', borderRadius: '12px 12px 0 0' }}>
-                        <Modal.Title>📋 Chi tiết ca làm</Modal.Title>
+                        <Modal.Title><FaInfoCircle className="me-2" /> Chi tiết ca làm</Modal.Title>
                     </Modal.Header>
                     <Modal.Body className="p-4">
                         {selectedStaffShift && (
@@ -585,7 +587,7 @@ const ShiftRegistration = () => {
                                 <Row className="mb-4">
                                     <Col xs={6}>
                                         <div className="text-center p-3 rounded-3" style={{ background: '#f8f9fa' }}>
-                                            <small className="text-muted d-block mb-1">Ngày làm</small>
+                                            <small className="text-muted d-block mb-1"><FaCalendarAlt className="me-1" /> Ngày làm</small>
                                             <strong className="d-block" style={{ fontSize: '1.2rem' }}>
                                                 {moment(selectedStaffShift.workDay).format('DD/MM/YYYY')}
                                             </strong>
@@ -594,7 +596,7 @@ const ShiftRegistration = () => {
                                     </Col>
                                     <Col xs={6}>
                                         <div className="text-center p-3 rounded-3" style={{ background: '#f8f9fa' }}>
-                                            <small className="text-muted d-block mb-1">Ca làm</small>
+                                            <small className="text-muted d-block mb-1"><FiClock className="me-1" /> Ca làm</small>
                                             <strong className="d-block" style={{ fontSize: '1.2rem' }}>{selectedStaffShift.shift?.name}</strong>
                                             <small className="text-muted">{formatTime(selectedStaffShift.shift?.startTime)} - {formatTime(selectedStaffShift.shift?.endTime)}</small>
                                         </div>
@@ -603,7 +605,7 @@ const ShiftRegistration = () => {
 
                                 {isToday(selectedStaffShift.workDay) && (
                                     <div className="p-3 rounded-3 mb-3" style={{ background: '#f0f4ff', border: '2px solid #4361ee' }}>
-                                        <h6 className="mb-3">🕐 Điểm danh hôm nay</h6>
+                                        <h6 className="mb-3"><FiClock className="me-2" /> Điểm danh hôm nay</h6>
                                         {attendanceLoading ? <div className="text-center"><Spinner size="sm" /></div> :
                                             todayAttendance ? (
                                                 <div>
@@ -614,10 +616,10 @@ const ShiftRegistration = () => {
                                             ) : <Alert variant="light" className="text-center mb-0">Chưa điểm danh</Alert>}
                                         <div className="d-flex gap-2 mt-3">
                                             <Button variant="success" className="flex-fill rounded-pill" disabled={todayAttendance?.checkIn || checkingIn} onClick={handleCheckIn}>
-                                                {checkingIn ? <Spinner size="sm" /> : todayAttendance?.checkIn ? '✅ Đã check-in' : '🟢 CHECK-IN'}
+                                                {checkingIn ? <Spinner size="sm" /> : todayAttendance?.checkIn ? <><FaCheck className="me-1" /> Đã check-in</> : <><FiClock className="me-1" /> CHECK-IN</>}
                                             </Button>
                                             <Button variant="danger" className="flex-fill rounded-pill" disabled={!todayAttendance?.checkIn || todayAttendance?.checkOut || checkingOut} onClick={handleCheckOut}>
-                                                {checkingOut ? <Spinner size="sm" /> : todayAttendance?.checkOut ? '✅ Đã check-out' : '🔴 CHECK-OUT'}
+                                                {checkingOut ? <Spinner size="sm" /> : todayAttendance?.checkOut ? <><FaCheck className="me-1" /> Đã check-out</> : <><FaTimes className="me-1" /> CHECK-OUT</>}
                                             </Button>
                                         </div>
                                     </div>
@@ -627,7 +629,7 @@ const ShiftRegistration = () => {
                     </Modal.Body>
                     <Modal.Footer>
                         <Button variant="outline-danger" className="rounded-pill" onClick={() => handleCancel(selectedStaffShift?.id)}>
-                            🗑️ Hủy đăng ký
+                            <FaTrashAlt className="me-1" /> Hủy đăng ký
                         </Button>
                         <Button variant="secondary" className="rounded-pill" onClick={() => setShowDetailModal(false)}>Đóng</Button>
                     </Modal.Footer>

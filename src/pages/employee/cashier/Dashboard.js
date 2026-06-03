@@ -228,19 +228,52 @@ const Dashboard = () => {
             const response = await fetch(`${API_BASE_URL}/employee/bills`, { headers: getHeaders() });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const bills = await response.json();
-            const recentBills = bills
-                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                .slice(0, 10)
-                .map(bill => ({
-                    id: bill.id, code: `#${bill.id}`,
-                    tableNumber: bill.order?.table?.number || bill.order?.room?.number || bill.room?.number || 'Takeaway',
-                    createdAt: bill.createdAt, totalAmount: bill.totalAmount || 0,
-                    paymentStatus: bill.paymentStatus === 'PAID' ? 'paid' : 'pending',
-                    paymentMethod: bill.paymentMethod || 'CASH',
-                    items: bill.order?.orderItems?.length || bill.items?.length || 0
-                }));
+
+            // Hàm lấy số bàn đúng
+            const getTableNumber = async (bill) => {
+                try {
+                    // Thử lấy từ order trước
+                    if (bill.order?.id) {
+                        const orderRes = await fetch(`${API_BASE_URL}/customer/orders/${bill.order.id}`, {
+                            headers: getHeaders()
+                        });
+                        if (orderRes.ok) {
+                            const orderData = await orderRes.json();
+                            if (orderData.table?.number) return `Bàn ${orderData.table.number}`;
+                            if (orderData.room?.number) return `Phòng ${orderData.room.number}`;
+                        }
+                    }
+                    // Fallback: lấy từ bill.order?.table?.number
+                    if (bill.order?.table?.number) return `Bàn ${bill.order.table.number}`;
+                    if (bill.order?.room?.number) return `Phòng ${bill.order.room.number}`;
+                    if (bill.room?.number) return `Phòng ${bill.room.number}`;
+                    return 'Takeaway';
+                } catch (error) {
+                    return 'Takeaway';
+                }
+            };
+
+            // Lấy số bàn cho từng bill (có thể chậm, nên dùng Promise.all)
+            const recentBills = await Promise.all(
+                bills
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .slice(0, 10)
+                    .map(async (bill) => ({
+                        id: bill.id,
+                        code: `#${bill.id}`,
+                        tableNumber: await getTableNumber(bill),
+                        createdAt: bill.createdAt,
+                        totalAmount: bill.totalAmount || 0,
+                        paymentStatus: bill.paymentStatus === 'PAID' ? 'paid' : 'pending',
+                        paymentMethod: bill.paymentMethod || 'CASH',
+                        items: bill.order?.orderItems?.length || bill.items?.length || 0
+                    }))
+            );
+
             updateState({ recentOrders: recentBills });
-        } catch (error) { console.error("Orders error:", error); }
+        } catch (error) {
+            console.error("Orders error:", error);
+        }
     };
 
     const fetchHourlyRevenue = async () => {
@@ -339,7 +372,6 @@ const Dashboard = () => {
             if (!response.ok) throw new Error((await response.json()).message || "Không thể kết thúc ca");
             const data = await response.json();
 
-            // ===== TOAST THÔNG BÁO KẾT THÚC CA =====
             const difference = data.differenceAmount || 0;
             const diffText = difference === 0
                 ? "Không có chênh lệch"
@@ -422,7 +454,8 @@ const Dashboard = () => {
         return PAYMENT_METHODS[method] || { label: method || 'Không xác định', icon: CreditCard, color: '#9ca3af' };
     };
 
-    const handleViewOrder = (orderId) => navigate(`/employee/cashier/bill?orderId=${orderId}`);
+    // ===== ĐÃ SỬA: Điều hướng đúng với routes trong App.js =====
+    const handleViewOrder = (orderId) => navigate(`/cashier/bill?orderId=${orderId}`);
     const handleCreateOrder = () => navigate('/cashier/tables');
 
     const getShiftSummary = () => {
@@ -640,7 +673,15 @@ const Dashboard = () => {
                             <h3><History size={18} /> Giao dịch tiền mặt</h3>
                             <div className={styles.tableWrapper}>
                                 <table className={styles.transactionsTable}>
-                                    <thead><tr><th>Loại</th><th>Thời gian</th><th>Số tiền</th><th>Lý do</th><th>Số dư</th></tr></thead>
+                                    <thead>
+                                        <tr>
+                                            <th>Loại</th>
+                                            <th>Thời gian</th>
+                                            <th>Số tiền</th>
+                                            <th>Lý do</th>
+                                            <th>Số dư</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
                                         {cashTransactions.map((tx, i) => {
                                             const isWithdraw = tx.type === 'withdraw' || tx.type === 'CASH_OUT';
@@ -669,22 +710,51 @@ const Dashboard = () => {
                     <div className={styles.recentOrdersCard}>
                         <div className={styles.cardHeader}>
                             <h3><Receipt size={18} /> Đơn hàng gần đây</h3>
-                            <button onClick={() => navigate('/employee/cashier/orders')} className={styles.viewAllBtn}>Xem tất cả</button>
+                            <button onClick={() => navigate('/cashier/bill')} className={styles.viewAllBtn}>Xem tất cả</button>
                         </div>
                         <div className={styles.tableWrapper}>
                             <table className={styles.ordersTable}>
-                                <thead><tr><th>Mã</th><th>Bàn</th><th>Giờ</th><th>SL</th><th>Tiền</th><th>TT</th><th>Xem</th></tr></thead>
+                                <thead>
+                                    <tr>
+                                        <th>Mã</th>
+                                        <th>Bàn</th>
+                                        <th>Giờ</th>
+                                        <th>Tiền</th>
+                                        <th>Phương thức</th>
+                                        <th>Xem</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
-                                    {recentOrders.length > 0 ? recentOrders.map(order => (
-                                        <tr key={order.id} className={order.paymentStatus === 'paid' ? styles.paidRow : styles.pendingRow}>
-                                            <td>{order.code}</td><td>{order.tableNumber}</td><td>{formatTime(order.createdAt)}</td>
-                                            <td>{order.items}</td><td>{formatCurrency(order.totalAmount)}</td>
-                                            <td>{order.paymentStatus === 'paid'
-                                                ? <span className={styles.paidBadge}><CheckCircle size={12} /> TT</span>
-                                                : <span className={styles.unpaidBadge}><XCircle size={12} /> Chưa</span>}</td>
-                                            <td><button onClick={() => handleViewOrder(order.id)} className={styles.viewBtn}><Eye size={14} /></button></td>
-                                        </tr>
-                                    )) : <tr><td colSpan={7} className={styles.noData}>Chưa có đơn</td></tr>}
+                                    {recentOrders.length > 0 ? recentOrders.map(order => {
+                                        // Lấy thông tin phương thức thanh toán
+                                        const getPaymentMethodDisplay = (method) => {
+                                            const methods = {
+                                                'CASH': '💵 Tiền mặt',
+                                                'MOMO': '📱 MoMo',
+                                                'MOBILE': '📱 Ví điện tử',
+                                                'BANKING': '🏦 Chuyển khoản',
+                                                'CARD': '💳 Thẻ'
+                                            };
+                                            return methods[method] || method || '💵 Tiền mặt';
+                                        };
+
+                                        return (
+                                            <tr key={order.id} className={order.paymentStatus === 'paid' ? styles.paidRow : styles.pendingRow}>
+                                                <td>{order.code}</td>
+                                                <td>{order.tableNumber}</td>
+                                                <td>{formatTime(order.createdAt)}</td>
+                                                <td>{formatCurrency(order.totalAmount)}</td>
+                                                <td>{getPaymentMethodDisplay(order.paymentMethod)}</td>
+                                                <td>
+                                                    <button onClick={() => handleViewOrder(order.id)} className={styles.viewBtn}>
+                                                        <Eye size={14} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    }) : (
+                                        <tr><td colSpan={6} className={styles.noData}>Chưa có đơn</td></tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>

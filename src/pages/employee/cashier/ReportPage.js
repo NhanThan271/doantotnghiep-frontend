@@ -268,8 +268,17 @@ const ReportPage = () => {
         }
     };
 
+    // Thay hàm formatCurrency cũ bằng hàm này:
     const formatCurrency = (amount) => {
         if (!amount) return "0đ";
+        // Nếu số >= 1 triệu, rút gọn
+        if (amount >= 1000000) {
+            return (amount / 1000000).toFixed(1).replace('.0', '') + ' triệu';
+        }
+        // Nếu số >= 1000, rút gọn
+        if (amount >= 1000) {
+            return (amount / 1000).toFixed(0) + 'k';
+        }
         return amount.toLocaleString('vi-VN') + 'đ';
     };
 
