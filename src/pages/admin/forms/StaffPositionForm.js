@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Briefcase, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 const POSITIONS = [
     { value: 'WAITER', label: 'Phục vụ' },
@@ -57,7 +58,7 @@ export default function StaffPositionForm({ employee, staffInfo, closeForm, onSa
             if (onSave) onSave();
             closeForm();
         } catch (err) {
-            setError(err.message || 'Có lỗi xảy ra, vui lòng thử lại!');
+            showToast('error', 'Lỗi', err.message || 'Có lỗi xảy ra, vui lòng thử lại!');
         } finally {
             setLoading(false);
         }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Package, Ruler } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function EditIngredientForm({ closeForm, onSave, ingredientData }) {
     const [formData, setFormData] = useState({
@@ -28,11 +29,11 @@ export default function EditIngredientForm({ closeForm, onSave, ingredientData }
 
     const validateForm = () => {
         if (!formData.name.trim()) {
-            setError('Vui lòng nhập tên nguyên liệu');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên nguyên liệu');
             return false;
         }
         if (!formData.unit.trim()) {
-            setError('Vui lòng nhập đơn vị tính');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập đơn vị tính');
             return false;
         }
         return true;
@@ -69,7 +70,7 @@ export default function EditIngredientForm({ closeForm, onSave, ingredientData }
             const updatedIngredient = await response.json();
             console.log('Cập nhật nguyên liệu thành công:', updatedIngredient);
 
-            alert('Cập nhật nguyên liệu thành công!');
+            showToast('success', 'Thành công', 'Nguyên liệu đã được cập nhật!');
 
             if (onSave) {
                 onSave(updatedIngredient);
@@ -78,7 +79,7 @@ export default function EditIngredientForm({ closeForm, onSave, ingredientData }
             closeForm();
         } catch (err) {
             console.error('Lỗi khi cập nhật nguyên liệu:', err);
-            setError(err.message || 'Không thể cập nhật nguyên liệu. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', err.message || 'Không thể cập nhật nguyên liệu. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }

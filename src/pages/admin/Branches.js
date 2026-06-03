@@ -25,7 +25,6 @@ export default function Branches({ openAdd, openEdit, refreshTrigger }) {
         fetchBranches();
     }, []);
 
-    // ✅ Tự động refresh khi có trigger từ parent component
     useEffect(() => {
         if (refreshTrigger) {
             fetchBranches();

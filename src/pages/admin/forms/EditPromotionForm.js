@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Tag, Percent, Calendar, Package } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function EditPromotionForm({ promotion, closeForm, onSave, refreshCallback }) {
     const [formData, setFormData] = useState({
@@ -19,7 +20,6 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
 
     const API_BASE_URL = 'http://localhost:8080';
 
-    // Load dữ liệu khuyến mãi khi component mount
     useEffect(() => {
         if (promotion) {
             // Xác định loại giảm giá
@@ -72,34 +72,34 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
 
     const validateForm = () => {
         if (!formData.name.trim()) {
-            setError('Vui lòng nhập tên khuyến mãi');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên khuyến mãi');
             return false;
         }
 
         if (discountType === 'percentage') {
             if (!formData.discountPercentage || formData.discountPercentage <= 0 || formData.discountPercentage > 100) {
-                setError('Vui lòng nhập phần trăm giảm giá hợp lệ (1-100)');
+                showToast('error', 'Thiếu thông tin', 'Vui lòng nhập phần trăm giảm giá hợp lệ (1-100)');
                 return false;
             }
         } else {
             if (!formData.discountAmount || formData.discountAmount <= 0) {
-                setError('Vui lòng nhập số tiền giảm giá hợp lệ');
+                showToast('error', 'Thiếu thông tin', 'Vui lòng nhập số tiền giảm giá hợp lệ');
                 return false;
             }
         }
 
         if (!formData.startDate) {
-            setError('Vui lòng chọn ngày bắt đầu');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng chọn ngày bắt đầu');
             return false;
         }
 
         if (!formData.endDate) {
-            setError('Vui lòng chọn ngày kết thúc');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng chọn ngày kết thúc');
             return false;
         }
 
         if (new Date(formData.endDate) < new Date(formData.startDate)) {
-            setError('Ngày kết thúc phải sau ngày bắt đầu');
+            showToast('error', 'Lỗi ngày', 'Ngày kết thúc phải sau ngày bắt đầu');
             return false;
         }
 
@@ -107,7 +107,6 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
 
         if (!validateForm()) return;
 
@@ -145,9 +144,8 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
             const updatedPromotion = await response.json();
             console.log('Cập nhật khuyến mãi thành công:', updatedPromotion);
 
-            alert('Cập nhật khuyến mãi thành công!');
+            showToast('success', 'Thành công', 'Cập nhật khuyến mãi thành công!');
 
-            // ✅ GỌI CALLBACK ĐỂ REFRESH DANH SÁCH
             if (refreshCallback && typeof refreshCallback === 'function') {
                 console.log('🔄 Đang refresh danh sách sản phẩm...');
                 refreshCallback();
@@ -160,7 +158,7 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
             closeForm();
         } catch (err) {
             console.error('Lỗi khi cập nhật khuyến mãi:', err);
-            setError(err.message || 'Không thể cập nhật khuyến mãi. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', err.message || 'Không thể cập nhật khuyến mãi. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -241,7 +239,7 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit}>
+                <div className="modalForm">
                     {/* Error message */}
                     {error && (
                         <div style={{
@@ -285,7 +283,6 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                                 value={formData.name}
                                 onChange={(e) => handleChange('name', e.target.value)}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                     </div>
@@ -397,7 +394,6 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                                 max={discountType === 'percentage' ? 100 : undefined}
                                 step={discountType === 'percentage' ? '0.1' : '1000'}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                     </div>
@@ -437,7 +433,6 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                                     value={formData.startDate}
                                     onChange={(e) => handleChange('startDate', e.target.value)}
                                     style={{ paddingLeft: '44px' }}
-                                    required
                                 />
                             </div>
                         </div>
@@ -470,7 +465,6 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                                     value={formData.endDate}
                                     onChange={(e) => handleChange('endDate', e.target.value)}
                                     style={{ paddingLeft: '44px' }}
-                                    required
                                 />
                             </div>
                         </div>
@@ -619,7 +613,8 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                             Hủy
                         </button>
                         <button
-                            type="submit"
+                            type="button"
+                            onClick={handleSubmit}
                             disabled={loading}
                             style={{
                                 flex: 1,
@@ -646,7 +641,7 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
                             {loading ? 'Đang xử lý...' : 'Cập nhật'}
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

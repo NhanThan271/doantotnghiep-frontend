@@ -25,7 +25,6 @@ export default function Categories({ openAdd, openEdit, refreshTrigger }) {
         fetchCategories();
     }, []);
 
-    // ✅ Tự động refresh khi có trigger từ parent component
     useEffect(() => {
         if (refreshTrigger) {
             fetchCategories();

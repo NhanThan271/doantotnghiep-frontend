@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Lock, Mail, Phone, UserCircle, Shield, Upload, Building2 } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function AddEmployeeForm({ closeForm, onSave }) {
     const [formData, setFormData] = useState({
@@ -59,13 +60,13 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
         if (file) {
             // Kiểm tra file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
-                setError('Kích thước ảnh không được vượt quá 5MB');
+                showToast('error', 'Kích thước file quá lớn', 'Kích thước ảnh không được vượt quá 5MB');
                 return;
             }
 
             // Kiểm tra file type
             if (!file.type.startsWith('image/')) {
-                setError('Vui lòng chọn file ảnh');
+                showToast('error', 'Sai định dạng', 'Vui lòng chọn file ảnh');
                 return;
             }
 
@@ -87,31 +88,31 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
 
     const validateForm = () => {
         if (!formData.username.trim()) {
-            setError('Vui lòng nhập tên đăng nhập');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên đăng nhập');
             return false;
         }
         if (formData.username.length < 3) {
-            setError('Tên đăng nhập phải có ít nhất 3 ký tự');
+            showToast('error', 'Sai định dạng', 'Tên đăng nhập phải có ít nhất 3 ký tự');
             return false;
         }
         if (!formData.password) {
-            setError('Vui lòng nhập mật khẩu');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập mật khẩu');
             return false;
         }
         if (formData.password.length < 6) {
-            setError('Mật khẩu phải có ít nhất 6 ký tự');
+            showToast('error', 'Sai định dạng', 'Mật khẩu phải có ít nhất 6 ký tự');
             return false;
         }
         if (!formData.fullName.trim()) {
-            setError('Vui lòng nhập họ tên đầy đủ');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập họ tên đầy đủ');
             return false;
         }
         if (formData.email && !formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-            setError('Email không hợp lệ');
+            showToast('error', 'Sai định dạng', 'Email không hợp lệ');
             return false;
         }
         if (formData.phone && !formData.phone.match(/^[0-9]{10,11}$/)) {
-            setError('Số điện thoại không hợp lệ (10-11 số)');
+            showToast('error', 'Sai định dạng', 'Số điện thoại không hợp lệ (10-11 số)');
             return false;
         }
         return true;
@@ -165,7 +166,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
             const newUser = await response.json();
             console.log('✅ Thêm nhân viên thành công:', newUser);
 
-            alert('Thêm nhân viên thành công!');
+            showToast('success', 'Thành công!', 'Thêm nhân viên thành công!');
 
             if (onSave) {
                 onSave(newUser, 'employee');
@@ -174,7 +175,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
             closeForm();
         } catch (err) {
             console.error('❌ Lỗi khi thêm nhân viên:', err);
-            setError(err.message || 'Không thể thêm nhân viên. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', 'Không thể thêm nhân viên. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -424,7 +425,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                 value={formData.username}
                                 onChange={(e) => handleChange('username', e.target.value)}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                         <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
@@ -461,7 +461,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                 value={formData.password}
                                 onChange={(e) => handleChange('password', e.target.value)}
                                 style={{ paddingLeft: '44px', paddingRight: '80px' }}
-                                required
                             />
                             <button
                                 type="button"
@@ -516,7 +515,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                 value={formData.fullName}
                                 onChange={(e) => handleChange('fullName', e.target.value)}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                     </div>
@@ -628,7 +626,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                     backgroundRepeat: 'no-repeat',
                                     backgroundPosition: 'right 14px center'
                                 }}
-                                required
                             >
                                 <option value="EMPLOYEE">Nhân viên</option>
                                 <option value="MANAGER">Quản lý</option>
@@ -670,7 +667,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                     backgroundRepeat: 'no-repeat',
                                     backgroundPosition: 'right 14px center'
                                 }}
-                                required
                                 disabled={branches.length === 0}
                             >
                                 {branches.length === 0 ? (

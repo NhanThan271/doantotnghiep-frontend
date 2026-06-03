@@ -99,8 +99,16 @@ export default function TableManagement() {
         e.preventDefault();
 
         // Validation
-        if (!formData.number || !formData.capacity || !formData.area) {
-            alert('Vui lòng nhập đầy đủ thông tin (bao gồm cả khu vực/tầng)');
+        if (!formData.number ) {
+            showToast('error', 'Thiếu thông tin', 'Vui lòng điền đầy đủ số bàn');
+            return;
+        }
+        if (!formData.capacity) {
+            showToast('error', 'Thiếu thông tin', 'Vui lòng điền đầy đủ sức chứa');
+            return;
+        }
+        if (!formData.area) {
+            showToast('error', 'Thiếu thông tin', 'Vui lòng điền đầy đủ khu vực/tầng');
             return;
         }
 
@@ -137,12 +145,12 @@ export default function TableManagement() {
                 throw new Error(errorData.message || 'Failed to save table');
             }
 
-            alert(editingTable ? 'Cập nhật bàn thành công!' : 'Tạo bàn thành công!');
+            showToast('success', 'Thành công!', editingTable ? 'Cập nhật bàn thành công!' : 'Tạo bàn thành công!');
             setShowModal(false);
             fetchTables();
         } catch (error) {
             console.error('Error saving table:', error);
-            alert(error.message || 'Không thể lưu bàn. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', error.message || 'Không thể lưu bàn. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -247,7 +255,7 @@ export default function TableManagement() {
                         <>
                             {/* Stats */}
                             <div className="stats-grid">
-                                <div className="stat-card free">
+                                <div className="stat-card.free">
                                     <div className="stat-content">
                                         <div className="stat-icon free">
                                             <Grid size={24} />
@@ -259,7 +267,7 @@ export default function TableManagement() {
                                     </div>
                                 </div>
 
-                                <div className="stat-card occupied">
+                                <div className="stat-card.occupied">
                                     <div className="stat-content">
                                         <div className="stat-icon occupied">
                                             <Users size={24} />
@@ -271,7 +279,7 @@ export default function TableManagement() {
                                     </div>
                                 </div>
 
-                                <div className="stat-card total">
+                                <div className="stat-card.total">
                                     <div className="stat-content">
                                         <div className="stat-icon total">
                                             <Layers size={24} />

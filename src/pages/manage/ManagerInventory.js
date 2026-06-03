@@ -2,7 +2,13 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     Search, RefreshCw, MapPin, X, Plus, AlertCircle, Clock,
     FileText, Beaker, TrendingDown, CheckCircle, History,
-    ArrowDownToLine, ArrowUpFromLine, Package
+    ArrowDownToLine, ArrowUpFromLine, Package,
+    BarChart2,
+    Layers,
+    AlertTriangle,
+    Ban,
+    ThumbsUp,
+    LogIn
 } from 'lucide-react';
 import io from 'socket.io-client';
 import styles from '../../layouts/AdminLayout.module.css';
@@ -505,8 +511,8 @@ export default function ManagerInventoryManagement() {
     const ViewToggle = ({ mode, setMode }) => (
         <div style={{ display: 'flex', gap: 4, background: 'rgba(0,0,0,.06)', borderRadius: 8, padding: 3 }}>
             {[
-                { id: 'aggregate', label: '📊 Tổng hợp' },
-                { id: 'batch', label: '📦 Theo lô (HSD)' }
+                { id: 'aggregate', label: <><BarChart2 size={14} style={{ marginRight: 4 }} /> Tổng hợp</> },
+                { id: 'batch', label: <><Layers size={14} style={{ marginRight: 4 }} /> Theo lô (HSD)</> }
             ].map(m => (
                 <button key={m.id} onClick={() => setMode(m.id)} style={{
                     padding: '6px 14px', borderRadius: 6, border: 'none',
@@ -541,7 +547,7 @@ export default function ManagerInventoryManagement() {
                             <div style={{ flex: 1 }}>
                                 <strong style={{ fontSize: '15px', display: 'block', marginBottom: '4px' }}>{notif.title}</strong>
                                 <span style={{ fontSize: '13px', opacity: 0.9 }}>{notif.message}</span>
-                                {notif.onClick && <span style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px', display: 'block' }}>👉 Click để xem chi tiết</span>}
+                                {notif.onClick && <span style={{ fontSize: '12px', opacity: 0.7, marginTop: '4px', display: 'block' }}><LogIn size={12} style={{ marginRight: 4 }} /> Click để xem chi tiết</span>}
                             </div>
                             <button onClick={(e) => { e.stopPropagation(); removeNotification(notif.id); }}
                                 style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
@@ -762,14 +768,14 @@ export default function ManagerInventoryManagement() {
                         if (days === undefined || days === null)
                             return <span style={{ fontSize: 12, color: '#9ca3af' }}>Không rõ</span>;
                         if (days < 0)
-                            return <span style={{ background: 'rgba(239,68,68,.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,.35)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>⚠ Hết hạn ({Math.abs(days)}d)</span>;
+                            return <span style={{ background: 'rgba(239,68,68,.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,.35)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}><AlertTriangle size={12} /> Hết hạn ({Math.abs(days)}d)</span>;
                         if (days === 0)
-                            return <span style={{ background: 'rgba(239,68,68,.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,.35)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>⚠ Hết hôm nay</span>;
+                            return <span style={{ background: 'rgba(239,68,68,.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,.35)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}><AlertTriangle size={12} /> Hết hôm nay</span>;
                         if (days <= 3)
-                            return <span style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>🔴 Còn {days} ngày</span>;
+                            return <span style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}><AlertCircle size={12} /> Còn {days} ngày</span>;
                         if (days <= 7)
-                            return <span style={{ background: 'rgba(245,158,11,.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,.35)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>⏰ Còn {days} ngày</span>;
-                        return <span style={{ background: 'rgba(16,185,129,.1)', color: '#10b981', border: '1px solid rgba(16,185,129,.3)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>✓ Còn {days} ngày</span>;
+                            return <span style={{ background: 'rgba(245,158,11,.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,.35)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}><Clock size={12} /> Còn {days} ngày</span>;
+                        return <span style={{ background: 'rgba(16,185,129,.1)', color: '#10b981', border: '1px solid rgba(16,185,129,.3)', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}> <CheckCircle size={12} /> Còn {days} ngày</span>;
                     };
 
                     return (
@@ -848,10 +854,10 @@ export default function ManagerInventoryManagement() {
 
                                     {(() => {
                                         const filters = [
-                                            { value: 'all', label: 'Tất cả', color: '#8B5CF6' },
-                                            { value: 'usable', label: '✓ Dùng được', color: '#10b981' },
-                                            { value: 'nearExpiry', label: '⏰ Sắp hết hạn', color: '#f59e0b' },
-                                            { value: 'expired', label: '⚠ Hết hạn', color: '#ef4444' },
+                                            { value: 'all', label: 'Tất cả', color: '#8B5CF6', icon: null },
+                                            { value: 'usable', label: 'Dùng được', color: '#10b981', icon: <ThumbsUp size={13} /> },
+                                            { value: 'nearExpiry', label: 'Sắp hết hạn', color: '#f59e0b', icon: <Clock size={13} /> },
+                                            { value: 'expired', label: 'Hết hạn', color: '#ef4444', icon: <AlertTriangle size={13} /> },
                                         ];
                                         return (
                                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -862,9 +868,10 @@ export default function ManagerInventoryManagement() {
                                                             background: batchHsdFilter === f.value ? f.color : 'transparent',
                                                             color: batchHsdFilter === f.value ? '#fff' : f.color,
                                                             cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                                                            display: 'inline-flex', alignItems: 'center', gap: 6,
                                                             transition: 'all .15s'
                                                         }}>
-                                                        {f.label}
+                                                        {f.icon}{f.label}
                                                     </button>
                                                 ))}
                                             </div>
@@ -891,7 +898,7 @@ export default function ManagerInventoryManagement() {
                                             }}>
                                                 <AlertCircle size={18} color="#ef4444" />
                                                 <span style={{ color: '#ef4444', fontWeight: 700 }}>
-                                                    🚫 {nonExportable.length} lô không thể dùng (HSD ≤ 5 ngày hoặc đã hết hạn)
+                                                    <Ban size={15} style={{ marginRight: 6 }} />{nonExportable.length} lô không thể dùng (HSD ≤ 5 ngày hoặc đã hết hạn)
                                                 </span>
                                                 <span style={{ color: 'var(--color-text-secondary)', opacity: 0.7, marginLeft: 8 }}>
                                                     Tổng lô còn dùng được: {exportable.length} / {branchBatches.length}
@@ -943,9 +950,9 @@ export default function ManagerInventoryManagement() {
                                                                 {(() => {
                                                                     const d = batch.daysToExpire;
                                                                     if (d === undefined || d === null) return null;
-                                                                    if (d < 0) return <span style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}>🚫 Hết hạn</span>;
-                                                                    if (d <= 5) return <span style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}>⚠ Không dùng được</span>;
-                                                                    return <span style={{ background: 'rgba(16,185,129,.1)', color: '#10b981', border: '1px solid rgba(16,185,129,.3)', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}>✓ Dùng được</span>;
+                                                                    if (d < 0) return <span style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}><Ban size={12} /> Hết hạn</span>;
+                                                                    if (d <= 5) return <span style={{ background: 'rgba(239,68,68,.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,.3)', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}><AlertTriangle size={12} /> Không dùng được</span>;
+                                                                    return <span style={{ background: 'rgba(16,185,129,.1)', color: '#10b981', border: '1px solid rgba(16,185,129,.3)', borderRadius: 6, padding: '3px 8px', fontSize: 12 }}><ThumbsUp size={12} /> Dùng được</span>;
                                                                 })()}
                                                             </td>
                                                         </tr>
@@ -1108,12 +1115,8 @@ export default function ManagerInventoryManagement() {
                         ) : (
                             <>
                                 {/* Summary chips for history */}
-                                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', color: 'var(--color-text-secondary)' }}>
                                     {[
-                                        { label: 'Tất cả', value: 'all', count: inventoryHistory.length, color: '#8B5CF6' },
-                                        { label: 'Nhập từ kho tổng', value: 'IMPORT', count: inventoryHistory.filter(h => h.type === 'IMPORT').length, color: '#10B981' },
-                                        { label: 'Xuất nội bộ', value: 'EXPORT', count: inventoryHistory.filter(h => h.type === 'EXPORT').length, color: '#F59E0B' },
-                                        { label: 'Xuất bán hàng', value: 'SALE', count: inventoryHistory.filter(h => h.type === 'SALE').length, color: '#8B5CF6' }
                                     ].map(({ label, value, count, color }) => (
                                         <div key={value}
                                             onClick={() => setHistoryFilter(value)}
@@ -1167,7 +1170,7 @@ export default function ManagerInventoryManagement() {
                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                     <span style={{ fontSize: '12px', color: '#9ca3af' }}>Số lượng:</span>
                                                                     <span style={{ fontSize: '15px', fontWeight: '700', color: typeInfo.color }}>
-                                                                        {record.type === 'IMPORT' ? '+' : '-'}{record.quantity} {record.unit || ''}
+                                                                        {record.type === 'IMPORT' ? '+' : '+'}{record.quantity} {record.unit || ''}
                                                                     </span>
                                                                 </div>
                                                             )}

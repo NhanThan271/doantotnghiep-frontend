@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Phone, FileText, Navigation } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function EditBranch({ branch, onClose, closeForm, onSuccess, onSave }) {
     const [formData, setFormData] = useState({
@@ -41,19 +42,19 @@ export default function EditBranch({ branch, onClose, closeForm, onSuccess, onSa
 
     const validateForm = () => {
         if (!formData.name.trim()) {
-            setError('Vui lòng nhập tên chi nhánh');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên chi nhánh');
             return false;
         }
         if (formData.phone && !/^[0-9]{10,11}$/.test(formData.phone.trim())) {
-            setError('Số điện thoại không hợp lệ (10-11 số)');
+            showToast('error', 'Sai định dạng', 'Số điện thoại không hợp lệ (10-11 số)');
             return false;
         }
         if (!formData.latitude || isNaN(Number(formData.latitude))) {
-            setError('Vui lòng nhập vĩ độ hợp lệ');
+            showToast('error', 'Sai định dạng', 'Vui lòng nhập vĩ độ hợp lệ');
             return false;
         }
         if (!formData.longitude || isNaN(Number(formData.longitude))) {
-            setError('Vui lòng nhập kinh độ hợp lệ');
+            showToast('error', 'Sai định dạng', 'Vui lòng nhập kinh độ hợp lệ');
             return false;
         }
         return true;
@@ -92,13 +93,13 @@ export default function EditBranch({ branch, onClose, closeForm, onSuccess, onSa
             }
 
             const updatedBranch = await response.json();
-            alert('Cập nhật chi nhánh thành công!');
+            showToast('success', 'Thành công!', 'Cập nhật chi nhánh thành công!');
             if (onSuccess) onSuccess(updatedBranch);
             if (onSave) onSave(updatedBranch, 'branch');
             handleClose();
         } catch (err) {
             console.error('Lỗi khi cập nhật chi nhánh:', err);
-            setError(err.message || 'Không thể cập nhật chi nhánh. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', 'Không thể cập nhật chi nhánh. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }

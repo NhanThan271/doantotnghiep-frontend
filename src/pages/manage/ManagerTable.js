@@ -254,7 +254,6 @@ export default function ManagerTableManagement() {
         total: tables.length,
         free: tables.filter(t => t.status === 'FREE').length,
         occupied: tables.filter(t => t.status === 'OCCUPIED').length,
-        reserved: tables.filter(t => t.status === 'RESERVED').length,
         pendingOrders: pendingOrders.length
     };
 
@@ -492,26 +491,6 @@ export default function ManagerTableManagement() {
                                             <Eye size={16} />
                                             Chi tiết
                                         </button>
-
-                                        {table.status === 'FREE' ? (
-                                            <button
-                                                onClick={() => occupyTable(table.id)}
-                                                className={styles.actionButtonSuccess}
-                                                style={{ flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                            >
-                                                <Check size={16} />
-                                                Mở bàn
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => freeTable(table.id)}
-                                                className={styles.actionButtonDanger}
-                                                style={{ flex: 1, padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                            >
-                                                <X size={16} />
-                                                Đóng bàn
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
                             );
@@ -589,33 +568,6 @@ export default function ManagerTableManagement() {
                                     </div>
                                 </div>
                             )}
-
-                            {/* Action Buttons */}
-                            <div className={styles.modalActions}>
-                                {selectedTable.status === 'FREE' ? (
-                                    <button
-                                        onClick={() => {
-                                            occupyTable(selectedTable.id);
-                                            setShowDetailModal(false);
-                                        }}
-                                        className={styles.buttonSuccess}
-                                    >
-                                        <Check size={20} />
-                                        Mở bàn
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={() => {
-                                            freeTable(selectedTable.id);
-                                            setShowDetailModal(false);
-                                        }}
-                                        className={styles.buttonDanger}
-                                    >
-                                        <X size={20} />
-                                        Đóng bàn
-                                    </button>
-                                )}
-                            </div>
                         </div>
                     </div>
                 </div>

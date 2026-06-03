@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, FolderOpen, FileText, Upload } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function AddCategory({ onClose, onSuccess }) {
     const [formData, setFormData] = useState({
@@ -24,11 +25,11 @@ export default function AddCategory({ onClose, onSuccess }) {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                setError('Kích thước ảnh không được vượt quá 5MB');
+                showToast('error', 'File quá lớn', 'File ảnh không được vượt quá 5MB');
                 return;
             }
             if (!file.type.startsWith('image/')) {
-                setError('Vui lòng chọn file ảnh');
+                showToast('error', 'Sai định dạng', 'Vui lòng chọn file ảnh');
                 return;
             }
 
@@ -49,7 +50,7 @@ export default function AddCategory({ onClose, onSuccess }) {
 
     const validateForm = () => {
         if (!formData.name.trim()) {
-            setError('Vui lòng nhập tên danh mục');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên danh mục');
             return false;
         }
         return true;
@@ -88,12 +89,12 @@ export default function AddCategory({ onClose, onSuccess }) {
             }
 
             const newCategory = await response.json();
-            alert('Thêm danh mục thành công!');
+            showToast('success', 'Thành công', 'Danh mục mới đã được thêm!');
             if (onSuccess) onSuccess(newCategory);
             onClose();
         } catch (err) {
             console.error('Lỗi khi thêm danh mục:', err);
-            setError(err.message || 'Không thể thêm danh mục. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', err.message || 'Không thể thêm danh mục. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }

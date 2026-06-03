@@ -9,6 +9,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterProduct, setFilterProduct] = useState('all');
     const [expandedFoodId, setExpandedFoodId] = useState(null);
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
     const API_BASE_URL = 'http://localhost:8080';
 
     const fetchRecipes = () => {
@@ -46,24 +47,29 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
     }, [refreshTrigger]);
 
     // Xóa toàn bộ công thức của 1 món (xóa từng recipe theo id)
-    const handleDeleteGroup = async (ingredientIds) => {
-        if (!window.confirm('Bạn có chắc muốn xóa toàn bộ công thức của món này không?')) return;
+    const handleDeleteGroup = (ingredientIds) => {
+        setDeleteConfirm(ingredientIds);
+    };
+
+    const confirmDelete = async () => {
         const token = localStorage.getItem('token');
         try {
             await Promise.all(
-                ingredientIds.map(id =>
+                deleteConfirm.map(id =>
                     fetch(`${API_BASE_URL}/api/recipes/${id}`, {
                         method: 'DELETE',
                         headers: { Authorization: `Bearer ${token}` }
                     })
                 )
             );
-            showToast('success', 'Đã xóa!', 'Công thức đã được xóa thành công.')
+            showToast('success', 'Đã xóa!', 'Công thức đã được xóa thành công.');
             fetchRecipes();
             setExpandedFoodId(null);
         } catch (err) {
             console.error('Lỗi xóa:', err);
             showToast('error', 'Xóa thất bại', 'Vui lòng thử lại.');
+        } finally {
+            setDeleteConfirm(null);
         }
     };
 
@@ -543,6 +549,50 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                     }
                 }
             `}</style>
+
+            {deleteConfirm && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                }}>
+                    <div style={{
+                        background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '16px',
+                        padding: '28px', width: '380px', textAlign: 'center',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                    }}>
+                        <div style={{
+                            width: '56px', height: '56px', background: 'rgba(239,68,68,0.1)',
+                            borderRadius: '50%', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', margin: '0 auto 16px'
+                        }}>
+                            <Trash2 size={24} color="#EF4444" />
+                        </div>
+                        <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+                            Xác nhận xóa
+                        </h3>
+                        <p style={{ color: '#B8B8B8', fontSize: '14px', marginBottom: '24px' }}>
+                            Bạn có chắc muốn xóa toàn bộ công thức của món này? Hành động này không thể hoàn tác!
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                            <button onClick={() => setDeleteConfirm(null)} style={{
+                                flex: 1, padding: '12px', background: 'transparent',
+                                border: '1px solid #2a2a2a', borderRadius: '10px',
+                                color: '#B8B8B8', cursor: 'pointer', fontWeight: '600'
+                            }}>
+                                Hủy
+                            </button>
+                            <button onClick={confirmDelete} style={{
+                                flex: 1, padding: '12px',
+                                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                                border: 'none', borderRadius: '10px',
+                                color: '#fff', cursor: 'pointer', fontWeight: '600'
+                            }}>
+                                Xóa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

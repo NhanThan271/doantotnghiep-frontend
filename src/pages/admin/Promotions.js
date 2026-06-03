@@ -129,17 +129,17 @@ export default function PromotionManagement() {
 
         // Validation
         if (!formData.name.trim()) {
-            alert('Vui lòng nhập tên chương trình khuyến mãi');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên chương trình khuyến mãi');
             return;
         }
 
         if (!formData.discountPercentage && !formData.discountAmount) {
-            alert('Vui lòng nhập giá trị giảm giá (% hoặc số tiền)');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập giá trị giảm giá (% hoặc số tiền)');
             return;
         }
 
         if (!formData.startDate || !formData.endDate) {
-            alert('Vui lòng chọn thời gian áp dụng');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng chọn thời gian áp dụng');
             return;
         }
 
@@ -189,14 +189,14 @@ export default function PromotionManagement() {
             }
 
             const result = await response.json();
-            console.log('✅ Success:', result);
+            console.log(' Success:', result);
 
-            alert(editingPromotion ? 'Cập nhật khuyến mãi thành công!' : 'Tạo khuyến mãi thành công!');
+            showToast('success', 'Thành công!', editingPromotion ? 'Cập nhật khuyến mãi thành công!' : 'Tạo khuyến mãi thành công!');
             setShowModal(false);
             fetchPromotions();
         } catch (error) {
             console.error('Error saving promotion:', error);
-            alert('Không thể lưu khuyến mãi. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', 'Không thể lưu khuyến mãi. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -587,7 +587,6 @@ export default function PromotionManagement() {
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             placeholder="VD: Giảm giá mùa hè"
-                                            required
                                             style={{
                                                 width: '100%',
                                                 padding: '12px',
@@ -693,7 +692,6 @@ export default function PromotionManagement() {
                                             type="date"
                                             value={formData.startDate}
                                             onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                                            required
                                             style={{
                                                 width: '100%',
                                                 padding: '12px',
@@ -713,7 +711,6 @@ export default function PromotionManagement() {
                                             type="date"
                                             value={formData.endDate}
                                             onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                                            required
                                             min={formData.startDate}
                                             style={{
                                                 width: '100%',
@@ -963,7 +960,8 @@ export default function PromotionManagement() {
                         </form>
                     </div>
                 </div>
-            )}
+            )
+            }
 
             <style>{`
         @keyframes spin {
@@ -972,49 +970,51 @@ export default function PromotionManagement() {
         }
       `}</style>
 
-            {deleteConfirm && (
-                <div style={{
-                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
-                }}>
+            {
+                deleteConfirm && (
                     <div style={{
-                        background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '16px',
-                        padding: '28px', width: '380px', textAlign: 'center',
-                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
                     }}>
                         <div style={{
-                            width: '56px', height: '56px', background: 'rgba(239,68,68,0.1)',
-                            borderRadius: '50%', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', margin: '0 auto 16px'
+                            background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '16px',
+                            padding: '28px', width: '380px', textAlign: 'center',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
                         }}>
-                            <Trash2 size={24} color="#EF4444" />
-                        </div>
-                        <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
-                            Xác nhận xóa
-                        </h3>
-                        <p style={{ color: '#B8B8B8', fontSize: '14px', marginBottom: '24px' }}>
-                            Bạn có chắc muốn xóa khuyến mãi này? Hành động này không thể hoàn tác!
-                        </p>
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button onClick={() => setDeleteConfirm(null)} style={{
-                                flex: 1, padding: '12px', background: 'transparent',
-                                border: '1px solid #2a2a2a', borderRadius: '10px',
-                                color: '#B8B8B8', cursor: 'pointer', fontWeight: '600'
+                            <div style={{
+                                width: '56px', height: '56px', background: 'rgba(239,68,68,0.1)',
+                                borderRadius: '50%', display: 'flex', alignItems: 'center',
+                                justifyContent: 'center', margin: '0 auto 16px'
                             }}>
-                                Hủy
-                            </button>
-                            <button onClick={confirmDelete} style={{
-                                flex: 1, padding: '12px',
-                                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                                border: 'none', borderRadius: '10px',
-                                color: '#fff', cursor: 'pointer', fontWeight: '600'
-                            }}>
-                                Xóa
-                            </button>
+                                <Trash2 size={24} color="#EF4444" />
+                            </div>
+                            <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+                                Xác nhận xóa
+                            </h3>
+                            <p style={{ color: '#B8B8B8', fontSize: '14px', marginBottom: '24px' }}>
+                                Bạn có chắc muốn xóa khuyến mãi này? Hành động này không thể hoàn tác!
+                            </p>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button onClick={() => setDeleteConfirm(null)} style={{
+                                    flex: 1, padding: '12px', background: 'transparent',
+                                    border: '1px solid #2a2a2a', borderRadius: '10px',
+                                    color: '#B8B8B8', cursor: 'pointer', fontWeight: '600'
+                                }}>
+                                    Hủy
+                                </button>
+                                <button onClick={confirmDelete} style={{
+                                    flex: 1, padding: '12px',
+                                    background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                                    border: 'none', borderRadius: '10px',
+                                    color: '#fff', cursor: 'pointer', fontWeight: '600'
+                                }}>
+                                    Xóa
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

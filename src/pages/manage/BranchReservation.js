@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Search, Clock, Users, Phone, Mail, CheckCircle, XCircle, RefreshCw, Store, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Search, Clock, Users, Phone, Mail, CheckCircle, XCircle, RefreshCw, Store, MapPin, ChevronDown, ChevronUp, UtensilsCrossed, LogIn } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
 import { showToast } from '../../hooks/useToast';
 
@@ -429,7 +429,7 @@ export default function BranchReservationManager() {
                                                 background: 'rgba(16,185,129,0.1)', color: '#10B981',
                                                 border: '1px solid rgba(16,185,129,0.3)'
                                             }}>
-                                                ✓ Đã xác nhận
+                                                <CheckCircle size={14} style={{ marginRight: 4 }} /> Đã xác nhận
                                             </span>
                                             <button
                                                 onClick={e => openActionModal(e, reservation, 'CHECKED_IN')}
@@ -448,7 +448,7 @@ export default function BranchReservationManager() {
                                                 background: 'rgba(59,130,246,0.1)', color: '#3B82F6',
                                                 border: '1px solid rgba(59,130,246,0.3)'
                                             }}>
-                                                🍽 Đang phục vụ
+                                                <UtensilsCrossed size={14} style={{ marginRight: 4 }} /> Đang phục vụ
                                             </span>
                                         </div>
                                     )}
@@ -468,9 +468,13 @@ export default function BranchReservationManager() {
                         boxShadow: '0 20px 60px rgba(0,0,0,0.25)'
                     }}>
                         <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 700, color: '#1f2937' }}>
-                            {confirmAction === 'CONFIRMED' ? '✓ Xác nhận đặt chỗ'
-                                : confirmAction === 'CHECKED_IN' ? '🚪 Check-in khách'
-                                    : '✕ Từ chối đặt chỗ'}
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {confirmAction === 'CONFIRMED'
+                                    ? <><CheckCircle size={20} color="#22c55e" /> Xác nhận đặt chỗ</>
+                                    : confirmAction === 'CHECKED_IN'
+                                        ? <><LogIn size={20} color="#3B82F6" /> Check-in khách</>
+                                        : <><XCircle size={20} color="#ef4444" /> Từ chối đặt chỗ</>}
+                            </span>
                         </h3>
 
                         <div style={{ background: '#f9fafb', borderRadius: 10, padding: '12px 16px', marginBottom: 20, border: '1px solid #e5e7eb' }}>
@@ -514,10 +518,12 @@ export default function BranchReservationManager() {
                                     color: '#fff'
                                 }}
                             >
-                                {loading ? 'Đang xử lý...'
-                                    : confirmAction === 'CONFIRMED' ? '✓ Xác nhận'
-                                        : confirmAction === 'CHECKED_IN' ? '🚪 Check-in'
-                                            : '✕ Từ chối'}
+                                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                    {loading ? <><RefreshCw size={16} /> Đang xử lý...</>
+                                        : confirmAction === 'CONFIRMED' ? <><CheckCircle size={16} /> Xác nhận</>
+                                            : confirmAction === 'CHECKED_IN' ? <><LogIn size={16} /> Check-in</>
+                                                : <><XCircle size={16} /> Từ chối</>}
+                                </span>
                             </button>
                         </div>
                     </div>

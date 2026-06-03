@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, FolderOpen, FileText, Upload } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function EditCategory({ category, onClose, onSuccess, refreshCallback }) {
     const [formData, setFormData] = useState({
@@ -45,13 +46,13 @@ export default function EditCategory({ category, onClose, onSuccess, refreshCall
         if (file) {
             // Kiểm tra file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
-                setError('Kích thước ảnh không được vượt quá 5MB');
+                showToast('error', 'File quá lớn', 'File ảnh không được vượt quá 5MB');
                 return;
             }
 
             // Kiểm tra file type
             if (!file.type.startsWith('image/')) {
-                setError('Vui lòng chọn file ảnh');
+                showToast('error', 'Sai định dạng', 'Vui lòng chọn file ảnh');
                 return;
             }
 
@@ -81,7 +82,7 @@ export default function EditCategory({ category, onClose, onSuccess, refreshCall
 
     const validateForm = () => {
         if (!formData.name.trim()) {
-            setError('Vui lòng nhập tên danh mục');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên danh mục');
             return false;
         }
         return true;
@@ -129,7 +130,7 @@ export default function EditCategory({ category, onClose, onSuccess, refreshCall
             const updatedCategory = await response.json();
             console.log('Cập nhật danh mục thành công:', updatedCategory);
 
-            alert('Cập nhật danh mục thành công!');
+            showToast('success', 'Thành công', 'Danh mục đã được cập nhật!');
 
             if (refreshCallback && typeof refreshCallback === 'function') {
                 console.log('🔄 Đang refresh danh sách sản phẩm...');
@@ -143,7 +144,7 @@ export default function EditCategory({ category, onClose, onSuccess, refreshCall
             onClose();
         } catch (err) {
             console.error('Lỗi khi cập nhật danh mục:', err);
-            setError(err.message || 'Không thể cập nhật danh mục. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', err.message || 'Không thể cập nhật danh mục. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
