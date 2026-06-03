@@ -268,7 +268,6 @@ const ReportPage = () => {
         }
     };
 
-    // Thay hàm formatCurrency cũ bằng hàm này:
     const formatCurrency = (amount) => {
         if (!amount) return "0đ";
         // Nếu số >= 1 triệu, rút gọn
