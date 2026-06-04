@@ -1,0 +1,293 @@
+/* ─── Layout ─────────────────────────────────────── */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.header {
+    margin-bottom: 24px;
+}
+
+.title {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #F97316, #FB923C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+.subtitle {
+    color: #94A3B8;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* ─── Tabs ───────────────────────────────────────── */
+.tabBar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    background: #f3f4f6;
+    padding: 4px;
+    border-radius: 12px;
+    width: fit-content;
+}
+
+.tabBtn {
+    padding: 10px 24px;
+    background: transparent;
+    color: #6B7280;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.tabBtnActive {
+    background: #fff;
+    color: #1F2937;
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ─── Tab content card ───────────────────────────── */
+.tabContent {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* ─── Status pills row ───────────────────────────── */
+.pillsRow {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.pill {
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #e5e7eb;
+    background: #f3f4f6;
+    color: #6B7280;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.pillAll {
+    composes: pill;
+}
+
+.pillAllActive {
+    background: #3B82F6;
+    color: #fff;
+    border-color: #3B82F6;
+}
+
+/* ─── Filter bar ─────────────────────────────────── */
+.filterBar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.searchWrapper {
+    position: relative;
+    flex: 1;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94A3B8;
+    pointer-events: none;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 10px 10px 10px 36px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #374151;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.searchInput:focus {
+    border-color: #3B82F6;
+    background: #fff;
+}
+
+.filterSelect {
+    padding: 10px 14px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #374151;
+    cursor: pointer;
+    outline: none;
+}
+
+.refreshBtn {
+    padding: 10px 18px;
+    background: #3B82F6;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+}
+
+.refreshBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.refreshBtn:not(:disabled):hover {
+    background: #2563EB;
+}
+
+/* ─── Spinning icon ──────────────────────────────── */
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ─── Empty state ────────────────────────────────── */
+.emptyState {
+    text-align: center;
+    padding: 48px;
+    color: #94A3B8;
+    background: #f9fafb;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+}
+
+.emptyIcon {
+    margin: 0 auto 12px;
+    opacity: 0.3;
+    display: block;
+}
+
+/* ─── Loading state ──────────────────────────────── */
+.loadingState {
+    text-align: center;
+    padding: 48px;
+    color: #94A3B8;
+}
+
+.loadingIcon {
+    animation: spin 1s linear infinite;
+    margin: 0 auto 12px;
+    display: block;
+}
+
+/* ─── Table ──────────────────────────────────────── */
+.tableWrapper {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.table thead tr {
+    background: #f3f4f6;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #6B7280;
+    white-space: nowrap;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.15s;
+}
+
+.table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.table td {
+    padding: 12px 16px;
+    color: #374151;
+}
+
+.tdId {
+    font-weight: 700;
+    color: #1F2937;
+}
+
+.tdName {
+    font-weight: 600;
+    color: #1F2937;
+}
+
+.tdMoney {
+    font-weight: 600;
+    color: #10B981;
+}
+
+.tdMuted {
+    color: #6B7280;
+    white-space: nowrap;
+}
+
+.tdFlex {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ─── Status badge ───────────────────────────────── */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
