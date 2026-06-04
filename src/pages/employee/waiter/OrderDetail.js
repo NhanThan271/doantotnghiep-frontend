@@ -2,7 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useLocation, useNavigate } from "react-router-dom";
 import {
     ArrowLeft, ShoppingCart, Users, Plus, Minus, Trash2,
-    Printer, Tag, X, Percent, DollarSign
+    Printer, Tag, X, Percent, DollarSign, CheckCircle,
+    Clock, ChefHat, Circle, CircleCheckBig, Sofa, User,
+    CreditCard, Banknote, Wallet, Phone, Landmark
 } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
@@ -47,7 +49,7 @@ const OrderDetail = () => {
     const [isConfirming, setIsConfirming] = useState(false);
     const [processingPayment, setProcessingPayment] = useState(false);
     const [branchInfo, setBranchInfo] = useState(null);
-    const [roomFee, setRoomFee] = useState(0); // ✅ Thêm phí phòng
+    const [roomFee, setRoomFee] = useState(0);
 
     const confirmedCartRef = useRef({});
     const [confirmedCart, setConfirmedCart] = useState({});
@@ -366,22 +368,17 @@ const OrderDetail = () => {
             const res = await axiosClient.post("/customer/orders", orderData);
             const newOrder = res.data;
 
-            // ========== ✅ THÊM CODE NÀY: CẬP NHẬT TRẠNG THÁI BÀN/PHÒNG ==========
             try {
                 if (!isRoom) {
-                    // Cập nhật bàn thành OCCUPIED
                     await axiosClient.put(`/tables/${entity.id}/status?status=OCCUPIED`);
                     console.log(`✅ Đã cập nhật bàn ${entityNumber} thành OCCUPIED`);
                 } else {
-                    // Cập nhật phòng thành OCCUPIED
                     await axiosClient.put(`/rooms/${entity.id}/status?status=OCCUPIED`);
                     console.log(`✅ Đã cập nhật phòng ${entityNumber} thành OCCUPIED`);
                 }
             } catch (err) {
                 console.error("Lỗi cập nhật trạng thái:", err);
-                // Không throw lỗi để vẫn tạo đơn được
             }
-            // ========== KẾT THÚC PHẦN THÊM ==========
 
             const itemsToAdd = cart.filter(item => item.id && item.quantity > 0)
                 .map(item => ({ foodId: item.id, quantity: item.quantity }));
@@ -507,12 +504,7 @@ const OrderDetail = () => {
             <tbody>${cart.map(item => `<tr><td>${item.name}</td><td class="text-center">${item.quantity}</td><td class="text-right">${item.price.toLocaleString('vi-VN')}đ</td><td class="text-right">${(item.price * item.quantity).toLocaleString('vi-VN')}đ</td>`).join('')}</tbody></table>
             <div class="totals">
                 <div class="total-row"><span>Tạm tính món:</span><span>${itemsTotal.toLocaleString('vi-VN')}đ</span></div>
-                ${isRoom && roomFee > 0 ? `
-                <div class="total-row">
-                    <span>🏠 Phí phòng VIP:</span>
-                    <span>${roomFee.toLocaleString('vi-VN')}đ</span>
-                </div>
-                ` : ''}
+                ${isRoom && roomFee > 0 ? `<div class="total-row"><span>🏠 Phí phòng VIP:</span><span>${roomFee.toLocaleString('vi-VN')}đ</span></div>` : ''}
                 <div class="total-row"><span>Tổng tiền trước KM:</span><span>${originalTotal.toLocaleString('vi-VN')}đ</span></div>
                 ${discount > 0 ? `<div class="total-row" style="color:#10b981;"><span>Giảm giá:</span><span>-${discount.toLocaleString('vi-VN')}đ</span></div>` : ''}
                 <div class="total-row grand-total"><span>TỔNG CỘNG:</span><span>${finalTotal.toLocaleString('vi-VN')}đ</span></div>
@@ -547,7 +539,6 @@ const OrderDetail = () => {
         initialize();
     }, [entity, fetchProducts, fetchPromotions, fetchBranchInfo]);
 
-    // Lấy phí phòng nếu là phòng VIP
     useEffect(() => {
         if (isRoom && entity?.roomFee) {
             setRoomFee(Number(entity.roomFee));
@@ -589,7 +580,6 @@ const OrderDetail = () => {
         processOrder();
     }, [products, state?.existingOrder, entity, checkExistingOrder]);
 
-    // Socket listeners
     useEffect(() => {
         const handleConnect = () => {
             socket.emit("register-role", { role: "waiter", userId: user?.id, branchId: branchId });
@@ -643,7 +633,6 @@ const OrderDetail = () => {
         };
     }, [order, branchId, user?.id, fetchOrderById, showToast]);
 
-    // Payment URL handler
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const paymentStatus = urlParams.get('payment');
@@ -659,7 +648,6 @@ const OrderDetail = () => {
                 }
                 if (entityId) {
                     try {
-                        // ✅ SỬA: Phòng về ACTIVE, Bàn về FREE
                         const newStatus = isRoomParam === 'true' ? 'ACTIVE' : 'FREE';
                         const url = isRoomParam === 'true'
                             ? `/rooms/${entityId}/status?status=${newStatus}`
@@ -682,7 +670,6 @@ const OrderDetail = () => {
         }
     }, [navigate, showToast]);
 
-    // Fix cart items
     useEffect(() => {
         if (products.length > 0 && cart.length > 0) {
             let hasChange = false;
@@ -732,17 +719,44 @@ const OrderDetail = () => {
                 {/* Header */}
                 <div className={styles.header}>
                     <div className={styles.tableInfo}>
-                        <h1>{entityType} {entityNumber}</h1>
+                        <h1>
+                            {isRoom ? <Sofa size={24} color="#dc2626" /> : <Circle size={24} color="#dc2626" />}
+                            {entityType} {entityNumber}
+                        </h1>
                         <div className={`${entity?.status === "FREE" ? styles.available : styles.occupied}`}>
-                            {entity?.status === "FREE" ? "🟢 Trống" : entity?.status === "RESERVED" ? "📅 Đã đặt" : "🔴 Đã có khách"}
+                            {entity?.status === "FREE" ? (
+                                <><CircleCheckBig size={14} color="white" /> Trống</>
+                            ) : entity?.status === "RESERVED" ? (
+                                <><Clock size={14} color="white" /> Đã đặt</>
+                            ) : (
+                                <><Circle size={14} color="white" /> Đã có khách</>
+                            )}
                         </div>
-                        {order?.status === "PENDING" && <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>⏳ Đang chờ bếp</div>}
-                        {order?.status === "PREPARING" && <div className={styles.statusBadge} style={{ background: "#f59e0b" }}>🔪 Đang chuẩn bị</div>}
-                        {order?.status === "COMPLETED" && <div className={styles.statusBadge} style={{ background: "#10b981" }}>✅ Đã hoàn thành</div>}
+                        {order?.status === "PENDING" && (
+                            <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>
+                                <Clock size={14} color="white" /> Đang chờ bếp
+                            </div>
+                        )}
+                        {order?.status === "PREPARING" && (
+                            <div className={styles.statusBadge} style={{ background: "#f59e0b" }}>
+                                <ChefHat size={14} color="white" /> Đang chuẩn bị
+                            </div>
+                        )}
+                        {order?.status === "COMPLETED" && (
+                            <div className={styles.statusBadge} style={{ background: "#10b981" }}>
+                                <CheckCircle size={14} color="white" /> Đã hoàn thành
+                            </div>
+                        )}
                     </div>
                     <div className={styles.stats}>
-                        <div className={styles.statItem}><ShoppingCart size={18} /><span>{totalItems} món</span></div>
-                        <div className={styles.statItem}><Users size={18} /><span>{entity?.capacity || 4} người</span></div>
+                        <div className={styles.statItem}>
+                            <ShoppingCart size={18} color="#dc2626" />
+                            <span>{totalItems} món</span>
+                        </div>
+                        <div className={styles.statItem}>
+                            <Users size={18} color="#dc2626" />
+                            <span>{entity?.capacity || 4} người</span>
+                        </div>
                     </div>
                 </div>
 
@@ -762,7 +776,7 @@ const OrderDetail = () => {
                     <div className={styles.promotionSection}>
                         <div className={styles.formGroup}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <Tag size={16} />Mã khuyến mãi
+                                <Tag size={16} color="#854d0e" />Mã khuyến mãi
                             </label>
                             <div className={styles.promotionSelect} onClick={() => setShowPromotionModal(true)} style={{ cursor: 'pointer' }}>
                                 {selectedPromotion ? (
@@ -849,7 +863,7 @@ const OrderDetail = () => {
             {/* Cart Sidebar */}
             <div className={styles.cartSidebar}>
                 <div className={styles.cartHeader}>
-                    <h3>🛒 Đơn hàng</h3>
+                    <h3><ShoppingCart size={18} color="white" /> Đơn hàng</h3>
                     <button className={styles.cartBackBtn} onClick={() => navigate('/waiter/orders')}>
                         <ArrowLeft size={18} />Quay về
                     </button>
@@ -887,10 +901,9 @@ const OrderDetail = () => {
                         </div>
 
                         <div className={styles.cartFooter}>
-                            {/* Hiển thị phí phòng nếu là phòng VIP */}
                             {isRoom && roomFee > 0 && (
                                 <div className={styles.totalRow}>
-                                    <span>🏠 Phí phòng VIP:</span>
+                                    <span><Sofa size={14} /> Phí phòng VIP:</span>
                                     <span>{roomFee.toLocaleString('vi-VN')}đ</span>
                                 </div>
                             )}
@@ -902,7 +915,7 @@ const OrderDetail = () => {
                                         <span>{originalTotal.toLocaleString('vi-VN')}đ</span>
                                     </div>
                                     <div className={styles.discountRow}>
-                                        <span>Giảm giá:</span>
+                                        <span><Tag size={14} color="#10b981" /> Giảm giá:</span>
                                         <span>-{discount.toLocaleString('vi-VN')}đ</span>
                                     </div>
                                 </>
@@ -916,7 +929,7 @@ const OrderDetail = () => {
                             )}
 
                             <div className={styles.totalRow}>
-                                <span>Tổng cộng:</span>
+                                <span><Wallet size={14} /> Tổng cộng:</span>
                                 <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
                             </div>
 
@@ -950,7 +963,7 @@ const OrderDetail = () => {
                 <div className={styles.modalOverlay} onClick={() => setShowPromotionModal(false)}>
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
-                            <h3>Chọn mã khuyến mãi</h3>
+                            <h3><Tag size={20} color="white" /> Chọn mã khuyến mãi</h3>
                             <button onClick={() => setShowPromotionModal(false)} className={styles.modalClose}>
                                 <X size={24} />
                             </button>
@@ -975,7 +988,7 @@ const OrderDetail = () => {
                                     }}
                                 >
                                     <div className={styles.promoIcon}>
-                                        {promo.discountPercentage ? <Percent size={20} /> : <DollarSign size={20} />}
+                                        {promo.discountPercentage ? <Percent size={20} color="#f59e0b" /> : <DollarSign size={20} color="#f59e0b" />}
                                     </div>
                                     <div className={styles.promoInfo}>
                                         <div className={styles.promoName}>{promo.name}</div>
