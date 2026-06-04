@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Lock, Mail, Phone, UserCircle, Shield, Upload, Building2 } from 'lucide-react';
 import styles from '../../../layouts/AdminLayout.module.css';
+import { showToast } from '../../../hooks/useToast';
 
 export default function AddEmployeeForm({ closeForm, onSave }) {
     const [formData, setFormData] = useState({
@@ -39,9 +40,12 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
             if (response.ok) {
                 const data = await response.json();
                 setBranches(data);
-                // Set chi nhánh đầu tiên làm mặc định nếu có
-                if (data.length > 0) {
-                    setFormData(prev => ({ ...prev, branchId: data[0].id }));
+                const userStr = localStorage.getItem('user');
+                const user = userStr ? JSON.parse(userStr) : null;
+                const managerBranchId = user?.branch?.id || user?.branchId;
+
+                if (managerBranchId) {
+                    setFormData(prev => ({ ...prev, branchId: managerBranchId }));
                 }
             }
         } catch (err) {
@@ -59,13 +63,13 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
         if (file) {
             // Kiểm tra file size (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
-                setError('Kích thước ảnh không được vượt quá 5MB');
+                showToast('error', 'Kích thước file quá lớn', 'Kích thước ảnh không được vượt quá 5MB');
                 return;
             }
 
             // Kiểm tra file type
             if (!file.type.startsWith('image/')) {
-                setError('Vui lòng chọn file ảnh');
+                showToast('error', 'Sai định dạng', 'Vui lòng chọn file ảnh');
                 return;
             }
 
@@ -87,31 +91,31 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
 
     const validateForm = () => {
         if (!formData.username.trim()) {
-            setError('Vui lòng nhập tên đăng nhập');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập tên đăng nhập');
             return false;
         }
         if (formData.username.length < 3) {
-            setError('Tên đăng nhập phải có ít nhất 3 ký tự');
+            showToast('error', 'Sai định dạng', 'Tên đăng nhập phải có ít nhất 3 ký tự');
             return false;
         }
         if (!formData.password) {
-            setError('Vui lòng nhập mật khẩu');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập mật khẩu');
             return false;
         }
         if (formData.password.length < 6) {
-            setError('Mật khẩu phải có ít nhất 6 ký tự');
+            showToast('error', 'Sai định dạng', 'Mật khẩu phải có ít nhất 6 ký tự');
             return false;
         }
         if (!formData.fullName.trim()) {
-            setError('Vui lòng nhập họ tên đầy đủ');
+            showToast('error', 'Thiếu thông tin', 'Vui lòng nhập họ tên đầy đủ');
             return false;
         }
         if (formData.email && !formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-            setError('Email không hợp lệ');
+            showToast('error', 'Sai định dạng', 'Email không hợp lệ');
             return false;
         }
         if (formData.phone && !formData.phone.match(/^[0-9]{10,11}$/)) {
-            setError('Số điện thoại không hợp lệ (10-11 số)');
+            showToast('error', 'Sai định dạng', 'Số điện thoại không hợp lệ (10-11 số)');
             return false;
         }
         return true;
@@ -165,7 +169,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
             const newUser = await response.json();
             console.log('✅ Thêm nhân viên thành công:', newUser);
 
-            alert('Thêm nhân viên thành công!');
+            showToast('success', 'Thành công!', 'Thêm nhân viên thành công!');
 
             if (onSave) {
                 onSave(newUser, 'employee');
@@ -174,7 +178,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
             closeForm();
         } catch (err) {
             console.error('❌ Lỗi khi thêm nhân viên:', err);
-            setError(err.message || 'Không thể thêm nhân viên. Vui lòng thử lại!');
+            showToast('error', 'Lỗi', 'Không thể thêm nhân viên. Vui lòng thử lại!');
         } finally {
             setLoading(false);
         }
@@ -424,7 +428,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                 value={formData.username}
                                 onChange={(e) => handleChange('username', e.target.value)}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                         <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
@@ -461,7 +464,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                 value={formData.password}
                                 onChange={(e) => handleChange('password', e.target.value)}
                                 style={{ paddingLeft: '44px', paddingRight: '80px' }}
-                                required
                             />
                             <button
                                 type="button"
@@ -512,12 +514,10 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                             />
                             <input
                                 type="text"
-                                autoComplete="new-text"
                                 placeholder="Nhập họ và tên đầy đủ"
                                 value={formData.fullName}
                                 onChange={(e) => handleChange('fullName', e.target.value)}
                                 style={{ paddingLeft: '44px' }}
-                                required
                             />
                         </div>
                     </div>
@@ -586,7 +586,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                 />
                                 <input
                                     type="tel"
-                                    autoComplete="new-tel"
                                     placeholder="0xxxxxxxxx"
                                     value={formData.phone}
                                     onChange={(e) => handleChange('phone', e.target.value)}
@@ -630,7 +629,6 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                     backgroundRepeat: 'no-repeat',
                                     backgroundPosition: 'right 14px center'
                                 }}
-                                required
                             >
                                 <option value="EMPLOYEE">Nhân viên</option>
                                 <option value="MANAGER">Quản lý</option>
@@ -638,6 +636,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                         </div>
                     </div>
 
+                    {/* Branch */}
                     {/* Branch */}
                     <div>
                         <label style={{
@@ -647,7 +646,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                             fontWeight: '600',
                             color: 'var(--color-text-primary)'
                         }}>
-                            Chi nhánh <span style={{ color: '#EF4444' }}>*</span>
+                            Chi nhánh
                         </label>
                         <div style={{ position: 'relative' }}>
                             <Building2
@@ -658,37 +657,24 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
                                     top: '50%',
                                     transform: 'translateY(-50%)',
                                     color: 'var(--color-text-secondary)',
-                                    pointerEvents: 'none',
                                     zIndex: 1
                                 }}
                             />
-                            <select
-                                value={formData.branchId}
-                                onChange={(e) => handleChange('branchId', e.target.value)}
+                            <input
+                                type="text"
+                                value={branches.find(b => b.id == formData.branchId)?.name || 'Đang tải...'}
+                                readOnly
                                 style={{
                                     paddingLeft: '44px',
-                                    appearance: 'none',
-                                    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'%3E%3Cpath fill=\'%23666\' d=\'M6 9L1 4h10z\'/%3E%3C/svg%3E")',
-                                    backgroundRepeat: 'no-repeat',
-                                    backgroundPosition: 'right 14px center'
+                                    background: 'var(--color-bg-dark)',
+                                    cursor: 'not-allowed',
+                                    opacity: 0.7
                                 }}
-                                required
-                                disabled={branches.length === 0}
-                            >
-                                {branches.length === 0 ? (
-                                    <option value="">Đang tải...</option>
-                                ) : (
-                                    <>
-                                        <option value="">Chọn chi nhánh</option>
-                                        {branches.map(branch => (
-                                            <option key={branch.id} value={branch.id}>
-                                                {branch.name}
-                                            </option>
-                                        ))}
-                                    </>
-                                )}
-                            </select>
+                            />
                         </div>
+                        <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '4px 0 0 0' }}>
+                            Chi nhánh được gán tự động
+                        </p>
                     </div>
 
                     {/* Active Status */}
