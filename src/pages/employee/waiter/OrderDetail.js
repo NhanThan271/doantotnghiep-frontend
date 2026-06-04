@@ -1,4 +1,3 @@
-// OrderDetail.js - Full refactored with axiosClient + Cashier Notifications + Room Fee
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -367,6 +366,23 @@ const OrderDetail = () => {
             const res = await axiosClient.post("/customer/orders", orderData);
             const newOrder = res.data;
 
+            // ========== ✅ THÊM CODE NÀY: CẬP NHẬT TRẠNG THÁI BÀN/PHÒNG ==========
+            try {
+                if (!isRoom) {
+                    // Cập nhật bàn thành OCCUPIED
+                    await axiosClient.put(`/tables/${entity.id}/status?status=OCCUPIED`);
+                    console.log(`✅ Đã cập nhật bàn ${entityNumber} thành OCCUPIED`);
+                } else {
+                    // Cập nhật phòng thành OCCUPIED
+                    await axiosClient.put(`/rooms/${entity.id}/status?status=OCCUPIED`);
+                    console.log(`✅ Đã cập nhật phòng ${entityNumber} thành OCCUPIED`);
+                }
+            } catch (err) {
+                console.error("Lỗi cập nhật trạng thái:", err);
+                // Không throw lỗi để vẫn tạo đơn được
+            }
+            // ========== KẾT THÚC PHẦN THÊM ==========
+
             const itemsToAdd = cart.filter(item => item.id && item.quantity > 0)
                 .map(item => ({ foodId: item.id, quantity: item.quantity }));
 
@@ -712,157 +728,221 @@ const OrderDetail = () => {
 
     return (
         <div className={styles.container}>
-            {/* Header */}
-            <div className={styles.header}>
-                <div className={styles.tableInfo}>
-                    <h1>{entityType} {entityNumber}</h1>
-                    <div className={`${entity?.status === "FREE" ? styles.available : styles.occupied}`}>
-                        {entity?.status === "FREE" ? "🟢 Trống" : entity?.status === "RESERVED" ? "📅 Đã đặt" : "🔴 Đã có khách"}
-                    </div>
-                    {order?.status === "PENDING" && <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>⏳ Đang chờ bếp</div>}
-                    {order?.status === "PREPARING" && <div className={styles.statusBadge} style={{ background: "#f59e0b" }}>🔪 Đang chuẩn bị</div>}
-                    {order?.status === "COMPLETED" && <div className={styles.statusBadge} style={{ background: "#10b981" }}>✅ Đã hoàn thành</div>}
-                </div>
-                <div className={styles.stats}>
-                    <div className={styles.statItem}><ShoppingCart size={18} /><span>{totalItems} món</span></div>
-                    <div className={styles.statItem}><Users size={18} /><span>{entity?.capacity || 4} người</span></div>
-                </div>
-            </div>
-
-            <div className={styles.customerSection}>
-                <input type="text" className={styles.customerInput} placeholder="Tên khách hàng (tùy chọn)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-            </div>
-
-            {order?.status !== "PAID" && (
-                <div className={styles.promotionSection}>
-                    <div className={styles.formGroup}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Tag size={16} />Mã khuyến mãi</label>
-                        <div className={styles.promotionSelect} onClick={() => setShowPromotionModal(true)} style={{ cursor: 'pointer' }}>
-                            {selectedPromotion ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                                    <Tag size={16} color="#10b981" /><span>{selectedPromotion.name}</span>
-                                    {selectedPromotion.discountPercentage && <span style={{ color: '#10b981', fontWeight: '600' }}>-{selectedPromotion.discountPercentage}%</span>}
-                                    <button onClick={(e) => { e.stopPropagation(); setSelectedPromotion(null); }} style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer', marginLeft: 'auto' }}><X size={16} /></button>
-                                </div>
-                            ) : <span style={{ color: '#9ca3af' }}>Chọn mã giảm giá...</span>}
+            <div className={styles.leftContent}>
+                {/* Header */}
+                <div className={styles.header}>
+                    <div className={styles.tableInfo}>
+                        <h1>{entityType} {entityNumber}</h1>
+                        <div className={`${entity?.status === "FREE" ? styles.available : styles.occupied}`}>
+                            {entity?.status === "FREE" ? "🟢 Trống" : entity?.status === "RESERVED" ? "📅 Đã đặt" : "🔴 Đã có khách"}
                         </div>
+                        {order?.status === "PENDING" && <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>⏳ Đang chờ bếp</div>}
+                        {order?.status === "PREPARING" && <div className={styles.statusBadge} style={{ background: "#f59e0b" }}>🔪 Đang chuẩn bị</div>}
+                        {order?.status === "COMPLETED" && <div className={styles.statusBadge} style={{ background: "#10b981" }}>✅ Đã hoàn thành</div>}
+                    </div>
+                    <div className={styles.stats}>
+                        <div className={styles.statItem}><ShoppingCart size={18} /><span>{totalItems} món</span></div>
+                        <div className={styles.statItem}><Users size={18} /><span>{entity?.capacity || 4} người</span></div>
                     </div>
                 </div>
-            )}
 
-            {order?.status !== "PAID" && (
-                <>
-                    <div className={styles.searchSection}>
-                        <input type="text" className={styles.searchInput} placeholder="Tìm kiếm món..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-                    </div>
-                    <div className={styles.categoryTabs}>
-                        {categories.map(cat => (
-                            <button key={cat} className={`${styles.categoryBtn} ${activeTab === cat ? styles.active : ""}`} onClick={() => setActiveTab(cat)}>{cat}</button>
-                        ))}
-                    </div>
-                </>
-            )}
+                {/* Customer Section */}
+                <div className={styles.customerSection}>
+                    <input
+                        type="text"
+                        className={styles.customerInput}
+                        placeholder="Tên khách hàng (tùy chọn)"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                    />
+                </div>
 
-            <div className={styles.content}>
+                {/* Promotion Section */}
                 {order?.status !== "PAID" && (
-                    <div className={styles.productsGrid}>
-                        {loading ? <div className={styles.loading}><div className={styles.spinner}></div>Đang tải...</div> : filteredProducts.length === 0 ? <div className={styles.emptyProducts}>Không tìm thấy sản phẩm nào</div> : (
-                            filteredProducts.map(product => (
-                                <div key={product.id} className={styles.productCard} onClick={() => addToCart(product)}>
-                                    <img src={product.imageUrl?.startsWith("http") ? product.imageUrl : `http://localhost:8080/${product.imageUrl}`} alt={product.name} className={styles.productImage} onError={(e) => { e.target.src = "/default-food.jpg"; }} />
-                                    <div className={styles.productInfo}>
-                                        <h4>{product.name}</h4>
-                                        <p className={styles.productPrice}>{(product.finalPrice || product.branchPrice || product.originalPrice || 0).toLocaleString('vi-VN')}đ</p>
+                    <div className={styles.promotionSection}>
+                        <div className={styles.formGroup}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Tag size={16} />Mã khuyến mãi
+                            </label>
+                            <div className={styles.promotionSelect} onClick={() => setShowPromotionModal(true)} style={{ cursor: 'pointer' }}>
+                                {selectedPromotion ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                        <Tag size={16} color="#10b981" />
+                                        <span>{selectedPromotion.name}</span>
+                                        {selectedPromotion.discountPercentage && (
+                                            <span style={{ color: '#10b981', fontWeight: '600' }}>
+                                                -{selectedPromotion.discountPercentage}%
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setSelectedPromotion(null); }}
+                                            style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer', marginLeft: 'auto' }}
+                                        >
+                                            <X size={16} />
+                                        </button>
                                     </div>
-                                </div>
-                            ))
-                        )}
+                                ) : (
+                                    <span style={{ color: '#9ca3af' }}>Chọn mã giảm giá...</span>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
 
-                <div className={styles.cartSidebar}>
-                    <div className={styles.cartHeader}>
-                        <h3>🛒 Đơn hàng</h3>
-                        <button className={styles.cartBackBtn} onClick={() => navigate('/waiter/orders')}><ArrowLeft size={18} />Quay về</button>
-                    </div>
+                {/* Search & Category Tabs */}
+                {order?.status !== "PAID" && (
+                    <>
+                        <div className={styles.searchSection}>
+                            <input
+                                type="text"
+                                className={styles.searchInput}
+                                placeholder="Tìm kiếm món..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className={styles.categoryTabs}>
+                            {categories.map(cat => (
+                                <button
+                                    key={cat}
+                                    className={`${styles.categoryBtn} ${activeTab === cat ? styles.active : ""}`}
+                                    onClick={() => setActiveTab(cat)}
+                                >
+                                    {cat}
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
 
-                    {cart.length === 0 ? (
-                        <p className={styles.emptyCart}>Chưa có món nào</p>
-                    ) : (
-                        <>
-                            <div className={styles.cartList}>
-                                {cart.map((item, index) => (
-                                    <div key={`${item.id}_${index}`} className={styles.cartItem}>
-                                        <div className={styles.cartItemInfo}>
-                                            <span className={styles.cartItemName}>{item.name}</span>
-                                            <span className={styles.cartItemPrice}>{(item.price * item.quantity).toLocaleString('vi-VN')}đ</span>
+                {/* Products Grid */}
+                <div className={styles.content}>
+                    {order?.status !== "PAID" && (
+                        <div className={styles.productsGrid}>
+                            {loading ? (
+                                <div className={styles.loading}>Đang tải...</div>
+                            ) : filteredProducts.length === 0 ? (
+                                <div className={styles.emptyProducts}>Không tìm thấy sản phẩm nào</div>
+                            ) : (
+                                filteredProducts.map(product => (
+                                    <div key={product.id} className={styles.productCard} onClick={() => addToCart(product)}>
+                                        <img
+                                            src={product.imageUrl?.startsWith("http") ? product.imageUrl : `http://localhost:8080/${product.imageUrl}`}
+                                            alt={product.name}
+                                            className={styles.productImage}
+                                            onError={(e) => { e.target.src = "/default-food.jpg"; }}
+                                        />
+                                        <div className={styles.productInfo}>
+                                            <h4>{product.name}</h4>
+                                            <p className={styles.productPrice}>
+                                                {(product.finalPrice || product.branchPrice || product.originalPrice || 0).toLocaleString('vi-VN')}đ
+                                            </p>
                                         </div>
-                                        {order?.status !== "PAID" && (
-                                            <div className={styles.cartItemControls}>
-                                                <button onClick={() => updateQuantity(item.id, -1)} className={styles.qtyBtn}><Minus size={14} /></button>
-                                                <span className={styles.qty}>{item.quantity}</span>
-                                                <button onClick={() => updateQuantity(item.id, 1)} className={styles.qtyBtn}><Plus size={14} /></button>
-                                                <button onClick={() => removeFromCart(item.id)} className={styles.removeBtn}><Trash2 size={14} /></button>
-                                            </div>
-                                        )}
                                     </div>
-                                ))}
-                            </div>
-
-                            <div className={styles.cartFooter}>
-                                {/* Hiển thị phí phòng nếu là phòng VIP */}
-                                {isRoom && roomFee > 0 && (
-                                    <div className={styles.totalRow}>
-                                        <span>🏠 Phí phòng VIP:</span>
-                                        <span>{roomFee.toLocaleString('vi-VN')}đ</span>
-                                    </div>
-                                )}
-
-                                {discount > 0 && (
-                                    <>
-                                        <div className={styles.totalRow}>
-                                            <span>Tạm tính (món + phí phòng):</span>
-                                            <span>{originalTotal.toLocaleString('vi-VN')}đ</span>
-                                        </div>
-                                        <div className={styles.discountRow}>
-                                            <span>Giảm giá:</span>
-                                            <span>-{discount.toLocaleString('vi-VN')}đ</span>
-                                        </div>
-                                    </>
-                                )}
-
-                                {discount === 0 && isRoom && roomFee > 0 && (
-                                    <div className={styles.totalRow}>
-                                        <span>Tạm tính món:</span>
-                                        <span>{itemsTotal.toLocaleString('vi-VN')}đ</span>
-                                    </div>
-                                )}
-
-                                <div className={styles.totalRow}>
-                                    <span>Tổng cộng:</span>
-                                    <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
-                                </div>
-
-                                {canEdit && cart.length > 0 && (
-                                    <button className={styles.updateBtn} onClick={handleUpdateOrder} disabled={isUpdating}>
-                                        {isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}
-                                    </button>
-                                )}
-                                {isNewOrder && cart.length > 0 && (
-                                    <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>
-                                        {isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}
-                                    </button>
-                                )}
-                                {canPrint && <button className={styles.printBtn} onClick={printBill}><Printer size={18} /> In hóa đơn</button>}
-                                {canPay && (
-                                    <button className={styles.payBtn} onClick={handlePayOSPayment} disabled={processingPayment}>
-                                        {processingPayment ? "Đang xử lý..." : "Thanh toán PayOS"}
-                                    </button>
-                                )}
-                            </div>
-                        </>
+                                ))
+                            )}
+                        </div>
                     )}
                 </div>
+            </div>
+
+            {/* Cart Sidebar */}
+            <div className={styles.cartSidebar}>
+                <div className={styles.cartHeader}>
+                    <h3>🛒 Đơn hàng</h3>
+                    <button className={styles.cartBackBtn} onClick={() => navigate('/waiter/orders')}>
+                        <ArrowLeft size={18} />Quay về
+                    </button>
+                </div>
+
+                {cart.length === 0 ? (
+                    <p className={styles.emptyCart}>Chưa có món nào</p>
+                ) : (
+                    <>
+                        <div className={styles.cartList}>
+                            {cart.map((item, index) => (
+                                <div key={`${item.id}_${index}`} className={styles.cartItem}>
+                                    <div className={styles.cartItemInfo}>
+                                        <span className={styles.cartItemName}>{item.name}</span>
+                                        <span className={styles.cartItemPrice}>
+                                            {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                                        </span>
+                                    </div>
+                                    {order?.status !== "PAID" && (
+                                        <div className={styles.cartItemControls}>
+                                            <button onClick={() => updateQuantity(item.id, -1)} className={styles.qtyBtn}>
+                                                <Minus size={14} />
+                                            </button>
+                                            <span className={styles.qty}>{item.quantity}</span>
+                                            <button onClick={() => updateQuantity(item.id, 1)} className={styles.qtyBtn}>
+                                                <Plus size={14} />
+                                            </button>
+                                            <button onClick={() => removeFromCart(item.id)} className={styles.removeBtn}>
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className={styles.cartFooter}>
+                            {/* Hiển thị phí phòng nếu là phòng VIP */}
+                            {isRoom && roomFee > 0 && (
+                                <div className={styles.totalRow}>
+                                    <span>🏠 Phí phòng VIP:</span>
+                                    <span>{roomFee.toLocaleString('vi-VN')}đ</span>
+                                </div>
+                            )}
+
+                            {discount > 0 && (
+                                <>
+                                    <div className={styles.totalRow}>
+                                        <span>Tạm tính (món + phí phòng):</span>
+                                        <span>{originalTotal.toLocaleString('vi-VN')}đ</span>
+                                    </div>
+                                    <div className={styles.discountRow}>
+                                        <span>Giảm giá:</span>
+                                        <span>-{discount.toLocaleString('vi-VN')}đ</span>
+                                    </div>
+                                </>
+                            )}
+
+                            {discount === 0 && isRoom && roomFee > 0 && (
+                                <div className={styles.totalRow}>
+                                    <span>Tạm tính món:</span>
+                                    <span>{itemsTotal.toLocaleString('vi-VN')}đ</span>
+                                </div>
+                            )}
+
+                            <div className={styles.totalRow}>
+                                <span>Tổng cộng:</span>
+                                <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
+                            </div>
+
+                            {canEdit && cart.length > 0 && (
+                                <button className={styles.updateBtn} onClick={handleUpdateOrder} disabled={isUpdating}>
+                                    {isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}
+                                </button>
+                            )}
+                            {isNewOrder && cart.length > 0 && (
+                                <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>
+                                    {isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}
+                                </button>
+                            )}
+                            {canPrint && (
+                                <button className={styles.printBtn} onClick={printBill}>
+                                    <Printer size={18} /> In hóa đơn
+                                </button>
+                            )}
+                            {canPay && (
+                                <button className={styles.payBtn} onClick={handlePayOSPayment} disabled={processingPayment}>
+                                    {processingPayment ? "Đang xử lý..." : "Thanh toán PayOS"}
+                                </button>
+                            )}
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Promotion Modal */}
@@ -871,21 +951,45 @@ const OrderDetail = () => {
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
                             <h3>Chọn mã khuyến mãi</h3>
-                            <button onClick={() => setShowPromotionModal(false)} className={styles.modalClose}><X size={24} /></button>
+                            <button onClick={() => setShowPromotionModal(false)} className={styles.modalClose}>
+                                <X size={24} />
+                            </button>
                         </div>
-                        <div className={`${styles.promoOption} ${!selectedPromotion ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(null); setShowPromotionModal(false); }}>
+                        <div
+                            className={`${styles.promoOption} ${!selectedPromotion ? styles.selected : ''}`}
+                            onClick={() => { setSelectedPromotion(null); setShowPromotionModal(false); }}
+                        >
                             <div>Không sử dụng mã giảm giá</div>
                         </div>
-                        {promotions.length === 0 ? <div className={styles.emptyPromo}>Không có mã khuyến mãi nào</div> : (
+                        {promotions.length === 0 ? (
+                            <div className={styles.emptyPromo}>Không có mã khuyến mãi nào</div>
+                        ) : (
                             promotions.map((promo) => (
-                                <div key={promo.id} className={`${styles.promoOption} ${selectedPromotion?.id === promo.id ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(promo); setShowPromotionModal(false); showToast(`Đã áp dụng mã ${promo.name}`, 'success', 2000); }}>
-                                    <div className={styles.promoIcon}>{promo.discountPercentage ? <Percent size={20} /> : <DollarSign size={20} />}</div>
+                                <div
+                                    key={promo.id}
+                                    className={`${styles.promoOption} ${selectedPromotion?.id === promo.id ? styles.selected : ''}`}
+                                    onClick={() => {
+                                        setSelectedPromotion(promo);
+                                        setShowPromotionModal(false);
+                                        showToast(`Đã áp dụng mã ${promo.name}`, 'success', 2000);
+                                    }}
+                                >
+                                    <div className={styles.promoIcon}>
+                                        {promo.discountPercentage ? <Percent size={20} /> : <DollarSign size={20} />}
+                                    </div>
                                     <div className={styles.promoInfo}>
                                         <div className={styles.promoName}>{promo.name}</div>
                                         {promo.description && <div className={styles.promoDesc}>{promo.description}</div>}
-                                        {promo.endDate && <div className={styles.promoDate}>Hạn đến: {new Date(promo.endDate).toLocaleDateString('vi-VN')}</div>}
+                                        {promo.endDate && (
+                                            <div className={styles.promoDate}>
+                                                Hạn đến: {new Date(promo.endDate).toLocaleDateString('vi-VN')}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className={styles.promoValue}>{promo.discountPercentage && `-${promo.discountPercentage}%`}{promo.discountAmount && `-${promo.discountAmount.toLocaleString('vi-VN')}đ`}</div>
+                                    <div className={styles.promoValue}>
+                                        {promo.discountPercentage && `-${promo.discountPercentage}%`}
+                                        {promo.discountAmount && `-${promo.discountAmount.toLocaleString('vi-VN')}đ`}
+                                    </div>
                                 </div>
                             ))
                         )}
@@ -896,7 +1000,13 @@ const OrderDetail = () => {
             {/* Toast Notifications */}
             <div className={styles.toastContainer}>
                 {toasts.map((toast) => (
-                    <ToastNotification key={toast.id} message={toast.message} type={toast.type} duration={toast.duration} onClose={() => removeToast(toast.id)} />
+                    <ToastNotification
+                        key={toast.id}
+                        message={toast.message}
+                        type={toast.type}
+                        duration={toast.duration}
+                        onClose={() => removeToast(toast.id)}
+                    />
                 ))}
             </div>
         </div>

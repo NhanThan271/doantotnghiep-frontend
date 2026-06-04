@@ -1,4 +1,3 @@
-// Orders.js - FULL CODE - FIXED ESLINT
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -141,43 +140,25 @@ const Orders = () => {
         showToast('success', 'Thành công', 'Đã làm mới dữ liệu');
     };
 
-    const handleTableClick = async (table) => {
-        let existingOrder = existingOrders[`table_${table.id}`];
-        let currentTable = table;
+    const handleTableClick = (table) => {
+        const existingOrder = existingOrders[`table_${table.id}`];
 
-        if (table.status === "FREE" && !existingOrder) {
-            try {
-                await axiosClient.put(`/tables/${table.id}/status?status=OCCUPIED`);
-                await fetchTablesWithReservations();
-                await fetchExistingOrders();
-                const updatedTable = tables.find(t => t.id === table.id);
-                if (updatedTable) currentTable = updatedTable;
-                existingOrder = existingOrders[`table_${table.id}`];
-            } catch (err) { }
-        }
-
-        navigate(`/waiter/orders/${currentTable.id}`, {
-            state: { table: { ...currentTable, status: "OCCUPIED" }, existingOrder: existingOrder || null }
+        navigate(`/waiter/orders/${table.id}`, {
+            state: {
+                table: table,  // Giữ nguyên trạng thái gốc
+                existingOrder: existingOrder || null
+            }
         });
     };
 
-    const handleRoomClick = async (room) => {
-        let existingOrder = existingOrders[`room_${room.id}`];
-        let currentRoom = room;
+    const handleRoomClick = (room) => {
+        const existingOrder = existingOrders[`room_${room.id}`];
 
-        if (room.status === "ACTIVE" && !existingOrder) {
-            try {
-                await axiosClient.put(`/rooms/${room.id}/status?status=OCCUPIED`);
-                await fetchRoomsWithReservations();
-                await fetchExistingOrders();
-                const updatedRoom = rooms.find(r => r.id === room.id);
-                if (updatedRoom) currentRoom = updatedRoom;
-                existingOrder = existingOrders[`room_${room.id}`];
-            } catch (err) { }
-        }
-
-        navigate(`/waiter/orders/${currentRoom.id}`, {
-            state: { room: { ...currentRoom, status: "OCCUPIED" }, existingOrder: existingOrder || null }
+        navigate(`/waiter/orders/${room.id}`, {
+            state: {
+                room: room,  // Giữ nguyên trạng thái gốc
+                existingOrder: existingOrder || null
+            }
         });
     };
 
