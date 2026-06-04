@@ -1,10 +1,8 @@
-// pages/employee/cashier/Dashboard.js
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
     Play, StopCircle, Clock, AlertCircle, RefreshCw, Eye,
     DollarSign, Receipt, CreditCard, TrendingUp, Users,
     Wallet, History, BarChart3, Phone, Building2,
-    ArrowUpCircle, ArrowDownCircle, CheckCircle, XCircle,
     FileText, Loader, Coffee, X
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +26,6 @@ const Dashboard = () => {
     const errorTimeoutRef = useRef(null);
 
     const [displayFloatAmount, setDisplayFloatAmount] = useState("");
-    const [displayCashAmount, setDisplayCashAmount] = useState("");
 
     // ===== TOAST STATE =====
     const [toasts, setToasts] = useState([]);
@@ -50,10 +47,6 @@ const Dashboard = () => {
         error: null,
         showStartShiftModal: false,
         showEndShiftModal: false,
-        showCashModal: false,
-        cashAction: null,
-        cashAmount: "",
-        cashReason: "",
         floatAmount: "",
         user: {},
         recentOrders: [],
@@ -67,6 +60,11 @@ const Dashboard = () => {
         lastUpdated: null
     });
 
+    // Update state helper
+    const updateState = useCallback((updates) => {
+        setState(prev => ({ ...prev, ...updates }));
+    }, []);
+
     // Auto-clear error messages
     const showMessage = useCallback((type, message) => {
         if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
@@ -77,7 +75,7 @@ const Dashboard = () => {
             updateState({ error: message });
             errorTimeoutRef.current = setTimeout(() => updateState({ error: null }), 8000);
         }
-    }, [addToast]);
+    }, [addToast, updateState]);
 
     // Format helpers
     const formatNumberInput = (value) => {
@@ -91,10 +89,6 @@ const Dashboard = () => {
         return formattedValue.replace(/\./g, '');
     };
 
-    const updateState = useCallback((updates) => {
-        setState(prev => ({ ...prev, ...updates }));
-    }, []);
-
     const getToken = () => localStorage.getItem('token');
 
     const getHeaders = useCallback(() => ({
@@ -102,50 +96,8 @@ const Dashboard = () => {
         'Authorization': `Bearer ${getToken()}`
     }), []);
 
-    // Initialize
-    useEffect(() => {
-        const init = async () => {
-            const userData = JSON.parse(localStorage.getItem('user') || '{}');
-            updateState({ user: userData });
-            await fetchDashboardData();
-        };
-        init();
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
-        };
-    }, []);
-
-    // Auto-refresh
-    useEffect(() => {
-        if (state.currentShift) {
-            intervalRef.current = setInterval(() => fetchDashboardData(false), 30000);
-        } else {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        }
-        return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-    }, [state.currentShift]);
-
-    const fetchDashboardData = async (showLoading = true) => {
-        if (showLoading) updateState({ loading: true, error: null });
-        try {
-            await Promise.allSettled([
-                fetchCurrentShift(),
-                fetchStats(),
-                fetchRecentOrders(),
-                fetchHourlyRevenue()
-            ]);
-            updateState({ lastUpdated: new Date() });
-        } catch (error) {
-            console.error("Fetch error:", error);
-            if (showLoading) showMessage('error', "Không thể tải dữ liệu. Vui lòng thử lại.");
-        } finally {
-            if (showLoading) updateState({ loading: false });
-        }
-    };
-
     // ===== FETCH FUNCTIONS =====
-    const fetchCurrentShift = async () => {
+    const fetchCurrentShift = useCallback(async () => {
         const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
         const staffId = currentUser.id || currentUser.staffId;
         if (!staffId) { updateState({ currentShift: null, cashTransactions: [] }); return; }
@@ -164,9 +116,9 @@ const Dashboard = () => {
             console.error("Fetch shift error:", error);
             updateState({ currentShift: null, cashTransactions: [] });
         }
-    };
+    }, [getHeaders, updateState]);
 
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/employee/bills`, { headers: getHeaders() });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -221,18 +173,16 @@ const Dashboard = () => {
 
             updateState({ stats, paymentMethods });
         } catch (error) { console.error("Stats error:", error); }
-    };
+    }, [getHeaders, state.currentShift?.openedAt, updateState]);
 
-    const fetchRecentOrders = async () => {
+    const fetchRecentOrders = useCallback(async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/employee/bills`, { headers: getHeaders() });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const bills = await response.json();
 
-            // Hàm lấy số bàn đúng
             const getTableNumber = async (bill) => {
                 try {
-                    // Thử lấy từ order trước
                     if (bill.order?.id) {
                         const orderRes = await fetch(`${API_BASE_URL}/customer/orders/${bill.order.id}`, {
                             headers: getHeaders()
@@ -243,7 +193,6 @@ const Dashboard = () => {
                             if (orderData.room?.number) return `Phòng ${orderData.room.number}`;
                         }
                     }
-                    // Fallback: lấy từ bill.order?.table?.number
                     if (bill.order?.table?.number) return `Bàn ${bill.order.table.number}`;
                     if (bill.order?.room?.number) return `Phòng ${bill.order.room.number}`;
                     if (bill.room?.number) return `Phòng ${bill.room.number}`;
@@ -253,7 +202,6 @@ const Dashboard = () => {
                 }
             };
 
-            // Lấy số bàn cho từng bill (có thể chậm, nên dùng Promise.all)
             const recentBills = await Promise.all(
                 bills
                     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -274,9 +222,9 @@ const Dashboard = () => {
         } catch (error) {
             console.error("Orders error:", error);
         }
-    };
+    }, [getHeaders, updateState]);
 
-    const fetchHourlyRevenue = async () => {
+    const fetchHourlyRevenue = useCallback(async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/employee/bills`, { headers: getHeaders() });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -300,7 +248,25 @@ const Dashboard = () => {
             });
             updateState({ hourlyRevenue: Object.values(hourlyMap) });
         } catch (error) { console.error("Hourly error:", error); }
-    };
+    }, [getHeaders, state.currentShift?.openedAt, updateState]);
+
+    const fetchDashboardData = useCallback(async (showLoading = true) => {
+        if (showLoading) updateState({ loading: true, error: null });
+        try {
+            await Promise.allSettled([
+                fetchCurrentShift(),
+                fetchStats(),
+                fetchRecentOrders(),
+                fetchHourlyRevenue()
+            ]);
+            updateState({ lastUpdated: new Date() });
+        } catch (error) {
+            console.error("Fetch error:", error);
+            if (showLoading) showMessage('error', "Không thể tải dữ liệu. Vui lòng thử lại.");
+        } finally {
+            if (showLoading) updateState({ loading: false });
+        }
+    }, [fetchCurrentShift, fetchStats, fetchRecentOrders, fetchHourlyRevenue, showMessage, updateState]);
 
     // ===== SHIFT ACTIONS =====
     const openStartShiftModal = () => {
@@ -342,7 +308,7 @@ const Dashboard = () => {
                 paymentMethods: [], hourlyRevenue: [], recentOrders: []
             });
             setDisplayFloatAmount("");
-            addToast("✅ Bắt đầu ca thành công!", 'success', 3000);
+            addToast("Bắt đầu ca thành công!", 'success', 3000);
             await fetchDashboardData(false);
         } catch (error) {
             showMessage('error', error.message);
@@ -378,13 +344,13 @@ const Dashboard = () => {
                 : (difference > 0 ? `Dư: ${formatCurrency(difference)}` : `Thiếu: ${formatCurrency(Math.abs(difference))}`);
 
             addToast(
-                `✅ Kết thúc ca thành công!\n` +
-                `📊 DT tiền mặt: ${formatCurrency(data.cashRevenue || summary.cashRevenue)}\n` +
-                `💳 DT chuyển khoản: ${formatCurrency(data.transferRevenue || summary.nonCashRevenue)}\n` +
-                `💰 Tổng DT: ${formatCurrency(data.totalRevenue || summary.revenue)}\n` +
-                `📋 Số đơn: ${data.totalOrders || summary.orderCount}\n` +
-                `💵 Tiền mặt thực tế: ${formatCurrency(data.actualCash || summary.currentCash)}\n` +
-                `📝 Chênh lệch: ${diffText}`,
+                `Kết thúc ca thành công!\n` +
+                `DT tiền mặt: ${formatCurrency(data.cashRevenue || summary.cashRevenue)}\n` +
+                `DT chuyển khoản: ${formatCurrency(data.transferRevenue || summary.nonCashRevenue)}\n` +
+                `Tổng DT: ${formatCurrency(data.totalRevenue || summary.revenue)}\n` +
+                `Số đơn: ${data.totalOrders || summary.orderCount}\n` +
+                `Tiền mặt thực tế: ${formatCurrency(data.actualCash || summary.currentCash)}\n` +
+                `Chênh lệch: ${diffText}`,
                 'success',
                 8000
             );
@@ -402,23 +368,12 @@ const Dashboard = () => {
         }
     };
 
-    const openCashModal = (action) => {
-        updateState({ showCashModal: true, cashAction: action, cashAmount: "", cashReason: "", error: null });
-        setDisplayCashAmount("");
-    };
-
-    const handleCashAction = async () => {
-        updateState({ showCashModal: false, cashAmount: "", cashReason: "" });
-        setDisplayCashAmount("");
-        addToast("⚠️ Tính năng Rút/Nộp tiền đang được phát triển.", 'warning', 4000);
-    };
-
     const closeAllModals = () => {
         updateState({
-            showStartShiftModal: false, showEndShiftModal: false, showCashModal: false,
-            cashAction: null, cashAmount: "", cashReason: "", floatAmount: "", error: null
+            showStartShiftModal: false, showEndShiftModal: false,
+            floatAmount: "", error: null
         });
-        setDisplayFloatAmount(""); setDisplayCashAmount("");
+        setDisplayFloatAmount("");
     };
 
     // ===== HELPERS =====
@@ -450,11 +405,6 @@ const Dashboard = () => {
         return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     };
 
-    const getPaymentMethodInfo = (method) => {
-        return PAYMENT_METHODS[method] || { label: method || 'Không xác định', icon: CreditCard, color: '#9ca3af' };
-    };
-
-    // ===== ĐÃ SỬA: Điều hướng đúng với routes trong App.js =====
     const handleViewOrder = (orderId) => navigate(`/cashier/bill?orderId=${orderId}`);
     const handleCreateOrder = () => navigate('/cashier/tables');
 
@@ -476,15 +426,51 @@ const Dashboard = () => {
         };
     };
 
+    // ===== EFFECTS =====
+    // Initialize
+    useEffect(() => {
+        const init = async () => {
+            const userData = JSON.parse(localStorage.getItem('user') || '{}');
+            updateState({ user: userData });
+            await fetchDashboardData();
+        };
+        init();
+        return () => {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+        };
+    }, [fetchDashboardData, updateState]);
+
+    // Auto-refresh
+    useEffect(() => {
+        if (state.currentShift) {
+            intervalRef.current = setInterval(() => fetchDashboardData(false), 30000);
+        } else {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+        return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    }, [state.currentShift, fetchDashboardData]);
+
     const {
         currentShift, loading, error, showStartShiftModal, showEndShiftModal,
-        showCashModal, cashAction, cashAmount, cashReason, floatAmount,
-        user, recentOrders, cashTransactions, stats, paymentMethods,
+        floatAmount, user, recentOrders, cashTransactions, stats, paymentMethods,
         hourlyRevenue
     } = state;
 
     const shiftSummary = getShiftSummary();
     const maxHourlyRevenue = Math.max(...hourlyRevenue.map(h => h.revenue), 0);
+
+    // Helper hiển thị phương thức thanh toán
+    const getPaymentMethodDisplay = (method) => {
+        const methods = {
+            'CASH': 'Tiền mặt',
+            'MOMO': 'MoMo',
+            'MOBILE': 'Ví điện tử',
+            'BANKING': 'Chuyển khoản',
+            'CARD': 'Thẻ'
+        };
+        return methods[method] || method || 'Tiền mặt';
+    };
 
     return (
         <div className={styles.container}>
@@ -622,14 +608,7 @@ const Dashboard = () => {
                     <div className={styles.shiftInfoCard}>
                         <div className={styles.shiftInfoHeader}>
                             <h3><History size={18} /> Ca hiện tại</h3>
-                            <div className={styles.actionButtons}>
-                                <button onClick={() => openCashModal('withdraw')} className={styles.withdrawBtn} disabled={loading}>
-                                    <ArrowUpCircle size={14} /> Rút tiền
-                                </button>
-                                <button onClick={() => openCashModal('deposit')} className={styles.depositBtn} disabled={loading}>
-                                    <ArrowDownCircle size={14} /> Nộp tiền
-                                </button>
-                            </div>
+                            {/* Đã xóa buttons Rút tiền/Nộp tiền */}
                         </div>
                         <div className={styles.shiftInfoGrid}>
                             {[
@@ -688,8 +667,7 @@ const Dashboard = () => {
                                             return (
                                                 <tr key={tx.id || i} className={isWithdraw ? styles.withdrawRow : styles.depositRow}>
                                                     <td><span className={isWithdraw ? styles.withdrawBadge : styles.depositBadge}>
-                                                        {isWithdraw ? <ArrowUpCircle size={12} /> : <ArrowDownCircle size={12} />}
-                                                        {isWithdraw ? ' Rút' : ' Nộp'}
+                                                        {isWithdraw ? '⬆️ Rút' : '⬇️ Nộp'}
                                                     </span></td>
                                                     <td>{formatDateTime(tx.createdAt || tx.transactionDate)}</td>
                                                     <td className={isWithdraw ? styles.withdrawAmount : styles.depositAmount}>
@@ -725,34 +703,20 @@ const Dashboard = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {recentOrders.length > 0 ? recentOrders.map(order => {
-                                        // Lấy thông tin phương thức thanh toán
-                                        const getPaymentMethodDisplay = (method) => {
-                                            const methods = {
-                                                'CASH': '💵 Tiền mặt',
-                                                'MOMO': '📱 MoMo',
-                                                'MOBILE': '📱 Ví điện tử',
-                                                'BANKING': '🏦 Chuyển khoản',
-                                                'CARD': '💳 Thẻ'
-                                            };
-                                            return methods[method] || method || '💵 Tiền mặt';
-                                        };
-
-                                        return (
-                                            <tr key={order.id} className={order.paymentStatus === 'paid' ? styles.paidRow : styles.pendingRow}>
-                                                <td>{order.code}</td>
-                                                <td>{order.tableNumber}</td>
-                                                <td>{formatTime(order.createdAt)}</td>
-                                                <td>{formatCurrency(order.totalAmount)}</td>
-                                                <td>{getPaymentMethodDisplay(order.paymentMethod)}</td>
-                                                <td>
-                                                    <button onClick={() => handleViewOrder(order.id)} className={styles.viewBtn}>
-                                                        <Eye size={14} />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    }) : (
+                                    {recentOrders.length > 0 ? recentOrders.map(order => (
+                                        <tr key={order.id} className={order.paymentStatus === 'paid' ? styles.paidRow : styles.pendingRow}>
+                                            <td>{order.code}</td>
+                                            <td>{order.tableNumber}</td>
+                                            <td>{formatTime(order.createdAt)}</td>
+                                            <td>{formatCurrency(order.totalAmount)}</td>
+                                            <td>{getPaymentMethodDisplay(order.paymentMethod)}</td>
+                                            <td>
+                                                <button onClick={() => handleViewOrder(order.id)} className={styles.viewBtn}>
+                                                    <Eye size={14} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )) : (
                                         <tr><td colSpan={6} className={styles.noData}>Chưa có đơn</td></tr>
                                     )}
                                 </tbody>
@@ -841,39 +805,6 @@ const Dashboard = () => {
                             <button onClick={closeAllModals} className={styles.cancelBtn}>Hủy</button>
                             <button onClick={endShift} disabled={loading} className={styles.endShiftConfirmBtn}>
                                 {loading ? <Loader size={16} className={styles.spinning} /> : 'Xác nhận kết thúc'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Cash Modal */}
-            {showCashModal && (
-                <div className={styles.modalOverlay} onClick={closeAllModals}>
-                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
-                        <div className={styles.modalHeader}>
-                            <h3>{cashAction === 'withdraw' ? <ArrowUpCircle size={18} /> : <ArrowDownCircle size={18} />}
-                                {cashAction === 'withdraw' ? ' Rút tiền' : ' Nộp tiền'}</h3>
-                            <button onClick={closeAllModals}><X size={20} /></button>
-                        </div>
-                        <div className={styles.modalContent}>
-                            <div className={styles.formGroup}>
-                                <label><DollarSign size={14} /> Số tiền *</label>
-                                <input type="text" placeholder="1.000.000" value={displayCashAmount}
-                                    onChange={e => { setDisplayCashAmount(formatNumberInput(e.target.value)); updateState({ cashAmount: parseNumberFromInput(formatNumberInput(e.target.value)) }); }}
-                                    className={styles.modalInput} autoFocus />
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label><FileText size={14} /> Lý do</label>
-                                <input type="text" placeholder="Nhập lý do" value={cashReason}
-                                    onChange={e => updateState({ cashReason: e.target.value })} className={styles.modalInput} />
-                            </div>
-                        </div>
-                        <div className={styles.modalFooter}>
-                            <button onClick={closeAllModals} className={styles.cancelBtn}>Hủy</button>
-                            <button onClick={handleCashAction} disabled={loading || !cashAmount}
-                                className={cashAction === 'withdraw' ? styles.withdrawConfirmBtn : styles.depositConfirmBtn}>
-                                Xác nhận
                             </button>
                         </div>
                     </div>

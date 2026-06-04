@@ -110,7 +110,6 @@ const Orders = () => {
     }, [branchId]);
 
     // ========== EFFECTS ==========
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (!branchId) {
             setError("Không tìm thấy thông tin chi nhánh. Vui lòng đăng nhập lại.");
@@ -120,25 +119,16 @@ const Orders = () => {
         fetchRoomsWithReservations();
         fetchExistingOrders();
         fetchTablesWithReservations();
-    }, [branchId]);
+    }, [branchId, fetchAreas, fetchExistingOrders, fetchRoomsWithReservations, fetchTablesWithReservations]);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (branchId && activeTab === "tables") fetchTablesWithReservations();
-    }, [selectedArea, branchId, activeTab]);
+    }, [selectedArea, branchId, activeTab, fetchTablesWithReservations]);
 
     useEffect(() => {
         const interval = setInterval(() => setExistingOrders(prev => ({ ...prev })), 1000);
         return () => clearInterval(interval);
     }, []);
-
-    // ========== EVENT HANDLERS ==========
-    const handleRefresh = () => {
-        fetchTablesWithReservations();
-        fetchRoomsWithReservations();
-        fetchExistingOrders();
-        showToast('success', 'Thành công', 'Đã làm mới dữ liệu');
-    };
 
     const handleTableClick = (table) => {
         const existingOrder = existingOrders[`table_${table.id}`];
@@ -252,9 +242,6 @@ const Orders = () => {
                 <h2 className={styles.headerTitle}>
                     <ClipboardList size={24} /> Quản lý bàn & phòng
                 </h2>
-                <button className={styles.refreshButton} onClick={handleRefresh}>
-                    <RefreshCw size={14} /> Làm mới
-                </button>
             </div>
 
             {/* Tab Navigation */}

@@ -3,8 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
     ArrowLeft, ShoppingCart, Users, Plus, Minus, Trash2,
     Printer, Tag, X, Percent, DollarSign, CheckCircle,
-    Clock, ChefHat, Circle, CircleCheckBig, Sofa, User,
-    CreditCard, Banknote, Wallet, Phone, Landmark
+    Clock, ChefHat, Circle, CircleCheckBig, Sofa, Wallet
 } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';

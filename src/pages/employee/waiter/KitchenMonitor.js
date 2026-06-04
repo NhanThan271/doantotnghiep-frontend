@@ -1,12 +1,12 @@
-// KitchenMonitor.js - FULL CODE - ICON IMPORT + MÀU SẮC
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
 import {
     ChefHat, Clock, CheckCircle2, Loader2, Package,
     MapPin, Home, User, RefreshCw, CookingPot,
-    ListFilter, Timer, Utensils
+    ListFilter, Timer, Utensils, ChevronDown
 } from 'lucide-react';
+import styles from "./KitchenMonitor.module.css";
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
 const socket = io(SOCKET_URL, {
@@ -254,104 +254,134 @@ const KitchenMonitor = () => {
 
     // ===== RENDER =====
     return (
-        <div style={{ padding: '20px' }}>
-            {/* Header */}
-            <div style={{ background: 'white', borderRadius: '16px', padding: '20px', marginBottom: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-                    <h2 style={{ margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className={styles.container}>
+            {/* Header Card */}
+            <div className={styles.headerCard}>
+                <div className={styles.headerTop}>
+                    <h2 className={styles.title}>
                         <ChefHat size={28} color="#ea580c" /> Theo dõi bếp
                     </h2>
-                    <button onClick={fetchKitchenOrders} style={{ padding: '8px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button className={styles.refreshBtn} onClick={fetchKitchenOrders}>
                         <RefreshCw size={16} /> Làm mới
                     </button>
                 </div>
 
                 {/* Stats Cards */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginTop: '20px' }}>
+                <div className={styles.statsGrid}>
                     {statCards.map((card, i) => (
-                        <div key={i} style={{ background: '#f8fafc', borderRadius: '12px', padding: '16px', borderLeft: `4px solid ${card.color}`, display: 'flex', alignItems: 'center', gap: 12, transition: 'transform 0.2s' }}
-                            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
-                            {card.icon}
-                            <div>
-                                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e293b' }}>{card.value}</div>
-                                <div style={{ fontSize: '12px', color: '#64748b' }}>{card.label}</div>
+                        <div key={i} className={styles.statCard} style={{ borderLeftColor: card.color }}>
+                            <div className={styles.statIcon}>{card.icon}</div>
+                            <div className={styles.statInfo}>
+                                <div className={styles.statValue}>{card.value}</div>
+                                <div className={styles.statLabel}>{card.label}</div>
                             </div>
                         </div>
                     ))}
                 </div>
 
                 {/* Filter Tabs */}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+                <div className={styles.tabsContainer}>
                     {tabs.map(tab => (
-                        <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-                            padding: '8px 16px', borderRadius: '20px',
-                            border: activeTab === tab.key ? `2px solid ${tab.color}` : '1px solid #e2e8f0',
-                            background: activeTab === tab.key ? `${tab.color}10` : 'white',
-                            color: activeTab === tab.key ? tab.color : '#64748b',
-                            cursor: 'pointer', fontWeight: activeTab === tab.key ? 'bold' : 'normal',
-                            fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
-                        }}>
+                        <button
+                            key={tab.key}
+                            className={`${styles.tabBtn} ${activeTab === tab.key ? styles.tabBtnActive : ''}`}
+                            style={activeTab === tab.key ? { borderColor: tab.color, color: tab.color } : {}}
+                            onClick={() => setActiveTab(tab.key)}
+                        >
                             {tab.icon} {tab.label}
-                            <span style={{ background: activeTab === tab.key ? tab.color : '#e2e8f0', color: activeTab === tab.key ? 'white' : '#64748b', padding: '2px 8px', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold' }}>{tab.count}</span>
+                            <span className={styles.tabCount} style={{
+                                background: activeTab === tab.key ? tab.color : '#e2e8f0',
+                                color: activeTab === tab.key ? 'white' : '#64748b'
+                            }}>
+                                {tab.count}
+                            </span>
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Loading / Empty / Orders */}
-            {loading ? (
-                <div style={{ textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px' }}>
-                    <Loader2 size={48} color="#3b82f6" style={{ animation: 'spin 0.8s linear infinite', marginBottom: 20 }} />
+            {/* Loading State */}
+            {loading && (
+                <div className={styles.loadingContainer}>
+                    <Loader2 size={48} color="#3b82f6" className={styles.spinner} />
                     <p style={{ color: '#64748b' }}>Đang tải dữ liệu...</p>
                 </div>
-            ) : filteredOrders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px', background: 'white', borderRadius: '16px' }}>
-                    <Utensils size={64} color="#cbd5e1" style={{ marginBottom: 16 }} />
-                    <h3 style={{ color: '#1e293b', marginBottom: 8 }}>Không có đơn hàng nào</h3>
-                    <p style={{ color: '#64748b' }}>Hiện tại chưa có đơn hàng nào cần chế biến</p>
+            )}
+
+            {/* Empty State */}
+            {!loading && filteredOrders.length === 0 && (
+                <div className={styles.emptyContainer}>
+                    <div className={styles.emptyIcon}>
+                        <Utensils size={48} color="#cbd5e1" />
+                    </div>
+                    <h3 className={styles.emptyTitle}>Không có đơn hàng nào</h3>
+                    <p className={styles.emptyText}>Hiện tại chưa có đơn hàng nào cần chế biến</p>
                 </div>
-            ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            )}
+
+            {/* Orders List */}
+            {!loading && filteredOrders.length > 0 && (
+                <div className={styles.ordersList}>
                     {filteredOrders.map(order => (
-                        <div key={order.id} style={{ background: 'white', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', borderLeft: `4px solid ${getStatusColor(order.status)}` }}>
-                            <div onClick={() => toggleExpand(order.id)} style={{ padding: '16px 20px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, background: expandedOrder === order.id ? '#f8fafc' : 'white' }}>
-                                <div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                                        <span style={{ fontWeight: 'bold', fontSize: 16, color: '#1e293b' }}>Đơn #{order.id}</span>
-                                        <span style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, background: `${getStatusColor(order.status)}20`, color: getStatusColor(order.status), display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div key={order.id} className={styles.orderCard} style={{ borderLeftColor: getStatusColor(order.status) }}>
+                            {/* Order Header */}
+                            <div
+                                className={`${styles.orderHeader} ${expandedOrder === order.id ? styles.orderHeaderExpanded : ''}`}
+                                onClick={() => toggleExpand(order.id)}
+                            >
+                                <div className={styles.orderInfo}>
+                                    <div className={styles.orderTitleRow}>
+                                        <span className={styles.orderId}>Đơn #{order.id}</span>
+                                        <span className={styles.orderStatusBadge} style={{ backgroundColor: `${getStatusColor(order.status)}20`, color: getStatusColor(order.status) }}>
                                             {getStatusIcon(order.status)} {getStatusText(order.status)}
                                         </span>
                                     </div>
-                                    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                                        <span style={{ fontSize: 13, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><MapPin size={14} color="#ea580c" /> {getLocation(order)}</span>
-                                        <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 10, background: '#e0f2fe', color: '#0369a1', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}><Home size={12} color="#0369a1" /> {getAreaName(order)}</span>
-                                        <span style={{ fontSize: 13, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><Timer size={14} color="#64748b" /> {formatTime(order.createdAt)} - {formatDate(order.createdAt)}</span>
-                                        <span style={{ fontSize: 13, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}><User size={14} color="#64748b" /> {order.customerName || 'Khách lẻ'}</span>
+                                    <div className={styles.orderMeta}>
+                                        <span className={styles.metaItem}>
+                                            <MapPin size={14} color="#ea580c" /> {getLocation(order)}
+                                        </span>
+                                        <span className={styles.areaBadge}>
+                                            <Home size={12} color="#0369a1" /> {getAreaName(order)}
+                                        </span>
+                                        <span className={styles.metaItem}>
+                                            <Timer size={14} color="#64748b" /> {formatTime(order.createdAt)} - {formatDate(order.createdAt)}
+                                        </span>
+                                        <span className={styles.metaItem}>
+                                            <User size={14} color="#64748b" /> {order.customerName || 'Khách lẻ'}
+                                        </span>
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <span style={{ background: '#e2e8f0', padding: '4px 12px', borderRadius: 20, fontSize: 12, color: '#475569' }}>{order.mergedItems?.length || 0} món</span>
+                                <div className={styles.orderStats}>
+                                    <span className={styles.itemCount}>{order.mergedItems?.length || 0} món</span>
+                                    <ChevronDown size={20} className={`${styles.expandIcon} ${expandedOrder === order.id ? styles.expandIconRotated : ''}`} />
                                 </div>
                             </div>
 
+                            {/* Order Details (Expanded) */}
                             {expandedOrder === order.id && (
-                                <div style={{ padding: '0 20px 20px 20px', borderTop: '1px solid #e2e8f0' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                <div className={styles.orderDetails}>
+                                    <div className={styles.itemsList}>
                                         {(order.mergedItems || []).map((item, idx) => (
-                                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: '#f8fafc', borderRadius: '12px', borderLeft: `4px solid ${getItemStatusColor(item.kitchenStatus)}` }}>
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{ fontWeight: 600, fontSize: 15, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                            <div key={idx} className={styles.itemCard} style={{ borderLeftColor: getItemStatusColor(item.kitchenStatus) }}>
+                                                <div className={styles.itemInfo}>
+                                                    <div className={styles.itemName}>
                                                         {getItemStatusIcon(item.kitchenStatus)} {item.name}
                                                     </div>
-                                                    {item.note && <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 4 }}>📝 {item.note}</div>}
+                                                    {item.note && (
+                                                        <div className={styles.itemNote}>
+                                                            📝 {item.note}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-                                                    <div style={{ textAlign: 'center', padding: '8px 16px', background: '#e2e8f0', borderRadius: '12px', minWidth: '50px' }}>
-                                                        <div style={{ fontSize: 18, fontWeight: 'bold', color: '#1e293b' }}>{item.totalQuantity}</div>
-                                                        <div style={{ fontSize: 10, color: '#64748b' }}>phần</div>
+                                                <div className={styles.itemActions}>
+                                                    <div className={styles.itemQuantityBox}>
+                                                        <div className={styles.itemQuantityValue}>{item.totalQuantity}</div>
+                                                        <div className={styles.itemQuantityLabel}>phần</div>
                                                     </div>
-                                                    <span style={{ fontSize: 12, padding: '6px 14px', borderRadius: 20, background: `${getItemStatusColor(item.kitchenStatus)}20`, color: getItemStatusColor(item.kitchenStatus), fontWeight: 'bold', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    <span className={styles.itemStatusBadge} style={{
+                                                        backgroundColor: `${getItemStatusColor(item.kitchenStatus)}20`,
+                                                        color: getItemStatusColor(item.kitchenStatus)
+                                                    }}>
                                                         {getItemStatusIcon(item.kitchenStatus)} {getItemStatusText(item.kitchenStatus)}
                                                     </span>
                                                 </div>
@@ -359,7 +389,7 @@ const KitchenMonitor = () => {
                                         ))}
                                     </div>
                                     {order.notes && (
-                                        <div style={{ marginTop: 16, padding: '12px', background: '#fef3c7', borderRadius: 12, fontSize: 13, color: '#92400e' }}>
+                                        <div className={styles.orderNote}>
                                             📝 Ghi chú đơn hàng: {order.notes}
                                         </div>
                                     )}
@@ -369,8 +399,6 @@ const KitchenMonitor = () => {
                     ))}
                 </div>
             )}
-
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
     );
 };
