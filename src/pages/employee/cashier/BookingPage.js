@@ -1,6 +1,5 @@
-// BookingPage.jsx - FULL CODE - Đã xác nhận + Xem chi tiết + Tìm kiếm
+// BookingPage.jsx - FULL CODE ĐÃ SỬA (xóa emoji, dùng icon)
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import {
     Table, Home, Users, Clock, CheckCircle,
     ChevronDown, ChevronUp, X, Calendar, Phone, User,
@@ -8,7 +7,7 @@ import {
     MapPin, Clock3, AlertTriangle, Utensils, Coffee,
     Building, DollarSign, Mail, PenSquare, Lock,
     Edit, Trash2, AlertOctagon, UserX, CalendarClock,
-    Eye, Info, Search, Filter
+    Eye, Info, Search, Filter, UserCircle, CreditCard
 } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
@@ -23,8 +22,6 @@ const socket = io(SOCKET_URL, {
 });
 
 const BookingPage = () => {
-    const navigate = useNavigate();
-
     // State management
     const [tables, setTables] = useState([]);
     const [rooms, setRooms] = useState([]);
@@ -34,12 +31,11 @@ const BookingPage = () => {
     const [showAreas, setShowAreas] = useState(true);
     const [activeTab, setActiveTab] = useState("tables");
     const [reservations, setReservations] = useState([]);
-    const [isSocketConnected, setIsSocketConnected] = useState(true);
 
     // Search state
     const [searchTerm, setSearchTerm] = useState("");
     const [filterDate, setFilterDate] = useState("");
-    const [filterStatus, setFilterStatus] = useState("all"); // all, table, room
+    const [filterStatus, setFilterStatus] = useState("all");
 
     // Modal states
     const [showBookingModal, setShowBookingModal] = useState(false);
@@ -60,7 +56,7 @@ const BookingPage = () => {
 
     // Status Update Modal
     const [showStatusModal, setShowStatusModal] = useState(false);
-    const [statusEntity, setStatusEntity] = useState(null);
+    const [statusEntity] = useState(null);
     const [newStatus, setNewStatus] = useState("");
     const [updatingStatus, setUpdatingStatus] = useState(false);
 
@@ -79,9 +75,6 @@ const BookingPage = () => {
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = userData.branch?.id;
     const branchName = userData.branch?.name;
-    const userRole = userData.role?.name || userData.role;
-
-    const canEditStatus = ['ADMIN', 'MANAGER', 'EMPLOYEE', 'CASHIER'].includes(userRole);
 
     // ==================== SOCKET.IO SETUP ====================
     useEffect(() => {
@@ -95,7 +88,6 @@ const BookingPage = () => {
 
         socket.on("connect", () => {
             console.log("✅ Socket connected");
-            setIsSocketConnected(true);
             if (userData.id && branchId) {
                 socket.emit("register-role", {
                     role: "cashier",
@@ -108,7 +100,6 @@ const BookingPage = () => {
 
         socket.on("disconnect", () => {
             console.log("❌ Socket disconnected");
-            setIsSocketConnected(false);
             showToast("Mất kết nối real-time!", "warning");
         });
 
@@ -158,20 +149,18 @@ const BookingPage = () => {
     const getFilteredReservations = useCallback(() => {
         let filtered = [...reservations];
 
-        // Filter by search term
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase().trim();
             filtered = filtered.filter(res =>
                 (res.customerName && res.customerName.toLowerCase().includes(term)) ||
                 (res.phone && res.phone.includes(term)) ||
                 (res.email && res.email.toLowerCase().includes(term)) ||
-                (res.tableNumber && `bàn ${res.tableNumber}`.includes(term)) ||
-                (res.roomNumber && `phòng ${res.roomNumber}`.includes(term)) ||
+                (res.tableNumber && `ban ${res.tableNumber}`.includes(term)) ||
+                (res.roomNumber && `phong ${res.roomNumber}`.includes(term)) ||
                 (res.branchName && res.branchName.toLowerCase().includes(term))
             );
         }
 
-        // Filter by date
         if (filterDate) {
             filtered = filtered.filter(res => {
                 if (res.checkInTime) {
@@ -182,7 +171,6 @@ const BookingPage = () => {
             });
         }
 
-        // Filter by type (table/room)
         if (filterStatus === "table") {
             filtered = filtered.filter(res => res.tableNumber);
         } else if (filterStatus === "room") {
@@ -270,13 +258,6 @@ const BookingPage = () => {
 
     const updateRoomStatus = async (roomId, status) => {
         await axiosClient.put(`/rooms/${roomId}/status?status=${status}`);
-    };
-
-    const openStatusModal = (entity, type, e) => {
-        e.stopPropagation();
-        setStatusEntity({ ...entity, type });
-        setNewStatus(entity.status);
-        setShowStatusModal(true);
     };
 
     const handleUpdateStatus = async () => {
@@ -411,9 +392,6 @@ const BookingPage = () => {
             const checkIn = `${bookingForm.date} ${bookingForm.time}`;
             const checkOut = `${bookingForm.checkoutDate} ${bookingForm.checkoutTime}`;
 
-            console.log("📅 Check-in:", checkIn);
-            console.log("📅 Check-out:", checkOut);
-
             const requestData = {
                 userId: userData.id,
                 branchId,
@@ -433,8 +411,6 @@ const BookingPage = () => {
                     delete requestData[k];
                 }
             });
-
-            console.log("📤 Request:", JSON.stringify(requestData, null, 2));
 
             const response = await axiosClient.post(`/reservations/full`, requestData);
             showToast(`Đặt ${selectedEntity.type === "table" ? "bàn" : "phòng"} ${selectedEntity.number} thành công!`, "success");
@@ -548,7 +524,6 @@ const BookingPage = () => {
                                 return (
                                     <div key={table.id} className={`${styles.card} ${isOcc ? styles.cardOccupied : isRes ? styles.cardReserved : styles.cardFree}`}>
                                         <div className={styles.statusIndicator} style={{ backgroundColor: getStatusColor(table.status) }} />
-                                        {/* NÚT HỦY DO KHÁCH CHƯA ĐẾN */}
                                         {isRes && <button onClick={(e) => handleNoShow(table, "table", e)} className={styles.noShowButton} title="Khách chưa đến"><UserX size={16} /></button>}
 
                                         <div className={styles.cardContent}>
@@ -599,7 +574,6 @@ const BookingPage = () => {
                                     <div key={room.id} className={`${styles.card} ${isOcc ? styles.cardOccupied : isRes ? styles.cardReserved : styles.cardFree}`}>
                                         <div className={styles.statusIndicator} style={{ backgroundColor: getStatusColor(room.status) }} />
 
-                                        {/* NÚT HỦY  */}
                                         {isRes && (
                                             <button
                                                 onClick={(e) => handleNoShow(room, "room", e)}
@@ -635,13 +609,11 @@ const BookingPage = () => {
                                             )}
                                         </div>
                                         <div className={styles.cardActions}>
-                                            {/* ← SỬA: Chỉ hiện Đặt phòng khi FREE và không có reservation */}
                                             {isFree && !hasReservation && (
                                                 <button onClick={() => openBookingModal(room, "room")} className={styles.bookButton}>
                                                     <Calendar size={14} /> Đặt phòng
                                                 </button>
                                             )}
-                                            {/* ← SỬA: Chỉ hiện Check-in khi RESERVED */}
                                             {(isRes || room.hasUpcomingReservation) && (
                                                 <button onClick={(e) => handleCheckIn(room, "room", e)} className={styles.checkinButton}>
                                                     <CheckCircle size={14} /> Check-in
@@ -656,7 +628,7 @@ const BookingPage = () => {
                 </div>
             )}
 
-            {/* ==================== RESERVATIONS TAB - ĐÃ XÁC NHẬN + TÌM KIẾM ==================== */}
+            {/* ==================== RESERVATIONS TAB ==================== */}
             {activeTab === "reservations" && (
                 <div className={styles.contentArea}>
                     {/* Search and Filter Section */}
@@ -965,7 +937,6 @@ const BookingPage = () => {
                             <button onClick={() => setShowDetailModal(false)} className={styles.modalClose}><X size={20} /></button>
                         </div>
                         <div className={styles.modalBody}>
-                            {/* Trạng thái */}
                             <div className={styles.infoBox} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
                                 <div className={styles.infoItem}>
                                     <span>Trạng thái: <strong style={{ color: '#10b981' }}>Đã xác nhận</strong></span>
@@ -973,9 +944,8 @@ const BookingPage = () => {
                                 </div>
                             </div>
 
-                            {/* Thông tin khách hàng */}
                             <div style={{ marginBottom: 16 }}>
-                                <label style={{ fontWeight: 700, color: '#374151', marginBottom: 8, display: 'block' }}>👤 Thông tin khách hàng</label>
+                                <label style={{ fontWeight: 700, color: '#374151', marginBottom: 8, display: 'block' }}><UserCircle size={14} /> Thông tin khách hàng</label>
                                 <div style={{ background: '#f9fafb', borderRadius: 10, padding: 14 }}>
                                     <div className={styles.detailItem} style={{ marginBottom: 6 }}><User size={14} /><span><strong>{detailReservation.customerName}</strong></span></div>
                                     <div className={styles.detailItem} style={{ marginBottom: 6 }}><Phone size={14} /><span>{detailReservation.phone || "Không có"}</span></div>
@@ -983,9 +953,8 @@ const BookingPage = () => {
                                 </div>
                             </div>
 
-                            {/* Thông tin đặt bàn */}
                             <div style={{ marginBottom: 16 }}>
-                                <label style={{ fontWeight: 700, color: '#374151', marginBottom: 8, display: 'block' }}>📅 Thông tin đặt bàn</label>
+                                <label style={{ fontWeight: 700, color: '#374151', marginBottom: 8, display: 'block' }}><Calendar size={14} /> Thông tin đặt bàn</label>
                                 <div style={{ background: '#f9fafb', borderRadius: 10, padding: 14 }}>
                                     <div className={styles.detailItem} style={{ marginBottom: 6 }}>
                                         <Calendar size={14} />
@@ -1010,10 +979,9 @@ const BookingPage = () => {
                                 </div>
                             </div>
 
-                            {/* Thanh toán */}
                             {detailReservation.remainingAmount > 0 && (
                                 <div style={{ marginBottom: 16 }}>
-                                    <label style={{ fontWeight: 700, color: '#374151', marginBottom: 8, display: 'block' }}>💰 Thanh toán</label>
+                                    <label style={{ fontWeight: 700, color: '#374151', marginBottom: 8, display: 'block' }}><CreditCard size={14} /> Thanh toán</label>
                                     <div style={{ background: '#fffbeb', borderRadius: 10, padding: 14, border: '1px solid #fde68a' }}>
                                         <div className={styles.detailItem}>
                                             <DollarSign size={14} />

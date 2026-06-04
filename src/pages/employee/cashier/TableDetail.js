@@ -46,7 +46,6 @@ const TableDetail = () => {
     const [showCashModal, setShowCashModal] = useState(false);
     const [processingPayment, setProcessingPayment] = useState(false);
     const confirmedCartRef = useRef({});
-    const [confirmedCart, setConfirmedCart] = useState({});
     const [branchInfo, setBranchInfo] = useState(null);
     const [roomFee, setRoomFee] = useState(0);
 
@@ -83,7 +82,7 @@ const TableDetail = () => {
         setToasts(prev => prev.filter(toast => toast.id !== id));
     };
 
-    const fetchProducts = async () => {
+    const fetchProducts = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(
@@ -104,7 +103,7 @@ const TableDetail = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [branchId, API_BASE_URL]);
 
     const fetchPromotions = useCallback(async () => {
         try {
@@ -115,7 +114,7 @@ const TableDetail = () => {
         }
     }, []);
 
-    const fetchBranchInfo = async () => {
+    const fetchBranchInfo = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(`${API_BASE_URL}/api/branches/${branchId}`, {
@@ -129,9 +128,9 @@ const TableDetail = () => {
         } catch (err) {
             console.error("Lỗi tải thông tin chi nhánh:", err);
         }
-    };
+    }, [branchId, API_BASE_URL]);
 
-    const checkExistingOrder = async () => {
+    const checkExistingOrder = useCallback(async () => {
         try {
             const res = await axiosClient.get("/customer/orders");
             const existingOrder = res.data.find(o => {
@@ -166,7 +165,7 @@ const TableDetail = () => {
                 const snapshot = {};
                 items.forEach(item => { snapshot[item.id] = item.quantity; });
                 confirmedCartRef.current = snapshot;
-                setConfirmedCart(snapshot);
+                // setConfirmedCart(snapshot); // ← Nếu có dòng này thì bỏ hoặc sửa
 
                 if (existingOrder.promotion) {
                     setSelectedPromotion(existingOrder.promotion);
@@ -175,7 +174,7 @@ const TableDetail = () => {
         } catch (err) {
             console.error("Lỗi kiểm tra đơn hàng:", err);
         }
-    };
+    }, [isRoom, entity, products]);
 
     const addToCart = (product) => {
         const price = product.finalPrice || product.branchPrice || product.originalPrice || 0;
@@ -304,7 +303,7 @@ const TableDetail = () => {
                 const snapshot = {};
                 updatedCart.forEach(item => { snapshot[item.id] = item.quantity; });
                 confirmedCartRef.current = snapshot;
-                setConfirmedCart(snapshot);
+
             }
 
             const newItems = itemsToAdd.map(item => {
@@ -447,7 +446,7 @@ const TableDetail = () => {
                 const snapshot = {};
                 updatedCart.forEach(item => { snapshot[item.id] = item.quantity; });
                 confirmedCartRef.current = snapshot;
-                setConfirmedCart(snapshot);
+
             }
 
             const newItems = itemsToAdd.map(item => {
@@ -627,11 +626,8 @@ const TableDetail = () => {
                 setCart([]);
                 setSelectedPromotion(null);
                 confirmedCartRef.current = {};
-                setConfirmedCart({});
-
                 socket.emit("update-tables");
                 showToast(`Thanh toán thành công!`, 'success', 4000);
-
                 setTimeout(() => {
                     navigate('/cashier/tables');
                 }, 2000);
@@ -769,7 +765,7 @@ const TableDetail = () => {
                 setCart(updatedCart);
             }
         }
-    }, [products]);
+    }, [products, cart]);
 
     // FIX 2: Tự động sửa cart item thiếu id
     useEffect(() => {
@@ -830,7 +826,7 @@ const TableDetail = () => {
             await fetchBranchInfo();
         };
         if (entity) initialize();
-    }, [entity]);
+    }, [entity, fetchProducts, fetchPromotions, fetchBranchInfo]);
 
     useEffect(() => {
         const processExistingOrder = async () => {
@@ -858,14 +854,14 @@ const TableDetail = () => {
                 const snapshot = {};
                 items.forEach(item => { snapshot[item.id] = item.quantity; });
                 confirmedCartRef.current = snapshot;
-                setConfirmedCart(snapshot);
+                // XÓA DÒNG: setConfirmedCart(snapshot);
                 if (existingOrderFromState.promotion) setSelectedPromotion(existingOrderFromState.promotion);
             } else if (entity) {
                 await checkExistingOrder();
             }
         };
         processExistingOrder();
-    }, [products, existingOrderFromState, entity]);
+    }, [products, existingOrderFromState, entity, checkExistingOrder]);
 
     const canPay = order?.status === "COMPLETED";
     const canPrint = order?.status === "COMPLETED" || order?.status === "PAID";

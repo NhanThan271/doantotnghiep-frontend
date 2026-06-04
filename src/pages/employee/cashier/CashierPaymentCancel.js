@@ -1,8 +1,6 @@
 import React, { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 
 const CashierPaymentCancel = () => {
-    const navigate = useNavigate();
 
     useEffect(() => {
         // Lấy thông tin thanh toán tạm thời
