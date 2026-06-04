@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Container, Row, Col, Card, Button, Badge, Spinner,
     Alert, Modal, Form, Tabs, Tab, ProgressBar
@@ -130,7 +130,7 @@ const ShiftRegistration = () => {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedStaffShift, setSelectedStaffShift] = useState(null);
     const [registeringShiftId, setRegisteringShiftId] = useState(null);
-    const [cancellingShiftId, setCancellingShiftId] = useState(null);
+    const [setCancellingShiftId] = useState(null);
     const [checkingIn, setCheckingIn] = useState(false);
     const [checkingOut, setCheckingOut] = useState(false);
     const [todayAttendance, setTodayAttendance] = useState(null);
@@ -141,10 +141,7 @@ const ShiftRegistration = () => {
     const [allMonthShifts, setAllMonthShifts] = useState([]);
     const [allMonthSchedules, setAllMonthSchedules] = useState([]);
 
-    useEffect(() => { initUserData(); }, []);
-    useEffect(() => { axiosClient.get('/shifts').then(r => setShifts(r.data)).catch(() => { }); }, []);
-    useEffect(() => { if (staffId && branchId) preloadMonthData(currentMonth); }, [staffId, branchId, currentMonth]);
-    useEffect(() => { if (allMonthSchedules.length > 0) loadDayData(selectedDate); }, [allMonthSchedules]);
+    // ========== FUNCTIONS (định nghĩa TRƯỚC) ==========
 
     const initUserData = async () => {
         setLoadingUser(true);
@@ -195,7 +192,21 @@ const ShiftRegistration = () => {
         if (!staffId) return;
         axiosClient.get(`/attendance/monthly/${staffId}`, { params: { month: selectedMonth, year: selectedYear } }).then(r => setMonthlyStats(r.data)).catch(() => { });
     }, [staffId, selectedMonth, selectedYear]);
+
+    // ========== EFFECTS ==========
+
+    useEffect(() => { initUserData(); }, []);
+    useEffect(() => { axiosClient.get('/shifts').then(r => setShifts(r.data)).catch(() => { }); }, []);
+    useEffect(() => {
+        if (staffId && branchId) preloadMonthData(currentMonth);
+    }, [staffId, branchId, currentMonth, preloadMonthData]);
+    useEffect(() => {
+        if (allMonthSchedules.length > 0) loadDayData(selectedDate);
+    }, [allMonthSchedules, loadDayData, selectedDate]);
     useEffect(() => { fetchMonthlyStats(); }, [fetchMonthlyStats]);
+
+    // ========== HANDLERS ==========
+
     const handleRegister = async (shiftId) => {
         setRegisteringShiftId(shiftId);
         try {
@@ -265,7 +276,6 @@ const ShiftRegistration = () => {
 
     if (loadingUser) return <Container className="text-center py-5"><Spinner /></Container>;
     if (error) return <Container className="py-5"><Alert variant="warning">{error}</Alert></Container>;
-
     return (
         <div style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%)', minHeight: '100vh', padding: '24px' }}>
             <Container fluid>
@@ -359,35 +369,288 @@ const ShiftRegistration = () => {
                         )}
 
                         {viewMode === 'calendar' && (
-                            <Calendar
-                                localizer={localizer}
-                                events={calendarEvents}
-                                startAccessor="start"
-                                endAccessor="end"
-                                allDayAccessor="allDay"
-                                style={{ height: '80vh', minHeight: 700 }}
-                                selectable
-                                onSelectSlot={s => { loadDayData(s.start); setViewMode('list'); }}
-                                onSelectEvent={e => openDetail(e.resource)}
-                                onNavigate={d => setCurrentMonth(d)}
-                                views={['week']}           // ← WEEK
-                                defaultView="week"         // ← WEEK
-                                date={currentMonth}
-                                components={{
-                                    timeGutterHeader: () => null,  // ← ẨN CỘT GIỜ
-                                    timeGutter: () => null,        // ← ẨN CỘT GIỜ
-                                }}
-                                eventPropGetter={(event) => ({
-                                    style: {
-                                        backgroundColor: event.resource?.shift?.name?.includes('Sáng') ? '#f59e0b' :
-                                            event.resource?.shift?.name?.includes('Chiều') ? '#06d6a0' :
-                                                event.resource?.shift?.name?.includes('Tối') ? '#7c3aed' : '#4361ee',
-                                        borderRadius: '6px', color: 'white', border: 'none',
-                                        padding: '3px 6px', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer'
-                                    }
-                                })}
-                                messages={{ today: 'Hôm nay', previous: '⬅', next: '➡', week: 'Tuần', noEventsInRange: 'Không có ca', showMore: total => `+${total} ca khác` }}
-                            />
+                            <div className="calendar-wrapper">
+                                <style>
+                                    {`
+                /* Cải thiện giao diện calendar */
+                .rbc-calendar {
+                    background: white;
+                    border-radius: 12px;
+                    font-family: 'Inter', sans-serif;
+                }
+                .rbc-header {
+                    padding: 12px 8px;
+                    font-weight: 700;
+                    font-size: 14px;
+                    background: #f8fafc;
+                    border-bottom: 2px solid #e2e8f0;
+                    color: #1e293b;
+                }
+                .rbc-header span {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .rbc-header .weekday {
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #64748b;
+                }
+                .rbc-header .date {
+                    font-size: 18px;
+                    font-weight: 800;
+                    color: #1e293b;
+                }
+                .rbc-header .today-badge {
+                    background: #3b82f6;
+                    color: white;
+                    font-size: 10px;
+                    padding: 2px 8px;
+                    border-radius: 20px;
+                    margin-top: 4px;
+                }
+                .rbc-event {
+                    background: linear-gradient(135deg, #4361ee, #3f37c9);
+                    border-radius: 8px;
+                    padding: 4px 8px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    transition: transform 0.2s, box-shadow 0.2s;
+                    cursor: pointer;
+                    border: none;
+                }
+                .rbc-event:hover {
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+                }
+                .rbc-event-content {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    justify-content: center;
+                }
+                .rbc-toolbar {
+                    padding: 16px;
+                    background: white;
+                    border-bottom: 1px solid #e2e8f0;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                }
+                .rbc-toolbar button {
+                    background: #f1f5f9;
+                    border: 1px solid #e2e8f0;
+                    color: #475569;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                    border-radius: 40px;
+                    transition: all 0.2s;
+                }
+                .rbc-toolbar button:hover {
+                    background: #e2e8f0;
+                    transform: translateY(-1px);
+                }
+                .rbc-toolbar button.rbc-active {
+                    background: linear-gradient(135deg, #4361ee, #3f37c9);
+                    color: white;
+                    border-color: #4361ee;
+                }
+                .rbc-toolbar-label {
+                    font-size: 18px;
+                    font-weight: 800;
+                    color: #1e293b;
+                }
+                .rbc-time-view {
+                    border-radius: 0 0 12px 12px;
+                }
+                .rbc-time-header-content {
+                    border-left: none;
+                }
+                .rbc-time-gutter {
+                    background: #f8fafc;
+                }
+                .rbc-time-content {
+                    min-height: 500px;
+                }
+                .rbc-current-time {
+                    background-color: #ef4444;
+                }
+                .rbc-today {
+                    background-color: #fef3c7 !important;
+                }
+                .calendar-legend {
+                    display: flex;
+                    justify-content: center;
+                    gap: 24px;
+                    margin-bottom: 16px;
+                    padding: 12px;
+                    background: #f8fafc;
+                    border-radius: 12px;
+                    flex-wrap: wrap;
+                }
+                .calendar-legend-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 12px;
+                    color: #475569;
+                }
+                .calendar-legend-color {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 6px;
+                }
+            `}
+                                </style>
+
+                                {/* Legend giải thích màu sắc */}
+                                <div className="calendar-legend">
+                                    <div className="calendar-legend-item">
+                                        <div className="calendar-legend-color" style={{ background: '#f59e0b' }}></div>
+                                        <span>Ca Sáng (6:00 - 12:00)</span>
+                                    </div>
+                                    <div className="calendar-legend-item">
+                                        <div className="calendar-legend-color" style={{ background: '#06d6a0' }}></div>
+                                        <span>Ca Chiều (12:00 - 18:00)</span>
+                                    </div>
+                                    <div className="calendar-legend-item">
+                                        <div className="calendar-legend-color" style={{ background: '#7c3aed' }}></div>
+                                        <span>Ca Tối (18:00 - 23:00)</span>
+                                    </div>
+                                    <div className="calendar-legend-item">
+                                        <div className="calendar-legend-color" style={{ background: '#4361ee' }}></div>
+                                        <span>Ca khác</span>
+                                    </div>
+                                    <div className="calendar-legend-item">
+                                        <div className="calendar-legend-color" style={{ background: '#fef3c7', border: '2px solid #f59e0b' }}></div>
+                                        <span>Hôm nay</span>
+                                    </div>
+                                </div>
+
+                                <Calendar
+                                    localizer={localizer}
+                                    events={calendarEvents}
+                                    startAccessor="start"
+                                    endAccessor="end"
+                                    allDayAccessor="allDay"
+                                    style={{ height: '70vh', minHeight: 600 }}
+                                    selectable
+                                    onSelectSlot={s => {
+                                        if (s?.start) {
+                                            loadDayData(s.start);
+                                            setViewMode('list');
+                                        }
+                                    }}
+                                    onSelectEvent={e => openDetail(e.resource)}
+                                    onNavigate={d => setCurrentMonth(d)}
+                                    views={['week']}
+                                    defaultView="week"
+                                    date={currentMonth}
+                                    step={30}
+                                    timeslots={2}
+                                    min={new Date().setHours(6, 0, 0)}
+                                    max={new Date().setHours(23, 0, 0)}
+                                    formats={{
+                                        timeGutterFormat: 'HH:mm',
+                                        eventTimeRangeFormat: ({ start, end }, culture, localizer) => {
+                                            return `${localizer.format(start, 'HH:mm', culture)} - ${localizer.format(end, 'HH:mm', culture)}`;
+                                        },
+                                        dayFormat: (date, culture, localizer) => {
+                                            const day = localizer.format(date, 'dddd', culture);
+                                            const dayShort = day.charAt(0).toUpperCase() + day.slice(1, 3);
+                                            return dayShort;
+                                        }
+                                    }}
+                                    components={{
+                                        timeGutterHeader: () => (
+                                            <div style={{
+                                                padding: '8px',
+                                                textAlign: 'center',
+                                                fontWeight: 'bold',
+                                                fontSize: '11px',
+                                                color: '#64748b',
+                                                background: '#f8fafc'
+                                            }}>
+                                                GIỜ
+                                            </div>
+                                        ),
+                                        event: ({ event }) => (
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '4px',
+                                                height: '100%'
+                                            }}>
+                                                <FaClock size={10} style={{ opacity: 0.9 }} />
+                                                <span style={{ fontWeight: 500 }}>{event.title}</span>
+                                            </div>
+                                        ),
+                                        week: {
+                                            header: ({ date, localizer }) => {
+                                                const today = new Date();
+                                                const isToday = date.toDateString() === today.toDateString();
+                                                return (
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        padding: '8px',
+                                                        background: isToday ? '#fef3c7' : 'transparent',
+                                                        borderRadius: '8px'
+                                                    }}>
+                                                        <span style={{ fontSize: '12px', color: '#64748b' }}>
+                                                            {localizer.format(date, 'dddd', 'vi').substring(0, 3)}
+                                                        </span>
+                                                        <span style={{ fontSize: '20px', fontWeight: 'bold', color: isToday ? '#f59e0b' : '#1e293b' }}>
+                                                            {localizer.format(date, 'DD', 'vi')}
+                                                        </span>
+                                                        {isToday && <span style={{ fontSize: '9px', background: '#3b82f6', color: 'white', padding: '2px 6px', borderRadius: '20px', marginTop: '4px' }}>Hôm nay</span>}
+                                                    </div>
+                                                );
+                                            }
+                                        }
+                                    }}
+                                    eventPropGetter={(event) => {
+                                        let bgColor = '#4361ee';
+                                        if (event.title?.includes('Sáng')) bgColor = '#f59e0b';
+                                        else if (event.title?.includes('Chiều')) bgColor = '#06d6a0';
+                                        else if (event.title?.includes('Tối')) bgColor = '#7c3aed';
+
+                                        return {
+                                            style: {
+                                                backgroundColor: bgColor,
+                                                borderRadius: '8px',
+                                                border: 'none',
+                                                color: 'white',
+                                                fontWeight: '600',
+                                                fontSize: '11px',
+                                                cursor: 'pointer',
+                                                transition: 'transform 0.2s',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                            }
+                                        };
+                                    }}
+                                    dayPropGetter={(date) => {
+                                        const today = new Date();
+                                        const isToday = date.toDateString() === today.toDateString();
+                                        return {
+                                            style: {
+                                                backgroundColor: isToday ? '#fef3c7' : 'white',
+                                                cursor: 'pointer'
+                                            }
+                                        };
+                                    }}
+                                    messages={{
+                                        today: 'Hôm nay',
+                                        previous: '◀ Tuần trước',
+                                        next: 'Tuần sau ▶',
+                                        week: 'Tuần',
+                                        noEventsInRange: '📋 Không có ca làm trong tuần này',
+                                        showMore: total => `+${total} ca khác`
+                                    }}
+                                />
+                            </div>
                         )}
                     </Card.Body>
                 </Card>

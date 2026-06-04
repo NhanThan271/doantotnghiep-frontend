@@ -1,5 +1,5 @@
 // pages/employee/cashier/ReportPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Calendar, TrendingUp, DollarSign, Users, Coffee, Download, Filter,
     Receipt, BarChart3, CreditCard, Phone, Building2,
@@ -18,15 +18,27 @@ const ReportPage = () => {
     const [reportData, setReportData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
-    const [allBills, setAllBills] = useState([]);
+    // XÓA dòng này vì không dùng
+    // const [setAllBills] = useState([]);
 
-    useEffect(() => {
-        if (reportType !== 'custom') {
-            fetchReport();
+    const formatCurrency = useCallback((amount) => {
+        if (!amount) return "0đ";
+        if (amount >= 1000000) {
+            return (amount / 1000000).toFixed(1).replace('.0', '') + ' triệu';
         }
-    }, [reportType]);
+        if (amount >= 1000) {
+            return (amount / 1000).toFixed(0) + 'k';
+        }
+        return amount.toLocaleString('vi-VN') + 'đ';
+    }, []);
 
-    const getDateRangeByType = () => {
+    const formatDate = useCallback((dateString) => {
+        if (!dateString) return "";
+        const date = new Date(dateString);
+        return date.toLocaleDateString('vi-VN');
+    }, []);
+
+    const getDateRangeByType = useCallback(() => {
         const today = new Date();
         switch (reportType) {
             case 'daily':
@@ -57,9 +69,10 @@ const ReportPage = () => {
             default:
                 return dateRange;
         }
-    };
+    }, [reportType, dateRange]);
 
-    const fetchReport = async () => {
+    // ĐỊNH NGHĨA fetchReport TRƯỚC KHI DÙNG TRONG useEffect
+    const fetchReport = useCallback(async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
@@ -71,7 +84,6 @@ const ReportPage = () => {
 
             if (response.ok) {
                 let allBills = await response.json();
-                setAllBills(allBills);
 
                 const filteredBills = allBills.filter(bill => {
                     const billDate = new Date(bill.createdAt).toISOString().split('T')[0];
@@ -145,9 +157,16 @@ const ReportPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [getDateRangeByType]);
 
-    const exportToExcel = () => {
+    // useEffect sử dụng fetchReport (đã được định nghĩa)
+    useEffect(() => {
+        if (reportType !== 'custom') {
+            fetchReport();
+        }
+    }, [reportType, fetchReport]);
+
+    const exportToExcel = useCallback(() => {
         if (!reportData) return;
 
         setExporting(true);
@@ -257,6 +276,8 @@ const ReportPage = () => {
                     const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
                     saveAs(blob, fileName);
                     setExporting(false);
+                } else {
+                    setExporting(false);
                 }
             };
 
@@ -266,26 +287,7 @@ const ReportPage = () => {
             alert("Có lỗi khi xuất file Excel");
             setExporting(false);
         }
-    };
-
-    const formatCurrency = (amount) => {
-        if (!amount) return "0đ";
-        // Nếu số >= 1 triệu, rút gọn
-        if (amount >= 1000000) {
-            return (amount / 1000000).toFixed(1).replace('.0', '') + ' triệu';
-        }
-        // Nếu số >= 1000, rút gọn
-        if (amount >= 1000) {
-            return (amount / 1000).toFixed(0) + 'k';
-        }
-        return amount.toLocaleString('vi-VN') + 'đ';
-    };
-
-    const formatDate = (dateString) => {
-        if (!dateString) return "";
-        const date = new Date(dateString);
-        return date.toLocaleDateString('vi-VN');
-    };
+    }, [reportData, formatCurrency, formatDate, getDateRangeByType]);
 
     return (
         <div className={styles.container}>

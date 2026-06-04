@@ -79,71 +79,8 @@ const WaiterLayout = () => {
         playNotificationSound();
     }, [playNotificationSound]);
 
-    useEffect(() => {
-        const handleWaiterNotification = (event) => {
-            const { message, type, timestamp } = event.detail;
-            setNotifications(prev => [{
-                id: Date.now() + Math.random(),
-                message,
-                type: type || 'info',
-                timestamp: new Date(timestamp || Date.now())
-            }, ...prev].slice(0, 50));
-            playNotificationSound();
-        };
-        window.addEventListener('waiter-notification', handleWaiterNotification);
-        return () => window.removeEventListener('waiter-notification', handleWaiterNotification);
-    }, [playNotificationSound]);
-
-    useEffect(() => {
-        if (!branchId) return;
-        const handlePaymentSuccess = (data) => {
-            if (data.branchId === branchId) {
-                addNotification(`${data.entityType} ${data.entityNumber} đã thanh toán thành công${data.amount || ''}`, 'success');
-                const saved = localStorage.getItem(NOTIFICATIONS_KEY);
-                const current = saved ? JSON.parse(saved) : [];
-                current.unshift({
-                    id: Date.now() + Math.random(),
-                    message: `${data.entityType} ${data.entityNumber} đã thanh toán thành công${data.amount || ''}`,
-                    type: 'success',
-                    timestamp: new Date().toISOString()
-                });
-                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(current.slice(0, 50)));
-            }
-        };
-        socket.on("payment-success", handlePaymentSuccess);
-        return () => socket.off("payment-success", handlePaymentSuccess);
-    }, [branchId, addNotification]);
-
-    useEffect(() => {
-        const handleStorageChange = (e) => {
-            if (e.key === NOTIFICATIONS_KEY && e.newValue) {
-                try {
-                    const newNotifications = JSON.parse(e.newValue);
-                    setNotifications(newNotifications.map(n => ({ ...n, timestamp: new Date(n.timestamp) })));
-                    playNotificationSound();
-                } catch (err) { }
-            }
-        };
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, [playNotificationSound]);
-
-    const menuItems = [
-        { label: "Gọi món", path: "/waiter/orders", icon: <ClipboardList size={18} /> },
-        { label: "Theo dõi bếp", path: "/waiter/kitchen", icon: <ChefHat size={18} /> },
-        { label: "Ca làm", path: "/waiter/shift", icon: <Calendar size={18} /> },
-    ];
-
-    const isActive = (path) => location.pathname === path;
-
-    const handleLogout = () => {
-        localStorage.removeItem(NOTIFICATIONS_KEY);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        navigate('/login');
-    };
-
-    const fetchUnreadCount = async () => {
+    // ===== FETCH UNREAD COUNT =====
+    const fetchUnreadCount = useCallback(async () => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API}/api/customer/orders`, {
@@ -155,11 +92,15 @@ const WaiterLayout = () => {
                 const activeOrders = branchOrders.filter(o => o.status === "PENDING" || o.status === "PREPARING");
                 setUnreadCount(activeOrders.length);
             }
-        } catch (err) { }
-    };
+        } catch (err) {
+            console.error("Lỗi fetch unread count:", err);
+        }
+    }, [branchId]);
 
+    // ===== INITIAL FETCH & SOCKET SETUP =====
     useEffect(() => {
         if (!branchId) return;
+
         fetchUnreadCount();
 
         const registerAsWaiter = () => {
@@ -242,7 +183,56 @@ const WaiterLayout = () => {
             socket.off("staff-reservation-notification", handleStaffReservation);
             socket.off("kitchen-reservation-notification", handleKitchenReservation);
         };
+    }, [branchId, user?.id, addNotification, fetchUnreadCount]); // ← THÊM dependencies
+
+    useEffect(() => {
+        const handleWaiterNotification = (event) => {
+            const { message, type, timestamp } = event.detail;
+            setNotifications(prev => [{
+                id: Date.now() + Math.random(),
+                message,
+                type: type || 'info',
+                timestamp: new Date(timestamp || Date.now())
+            }, ...prev].slice(0, 50));
+            playNotificationSound();
+        };
+        window.addEventListener('waiter-notification', handleWaiterNotification);
+        return () => window.removeEventListener('waiter-notification', handleWaiterNotification);
+    }, [playNotificationSound]);
+
+    useEffect(() => {
+        if (!branchId) return;
+        const handlePaymentSuccess = (data) => {
+            if (data.branchId === branchId) {
+                addNotification(`${data.entityType} ${data.entityNumber} đã thanh toán thành công${data.amount || ''}`, 'success');
+                const saved = localStorage.getItem(NOTIFICATIONS_KEY);
+                const current = saved ? JSON.parse(saved) : [];
+                current.unshift({
+                    id: Date.now() + Math.random(),
+                    message: `${data.entityType} ${data.entityNumber} đã thanh toán thành công${data.amount || ''}`,
+                    type: 'success',
+                    timestamp: new Date().toISOString()
+                });
+                localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(current.slice(0, 50)));
+            }
+        };
+        socket.on("payment-success", handlePaymentSuccess);
+        return () => socket.off("payment-success", handlePaymentSuccess);
     }, [branchId, addNotification]);
+
+    useEffect(() => {
+        const handleStorageChange = (e) => {
+            if (e.key === NOTIFICATIONS_KEY && e.newValue) {
+                try {
+                    const newNotifications = JSON.parse(e.newValue);
+                    setNotifications(newNotifications.map(n => ({ ...n, timestamp: new Date(n.timestamp) })));
+                    playNotificationSound();
+                } catch (err) { }
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [playNotificationSound]);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -254,6 +244,21 @@ const WaiterLayout = () => {
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
     }, [showNotificationPanel]);
+
+    const menuItems = [
+        { label: "Gọi món", path: "/waiter/orders", icon: <ClipboardList size={18} /> },
+        { label: "Theo dõi bếp", path: "/waiter/kitchen", icon: <ChefHat size={18} /> },
+        { label: "Ca làm", path: "/waiter/shift", icon: <Calendar size={18} /> },
+    ];
+
+    const isActive = (path) => location.pathname === path;
+
+    const handleLogout = () => {
+        localStorage.removeItem(NOTIFICATIONS_KEY);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+    };
 
     const getNotificationIcon = (type) => {
         const size = 18;
