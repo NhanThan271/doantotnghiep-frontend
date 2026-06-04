@@ -1,7 +1,11 @@
-// TableDetail.js - Full code with room fee
+// TableDetail.js - Full code with room fee và icon thay thế emoji
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, ShoppingCart, Users, Plus, Minus, Trash2, Printer, Tag, X, Percent, DollarSign } from "lucide-react";
+import {
+    ArrowLeft, ShoppingCart, Users, Plus, Minus, Trash2, Printer, Tag, X,
+    Percent, DollarSign, CheckCircle, Clock, ChefHat, Circle, CircleCheckBig,
+    Sofa, Wallet, CreditCard, Banknote, Phone, Landmark
+} from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
 import PaymentMethodModal from "./PaymentMethodModal";
@@ -873,17 +877,44 @@ const TableDetail = () => {
             <div className={styles.leftContent}>
                 <div className={styles.header}>
                     <div className={styles.tableInfo}>
-                        <h1>{entityType} {entityNumber}</h1>
+                        <h1>
+                            {isRoom ? <Sofa size={24} color="#dc2626" /> : <Circle size={24} color="#dc2626" />}
+                            {entityType} {entityNumber}
+                        </h1>
                         <div className={`${entity?.status === "FREE" ? styles.available : styles.occupied}`}>
-                            {entity?.status === "FREE" ? "🟢 Trống" : entity?.status === "RESERVED" ? "📅 Đã đặt" : "🔴 Đã có khách"}
+                            {entity?.status === "FREE" ? (
+                                <><CircleCheckBig size={14} color="white" /> Trống</>
+                            ) : entity?.status === "RESERVED" ? (
+                                <><Clock size={14} color="white" /> Đã đặt</>
+                            ) : (
+                                <><Circle size={14} color="white" /> Đã có khách</>
+                            )}
                         </div>
-                        {order?.status === "PENDING" && <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>⏳ Đang chờ bếp</div>}
-                        {order?.status === "PREPARING" && <div className={styles.statusBadge} style={{ background: "#f59e0b" }}>🔪 Đang chuẩn bị</div>}
-                        {order?.status === "COMPLETED" && <div className={styles.statusBadge} style={{ background: "#10b981" }}>✅ Đã hoàn thành</div>}
+                        {order?.status === "PENDING" && (
+                            <div className={styles.statusBadge} style={{ background: "#3b82f6" }}>
+                                <Clock size={14} color="white" /> Đang chờ bếp
+                            </div>
+                        )}
+                        {order?.status === "PREPARING" && (
+                            <div className={styles.statusBadge} style={{ background: "#f59e0b" }}>
+                                <ChefHat size={14} color="white" /> Đang chuẩn bị
+                            </div>
+                        )}
+                        {order?.status === "COMPLETED" && (
+                            <div className={styles.statusBadge} style={{ background: "#10b981" }}>
+                                <CheckCircle size={14} color="white" /> Đã hoàn thành
+                            </div>
+                        )}
                     </div>
                     <div className={styles.stats}>
-                        <div className={styles.statItem}><ShoppingCart size={18} /><span>{totalItems} món</span></div>
-                        <div className={styles.statItem}><Users size={18} /><span>{entity?.capacity || 4} người</span></div>
+                        <div className={styles.statItem}>
+                            <ShoppingCart size={18} color="#dc2626" />
+                            <span>{totalItems} món</span>
+                        </div>
+                        <div className={styles.statItem}>
+                            <Users size={18} color="#dc2626" />
+                            <span>{entity?.capacity || 4} người</span>
+                        </div>
                     </div>
                 </div>
 
@@ -894,7 +925,9 @@ const TableDetail = () => {
                 {order?.status !== "PAID" && (
                     <div className={styles.promotionSection}>
                         <div className={styles.formGroup}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Tag size={16} />Mã khuyến mãi</label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Tag size={16} color="#854d0e" />Mã khuyến mãi
+                            </label>
                             <div className={styles.promotionSelect} onClick={() => setShowPromotionModal(true)} style={{ cursor: 'pointer' }}>
                                 {selectedPromotion ? (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
@@ -943,7 +976,7 @@ const TableDetail = () => {
 
                     <div className={styles.cartSidebar}>
                         <div className={styles.cartHeader}>
-                            <h3>🛒 Đơn hàng</h3>
+                            <h3><ShoppingCart size={18} color="white" /> Đơn hàng</h3>
                             <button className={styles.cartBackBtn} onClick={() => navigate(-1)}><ArrowLeft size={18} />Quay về</button>
                         </div>
                         {cart.length === 0 ? (
@@ -974,7 +1007,7 @@ const TableDetail = () => {
                                     {/* Hiển thị phí phòng nếu là phòng VIP */}
                                     {isRoom && roomFee > 0 && (
                                         <div className={styles.totalRow}>
-                                            <span>🏠 Phí phòng VIP:</span>
+                                            <span><Sofa size={14} /> Phí phòng VIP:</span>
                                             <span>{roomFee.toLocaleString('vi-VN')}đ</span>
                                         </div>
                                     )}
@@ -986,7 +1019,7 @@ const TableDetail = () => {
                                                 <span>{originalTotal.toLocaleString('vi-VN')}đ</span>
                                             </div>
                                             <div className={styles.discountRow}>
-                                                <span>Giảm giá:</span>
+                                                <span><Tag size={14} color="#10b981" /> Giảm giá:</span>
                                                 <span>-{discount.toLocaleString('vi-VN')}đ</span>
                                             </div>
                                         </>
@@ -1000,7 +1033,7 @@ const TableDetail = () => {
                                     )}
 
                                     <div className={styles.totalRow}>
-                                        <span>Tổng cộng:</span>
+                                        <span><Wallet size={14} /> Tổng cộng:</span>
                                         <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
                                     </div>
 
@@ -1018,7 +1051,7 @@ const TableDetail = () => {
                 <div className={styles.modalOverlay} onClick={() => setShowPromotionModal(false)}>
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
-                            <h3>Chọn mã khuyến mãi</h3>
+                            <h3><Tag size={20} color="white" /> Chọn mã khuyến mãi</h3>
                             <button onClick={() => setShowPromotionModal(false)} className={styles.modalClose}><X size={24} /></button>
                         </div>
                         <div className={`${styles.promoOption} ${!selectedPromotion ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(null); setShowPromotionModal(false); }}>
@@ -1027,7 +1060,7 @@ const TableDetail = () => {
                         {promotions.length === 0 ? <div className={styles.emptyPromo}>Không có mã khuyến mãi nào</div> : (
                             promotions.map((promo) => (
                                 <div key={promo.id} className={`${styles.promoOption} ${selectedPromotion?.id === promo.id ? styles.selected : ''}`} onClick={() => { setSelectedPromotion(promo); setShowPromotionModal(false); showToast(`Đã áp dụng mã ${promo.name}`, 'success', 2000); }}>
-                                    <div className={styles.promoIcon}>{promo.discountPercentage ? <Percent size={20} /> : <DollarSign size={20} />}</div>
+                                    <div className={styles.promoIcon}>{promo.discountPercentage ? <Percent size={20} color="#f59e0b" /> : <DollarSign size={20} color="#f59e0b" />}</div>
                                     <div className={styles.promoInfo}>
                                         <div className={styles.promoName}>{promo.name}</div>
                                         {promo.description && <div className={styles.promoDesc}>{promo.description}</div>}
