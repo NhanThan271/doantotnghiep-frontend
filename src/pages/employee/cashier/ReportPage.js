@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from "react";
 import {
     Calendar, TrendingUp, DollarSign, Users, Coffee, Download, Filter,
-    Receipt, BarChart3, CreditCard, Phone, Building2, Wallet,
-    Clock, CheckCircle, Award, AlertCircle, FileText, XCircle
+    Receipt, BarChart3, CreditCard, Phone, Building2,
+    Clock, Award, AlertCircle,
 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';

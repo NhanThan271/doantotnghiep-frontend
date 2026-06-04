@@ -1,5 +1,5 @@
 // pages/employee/cashier/BillPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     Search, Filter, Eye, Calendar, ChevronLeft, ChevronRight,
     DollarSign, Download, RefreshCw
@@ -8,7 +8,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import styles from "./BillPage.module.css";
 
-// ========== Hàm bỏ dấu tiếng Việt ==========
+// ========== Hàm bỏ dấu tiếng Việt (ĐÃ SỬA LỖI no-control-regex) ==========
 const removeVietnameseTones = (str) => {
     if (!str) return '';
     // Bỏ emoji
@@ -17,8 +17,8 @@ const removeVietnameseTones = (str) => {
     str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     // Thay thế đ/Đ
     str = str.replace(/đ/g, 'd').replace(/Đ/g, 'D');
-    // Bỏ các ký tự không phải ASCII còn lại
-    str = str.replace(/[^\x00-\x7F\s]/g, '');
+    // Chỉ giữ lại chữ cái, số, khoảng trắng và dấu câu cơ bản (THAY THẾ regex gây lỗi)
+    str = str.replace(/[^a-zA-Z0-9\s.,!?\-_()/]/g, '');
     return str.trim();
 };
 
@@ -45,69 +45,8 @@ const BillPage = () => {
     const [tableNumbers, setTableNumbers] = useState({});
     const itemsPerPage = 10;
 
-    useEffect(() => {
-        fetchBills();
-    }, [filter.status, filter.search, filter.startDate, filter.endDate, currentPage]);
-
-    const fetchBills = async () => {
-        setLoading(true);
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:8080/api/employee/bills`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                let allBills = await response.json();
-
-                if (filter.status !== 'all') {
-                    allBills = allBills.filter(bill => bill.paymentStatus === filter.status.toUpperCase());
-                }
-
-                if (filter.search) {
-                    allBills = allBills.filter(bill =>
-                        bill.id?.toString().includes(filter.search) ||
-                        bill.order?.id?.toString().includes(filter.search)
-                    );
-                }
-
-                if (filter.startDate) {
-                    const startDate = new Date(filter.startDate);
-                    startDate.setHours(0, 0, 0);
-                    allBills = allBills.filter(bill => new Date(bill.createdAt) >= startDate);
-                }
-
-                if (filter.endDate) {
-                    const endDate = new Date(filter.endDate);
-                    endDate.setHours(23, 59, 59);
-                    allBills = allBills.filter(bill => new Date(bill.createdAt) <= endDate);
-                }
-
-                allBills.sort((a, b) => b.id - a.id);
-
-                setTotalPages(Math.ceil(allBills.length / itemsPerPage));
-                const start = (currentPage - 1) * itemsPerPage;
-                const end = start + itemsPerPage;
-                const paginatedBills = allBills.slice(start, end);
-                setBills(paginatedBills);
-
-                for (const bill of paginatedBills) {
-                    if (bill.order?.id && !tableNumbers[bill.id]) {
-                        fetchTableNumber(bill.id, bill.order.id);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error("Error fetching bills:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchTableNumber = async (billId, orderId) => {
+    // ===== FETCH TABLE NUMBER =====
+    const fetchTableNumber = useCallback(async (billId, orderId) => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`http://localhost:8080/api/customer/orders/${orderId}`, {
@@ -123,9 +62,82 @@ const BillPage = () => {
         } catch (error) {
             console.error("Error fetching table number:", error);
         }
-    };
+    }, []);
 
-    const fetchOrderDetail = async (orderId) => {
+    // ===== FETCH BILLS (ĐÃ WRAP VỚI useCallback) =====
+    const fetchBills = useCallback(async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:8080/api/employee/bills`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                let allBills = await response.json();
+
+                // Filter by status
+                if (filter.status !== 'all') {
+                    allBills = allBills.filter(bill => bill.paymentStatus === filter.status.toUpperCase());
+                }
+
+                // Filter by search
+                if (filter.search) {
+                    const searchLower = filter.search.toLowerCase();
+                    allBills = allBills.filter(bill =>
+                        bill.id?.toString().includes(searchLower) ||
+                        bill.order?.id?.toString().includes(searchLower)
+                    );
+                }
+
+                // Filter by start date
+                if (filter.startDate) {
+                    const startDate = new Date(filter.startDate);
+                    startDate.setHours(0, 0, 0);
+                    allBills = allBills.filter(bill => new Date(bill.createdAt) >= startDate);
+                }
+
+                // Filter by end date
+                if (filter.endDate) {
+                    const endDate = new Date(filter.endDate);
+                    endDate.setHours(23, 59, 59);
+                    allBills = allBills.filter(bill => new Date(bill.createdAt) <= endDate);
+                }
+
+                // Sort by id descending
+                allBills.sort((a, b) => b.id - a.id);
+
+                // Pagination
+                setTotalPages(Math.ceil(allBills.length / itemsPerPage));
+                const start = (currentPage - 1) * itemsPerPage;
+                const end = start + itemsPerPage;
+                const paginatedBills = allBills.slice(start, end);
+                setBills(paginatedBills);
+
+                // Fetch table numbers for each bill
+                for (const bill of paginatedBills) {
+                    if (bill.order?.id && !tableNumbers[bill.id]) {
+                        fetchTableNumber(bill.id, bill.order.id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching bills:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [filter.status, filter.search, filter.startDate, filter.endDate, currentPage, tableNumbers, fetchTableNumber]);
+
+    // ===== INITIAL FETCH (ĐÃ SỬA LỖI exhaustive-deps) =====
+    useEffect(() => {
+        fetchBills();
+    }, [fetchBills]);
+
+    // ===== FETCH ORDER DETAIL =====
+    const fetchOrderDetail = useCallback(async (orderId) => {
         setLoadingDetail(true);
         try {
             const token = localStorage.getItem('token');
@@ -141,9 +153,10 @@ const BillPage = () => {
             setLoadingDetail(false);
         }
         return null;
-    };
+    }, []);
 
-    const handleViewDetail = async (bill) => {
+    // ===== HANDLE VIEW DETAIL =====
+    const handleViewDetail = useCallback(async (bill) => {
         setSelectedBill(bill);
         setSelectedOrderDetail(null);
         setShowDetailModal(true);
@@ -151,9 +164,10 @@ const BillPage = () => {
             const orderDetail = await fetchOrderDetail(bill.order.id);
             setSelectedOrderDetail(orderDetail);
         }
-    };
+    }, [fetchOrderDetail]);
 
-    const handleProcessPayment = async (orderId) => {
+    // ===== HANDLE PROCESS PAYMENT =====
+    const handleProcessPayment = useCallback(async (orderId) => {
         setProcessingPayment(true);
         try {
             const token = localStorage.getItem('token');
@@ -182,10 +196,10 @@ const BillPage = () => {
         } finally {
             setProcessingPayment(false);
         }
-    };
+    }, [paymentMethod, fetchBills]);
 
     // ========== XUẤT PDF ==========
-    const handleExportBill = async (billId) => {
+    const handleExportBill = useCallback(async (billId) => {
         try {
             const bill = bills.find(b => b.id === billId);
             if (!bill) {
@@ -215,9 +229,11 @@ const BillPage = () => {
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(100, 100, 100);
-            const branchName = JSON.parse(localStorage.getItem('user') || '{}')?.branchName || '';
+            const userStr = localStorage.getItem('user') || '{}';
+            const userData = JSON.parse(userStr);
+            const branchName = userData?.branchName || '';
             doc.text(removeVietnameseTones(branchName), pageWidth / 2, 30, { align: 'center' });
-            doc.text('Dia chi: ' + removeVietnameseTones(JSON.parse(localStorage.getItem('user') || '{}')?.branch?.address || ''), pageWidth / 2, 35, { align: 'center' });
+            doc.text('Dia chi: ' + removeVietnameseTones(userData?.branch?.address || ''), pageWidth / 2, 35, { align: 'center' });
 
             // ===== THÔNG TIN HÓA ĐƠN =====
             doc.setTextColor(0, 0, 0);
@@ -252,7 +268,7 @@ const BillPage = () => {
             doc.text(formatDateTime(bill.createdAt), rightCol + 28, y);
             doc.text(removeVietnameseTones(getPaymentMethodText(bill.paymentMethod)), rightCol + 28, y + lh);
             doc.text(bill.paymentStatus === 'PAID' ? 'Da thanh toan' : 'Cho thanh toan', rightCol + 28, y + lh * 2);
-            doc.text(removeVietnameseTones(JSON.parse(localStorage.getItem('user') || '{}')?.fullName || ''), rightCol + 28, y + lh * 3);
+            doc.text(removeVietnameseTones(userData?.fullName || ''), rightCol + 28, y + lh * 3);
 
             // Đường kẻ
             y = y + lh * 4 + 2;
@@ -354,7 +370,7 @@ const BillPage = () => {
             console.error('PDF Error:', error);
             alert('Loi xuat hoa don: ' + error.message);
         }
-    };
+    }, [bills, tableNumbers, fetchOrderDetail]);
 
     // ========== HELPERS ==========
     const formatCurrency = (amount) => {
@@ -469,7 +485,16 @@ const BillPage = () => {
                 {loading ? <div className={styles.loading}>Đang tải...</div> : (
                     <table className={styles.table}>
                         <thead>
-                            <tr><th>Mã HD</th><th>Mã đơn</th><th>Bàn</th><th>Thời gian</th><th>Tổng tiền</th><th>Phương thức</th><th>Trạng thái</th><th>Thao tác</th></tr>
+                            <tr>
+                                <th>Mã HD</th>
+                                <th>Mã đơn</th>
+                                <th>Bàn</th>
+                                <th>Thời gian</th>
+                                <th>Tổng tiền</th>
+                                <th>Phương thức</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
                         </thead>
                         <tbody>
                             {bills.length === 0 ? (
@@ -484,12 +509,18 @@ const BillPage = () => {
                                     <td>{getPaymentMethodLabel(bill.paymentMethod)}</td>
                                     <td>{getStatusBadge(bill.paymentStatus)}</td>
                                     <td>
-                                        <button onClick={() => handleViewDetail(bill)} className={styles.viewBtn}><Eye size={14} /> Chi tiết</button>
+                                        <button onClick={() => handleViewDetail(bill)} className={styles.viewBtn}>
+                                            <Eye size={14} /> Chi tiết
+                                        </button>
                                         {bill.paymentStatus === 'PAID' && (
-                                            <button onClick={() => handleExportBill(bill.id)} className={styles.printBtn}><Download size={14} /> PDF</button>
+                                            <button onClick={() => handleExportBill(bill.id)} className={styles.printBtn}>
+                                                <Download size={14} /> PDF
+                                            </button>
                                         )}
                                         {bill.paymentStatus === 'PENDING' && (
-                                            <button onClick={() => { setSelectedOrderForPayment(bill.order); setShowPaymentModal(true); }} className={styles.paymentBtn}><DollarSign size={14} /> TT</button>
+                                            <button onClick={() => { setSelectedOrderForPayment(bill.order); setShowPaymentModal(true); }} className={styles.paymentBtn}>
+                                                <DollarSign size={14} /> TT
+                                            </button>
                                         )}
                                     </td>
                                 </tr>
@@ -502,9 +533,13 @@ const BillPage = () => {
             {/* Pagination */}
             {totalPages > 1 && (
                 <div className={styles.pagination}>
-                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className={styles.pageBtn}><ChevronLeft size={18} /></button>
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className={styles.pageBtn}>
+                        <ChevronLeft size={18} />
+                    </button>
                     <span className={styles.pageInfo}>Trang {currentPage} / {totalPages}</span>
-                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={styles.pageBtn}><ChevronRight size={18} /></button>
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={styles.pageBtn}>
+                        <ChevronRight size={18} />
+                    </button>
                 </div>
             )}
 
@@ -533,7 +568,14 @@ const BillPage = () => {
                                         <h4>📋 Danh sách món:</h4>
                                         {displayOrder?.items?.length > 0 ? (
                                             <table className={styles.itemsTable}>
-                                                <thead><tr><th>Tên món</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Tên món</th>
+                                                        <th>SL</th>
+                                                        <th>Đơn giá</th>
+                                                        <th>Thành tiền</th>
+                                                    </tr>
+                                                </thead>
                                                 <tbody>
                                                     {displayOrder.items.map((item, idx) => (
                                                         <tr key={idx}>
@@ -559,7 +601,9 @@ const BillPage = () => {
                         <div className={styles.modalFooter}>
                             <button onClick={() => { setShowDetailModal(false); setSelectedOrderDetail(null); }} className={styles.closeModalBtn}>Đóng</button>
                             {selectedBill.paymentStatus === 'PAID' && (
-                                <button onClick={() => handleExportBill(selectedBill.id)} className={styles.printBtnLarge}><Download size={16} /> Xuất PDF</button>
+                                <button onClick={() => handleExportBill(selectedBill.id)} className={styles.printBtnLarge}>
+                                    <Download size={16} /> Xuất PDF
+                                </button>
                             )}
                         </div>
                     </div>

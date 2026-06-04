@@ -5,14 +5,20 @@ import {
     LayoutDashboard,
     Receipt,
     BarChart3,
-    Settings,
     LogOut,
     Store,
     User,
     Table,
     Calendar,
     Bell,
-    ChevronLeft
+    ChevronLeft,
+    BellRing,
+    CheckCircle,
+    AlertTriangle,
+    XCircle,
+    Package,
+    CreditCard,
+    X
 } from "lucide-react";
 import io from 'socket.io-client';
 import styles from "./CashierLayout.module.css";
@@ -58,7 +64,6 @@ const CashierLayout = () => {
             });
         }
 
-        // ← CHỈ thêm trực tiếp, KHÔNG dispatch custom event
         const handleStaffReservation = (data) => {
             console.log("📢 Cashier nhận thông báo đặt bàn:", data);
 
@@ -85,8 +90,6 @@ const CashierLayout = () => {
             console.error("Lỗi lưu cashier notifications:", e);
         }
     }, [notifications]);
-
-    // ← ĐÃ XÓA TOÀN BỘ useEffect cashier-notification listener
 
     useEffect(() => {
         if (!branchId) return;
@@ -177,13 +180,14 @@ const CashierLayout = () => {
     };
 
     const getNotificationIcon = (type) => {
+        const iconProps = { size: 16 };
         switch (type) {
-            case 'success': return '✅';
-            case 'warning': return '⚠️';
-            case 'error': return '❌';
-            case 'order': return '🆕';
-            case 'payment': return '💰';
-            default: return '🔔';
+            case 'success': return <CheckCircle {...iconProps} color="#10b981" />;
+            case 'warning': return <AlertTriangle {...iconProps} color="#f59e0b" />;
+            case 'error': return <XCircle {...iconProps} color="#ef4444" />;
+            case 'order': return <Package {...iconProps} color="#3b82f6" />;
+            case 'payment': return <CreditCard {...iconProps} color="#10b981" />;
+            default: return <BellRing {...iconProps} color="#64748b" />;
         }
     };
 
@@ -200,56 +204,129 @@ const CashierLayout = () => {
 
     return (
         <div className={styles.layout}>
+            {/* Sidebar */}
             <div className={`${styles.sidebar} ${!isSidebarOpen ? styles.closed : ''}`}>
-                <div className={styles.sidebarHeader}>QUẢN LÝ CA</div>
+                <div className={styles.sidebarHeader}>
+                    <LayoutDashboard size={18} />
+                    <span>QUẢN LÝ CA</span>
+                </div>
                 <div className={styles.sidebarMenu}>
-                    <div onClick={() => handleNavigation("/cashier/dashboard")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/dashboard" ? styles.active : ''}`}><LayoutDashboard size={18} /><span>Dashboard</span></div>
-                    <div onClick={() => handleNavigation("/cashier/bill")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/bill" ? styles.active : ''}`}><Receipt size={18} /><span>Đơn hàng</span></div>
-                    <div onClick={() => handleNavigation("/cashier/report")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/report" ? styles.active : ''}`}><BarChart3 size={18} /><span>Báo cáo</span></div>
-                    <div onClick={() => handleNavigation("/cashier/shift")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/shift" ? styles.active : ''}`}><Calendar size={18} /><span>Ca làm việc</span></div>
-                    <div onClick={() => handleNavigation("/cashier/setting")} className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/setting" ? styles.active : ''}`}><Settings size={18} /><span>Cài đặt</span></div>
+                    <div
+                        onClick={() => handleNavigation("/cashier/dashboard")}
+                        className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/dashboard" ? styles.active : ''}`}
+                    >
+                        <LayoutDashboard size={18} />
+                        <span>Dashboard</span>
+                    </div>
+                    <div
+                        onClick={() => handleNavigation("/cashier/bill")}
+                        className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/bill" ? styles.active : ''}`}
+                    >
+                        <Receipt size={18} />
+                        <span>Đơn hàng</span>
+                    </div>
+                    <div
+                        onClick={() => handleNavigation("/cashier/report")}
+                        className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/report" ? styles.active : ''}`}
+                    >
+                        <BarChart3 size={18} />
+                        <span>Báo cáo</span>
+                    </div>
+                    <div
+                        onClick={() => handleNavigation("/cashier/shift")}
+                        className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/shift" ? styles.active : ''}`}
+                    >
+                        <Calendar size={18} />
+                        <span>Ca làm việc</span>
+                    </div>
+
                 </div>
                 <div className={styles.sidebarFooter}>
-                    <div className={styles.sidebarInfoLabel}><Store size={12} /><span>Chi nhánh</span></div>
+                    <div className={styles.sidebarInfoLabel}>
+                        <Store size={12} />
+                        <span>Chi nhánh</span>
+                    </div>
                     <div className={styles.sidebarInfoValue}>{user.branch?.name || "Đang tải..."}</div>
-                    <div className={styles.sidebarInfoLabel}><User size={12} /><span>Nhân viên</span></div>
+                    <div className={styles.sidebarInfoLabel}>
+                        <User size={12} />
+                        <span>Nhân viên</span>
+                    </div>
                     <div className={`${styles.sidebarInfoValue} ${styles.light}`}>{user.fullName || "Nhân viên"}</div>
-                    <button onClick={handleLogout} className={styles.logoutButton}><LogOut size={16} /><span>Đăng xuất</span></button>
+                    <button onClick={handleLogout} className={styles.logoutButton}>
+                        <LogOut size={16} />
+                        <span>Đăng xuất</span>
+                    </button>
                 </div>
             </div>
 
+            {/* Main Content */}
             <div className={styles.mainContent}>
                 <div className={styles.topbar}>
-                    <div onClick={toggleSidebar} className={styles.menuIcon}>{isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}</div>
-                    <div onClick={() => handleNavigation("/cashier/tables", true)} className={styles.topbarNavItem}><Table size={16} /><span>Tất cả bàn</span></div>
-                    <div onClick={() => handleNavigation("/cashier/booking", true)} className={styles.topbarNavItem}><Calendar size={16} /><span>Đặt bàn</span></div>
+                    <div onClick={toggleSidebar} className={styles.menuIcon}>
+                        {isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+                    </div>
+                    <div onClick={() => handleNavigation("/cashier/tables", true)} className={styles.topbarNavItem}>
+                        <Table size={16} />
+                        <span>Tất cả bàn</span>
+                    </div>
+                    <div onClick={() => handleNavigation("/cashier/booking", true)} className={styles.topbarNavItem}>
+                        <Calendar size={16} />
+                        <span>Đặt bàn</span>
+                    </div>
                     <div className={styles.spacer} />
-                    <div id="cashier-notification-bell" onClick={() => setShowNotificationPanel(!showNotificationPanel)} className={`${styles.notificationBell} ${showNotificationPanel ? styles.active : ''}`}>
+                    <div
+                        id="cashier-notification-bell"
+                        onClick={() => setShowNotificationPanel(!showNotificationPanel)}
+                        className={`${styles.notificationBell} ${showNotificationPanel ? styles.active : ''}`}
+                    >
                         <Bell size={20} />
-                        {notifications.length > 0 && <span className={styles.notificationBadge}>{notifications.length > 99 ? '99+' : notifications.length}</span>}
+                        {notifications.length > 0 && (
+                            <span className={styles.notificationBadge}>
+                                {notifications.length > 99 ? '99+' : notifications.length}
+                            </span>
+                        )}
                     </div>
                 </div>
 
+                {/* Notification Panel */}
                 {showNotificationPanel && (
                     <div className={styles.notificationOverlay}>
                         <div id="cashier-notification-panel" className={styles.notificationPanel}>
                             <div className={styles.notificationHeader}>
-                                <h4>🔔 Thông báo ({notifications.length})</h4>
+                                <h4>
+                                    <BellRing size={16} />
+                                    Thông báo ({notifications.length})
+                                </h4>
                                 <div className={styles.notificationHeaderActions}>
-                                    {notifications.length > 0 && <button onClick={clearAllNotifications} className={styles.clearAllBtn}>✕ Xóa tất cả</button>}
-                                    <button onClick={() => setShowNotificationPanel(false)} className={styles.closePanelBtn}>✕</button>
+                                    {notifications.length > 0 && (
+                                        <button onClick={clearAllNotifications} className={styles.clearAllBtn}>
+                                            <X size={14} /> Xóa tất cả
+                                        </button>
+                                    )}
+                                    <button onClick={() => setShowNotificationPanel(false)} className={styles.closePanelBtn}>
+                                        <X size={16} />
+                                    </button>
                                 </div>
                             </div>
                             <div className={styles.notificationBody}>
                                 {notifications.length === 0 ? (
-                                    <div className={styles.notificationEmpty}><div className={styles.notificationEmptyIcon}>🔔</div><p>Chưa có thông báo nào</p></div>
+                                    <div className={styles.notificationEmpty}>
+                                        <div className={styles.notificationEmptyIcon}>
+                                            <BellRing size={32} color="#cbd5e1" />
+                                        </div>
+                                        <p>Chưa có thông báo nào</p>
+                                    </div>
                                 ) : (
                                     notifications.map(noti => (
                                         <div key={noti.id} className={`${styles.notificationItem} ${styles[noti.type]}`}>
-                                            <span className={styles.notificationIcon}>{getNotificationIcon(noti.type)}</span>
+                                            <span className={styles.notificationIcon}>
+                                                {getNotificationIcon(noti.type)}
+                                            </span>
                                             <div className={styles.notificationContent}>
                                                 <div className={styles.notificationMessage}>{noti.message}</div>
-                                                <div className={styles.notificationTime}>{noti.timestamp?.toLocaleTimeString('vi-VN')} - {noti.timestamp?.toLocaleDateString('vi-VN')}</div>
+                                                <div className={styles.notificationTime}>
+                                                    {noti.timestamp?.toLocaleTimeString('vi-VN')} - {noti.timestamp?.toLocaleDateString('vi-VN')}
+                                                </div>
                                             </div>
                                         </div>
                                     ))
@@ -259,7 +336,10 @@ const CashierLayout = () => {
                     </div>
                 )}
 
-                <div ref={contentRef} className={styles.contentArea}><Outlet /></div>
+                {/* Content Area */}
+                <div ref={contentRef} className={styles.contentArea}>
+                    <Outlet />
+                </div>
             </div>
         </div>
     );

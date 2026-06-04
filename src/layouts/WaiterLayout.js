@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import io from 'socket.io-client';
 import {
-    Bell, LogOut, ChefHat, ClipboardList, Calendar, Home,
-    CheckCircle2, AlertTriangle, XCircle, Info, X, Building2, User
+    Bell, LogOut, ChefHat, ClipboardList, Calendar,
+    CheckCircle2, AlertTriangle, XCircle, Info, X, Building2
 } from 'lucide-react';
 
 const socket = io('http://localhost:3001');

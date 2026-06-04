@@ -22,7 +22,6 @@ import ChefLayout from "./layouts/ChefLayout";
 import Dashboard from "./pages/employee/cashier/Dashboard";
 import BillPage from "./pages/employee/cashier/BillPage";
 import ReportPage from "./pages/employee/cashier/ReportPage";
-import SettingPage from "./pages/employee/cashier/SettingPage";
 import TablesPage from "./pages/employee/cashier/TablesPage";
 import BookingPage from "./pages/employee/cashier/BookingPage";
 import TableDetail from "./pages/employee/cashier/TableDetail";
@@ -77,7 +76,6 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="bill" element={<BillPage />} />
           <Route path="report" element={<ReportPage />} />
-          <Route path="setting" element={<SettingPage />} />
           <Route path="tables" element={<TablesPage />} />
           <Route path="booking" element={<BookingPage />} />
           <Route path="shift" element={<ShiftRegistration />} />
