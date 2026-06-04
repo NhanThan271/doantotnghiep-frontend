@@ -439,7 +439,6 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                 console.log('Users data:', data);
                 const empList = data.filter(user =>
                     user.role === 'EMPLOYEE' ||
-                    user.role === 'MANAGER' ||
                     user.role === 'KITCHEN'
                 );
                 setEmployees(empList);
@@ -964,7 +963,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                         </button>
 
                                                         <button
-                                                            onClick={() => openEdit('Employee', emp, fetchEmployees)}
+                                                            onClick={() => openEdit('Employee', emp, fetchBranchEmployees)}
                                                             style={{
                                                                 padding: '8px 12px',
                                                                 background: 'rgba(59, 130, 246, 0.1)',
