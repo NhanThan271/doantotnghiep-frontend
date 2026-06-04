@@ -1,4 +1,4 @@
-// BookingPage.jsx - FULL CODE - Đã xác nhận + Xem chi tiết
+// BookingPage.jsx - FULL CODE - Đã xác nhận + Xem chi tiết + Tìm kiếm
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -8,7 +8,7 @@ import {
     MapPin, Clock3, AlertTriangle, Utensils, Coffee,
     Building, DollarSign, Mail, PenSquare, Lock,
     Edit, Trash2, AlertOctagon, UserX, CalendarClock,
-    Eye, Info
+    Eye, Info, Search, Filter
 } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
@@ -35,6 +35,11 @@ const BookingPage = () => {
     const [activeTab, setActiveTab] = useState("tables");
     const [reservations, setReservations] = useState([]);
     const [isSocketConnected, setIsSocketConnected] = useState(true);
+
+    // Search state
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filterDate, setFilterDate] = useState("");
+    const [filterStatus, setFilterStatus] = useState("all"); // all, table, room
 
     // Modal states
     const [showBookingModal, setShowBookingModal] = useState(false);
@@ -148,6 +153,46 @@ const BookingPage = () => {
         setToast({ show: true, message, type });
         setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
     }, []);
+
+    // ==================== FILTERED RESERVATIONS ====================
+    const getFilteredReservations = useCallback(() => {
+        let filtered = [...reservations];
+
+        // Filter by search term
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase().trim();
+            filtered = filtered.filter(res =>
+                (res.customerName && res.customerName.toLowerCase().includes(term)) ||
+                (res.phone && res.phone.includes(term)) ||
+                (res.email && res.email.toLowerCase().includes(term)) ||
+                (res.tableNumber && `bàn ${res.tableNumber}`.includes(term)) ||
+                (res.roomNumber && `phòng ${res.roomNumber}`.includes(term)) ||
+                (res.branchName && res.branchName.toLowerCase().includes(term))
+            );
+        }
+
+        // Filter by date
+        if (filterDate) {
+            filtered = filtered.filter(res => {
+                if (res.checkInTime) {
+                    const checkInDate = new Date(res.checkInTime).toISOString().split('T')[0];
+                    return checkInDate === filterDate;
+                }
+                return false;
+            });
+        }
+
+        // Filter by type (table/room)
+        if (filterStatus === "table") {
+            filtered = filtered.filter(res => res.tableNumber);
+        } else if (filterStatus === "room") {
+            filtered = filtered.filter(res => res.roomNumber);
+        }
+
+        return filtered;
+    }, [reservations, searchTerm, filterDate, filterStatus]);
+
+    const filteredReservations = getFilteredReservations();
 
     // ==================== API CALLS ====================
     const fetchAreas = useCallback(async () => {
@@ -503,9 +548,6 @@ const BookingPage = () => {
                                 return (
                                     <div key={table.id} className={`${styles.card} ${isOcc ? styles.cardOccupied : isRes ? styles.cardReserved : styles.cardFree}`}>
                                         <div className={styles.statusIndicator} style={{ backgroundColor: getStatusColor(table.status) }} />
-
-                                        {/* ← XÓA NÚT EDIT Ở ĐÂY */}
-
                                         {/* NÚT HỦY DO KHÁCH CHƯA ĐẾN */}
                                         {isRes && <button onClick={(e) => handleNoShow(table, "table", e)} className={styles.noShowButton} title="Khách chưa đến"><UserX size={16} /></button>}
 
@@ -557,9 +599,7 @@ const BookingPage = () => {
                                     <div key={room.id} className={`${styles.card} ${isOcc ? styles.cardOccupied : isRes ? styles.cardReserved : styles.cardFree}`}>
                                         <div className={styles.statusIndicator} style={{ backgroundColor: getStatusColor(room.status) }} />
 
-                                        {/* ← ĐÃ XÓA NÚT SỬA TRẠNG THÁI */}
-
-                                        {/* NÚT HỦY DO KHÁCH CHƯA ĐẾN */}
+                                        {/* NÚT HỦY  */}
                                         {isRes && (
                                             <button
                                                 onClick={(e) => handleNoShow(room, "room", e)}
@@ -595,8 +635,18 @@ const BookingPage = () => {
                                             )}
                                         </div>
                                         <div className={styles.cardActions}>
-                                            {isFree && <button onClick={() => openBookingModal(room, "room")} className={styles.bookButton}><Calendar size={14} /> Đặt phòng</button>}
-                                            {isRes && <button onClick={(e) => handleCheckIn(room, "room", e)} className={styles.checkinButton}><CheckCircle size={14} /> Check-in</button>}
+                                            {/* ← SỬA: Chỉ hiện Đặt phòng khi FREE và không có reservation */}
+                                            {isFree && !hasReservation && (
+                                                <button onClick={() => openBookingModal(room, "room")} className={styles.bookButton}>
+                                                    <Calendar size={14} /> Đặt phòng
+                                                </button>
+                                            )}
+                                            {/* ← SỬA: Chỉ hiện Check-in khi RESERVED */}
+                                            {(isRes || room.hasUpcomingReservation) && (
+                                                <button onClick={(e) => handleCheckIn(room, "room", e)} className={styles.checkinButton}>
+                                                    <CheckCircle size={14} /> Check-in
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -606,19 +656,134 @@ const BookingPage = () => {
                 </div>
             )}
 
-            {/* ==================== RESERVATIONS TAB - ĐÃ XÁC NHẬN ==================== */}
+            {/* ==================== RESERVATIONS TAB - ĐÃ XÁC NHẬN + TÌM KIẾM ==================== */}
             {activeTab === "reservations" && (
                 <div className={styles.contentArea}>
+                    {/* Search and Filter Section */}
+                    <div className={styles.searchSection}>
+                        <div className={styles.searchBox}>
+                            <Search size={18} className={styles.searchIcon} />
+                            <input
+                                type="text"
+                                placeholder="Tìm theo tên, SĐT, email, bàn, phòng..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className={styles.searchInput}
+                            />
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm("")}
+                                    className={styles.clearSearch}
+                                    title="Xóa tìm kiếm"
+                                >
+                                    <X size={16} />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className={styles.filterGroup}>
+                            <div className={styles.filterItem}>
+                                <Filter size={14} />
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value)}
+                                    className={styles.filterSelect}
+                                >
+                                    <option value="all">Tất cả loại</option>
+                                    <option value="table">Bàn ăn</option>
+                                    <option value="room">Phòng VIP</option>
+                                </select>
+                            </div>
+
+                            <div className={styles.filterItem}>
+                                <Calendar size={14} />
+                                <input
+                                    type="date"
+                                    value={filterDate}
+                                    onChange={(e) => setFilterDate(e.target.value)}
+                                    className={styles.filterDateInput}
+                                    placeholder="Lọc theo ngày"
+                                />
+                                {filterDate && (
+                                    <button
+                                        onClick={() => setFilterDate("")}
+                                        className={styles.clearFilter}
+                                        title="Xóa lọc ngày"
+                                    >
+                                        <X size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Active Filters Display */}
+                    {(searchTerm || filterDate || filterStatus !== "all") && (
+                        <div className={styles.activeFilters}>
+                            <span className={styles.filterLabel}>Đang lọc:</span>
+                            {searchTerm && (
+                                <span className={styles.filterTag}>
+                                    <Search size={12} /> "{searchTerm}"
+                                    <button onClick={() => setSearchTerm("")}><X size={12} /></button>
+                                </span>
+                            )}
+                            {filterDate && (
+                                <span className={styles.filterTag}>
+                                    <Calendar size={12} /> {new Date(filterDate).toLocaleDateString('vi-VN')}
+                                    <button onClick={() => setFilterDate("")}><X size={12} /></button>
+                                </span>
+                            )}
+                            {filterStatus !== "all" && (
+                                <span className={styles.filterTag}>
+                                    <Filter size={12} /> {filterStatus === "table" ? "Bàn ăn" : "Phòng VIP"}
+                                    <button onClick={() => setFilterStatus("all")}><X size={12} /></button>
+                                </span>
+                            )}
+                            <button
+                                onClick={() => {
+                                    setSearchTerm("");
+                                    setFilterDate("");
+                                    setFilterStatus("all");
+                                }}
+                                className={styles.clearAllFilters}
+                            >
+                                Xóa tất cả
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Reservations List */}
                     <div className={styles.reservationsSection}>
                         <div className={styles.sectionHeader}>
                             <h3><CheckCircle size={20} /> Danh sách đã xác nhận</h3>
-                            <span className={styles.reservationCount}>{reservations.length} đơn</span>
+                            <span className={styles.reservationCount}>
+                                {filteredReservations.length} / {reservations.length} đơn
+                            </span>
                         </div>
+
                         {reservations.length === 0 ? (
-                            <div className={styles.emptyState}><CheckCircle size={48} color="#10b981" /><p>Chưa có đơn nào được xác nhận</p></div>
+                            <div className={styles.emptyState}>
+                                <CheckCircle size={48} color="#10b981" />
+                                <p>Chưa có đơn nào được xác nhận</p>
+                            </div>
+                        ) : filteredReservations.length === 0 ? (
+                            <div className={styles.emptyState}>
+                                <Search size={48} color="#9ca3af" />
+                                <p>Không tìm thấy đơn nào phù hợp</p>
+                                <button
+                                    onClick={() => {
+                                        setSearchTerm("");
+                                        setFilterDate("");
+                                        setFilterStatus("all");
+                                    }}
+                                    className={styles.clearSearchButton}
+                                >
+                                    Xóa bộ lọc
+                                </button>
+                            </div>
                         ) : (
                             <div className={styles.reservationsList}>
-                                {reservations.map(res => (
+                                {filteredReservations.map(res => (
                                     <div key={res.id} className={styles.reservationCard} style={{ borderLeft: '4px solid #10b981' }}>
                                         <div className={styles.reservationHeader}>
                                             <div className={styles.reservationCustomer}>
