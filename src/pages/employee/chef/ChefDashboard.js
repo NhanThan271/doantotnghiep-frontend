@@ -454,19 +454,13 @@ const ChefDashboard = () => {
         setItemUpdating(prev => ({ ...prev, [itemGroup.id]: true }));
 
         try {
-            if (status === 'PREPARING') {
-                console.log("📤 Calling /status with quantity:", itemGroup.quantity);
+            // ✅ SỬA: Luôn lặp qua TẤT CẢ các item trong group
+            console.log(`📤 Updating ${idsToUpdate.length} items to ${status}`);
+
+            for (const id of idsToUpdate) {
                 await axiosClient.put(
-                    `/kitchen/order-items/${idsToUpdate[0]}/status?status=${status}&quantity=${itemGroup.quantity}`
+                    `/kitchen/order-items/${id}/status?status=${status}&quantity=${itemGroup.quantity}`
                 );
-                await fetchData();
-            } else {
-                console.log("📤 Calling /status-only for READY");
-                for (const id of idsToUpdate) {
-                    await axiosClient.put(
-                        `/kitchen/order-items/${id}/status-only?status=${status}`
-                    );
-                }
             }
 
             const oldKey = `${itemGroup.foodId}_${itemGroup.status}`;
@@ -494,8 +488,8 @@ const ChefDashboard = () => {
             }
 
             const toastMessage = status === 'PREPARING'
-                ? `🔪 Bắt đầu nấu: ${itemGroup.name}`
-                : `✅ Hoàn thành: ${itemGroup.name}`;
+                ? `🔪 Bắt đầu nấu: ${itemGroup.name} (SL: ${itemGroup.quantity})`
+                : `✅ Hoàn thành: ${itemGroup.name} (SL: ${itemGroup.quantity})`;
 
             showToast(toastMessage, 'success');
         } catch (err) {
