@@ -472,16 +472,28 @@ const BookingDetail = () => {
             const cbName = safeName(cb?.name); // FIX: luôn là string
             sessionStorage.setItem("tempBooking", JSON.stringify({
                 userId: u.id, branchId: cb?.id,
-                tableId: data.selectedTableId || null,
-                checkInTime: `${data.date} ${data.time}`,
-                checkOutTime: toCheckOut(data.date, data.time),
+                tableId: bookingMode === "room" ? null : (data.selectedTableId || null),
+                roomId: bookingMode === "room" ? data.selectedRoomId : null,
+                checkInTime: bookingMode === "room"
+                    ? `${roomDates.checkInDate} ${roomDates.checkInTime}`
+                    : `${data.date} ${data.time}`,
+                checkOutTime: bookingMode === "room"
+                    ? `${roomDates.checkOutDate} ${roomDates.checkOutTime}`
+                    : toCheckOut(data.date, data.time),
                 depositAmount: payable,
-                customerName: data.customerName.trim(), customerPhone: data.phone.replace(/\s/g, ""),
-                customerEmail: data.email || "", note: data.note || "",
+                customerName: data.customerName.trim(),
+                customerPhone: data.phone.replace(/\s/g, ""),
+                customerEmail: data.email || "",
+                note: data.note || "",
                 items: data.selectedFoods.map(f => ({ branchFoodId: f.branchFoodId, quantity: f.quantity })),
-                selectedFoods: data.selectedFoods, paymentMethod: data.payment,
-                orderCode: tempOrderCode, tableNumber: data.tableNumber,
-                selectedTableId: data.selectedTableId, date: data.date, time: data.time
+                selectedFoods: data.selectedFoods,
+                paymentMethod: data.payment,
+                orderCode: tempOrderCode,
+                tableNumber: data.tableNumber,
+                roomNumber: data.roomNumber,
+                selectedTableId: data.selectedTableId,
+                date: data.date,
+                time: data.time
             }));
             sessionStorage.setItem("lastBranch", JSON.stringify({ id: cb?.id, name: cbName }));
             const payRes = await fetch(`${API}/api/payos/create`, {
@@ -1246,7 +1258,7 @@ const TableCard = ({ table, selected, onSelect, isVip = false, isGrandVip = fals
     const statusLabel = isSelected
         ? "Đang chọn"
         : isFree
-            ? (table.status === "OCCUPIED" ? "Đang có khách (đặt trước được)" : "Trống")
+            ? (table.status === "OCCUPIED" ? "Trống" : "Trống")
             : availableTableIds
                 ? "Đã có đặt trong giờ này"
                 : "Đã được đặt trước";

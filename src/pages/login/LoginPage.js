@@ -27,6 +27,11 @@ const LoginPage = () => {
     const handleLogin = async (e) => {
         e.preventDefault();
         setIsLoading(true);
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            alert("Sai tên đăng nhập hoặc mật khẩu");
+            setIsLoading(false);
+            return;
+        }
 
         try {
             const res = await axios.post("http://localhost:8080/api/auth/login", {
@@ -168,7 +173,7 @@ const LoginPage = () => {
                                 type="text"
                                 placeholder="Nhập tên đăng nhập"
                                 value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                onChange={(e) => setUsername(e.target.value.toLowerCase())}
                                 required
                                 disabled={isLoading}
                             />

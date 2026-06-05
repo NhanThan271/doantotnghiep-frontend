@@ -96,10 +96,15 @@ const PaymentSuccess = () => {
                 console.log("🔑 roomId:", bookingData.roomId);
                 console.log("🔑 selectedType:", bookingData.selectedType);
 
-                if (bookingData.orderCode !== parseInt(orderCode)) {
+
+                console.log("orderCode từ URL:", parseInt(orderCode));
+                console.log("orderCode trong tempBooking:", bookingData.orderCode);
+                console.log("Có khớp không:", bookingData.orderCode === parseInt(orderCode));
+
+                if (String(bookingData.orderCode) !== String(orderCode)) {
                     console.error("OrderCode không khớp");
                     setError("Mã giao dịch không hợp lệ");
-                    setTimeout(() => { navigate("/dat-ban-dia-chi"); }, 3000);
+                    setTimeout(() => { navigate("/dat-ban-chi-tiet"); }, 3000);
                     return;
                 }
 
@@ -248,7 +253,7 @@ const PaymentSuccess = () => {
                     <h1 style={{ color: "#dc3545" }}>Có lỗi xảy ra</h1>
                     <p>{error}</p>
                     <button
-                        onClick={() => { navigate("/dat-ban-dia-chi"); }}
+                        onClick={() => { navigate("/dat-ban-chi-tiet"); }}
                         style={{
                             marginTop: "20px",
                             padding: "10px 24px",
@@ -368,7 +373,7 @@ const PaymentSuccess = () => {
                             fontWeight: "500"
                         }}
                     >
-                        🏠 Về trang chủ
+                        Về trang chủ
                     </button>
                     <button
                         onClick={() => { navigate("/dat-ban-chi-tiet"); }}
@@ -384,7 +389,7 @@ const PaymentSuccess = () => {
                             fontWeight: "500"
                         }}
                     >
-                        📅 Đặt bàn mới
+                        Đặt bàn mới
                     </button>
                 </div>
             </div>

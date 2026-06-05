@@ -31,6 +31,11 @@ const RegisterPage = () => {
 
         setError("");
 
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            setError("Tên đăng nhập không được chứa dấu hoặc ký tự đặc biệt!");
+            return;
+        }
+
         // check username
         if (username.length < 3) {
             setError("Username phải >= 3 ký tự");
