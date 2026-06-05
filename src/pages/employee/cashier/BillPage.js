@@ -8,21 +8,16 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import styles from "./BillPage.module.css";
 
-// ========== Hàm bỏ dấu tiếng Việt (ĐÃ SỬA LỖI no-control-regex) ==========
+// ========== Hàm bỏ dấu tiếng Việt ==========
 const removeVietnameseTones = (str) => {
     if (!str) return '';
-    // Bỏ emoji
     str = str.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
-    // Bỏ dấu tiếng Việt
     str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    // Thay thế đ/Đ
     str = str.replace(/đ/g, 'd').replace(/Đ/g, 'D');
-    // Chỉ giữ lại chữ cái, số, khoảng trắng và dấu câu cơ bản (THAY THẾ regex gây lỗi)
     str = str.replace(/[^a-zA-Z0-9\s.,!?\-_()/]/g, '');
     return str.trim();
 };
 
-// ========== Format tiền cho PDF (bỏ ký tự đặc biệt) ==========
 const formatCurrencyPDF = (amount) => {
     if (!amount) return "0d";
     return Number(amount).toLocaleString('vi-VN') + 'd';
@@ -42,29 +37,45 @@ const BillPage = () => {
     const [selectedOrderForPayment, setSelectedOrderForPayment] = useState(null);
     const [paymentMethod, setPaymentMethod] = useState('CASH');
     const [processingPayment, setProcessingPayment] = useState(false);
-    const [tableNumbers, setTableNumbers] = useState({});
+    const [entityInfo, setEntityInfo] = useState({});
     const itemsPerPage = 10;
 
-    // ===== FETCH TABLE NUMBER =====
-    const fetchTableNumber = useCallback(async (billId, orderId) => {
+    // ===== FETCH ENTITY INFO (TÊN BÀN/PHÒNG VÀ PHÍ PHÒNG) =====
+    const fetchEntityInfo = useCallback(async (billId, orderId) => {
         try {
+            console.log(`🔍 Fetching entity info for bill ${billId}, order ${orderId}`);
             const token = localStorage.getItem('token');
             const response = await fetch(`http://localhost:8080/api/customer/orders/${orderId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
                 const orderDetail = await response.json();
-                setTableNumbers(prev => ({
-                    ...prev,
-                    [billId]: orderDetail.table?.number || orderDetail.room?.number || '--'
-                }));
+                console.log(`📦 Order detail for bill ${billId}:`, orderDetail);
+
+                const entityName = orderDetail.table?.number
+                    ? `Bàn ${orderDetail.table.number}`
+                    : orderDetail.room?.number
+                        ? `Phòng ${orderDetail.room.number}`
+                        : '--';
+                const roomFee = orderDetail.room?.roomFee || 0;
+
+                setEntityInfo(prev => {
+                    const newInfo = {
+                        ...prev,
+                        [billId]: { name: entityName, roomFee: roomFee }
+                    };
+                    console.log(`✅ Updated entityInfo for bill ${billId}:`, newInfo[billId]);
+                    return newInfo;
+                });
+            } else {
+                console.error(`❌ Failed to fetch order ${orderId}: ${response.status}`);
             }
         } catch (error) {
-            console.error("Error fetching table number:", error);
+            console.error("Error fetching entity info:", error);
         }
     }, []);
 
-    // ===== FETCH BILLS (ĐÃ WRAP VỚI useCallback) =====
+    // ===== FETCH BILLS =====
     const fetchBills = useCallback(async () => {
         setLoading(true);
         try {
@@ -79,12 +90,9 @@ const BillPage = () => {
             if (response.ok) {
                 let allBills = await response.json();
 
-                // Filter by status
                 if (filter.status !== 'all') {
                     allBills = allBills.filter(bill => bill.paymentStatus === filter.status.toUpperCase());
                 }
-
-                // Filter by search
                 if (filter.search) {
                     const searchLower = filter.search.toLowerCase();
                     allBills = allBills.filter(bill =>
@@ -92,35 +100,28 @@ const BillPage = () => {
                         bill.order?.id?.toString().includes(searchLower)
                     );
                 }
-
-                // Filter by start date
                 if (filter.startDate) {
                     const startDate = new Date(filter.startDate);
                     startDate.setHours(0, 0, 0);
                     allBills = allBills.filter(bill => new Date(bill.createdAt) >= startDate);
                 }
-
-                // Filter by end date
                 if (filter.endDate) {
                     const endDate = new Date(filter.endDate);
                     endDate.setHours(23, 59, 59);
                     allBills = allBills.filter(bill => new Date(bill.createdAt) <= endDate);
                 }
 
-                // Sort by id descending
                 allBills.sort((a, b) => b.id - a.id);
 
-                // Pagination
                 setTotalPages(Math.ceil(allBills.length / itemsPerPage));
                 const start = (currentPage - 1) * itemsPerPage;
                 const end = start + itemsPerPage;
                 const paginatedBills = allBills.slice(start, end);
                 setBills(paginatedBills);
 
-                // Fetch table numbers for each bill
                 for (const bill of paginatedBills) {
-                    if (bill.order?.id && !tableNumbers[bill.id]) {
-                        fetchTableNumber(bill.id, bill.order.id);
+                    if (bill.order?.id && !entityInfo[bill.id]) {
+                        fetchEntityInfo(bill.id, bill.order.id);
                     }
                 }
             }
@@ -129,9 +130,8 @@ const BillPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [filter.status, filter.search, filter.startDate, filter.endDate, currentPage, tableNumbers, fetchTableNumber]);
+    }, [filter.status, filter.search, filter.startDate, filter.endDate, currentPage, entityInfo, fetchEntityInfo]);
 
-    // ===== INITIAL FETCH (ĐÃ SỬA LỖI exhaustive-deps) =====
     useEffect(() => {
         fetchBills();
     }, [fetchBills]);
@@ -160,11 +160,52 @@ const BillPage = () => {
         setSelectedBill(bill);
         setSelectedOrderDetail(null);
         setShowDetailModal(true);
+
         if (bill.order?.id) {
             const orderDetail = await fetchOrderDetail(bill.order.id);
-            setSelectedOrderDetail(orderDetail);
+            if (orderDetail) {
+                const roomFee = entityInfo[bill.id]?.roomFee || orderDetail.room?.roomFee || 0;
+
+                // Tính tổng tiền món từ orderDetail (giá gốc)
+                const itemsTotal = orderDetail.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+                // Tổng tiền món sau khi điều chỉnh = tổng bill - phí phòng
+                const adjustedItemsTotal = bill.totalAmount - roomFee;
+
+                // Tạo bản sao items
+                let adjustedItems = [...orderDetail.items];
+
+                // Chỉ điều chỉnh giá món nếu có chênh lệch
+                if (Math.abs(adjustedItemsTotal - itemsTotal) > 0.01 && itemsTotal > 0) {
+                    const ratio = adjustedItemsTotal / itemsTotal;
+                    adjustedItems = adjustedItems.map(item => ({
+                        ...item,
+                        originalPrice: item.price,
+                        price: item.price * ratio,
+                        subtotal: (item.price * ratio) * item.quantity
+                    }));
+                }
+
+                // Thêm phí phòng (KHÔNG nhân tỷ lệ)
+                if (roomFee > 0) {
+                    adjustedItems.push({
+                        foodName: '🏠 Phí phòng VIP',
+                        name: 'Phí phòng VIP',
+                        quantity: 1,
+                        price: roomFee,
+                        subtotal: roomFee,
+                        isRoomFee: true
+                    });
+                }
+
+                orderDetail.items = adjustedItems;
+                orderDetail.totalAmount = bill.totalAmount;
+                orderDetail.roomFee = roomFee;
+
+                setSelectedOrderDetail(orderDetail);
+            }
         }
-    }, [fetchOrderDetail]);
+    }, [fetchOrderDetail, entityInfo]);
 
     // ===== HANDLE PROCESS PAYMENT =====
     const handleProcessPayment = useCallback(async (orderId) => {
@@ -210,22 +251,27 @@ const BillPage = () => {
             let orderDetail = null;
             if (bill.order?.id) {
                 orderDetail = await fetchOrderDetail(bill.order.id);
+                if (orderDetail && bill.totalAmount !== orderDetail.totalAmount) {
+                    const ratio = orderDetail.totalAmount > 0 ? bill.totalAmount / orderDetail.totalAmount : 1;
+                    orderDetail.items = orderDetail.items.map(item => ({
+                        ...item,
+                        price: item.price * ratio,
+                        subtotal: (item.price * ratio) * item.quantity
+                    }));
+                    orderDetail.totalAmount = bill.totalAmount;
+                }
             }
 
             const doc = new jsPDF('p', 'mm', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
 
-            // ===== TIÊU ĐỀ =====
             doc.setFontSize(20);
             doc.setFont('helvetica', 'bold');
             doc.text('HOA DON THANH TOAN', pageWidth / 2, 20, { align: 'center' });
-
-            // Đường kẻ
             doc.setLineWidth(0.5);
             doc.setDrawColor(67, 97, 238);
             doc.line(14, 25, pageWidth - 14, 25);
 
-            // ===== THÔNG TIN CỬA HÀNG =====
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(100, 100, 100);
@@ -235,7 +281,6 @@ const BillPage = () => {
             doc.text(removeVietnameseTones(branchName), pageWidth / 2, 30, { align: 'center' });
             doc.text('Dia chi: ' + removeVietnameseTones(userData?.branch?.address || ''), pageWidth / 2, 35, { align: 'center' });
 
-            // ===== THÔNG TIN HÓA ĐƠN =====
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(11);
 
@@ -244,20 +289,18 @@ const BillPage = () => {
             let y = 44;
             const lh = 7;
 
-            // Cột trái
             doc.setFont('helvetica', 'bold');
             doc.text('Ma hoa don:', leftX, y);
             doc.text('Ma don hang:', leftX, y + lh);
-            doc.text('Ban:', leftX, y + lh * 2);
+            doc.text('Ban/Phong:', leftX, y + lh * 2);
             doc.text('Khach hang:', leftX, y + lh * 3);
 
             doc.setFont('helvetica', 'normal');
             doc.text(`#${bill.id}`, leftX + 30, y);
             doc.text(`#${bill.order?.id || '--'}`, leftX + 30, y + lh);
-            doc.text(`${tableNumbers[bill.id] ? 'Ban ' + tableNumbers[bill.id] : '--'}`, leftX + 30, y + lh * 2);
+            doc.text(removeVietnameseTones(entityInfo[bill.id]?.name || '--'), leftX + 30, y + lh * 2);
             doc.text(removeVietnameseTones(orderDetail?.customerName || 'Khach le'), leftX + 30, y + lh * 3);
 
-            // Cột phải
             doc.setFont('helvetica', 'bold');
             doc.text('Ngay xuat:', rightCol, y);
             doc.text('Phuong thuc:', rightCol, y + lh);
@@ -270,12 +313,10 @@ const BillPage = () => {
             doc.text(bill.paymentStatus === 'PAID' ? 'Da thanh toan' : 'Cho thanh toan', rightCol + 28, y + lh * 2);
             doc.text(removeVietnameseTones(userData?.fullName || ''), rightCol + 28, y + lh * 3);
 
-            // Đường kẻ
             y = y + lh * 4 + 2;
             doc.setDrawColor(200, 200, 200);
             doc.line(14, y, pageWidth - 14, y);
 
-            // ===== DANH SÁCH MÓN =====
             y += 8;
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
@@ -291,10 +332,10 @@ const BillPage = () => {
                     formatCurrencyPDF((item.price || 0) * (item.quantity || 1))
                 ]);
 
-                // Thêm dòng tổng
-                tableData.push([
-                    '', '', '', 'TONG CONG:', formatCurrencyPDF(bill.totalAmount)
-                ]);
+                if (entityInfo[bill.id]?.roomFee > 0) {
+                    tableData.push(['', '', '', 'Phi phong VIP:', formatCurrencyPDF(entityInfo[bill.id].roomFee)]);
+                }
+                tableData.push(['', '', '', 'TONG CONG:', formatCurrencyPDF(bill.totalAmount)]);
 
                 doc.autoTable({
                     startY: y + 4,
@@ -308,69 +349,45 @@ const BillPage = () => {
                         fontSize: 10,
                         halign: 'center'
                     },
-                    bodyStyles: {
-                        fontSize: 10,
-                        textColor: [50, 50, 50]
-                    },
+                    bodyStyles: { fontSize: 10, textColor: [50, 50, 50] },
                     columnStyles: {
                         0: { cellWidth: 10, halign: 'center' },
-                        1: { cellWidth: 75 },
+                        1: { cellWidth: 70 },
                         2: { cellWidth: 12, halign: 'center' },
                         3: { cellWidth: 35, halign: 'right' },
                         4: { cellWidth: 40, halign: 'right' }
                     },
-                    footStyles: {
-                        fontStyle: 'bold',
-                        fontSize: 11,
-                        textColor: [220, 50, 50]
-                    },
-                    styles: {
-                        cellPadding: 3,
-                        overflow: 'linebreak'
-                    },
-                    alternateRowStyles: {
-                        fillColor: [245, 247, 250]
-                    }
+                    styles: { cellPadding: 3, overflow: 'linebreak' },
+                    alternateRowStyles: { fillColor: [245, 247, 250] }
                 });
 
-                // ===== FOOTER =====
                 const finalY = doc.lastAutoTable.finalY + 10;
-
-                // Đường kẻ tổng
                 doc.setDrawColor(67, 97, 238);
                 doc.setLineWidth(0.8);
                 doc.line(120, finalY - 4, pageWidth - 14, finalY - 4);
-
                 doc.setFontSize(13);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(220, 50, 50);
                 doc.text('TONG CONG: ' + formatCurrencyPDF(bill.totalAmount), pageWidth - 14, finalY + 4, { align: 'right' });
-
-                // Lời cảm ơn
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'italic');
                 doc.setTextColor(100, 100, 100);
                 doc.text('Cam on quy khach da su dung dich vu!', pageWidth / 2, finalY + 20, { align: 'center' });
                 doc.text('Hen gap lai quy khach lan sau.', pageWidth / 2, finalY + 26, { align: 'center' });
-
-                // Mã QR giả (nếu cần)
                 doc.setFontSize(7);
                 doc.text('Bill #' + bill.id + ' - ' + new Date().toISOString().split('T')[0], pageWidth / 2, finalY + 34, { align: 'center' });
-
             } else {
                 doc.setFontSize(10);
                 doc.setTextColor(150, 150, 150);
                 doc.text('Khong co mon an nao.', leftX, y + 10);
             }
 
-            // Lưu file
             doc.save(`HoaDon_${bill.id}.pdf`);
-
         } catch (error) {
             console.error('PDF Error:', error);
             alert('Loi xuat hoa don: ' + error.message);
         }
-    }, [bills, tableNumbers, fetchOrderDetail]);
+    }, [bills, entityInfo, fetchOrderDetail]);
 
     // ========== HELPERS ==========
     const formatCurrency = (amount) => {
@@ -429,7 +446,6 @@ const BillPage = () => {
     // ========== RENDER ==========
     return (
         <div className={styles.container}>
-            {/* Header */}
             <div className={styles.header}>
                 <h2>Quản lý hóa đơn</h2>
                 <button onClick={() => fetchBills()} className={styles.refreshBtn}>
@@ -437,7 +453,6 @@ const BillPage = () => {
                 </button>
             </div>
 
-            {/* Filters */}
             <div className={styles.filterSection}>
                 <div className={styles.filterRow}>
                     <div className={styles.filterGroup}>
@@ -472,7 +487,6 @@ const BillPage = () => {
                 </div>
             </div>
 
-            {/* Stats */}
             <div className={styles.summaryStats}>
                 <div className={styles.statCard}><div className={styles.statLabel}>Tổng hóa đơn</div><div className={styles.statValue}>{bills.length}</div></div>
                 <div className={styles.statCard}><div className={styles.statLabel}>Đã thanh toán</div><div className={styles.statValue}>{bills.filter(b => b.paymentStatus === 'PAID').length}</div></div>
@@ -480,21 +494,11 @@ const BillPage = () => {
                 <div className={styles.statCard}><div className={styles.statLabel}>Tổng doanh thu</div><div className={styles.statValue}>{formatCurrency(bills.filter(b => b.paymentStatus === 'PAID').reduce((sum, b) => sum + (b.totalAmount || 0), 0))}</div></div>
             </div>
 
-            {/* Table */}
             <div className={styles.tableWrapper}>
                 {loading ? <div className={styles.loading}>Đang tải...</div> : (
                     <table className={styles.table}>
                         <thead>
-                            <tr>
-                                <th>Mã HD</th>
-                                <th>Mã đơn</th>
-                                <th>Bàn</th>
-                                <th>Thời gian</th>
-                                <th>Tổng tiền</th>
-                                <th>Phương thức</th>
-                                <th>Trạng thái</th>
-                                <th>Thao tác</th>
-                            </tr>
+                            <tr><th>Mã HD</th><th>Mã đơn</th><th>Bàn/Phòng</th><th>Thời gian</th><th>Tổng tiền</th><th>Phương thức</th><th>Trạng thái</th><th>Thao tác</th></tr>
                         </thead>
                         <tbody>
                             {bills.length === 0 ? (
@@ -503,24 +507,18 @@ const BillPage = () => {
                                 <tr key={bill.id}>
                                     <td><span className={styles.orderId}>#{bill.id}</span></td>
                                     <td>#{bill.order?.id || '--'}</td>
-                                    <td>{tableNumbers[bill.id] ? `Bàn ${tableNumbers[bill.id]}` : '...'}</td>
+                                    <td>{entityInfo[bill.id]?.name || '...'}</td>
                                     <td>{formatDateTime(bill.createdAt)}</td>
                                     <td><span className={styles.amount}>{formatCurrency(bill.totalAmount)}</span></td>
                                     <td>{getPaymentMethodLabel(bill.paymentMethod)}</td>
                                     <td>{getStatusBadge(bill.paymentStatus)}</td>
                                     <td>
-                                        <button onClick={() => handleViewDetail(bill)} className={styles.viewBtn}>
-                                            <Eye size={14} /> Chi tiết
-                                        </button>
+                                        <button onClick={() => handleViewDetail(bill)} className={styles.viewBtn}><Eye size={14} /> Chi tiết</button>
                                         {bill.paymentStatus === 'PAID' && (
-                                            <button onClick={() => handleExportBill(bill.id)} className={styles.printBtn}>
-                                                <Download size={14} /> PDF
-                                            </button>
+                                            <button onClick={() => handleExportBill(bill.id)} className={styles.printBtn}><Download size={14} /> PDF</button>
                                         )}
                                         {bill.paymentStatus === 'PENDING' && (
-                                            <button onClick={() => { setSelectedOrderForPayment(bill.order); setShowPaymentModal(true); }} className={styles.paymentBtn}>
-                                                <DollarSign size={14} /> TT
-                                            </button>
+                                            <button onClick={() => { setSelectedOrderForPayment(bill.order); setShowPaymentModal(true); }} className={styles.paymentBtn}><DollarSign size={14} /> TT</button>
                                         )}
                                     </td>
                                 </tr>
@@ -530,16 +528,11 @@ const BillPage = () => {
                 )}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
                 <div className={styles.pagination}>
-                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className={styles.pageBtn}>
-                        <ChevronLeft size={18} />
-                    </button>
+                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className={styles.pageBtn}><ChevronLeft size={18} /></button>
                     <span className={styles.pageInfo}>Trang {currentPage} / {totalPages}</span>
-                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={styles.pageBtn}>
-                        <ChevronRight size={18} />
-                    </button>
+                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className={styles.pageBtn}><ChevronRight size={18} /></button>
                 </div>
             )}
 
@@ -557,7 +550,7 @@ const BillPage = () => {
                                     <div className={styles.infoGrid}>
                                         <div className={styles.infoRow}><span>Mã hóa đơn:</span><strong>#{selectedBill.id}</strong></div>
                                         <div className={styles.infoRow}><span>Mã đơn hàng:</span><strong>#{displayOrder?.id || '--'}</strong></div>
-                                        <div className={styles.infoRow}><span>Bàn:</span><strong>{displayOrder?.table?.number ? `Bàn ${displayOrder.table.number}` : '...'}</strong></div>
+                                        <div className={styles.infoRow}><span>Bàn/Phòng:</span><strong>{displayOrder?.table?.number ? `Bàn ${displayOrder.table.number}` : displayOrder?.room?.number ? `Phòng ${displayOrder.room.number}` : '--'}</strong></div>
                                         <div className={styles.infoRow}><span>Khách hàng:</span><strong>{displayOrder?.customerName || 'Khách lẻ'}</strong></div>
                                         <div className={styles.infoRow}><span>Thời gian:</span><strong>{formatDateTime(selectedBill.createdAt)}</strong></div>
                                         <div className={styles.infoRow}><span>Phương thức:</span><strong>{getPaymentMethodLabel(selectedBill.paymentMethod)}</strong></div>
@@ -568,17 +561,10 @@ const BillPage = () => {
                                         <h4>📋 Danh sách món:</h4>
                                         {displayOrder?.items?.length > 0 ? (
                                             <table className={styles.itemsTable}>
-                                                <thead>
-                                                    <tr>
-                                                        <th>Tên món</th>
-                                                        <th>SL</th>
-                                                        <th>Đơn giá</th>
-                                                        <th>Thành tiền</th>
-                                                    </tr>
-                                                </thead>
+                                                <thead><tr><th>Tên món</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
                                                 <tbody>
                                                     {displayOrder.items.map((item, idx) => (
-                                                        <tr key={idx}>
+                                                        <tr key={idx} className={item.isRoomFee ? styles.roomFeeRow : ''}>
                                                             <td>{item.foodName || item.name || `Món #${item.foodId}`}</td>
                                                             <td className={styles.textCenter}>{item.quantity}</td>
                                                             <td className={styles.textRight}>{formatCurrency(item.price)}</td>
@@ -601,9 +587,7 @@ const BillPage = () => {
                         <div className={styles.modalFooter}>
                             <button onClick={() => { setShowDetailModal(false); setSelectedOrderDetail(null); }} className={styles.closeModalBtn}>Đóng</button>
                             {selectedBill.paymentStatus === 'PAID' && (
-                                <button onClick={() => handleExportBill(selectedBill.id)} className={styles.printBtnLarge}>
-                                    <Download size={16} /> Xuất PDF
-                                </button>
+                                <button onClick={() => handleExportBill(selectedBill.id)} className={styles.printBtnLarge}><Download size={16} /> Xuất PDF</button>
                             )}
                         </div>
                     </div>
@@ -620,16 +604,14 @@ const BillPage = () => {
                         </div>
                         <div className={styles.orderDetail}>
                             <div className={styles.infoRow}><span>Mã đơn:</span><strong>#{selectedOrderForPayment?.id}</strong></div>
-                            <div className={styles.infoRow}><span>Bàn:</span><strong>{selectedOrderForPayment?.table?.number ? `Bàn ${selectedOrderForPayment.table.number}` : '--'}</strong></div>
+                            <div className={styles.infoRow}><span>Bàn/Phòng:</span><strong>{selectedOrderForPayment?.table?.number ? `Bàn ${selectedOrderForPayment.table.number}` : selectedOrderForPayment?.room?.number ? `Phòng ${selectedOrderForPayment.room.number}` : '--'}</strong></div>
                             <div className={styles.totalRow}><span>Tổng tiền:</span><strong className={styles.totalAmount}>{formatCurrency(selectedOrderForPayment?.totalAmount)}</strong></div>
                             <div className={styles.divider}></div>
                             <div className={styles.paymentMethodSection}>
                                 <label>Chọn phương thức:</label>
                                 <div className={styles.paymentMethods}>
                                     {['CASH', 'MOMO', 'BANKING'].map(m => (
-                                        <button key={m}
-                                            className={`${styles.methodBtn} ${paymentMethod === m ? styles.activeMethod : ''}`}
-                                            onClick={() => setPaymentMethod(m)}>
+                                        <button key={m} className={`${styles.methodBtn} ${paymentMethod === m ? styles.activeMethod : ''}`} onClick={() => setPaymentMethod(m)}>
                                             {m === 'CASH' ? '💵 Tiền mặt' : m === 'MOMO' ? '📱 MoMo' : '🏦 Chuyển khoản'}
                                         </button>
                                     ))}

@@ -902,3 +902,12 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
+
+.roomFeeRow {
+    background-color: #fffbeb;
+}
+
+.roomFeeRow td {
+    color: #f59e0b;
+    font-weight: 600;
+}

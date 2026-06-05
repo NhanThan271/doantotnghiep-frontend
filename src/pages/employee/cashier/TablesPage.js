@@ -19,10 +19,17 @@ const TablesPage = () => {
     const [activeTab, setActiveTab] = useState("tables");
     const [existingOrders, setExistingOrders] = useState({});
     const navigate = useNavigate();
-
+    const [toasts, setToasts] = useState([]);
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
 
     // ==================== HELPER FUNCTIONS ====================
+    const showToast = (message, type = 'info', duration = 3000) => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type, duration }]);
+        setTimeout(() => {
+            setToasts(prev => prev.filter(toast => toast.id !== id));
+        }, duration);
+    };
 
     // Format datetime
     const formatDateTime = useCallback((dateTimeStr) => {
@@ -136,22 +143,25 @@ const TablesPage = () => {
     // 4. fetchRoomsWithReservations - Lấy danh sách phòng từ API /reservations/rooms
     const fetchRoomsWithReservations = useCallback(async () => {
         try {
-            const response = await fetch(`${API}/api/reservations/rooms`, {
+            // Gọi API /api/rooms/branch/{branchId} thay vì /api/reservations/rooms
+            const response = await fetch(`${API}/api/rooms/branch/${branchId}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
             if (response.ok) {
                 const data = await response.json();
+                console.log("🏠 Rooms data from API:", data);
+                console.log("💰 First room fee:", data[0]?.roomFee);
                 setRooms(data);
             } else {
                 await fetchRoomsLegacy();
             }
         } catch (err) {
-            console.error("Lỗi tải phòng từ API reservations:", err);
+            console.error("Lỗi tải phòng:", err);
             await fetchRoomsLegacy();
         }
-    }, [fetchRoomsLegacy]);
+    }, [branchId, fetchRoomsLegacy]);
 
     // 5. fetchAreas - Lấy danh sách khu vực
     const fetchAreas = useCallback(async () => {
@@ -247,6 +257,12 @@ const TablesPage = () => {
     };
 
     const handleRoomClick = (room) => {
+        console.log("🏠 Room object:", room);
+        console.log("💰 roomFee value:", room.roomFee);
+        if (room.status === "MAINTENANCE") {
+            showToast("Phòng đang bảo trì, không thể sử dụng!", "warning", 2000);
+            return;
+        }
         const existingOrder = existingOrders[`room_${room.id}`];
         console.log(`🖱️ Click phòng ${room.number}, order:`, existingOrder);
         navigate(`/cashier/rooms/${room.id}`, {
@@ -503,6 +519,7 @@ const TablesPage = () => {
                                     key={room.id}
                                     onClick={() => handleRoomClick(room)}
                                     className={cardClass}
+                                    style={room.status === "MAINTENANCE" ? { cursor: 'not-allowed', opacity: 0.7 } : {}}
                                 >
                                     {room.status === "OCCUPIED" && (
                                         <div className={styles.addButton}>
@@ -568,10 +585,20 @@ const TablesPage = () => {
                             );
                         })
                     )}
+
                 </div>
             )}
+            <div className={styles.toastContainer}>
+                {toasts.map((toast) => (
+                    <div key={toast.id} className={`${styles.toast} ${styles[toast.type]}`}>
+                        {toast.message}
+                    </div>
+                ))}
+            </div>
         </div>
+
     );
+
 };
 
 export default TablesPage;
