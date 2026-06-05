@@ -320,10 +320,14 @@ const BookingDetail = () => {
 
     /* ── select table ── */
     const handleSelectTable = (table) => {
-        if (table.status !== "FREE") return;
+        if (availableTableIds !== null) {
+            if (!availableTableIds.has(table.id)) return;
+        }
         setData(prev => ({
             ...prev,
-            table: table.id, tableNumber: table.number, tableCapacity: table.capacity,
+            table: table.id,
+            tableNumber: table.number,
+            tableCapacity: table.capacity,
             selectedTableId: table.id,
         }));
     };
@@ -1234,16 +1238,18 @@ const BookingDetail = () => {
 /* ── Table Card ── */
 const TableCard = ({ table, selected, onSelect, isVip = false, isGrandVip = false, availableTableIds = null }) => {
     const isSelected = selected === table.id;
-    const isFree = availableTableIds
+    const isFree = availableTableIds !== null
         ? availableTableIds.has(table.id)
-        : table.status === "FREE";
+        : table.status !== "RESERVED";
     const showVip = isVip || table.capacity >= 10;
     const showGrandVip = isGrandVip || table.capacity >= 16;
-    const statusLabel = isSelected ? "Đang chọn"
-        : isFree ? "Trống"
+    const statusLabel = isSelected
+        ? "Đang chọn"
+        : isFree
+            ? (table.status === "OCCUPIED" ? "Đang có khách (đặt trước được)" : "Trống")
             : availableTableIds
-                ? "Đã có đặt"
-                : "Có khách";
+                ? "Đã có đặt trong giờ này"
+                : "Đã được đặt trước";
 
     let cls = styles.tableCard;
     if (isSelected) cls += " " + styles.tableSelected;
