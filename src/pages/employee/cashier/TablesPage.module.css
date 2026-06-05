@@ -736,3 +736,45 @@
     background: rgba(220, 38, 38, 0.2);
     color: #1e293b;
 }
+
+.toastContainer {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 380px;
+    pointer-events: none;
+    /* Cho phép click xuyên qua container */
+}
+
+.toast {
+    pointer-events: auto;
+    /* Toast có thể tương tác */
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideInRight 0.3s ease-out;
+    font-size: 14px;
+    font-weight: 500;
+    border-left: 4px solid;
+}
+
+/* Animation cho toast */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}

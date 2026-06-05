@@ -21,15 +21,17 @@ const ChefDashboard = () => {
     const [itemUpdating, setItemUpdating] = useState({});
     const [realTimeClock, setRealTimeClock] = useState(new Date());
     const [currentTime, setCurrentTime] = useState(Date.now());
+    const [lastWarningTime, setLastWarningTime] = useState(0);
 
     const lastNotificationKey = useRef('');
     const lastNotificationTime = useRef(0);
     const audioContextRef = useRef(null);
     const socketRef = useRef(null);
+    const warningIntervalRef = useRef(null);
+    const knownItemIdsRef = useRef(new Map());
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = user?.branch?.id;
-    const knownItemIdsRef = useRef(new Map());
 
     // ========== AUDIO SETUP ==========
     const unlockAudio = useCallback(() => {
@@ -169,12 +171,11 @@ const ChefDashboard = () => {
                     knownItemIdsRef.current.delete(key);
                 }
             }
-            // Debug
+
             if (data.length > 0) {
                 console.log("📋 Kitchen items count:", data.length);
             }
 
-            // ✅ B1: Thu thập orderId cần fetch thêm (item có orderId nhưng không có table/room)
             const orderIdsNeedFetch = new Set();
             data.forEach(item => {
                 if (!item.table?.number && !item.room?.number && item.orderId) {
@@ -182,7 +183,6 @@ const ChefDashboard = () => {
                 }
             });
 
-            // ✅ B2: Fetch thông tin order để lấy table/room
             const orderInfoMap = {};
             if (orderIdsNeedFetch.size > 0) {
                 console.log(`🔍 Fetch ${orderIdsNeedFetch.size} orders:`, [...orderIdsNeedFetch]);
@@ -201,7 +201,6 @@ const ChefDashboard = () => {
                 await Promise.all(orderPromises);
             }
 
-            // ✅ B3: Xử lý dữ liệu
             const groupedMap = new Map();
 
             data.forEach(item => {
@@ -214,16 +213,13 @@ const ChefDashboard = () => {
                 let displayLocation = 'Khu vực chung';
                 let areaName = 'Khu chính';
 
-                // Ưu tiên item.table / item.room (có sẵn từ API)
                 if (item.table?.number) {
                     displayLocation = `Bàn ${item.table.number}`;
                     areaName = item.table.area || 'Khu chính';
                 } else if (item.room?.number) {
                     displayLocation = `Phòng ${item.room.number}`;
                     areaName = item.room.area || 'Khu VIP';
-                }
-                // Nếu không có, dùng orderInfoMap
-                else if (item.orderId && orderInfoMap[item.orderId]) {
+                } else if (item.orderId && orderInfoMap[item.orderId]) {
                     const order = orderInfoMap[item.orderId];
                     if (order.table?.number) {
                         displayLocation = `Bàn ${order.table.number}`;
@@ -234,9 +230,7 @@ const ChefDashboard = () => {
                     } else {
                         displayLocation = `Đơn #${item.orderId}`;
                     }
-                }
-                // Fallback cuối cùng
-                else if (item.orderId) {
+                } else if (item.orderId) {
                     displayLocation = `Đơn #${item.orderId}`;
                 }
 
@@ -299,7 +293,9 @@ const ChefDashboard = () => {
         } finally {
             setLoading(false);
         }
-    }, [branchId, showToast]);    // ========== SOCKET SETUP ==========
+    }, [branchId, showToast]);
+
+    // ========== SOCKET SETUP ==========
     const setupSocket = useCallback(() => {
         if (socketRef.current) socketRef.current.disconnect();
         if (!branchId) return;
@@ -331,6 +327,9 @@ const ChefDashboard = () => {
 
             if (orderData.branchId && branchId && orderData.branchId !== branchId) return;
 
+            // Reset warning timer khi có đơn mới
+            setLastWarningTime(Date.now());
+
             const notiKey = `${orderData.orderId}_${orderData.tableNumber}_${JSON.stringify(orderData.items)}`;
             const now = Date.now();
             if (notiKey === lastNotificationKey.current && (now - lastNotificationTime.current) < 500) return;
@@ -342,7 +341,6 @@ const ChefDashboard = () => {
             fetchData();
 
             if (orderData.items?.length) {
-                // ✅ SỬA: Phân biệt bàn/phòng
                 const areaName = orderData.areaName || (orderData.isRoom ? "Khu VIP" : "Khu chính");
                 const locationName = orderData.locationName ||
                     (orderData.isRoom ? `Phòng ${orderData.tableNumber}` : `Bàn ${orderData.tableNumber}`);
@@ -353,7 +351,6 @@ const ChefDashboard = () => {
                 showToast(message, 'info');
                 sendNotificationToLayout(message, 'order');
 
-                // ✅ SỬA: Đọc đúng tên location khi nói
                 const speechText = `Đơn hàng mới tại ${areaName} ${locationName}: ${orderData.items.map(item =>
                     `${item.name} ${item.quantity === 1 ? 'một phần' : `${item.quantity} phần`}`
                 ).join(', ')}`;
@@ -366,6 +363,9 @@ const ChefDashboard = () => {
 
             if (data.branchId && branchId && data.branchId !== branchId) return;
 
+            // Reset warning timer khi có cập nhật đơn
+            setLastWarningTime(Date.now());
+
             const notiKey = `${data.orderId}_${data.tableNumber}_${JSON.stringify(data.items)}`;
             const now = Date.now();
             if (notiKey === lastNotificationKey.current && (now - lastNotificationTime.current) < 500) return;
@@ -377,7 +377,6 @@ const ChefDashboard = () => {
             fetchData();
 
             if (data.items?.length) {
-                // ✅ SỬA: Phân biệt bàn/phòng
                 const areaName = data.areaName || (data.isRoom ? "Khu VIP" : "Khu chính");
                 const locationName = data.locationName ||
                     (data.isRoom ? `Phòng ${data.tableNumber}` : `Bàn ${data.tableNumber}`);
@@ -423,7 +422,7 @@ const ChefDashboard = () => {
             newSocket.off("order-updated", handleOrderUpdated);
             newSocket.off("update-tables", handleUpdateTables);
             newSocket.off("order-item-updated", handleItemUpdated);
-            newSocket.on("kitchen-reservation-notification", handleReservationUpcoming);
+            newSocket.off("reservation-upcoming", handleReservationUpcoming);
         };
     }, [branchId, user?.id, fetchData, playNotificationSound, showToast, sendNotificationToLayout, speakVietnamese]);
 
@@ -442,6 +441,60 @@ const ChefDashboard = () => {
         return () => clearInterval(interval);
     }, []);
 
+    // ========== 5 PHÚT CẢNH BÁO MÓN CHƯA NẤU ==========
+    useEffect(() => {
+        if (warningIntervalRef.current) {
+            clearInterval(warningIntervalRef.current);
+        }
+
+        warningIntervalRef.current = setInterval(() => {
+            const now = Date.now();
+
+            // Chỉ thông báo nếu đã qua 5 phút kể từ lần cuối
+            if (now - lastWarningTime >= 1 * 60 * 1000) {
+                const waitingItems = allItems.filter(item =>
+                    item.status === 'WAITING' &&
+                    !item.isNewlyAdded // Không thông báo món vừa mới thêm
+                );
+
+                if (waitingItems.length > 0) {
+                    // Cập nhật thời gian cảnh báo cuối
+                    setLastWarningTime(now);
+
+                    // ✅ TẠO DANH SÁCH MÓN THEO ĐÚNG FORMAT
+                    const itemList = waitingItems.map(item =>
+                        `${item.name} ${item.quantity} phần`
+                    ).join(' , ');
+
+                    // ✅ THÔNG BÁO HIỂN THỊ
+                    const warningMessage = `⚠️ CẢNH BÁO: ${waitingItems.length} món chưa nấu : \n${itemList}`;
+
+                    // Hiển thị toast
+                    showToast(warningMessage, 'warning');
+
+                    // Gửi notification lên layout
+                    sendNotificationToLayout(warningMessage, 'warning');
+
+                    // ✅ GIỌNG NÓI ĐỌC THEO ĐÚNG FORMAT
+                    const speechText = `Cảnh báo: ${waitingItems.length} món chưa nấu. ${itemList}`;
+                    speakVietnamese(speechText);
+
+                    // Phát âm thanh cảnh báo
+                    playNotificationSound();
+
+                    // Log ra console
+                    console.log(`🔔 5-minute warning:`);
+                    console.log(warningMessage);
+                }
+            }
+        }, 30000); // Kiểm tra mỗi 30 giây
+
+        return () => {
+            if (warningIntervalRef.current) {
+                clearInterval(warningIntervalRef.current);
+            }
+        };
+    }, [allItems, lastWarningTime, showToast, sendNotificationToLayout, speakVietnamese, playNotificationSound]);
     // ========== UPDATE STATUS ==========
     const updateStatus = async (itemGroup, status) => {
         console.log("🚀 updateStatus called:", status, "ids:", itemGroup.originalIds);
@@ -454,7 +507,6 @@ const ChefDashboard = () => {
         setItemUpdating(prev => ({ ...prev, [itemGroup.id]: true }));
 
         try {
-            // ✅ SỬA: Luôn lặp qua TẤT CẢ các item trong group
             console.log(`📤 Updating ${idsToUpdate.length} items to ${status}`);
 
             for (const id of idsToUpdate) {
@@ -467,6 +519,9 @@ const ChefDashboard = () => {
             knownItemIdsRef.current.delete(`group_${oldKey}`);
 
             await fetchData();
+
+            // Reset warning timer khi chef bắt đầu nấu
+            setLastWarningTime(Date.now());
 
             if (socketRef.current?.connected) {
                 const emitData = {
