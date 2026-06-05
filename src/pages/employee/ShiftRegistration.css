@@ -678,3 +678,329 @@
 .rbc-time-header-gutter {
     display: none !important;
 }
+
+.cancel-modal .modal-content {
+    border-radius: 20px;
+    border: none;
+    overflow: hidden;
+    box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.2);
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.cancel-modal-header {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    border: none;
+    padding: 20px 24px;
+}
+
+.cancel-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.cancel-modal-header .btn-close:hover {
+    opacity: 1;
+}
+
+.cancel-modal-body {
+    padding: 32px 24px;
+    text-align: center;
+    background: #fff;
+}
+
+.cancel-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    border-radius: 50%;
+    margin-bottom: 20px;
+    animation: iconPulse 0.5s ease-out;
+}
+
+@keyframes iconPulse {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.cancel-icon svg {
+    width: 40px;
+    height: 40px;
+    color: #dc3545;
+}
+
+.cancel-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 12px;
+}
+
+.cancel-description {
+    font-size: 15px;
+    color: #6b7280;
+    line-height: 1.5;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.cancel-warning-text {
+    margin-top: 16px;
+    padding: 10px 16px;
+    background: #fef3c7;
+    border-radius: 12px;
+    font-size: 13px;
+    color: #d97706;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cancel-modal-footer {
+    border: none;
+    padding: 16px 24px 24px;
+    background: #f9fafb;
+    gap: 12px;
+}
+
+.cancel-btn-secondary {
+    background: white;
+    border: 1.5px solid #e5e7eb;
+    color: #4b5563;
+    font-weight: 600;
+    padding: 10px 24px;
+    border-radius: 40px;
+    transition: all 0.2s;
+}
+
+.cancel-btn-secondary:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+}
+
+.cancel-btn-danger {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    border: none;
+    color: white;
+    font-weight: 600;
+    padding: 10px 28px;
+    border-radius: 40px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.cancel-btn-danger:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+    background: linear-gradient(135deg, #c82333, #bd2130);
+}
+
+.cancel-btn-danger:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ========== MODAL CHECK-OUT ========== */
+.checkout-modal .modal-content {
+    border-radius: 20px;
+    border: none;
+    overflow: hidden;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+.checkout-modal-header {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    color: white;
+    border: none;
+    padding: 20px 24px;
+}
+
+.checkout-modal-header .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: 0.8;
+}
+
+.checkout-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    border-radius: 50%;
+    margin-bottom: 20px;
+}
+
+.checkout-icon svg {
+    width: 40px;
+    height: 40px;
+    color: #10b981;
+}
+
+.checkout-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 12px;
+}
+
+.checkout-description {
+    font-size: 15px;
+    color: #6b7280;
+}
+
+.checkout-btn-primary {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    border: none;
+    color: white;
+    font-weight: 600;
+    padding: 10px 28px;
+    border-radius: 40px;
+    transition: all 0.2s;
+}
+
+.checkout-btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+}
+
+/* ========== MODAL CHECK-OUT ========== */
+.checkout-modal .modal-content {
+    border-radius: 20px;
+    border: none;
+    overflow: hidden;
+    box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.2);
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.checkout-modal .modal-header {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    border: none;
+    padding: 20px 24px;
+}
+
+.checkout-modal .modal-header .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.checkout-modal .modal-header .btn-close:hover {
+    opacity: 1;
+}
+
+.checkout-modal .modal-body {
+    padding: 32px 24px;
+}
+
+/* Icon animation */
+.checkout-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    border-radius: 50%;
+    margin-bottom: 20px;
+    animation: iconPop 0.5s ease-out;
+}
+
+@keyframes iconPop {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.checkout-modal .modal-footer {
+    border-top: none;
+    padding: 16px 24px 24px;
+    gap: 12px;
+}
+
+.checkout-modal .btn-checkout-cancel {
+    background: white;
+    border: 1.5px solid #e5e7eb;
+    color: #4b5563;
+    font-weight: 600;
+    padding: 10px 24px;
+    border-radius: 40px;
+    transition: all 0.2s;
+}
+
+.checkout-modal .btn-checkout-cancel:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+}
+
+.checkout-modal .btn-checkout-confirm {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    border: none;
+    color: white;
+    font-weight: 600;
+    padding: 10px 28px;
+    border-radius: 40px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+}
+
+.checkout-modal .btn-checkout-confirm:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(23, 162, 184, 0.4);
+}
+
+.checkout-modal .btn-checkout-confirm:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
