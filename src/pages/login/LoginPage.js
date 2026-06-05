@@ -173,7 +173,7 @@ const LoginPage = () => {
                                 type="text"
                                 placeholder="Nhập tên đăng nhập"
                                 value={username}
-                                onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                                onChange={(e) => setUsername(e.target.value)}
                                 required
                                 disabled={isLoading}
                             />
