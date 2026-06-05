@@ -395,7 +395,7 @@ const TableDetail = () => {
 
         setIsConfirming(true);
 
-        try {
+        try { 
             const orderData = {
                 customerName: customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`,
                 status: "PENDING",

@@ -65,6 +65,10 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [overviewStats, setOverviewStats] = useState(null);
+    const [cashierSessions, setCashierSessions] = useState([]);
+    const [cashierLoading, setCashierLoading] = useState(false);
+    const [selectedSession, setSelectedSession] = useState(null);
+    const [showSessionDetail, setShowSessionDetail] = useState(false);
     const [overviewLoading, setOverviewLoading] = useState(false);
     const [filterStaffId, setFilterStaffId] = useState(null);
     const [staffWeekShifts, setStaffWeekShifts] = useState([]);
@@ -178,6 +182,41 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             });
         } finally {
             setOverviewLoading(false);
+        }
+    };
+
+    const fetchCashierSessions = async () => {
+        if (!currentBranch?.id) return;
+        setCashierLoading(true);
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/api/cashier-sessions/branch/${currentBranch.id}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) throw new Error('Không thể tải ca thu ngân');
+            const data = await res.json();
+            setCashierSessions(data);
+        } catch (err) {
+            showToast('error', 'Lỗi', err.message);
+        } finally {
+            setCashierLoading(false);
+        }
+    };
+
+    const fetchSessionDetail = async (id) => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/api/cashier-sessions/${id}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            setSelectedSession(data);
+            setShowSessionDetail(true);
+        } catch {
+            showToast('error', 'Lỗi', 'Không thể tải chi tiết ca');
         }
     };
 
@@ -550,6 +589,8 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             fetchWorkShifts(selectedDate);
             fetchWorkShiftsForWeek(selectedDate);
             fetchShiftSchedules(selectedDate);
+        } else if (activeTab === 'cashier') {
+            fetchCashierSessions();
         }
     }, [currentBranch, activeTab]);
 
@@ -736,6 +777,13 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                         >
                             <CheckCircle size={18} />
                             Chấm công
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('cashier')}
+                            className={activeTab === 'cashier' ? styles.tabActive : styles.tabInactive}
+                        >
+                            <Store size={18} />
+                            Quỹ tiền mặt
                         </button>
                     </div>
                 </div>
@@ -1763,6 +1811,129 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                 </>
             )}
 
+            {activeTab === 'cashier' && (() => {
+                const openSessions = cashierSessions.filter(s => s.status === 'OPEN');
+                const totalOpening = cashierSessions.reduce((sum, s) => sum + (s.openingCash || 0), 0);
+                const totalCash = cashierSessions.reduce((sum, s) => sum + (s.cashRevenue || 0), 0);
+                const totalTransfer = cashierSessions.reduce((sum, s) => sum + (s.transferRevenue || 0), 0);
+
+                const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
+
+                return (
+                    <>
+                        {/* Thẻ tổng quan */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginTop: 16 }}>
+                            {[
+                                { label: 'Ca đang mở', value: openSessions.length, color: '#10B981', bg: 'rgba(16,185,129,0.1)', icon: Store },
+                                { label: 'Tiền đầu ca', value: fmt(totalOpening), color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', icon: FileText },
+                                { label: 'DT tiền mặt', value: fmt(totalCash), color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', icon: BarChart2 },
+                                { label: 'DT chuyển khoản', value: fmt(totalTransfer), color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)', icon: BarChart3 },
+                            ].map(({ label, value, color, bg, icon: Icon }) => (
+                                <div key={label} style={{
+                                    background: bg, border: `1px solid ${color}30`,
+                                    borderRadius: 12, padding: 20,
+                                    display: 'flex', alignItems: 'center', gap: 16
+                                }}>
+                                    <div style={{
+                                        width: 48, height: 48, borderRadius: 12,
+                                        background: `${color}20`,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    }}>
+                                        <Icon size={24} color={color} />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
+                                        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 2 }}>{label}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Bảng danh sách */}
+                        <div className={styles.tableCard} style={{ marginTop: 16 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--color-border)' }}>
+                                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Danh sách ca thu ngân</h3>
+                                <button onClick={fetchCashierSessions} className={styles.primaryButton}>
+                                    <RefreshCw size={16} /> Làm mới
+                                </button>
+                            </div>
+
+                            {cashierLoading ? (
+                                <div style={{ textAlign: 'center', padding: 40 }}>
+                                    <RefreshCw size={32} className={styles.spinIcon} />
+                                </div>
+                            ) : cashierSessions.length === 0 ? (
+                                <div className={styles.emptyState} style={{ padding: 60 }}>
+                                    <Store size={48} className={styles.emptyIcon} />
+                                    <p>Chưa có ca thu ngân nào</p>
+                                </div>
+                            ) : (
+                                <div className={styles.tableWrapper}>
+                                    <table className={styles.table}>
+                                        <thead>
+                                            <tr>
+                                                <th>Thu ngân</th>
+                                                <th>Mở ca</th>
+                                                <th>Kết ca</th>
+                                                <th>Tiền đầu ca</th>
+                                                <th>DT tiền mặt</th>
+                                                <th>DT chuyển khoản</th>
+                                                <th>Tổng DT</th>
+                                                <th className={styles.textCenter}>Trạng thái</th>
+                                                <th className={styles.textCenter}>Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {cashierSessions.map(s => (
+                                                <tr key={s.id}>
+                                                    <td>
+                                                        <div style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }}>{s.staffName}</div>
+                                                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{s.branchName}</div>
+                                                    </td>
+                                                    <td style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                                        {s.openedAt ? new Date(s.openedAt).toLocaleString('vi-VN') : '—'}
+                                                    </td>
+                                                    <td style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                                                        {s.closedAt ? new Date(s.closedAt).toLocaleString('vi-VN') : '—'}
+                                                    </td>
+                                                    <td style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{fmt(s.openingCash)}</td>
+                                                    <td style={{ fontSize: 13, color: '#F59E0B', fontWeight: 600 }}>{fmt(s.cashRevenue)}</td>
+                                                    <td style={{ fontSize: 13, color: '#8B5CF6', fontWeight: 600 }}>{fmt(s.transferRevenue)}</td>
+                                                    <td style={{ fontSize: 13, color: '#10B981', fontWeight: 700 }}>{fmt(s.totalRevenue)}</td>
+                                                    <td className={styles.textCenter}>
+                                                        <span style={{
+                                                            padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                                                            background: s.status === 'OPEN' ? 'rgba(16,185,129,0.1)' : 'rgba(107,114,128,0.1)',
+                                                            color: s.status === 'OPEN' ? '#10B981' : '#6B7280',
+                                                            border: `1px solid ${s.status === 'OPEN' ? 'rgba(16,185,129,0.3)' : 'rgba(107,114,128,0.2)'}`
+                                                        }}>
+                                                            {s.status === 'OPEN' ? ' Đang mở' : ' Đã đóng'}
+                                                        </span>
+                                                    </td>
+                                                    <td className={styles.textCenter}>
+                                                        <button
+                                                            onClick={() => fetchSessionDetail(s.id)}
+                                                            style={{
+                                                                padding: '6px 14px', borderRadius: 8, fontSize: 13,
+                                                                background: 'rgba(59,130,246,0.1)', color: '#3B82F6',
+                                                                border: '1px solid rgba(59,130,246,0.3)', cursor: 'pointer',
+                                                                fontWeight: 600
+                                                            }}
+                                                        >
+                                                            Chi tiết
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </>
+                );
+            })()}
+
             {/* MODAL PHÂN CA */}
             {showAssignModal && (
                 <div className={styles.modalOverlay} onClick={() => setShowAssignModal(false)}>
@@ -2062,6 +2233,84 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                 }}
                             >
                                 {loading ? 'Đang xóa...' : '🗑 Xác nhận xóa'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showSessionDetail && selectedSession && (
+                <div className={styles.modalOverlay} onClick={() => setShowSessionDetail(false)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+                        <div className={styles.modalHeader}>
+                            <h3 className={styles.modalTitle}>
+                                <FileText size={20} /> Chi tiết ca thu ngân #{selectedSession.id}
+                            </h3>
+                            <button onClick={() => setShowSessionDetail(false)} className={styles.modalClose}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className={styles.modalBody}>
+                            {(() => {
+                                const fmt = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n || 0);
+                                const s = selectedSession;
+                                const diff = s.differenceAmount ?? ((s.actualCash ?? 0) - (s.expectedCash ?? 0));
+                                const rows = [
+                                    { label: 'Thu ngân', value: s.staffName },
+                                    { label: 'Chi nhánh', value: s.branchName },
+                                    { label: 'Mở ca', value: s.openedAt ? new Date(s.openedAt).toLocaleString('vi-VN') : '—' },
+                                    { label: 'Kết ca', value: s.closedAt ? new Date(s.closedAt).toLocaleString('vi-VN') : '—' },
+                                    { label: 'Tiền đầu ca', value: fmt(s.openingCash), color: '#3B82F6' },
+                                    { label: 'DT tiền mặt', value: fmt(s.cashRevenue), color: '#F59E0B' },
+                                    { label: 'DT chuyển khoản', value: fmt(s.transferRevenue), color: '#8B5CF6' },
+                                    { label: 'Tổng doanh thu', value: fmt(s.totalRevenue), color: '#10B981', bold: true },
+                                    { label: 'Tổng đơn hàng', value: `${s.totalOrders} đơn` },
+                                    ...(s.status === 'CLOSED' ? [
+                                        { label: 'Tiền dự kiến', value: fmt(s.expectedCash) },
+                                        { label: 'Tiền thực tế', value: fmt(s.actualCash) },
+                                        {
+                                            label: 'Chênh lệch',
+                                            value: fmt(diff),
+                                            color: diff < 0 ? '#EF4444' : diff > 0 ? '#10B981' : '#6B7280',
+                                            bold: true
+                                        },
+                                    ] : []),
+                                ];
+                                return (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        <div style={{
+                                            display: 'inline-flex', alignSelf: 'flex-start',
+                                            padding: '4px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                                            background: s.status === 'OPEN' ? 'rgba(16,185,129,0.1)' : 'rgba(107,114,128,0.1)',
+                                            color: s.status === 'OPEN' ? '#10B981' : '#6B7280',
+                                            border: `1px solid ${s.status === 'OPEN' ? 'rgba(16,185,129,0.3)' : 'rgba(107,114,128,0.2)'}`
+                                        }}>
+                                            {s.status === 'OPEN' ? ' Đang mở' : ' Đã đóng'}
+                                        </div>
+
+                                        {rows.map(row => (
+                                            <div key={row.label} style={{
+                                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                padding: '10px 0', borderBottom: '1px solid var(--color-border)'
+                                            }}>
+                                                <span style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>{row.label}</span>
+                                                <span style={{
+                                                    fontSize: 14,
+                                                    fontWeight: row.bold ? 700 : 500,
+                                                    color: row.color || 'var(--color-text-primary)'
+                                                }}>
+                                                    {row.value}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+
+                        <div className={styles.modalFooter}>
+                            <button onClick={() => setShowSessionDetail(false)} className={styles.secondaryButton}>
+                                Đóng
                             </button>
                         </div>
                     </div>
