@@ -3,11 +3,15 @@ import { useNavigate } from "react-router-dom";
 import {
     ClipboardList, Clock, CheckCircle, XCircle,
     MapPin, Users, Table, Home, PlusCircle, Calendar,
-    ChefHat, Timer, AlertCircle, Utensils
+    ChefHat, Timer, AlertCircle, Utensils, Coffee
 } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import { showToast } from "../../../hooks/useToast";
+import io from 'socket.io-client';
 import styles from "./Orders.module.css";
+
+const API = "http://localhost:8080";
+const socket = io('http://localhost:3001');
 
 const Orders = () => {
     const navigate = useNavigate();
@@ -20,10 +24,19 @@ const Orders = () => {
     const [showAreas, setShowAreas] = useState(true);
     const [existingOrders, setExistingOrders] = useState({});
     const [error, setError] = useState(null);
+    const [toasts, setToasts] = useState([]);
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
 
     // ========== HELPER FUNCTIONS ==========
+    const showToastMessage = (message, type = 'info', duration = 3000) => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type, duration }]);
+        setTimeout(() => {
+            setToasts(prev => prev.filter(toast => toast.id !== id));
+        }, duration);
+    };
+
     const getElapsedTime = useCallback((startTime) => {
         if (!startTime) return null;
         const start = new Date(startTime);
@@ -53,7 +66,111 @@ const Orders = () => {
         });
     };
 
-    // ========== API CALLS ==========
+    // ========== API CALLS (đúng thứ tự) ==========
+
+    // 1. fetchTablesLegacy - API cũ để fallback
+    const fetchTablesLegacy = useCallback(async () => {
+        try {
+            if (selectedArea !== "Tất cả") {
+                const response = await fetch(`${API}/api/tables/branch/${branchId}/area/${selectedArea}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setTables(data);
+                }
+            } else {
+                const areasRes = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
+                const areasData = await areasRes.json();
+                let allTables = [];
+                for (const area of areasData) {
+                    const res = await fetch(`${API}/api/tables/branch/${branchId}/area/${area}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        allTables = [...allTables, ...data];
+                    }
+                }
+                setTables(allTables);
+            }
+        } catch (err) {
+            console.error("Lỗi tải bàn legacy:", err);
+        }
+    }, [branchId, selectedArea]);
+
+    // 2. fetchRoomsLegacy - API cũ để fallback
+    const fetchRoomsLegacy = useCallback(async () => {
+        try {
+            const response = await fetch(`${API}/api/rooms/branch/${branchId}`);
+            if (response.ok) {
+                const data = await response.json();
+                setRooms(data);
+            }
+        } catch (err) {
+            console.error("Lỗi tải phòng legacy:", err);
+        }
+    }, [branchId]);
+
+    // 3. fetchTablesWithReservations
+    const fetchTablesWithReservations = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await fetch(`${API}/api/reservations/tables`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (selectedArea !== "Tất cả") {
+                    setTables(data.filter(table => table.area === selectedArea));
+                } else {
+                    setTables(data);
+                }
+            } else {
+                await fetchTablesLegacy();
+            }
+        } catch (err) {
+            console.error("Lỗi tải bàn từ API reservations:", err);
+            setError("Không thể tải danh sách bàn");
+            await fetchTablesLegacy();
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedArea, fetchTablesLegacy]);
+
+    // 4. fetchRoomsWithReservations
+    const fetchRoomsWithReservations = useCallback(async () => {
+        try {
+            const response = await fetch(`${API}/api/rooms/branch/${branchId}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setRooms(data);
+            } else {
+                await fetchRoomsLegacy();
+            }
+        } catch (err) {
+            console.error("Lỗi tải phòng:", err);
+            await fetchRoomsLegacy();
+        }
+    }, [branchId, fetchRoomsLegacy]);
+
+    // 5. fetchAreas
+    const fetchAreas = useCallback(async () => {
+        try {
+            const response = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
+            if (response.ok) {
+                const data = await response.json();
+                setAreas(["Tất cả", ...data]);
+            }
+        } catch (err) {
+            console.error("Lỗi tải khu vực:", err);
+        }
+    }, [branchId]);
+
+    // 6. fetchExistingOrders
     const fetchExistingOrders = useCallback(async () => {
         try {
             const response = await axiosClient.get('/customer/orders');
@@ -72,43 +189,6 @@ const Orders = () => {
         }
     }, [branchId]);
 
-    const fetchTablesWithReservations = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await axiosClient.get('/reservations/tables');
-            const data = response.data || [];
-            if (selectedArea !== "Tất cả") {
-                setTables(data.filter(table => table.area === selectedArea));
-            } else {
-                setTables(data);
-            }
-        } catch (err) {
-            console.error("Lỗi tải bàn:", err);
-            setError("Không thể tải danh sách bàn");
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedArea]);
-
-    const fetchRoomsWithReservations = useCallback(async () => {
-        try {
-            const response = await axiosClient.get('/reservations/rooms');
-            setRooms(response.data || []);
-        } catch (err) {
-            console.error("Lỗi tải phòng:", err);
-        }
-    }, []);
-
-    const fetchAreas = useCallback(async () => {
-        try {
-            const response = await axiosClient.get(`/tables/branch/${branchId}/areas`);
-            setAreas(["Tất cả", ...response.data]);
-        } catch (err) {
-            console.error("Lỗi tải khu vực:", err);
-        }
-    }, [branchId]);
-
     // ========== EFFECTS ==========
     useEffect(() => {
         if (!branchId) {
@@ -116,37 +196,61 @@ const Orders = () => {
             return;
         }
         fetchAreas();
-        fetchRoomsWithReservations();
         fetchExistingOrders();
         fetchTablesWithReservations();
-    }, [branchId, fetchAreas, fetchExistingOrders, fetchRoomsWithReservations, fetchTablesWithReservations]);
+        fetchRoomsWithReservations();
+    }, [branchId, fetchAreas, fetchExistingOrders, fetchTablesWithReservations, fetchRoomsWithReservations]);
 
     useEffect(() => {
         if (branchId && activeTab === "tables") fetchTablesWithReservations();
     }, [selectedArea, branchId, activeTab, fetchTablesWithReservations]);
 
     useEffect(() => {
+        if (branchId && activeTab === "rooms") fetchRoomsWithReservations();
+    }, [branchId, activeTab, fetchRoomsWithReservations]);
+
+    // Socket lắng nghe cập nhật
+    useEffect(() => {
+        socket.on("update-tables", () => {
+            console.log("🔄 Nhận tín hiệu cập nhật từ server");
+            if (activeTab === "tables") {
+                fetchTablesWithReservations();
+            } else {
+                fetchRoomsWithReservations();
+            }
+            fetchExistingOrders();
+        });
+
+        return () => {
+            socket.off("update-tables");
+        };
+    }, [activeTab, fetchTablesWithReservations, fetchRoomsWithReservations, fetchExistingOrders]);
+
+    useEffect(() => {
         const interval = setInterval(() => setExistingOrders(prev => ({ ...prev })), 1000);
         return () => clearInterval(interval);
     }, []);
 
+    // ========== HANDLERS ==========
     const handleTableClick = (table) => {
         const existingOrder = existingOrders[`table_${table.id}`];
-
         navigate(`/waiter/orders/${table.id}`, {
             state: {
-                table: table,  // Giữ nguyên trạng thái gốc
+                table: table,
                 existingOrder: existingOrder || null
             }
         });
     };
 
     const handleRoomClick = (room) => {
+        if (room.status === "MAINTENANCE") {
+            showToastMessage("Phòng đang bảo trì, không thể sử dụng!", "warning", 2000);
+            return;
+        }
         const existingOrder = existingOrders[`room_${room.id}`];
-
         navigate(`/waiter/orders/${room.id}`, {
             state: {
-                room: room,  // Giữ nguyên trạng thái gốc
+                room: room,
                 existingOrder: existingOrder || null
             }
         });
@@ -155,7 +259,6 @@ const Orders = () => {
     const handleTabChange = (tab) => {
         setActiveTab(tab);
         setSelectedArea("Tất cả");
-        if (tab === "tables") fetchTablesWithReservations();
     };
 
     // ========== STATUS HELPERS ==========
@@ -199,10 +302,10 @@ const Orders = () => {
         const order = existingOrders[`${type}_${entityId}`];
         if (!order) return null;
         const statusMap = {
-            'PENDING': 'Đang chờ bếp',
-            'PREPARING': 'Đang chuẩn bị',
-            'COMPLETED': 'Đã hoàn thành',
-            'SERVED': 'Đã phục vụ'
+            'PENDING': '⏳ Đang chờ bếp',
+            'PREPARING': '🔪 Đang chuẩn bị',
+            'COMPLETED': '✅ Đã hoàn thành',
+            'SERVED': '🍽️ Đã phục vụ'
         };
         return statusMap[order.status] || order.status;
     };
@@ -237,6 +340,15 @@ const Orders = () => {
 
     return (
         <div className={styles.container}>
+            {/* Toast Container */}
+            <div className={styles.toastContainer}>
+                {toasts.map((toast) => (
+                    <div key={toast.id} className={`${styles.toast} ${styles[toast.type]}`}>
+                        {toast.message}
+                    </div>
+                ))}
+            </div>
+
             {/* Header */}
             <div className={styles.header}>
                 <h2 className={styles.headerTitle}>
@@ -273,7 +385,7 @@ const Orders = () => {
                 </div>
             )}
 
-            {/* Content */}
+            {/* Content - Tables */}
             {activeTab === "tables" ? (
                 loading ? (
                     <div className={styles.loadingContainer}>
@@ -307,12 +419,12 @@ const Orders = () => {
 
                             return (
                                 <div key={table.id} onClick={() => handleTableClick(table)} className={cardClass}>
-                                    {(isOccupied || isFree) && !hasOrder && (
+                                    {!isFree && (
                                         <div className={styles.addButton}>
-                                            <PlusCircle size={10} /> {isOccupied ? "Thêm món" : "Gọi món"}
+                                            <PlusCircle size={10} /> Thêm món
                                         </div>
                                     )}
-                                    {hasOrder && (
+                                    {hasOrder && orderStatus && (
                                         <div className={styles.addButton} style={{ background: `linear-gradient(135deg, ${orderColor}, ${orderColor}dd)` }}>
                                             <PlusCircle size={10} /> Thêm món
                                         </div>
@@ -321,7 +433,7 @@ const Orders = () => {
                                     <div className={styles.cardIcon}>
                                         {isFree ? <Utensils size={48} color="#10b981" /> :
                                             isReserved ? <Calendar size={48} color="#f59e0b" /> :
-                                                <ChefHat size={48} color="#ef4444" />}
+                                                <Coffee size={48} color="#ef4444" />}
                                     </div>
                                     <div className={styles.cardTitle}>Bàn {table.number}</div>
 
@@ -369,6 +481,7 @@ const Orders = () => {
                     </div>
                 )
             ) : (
+                /* Content - Rooms */
                 <div className={styles.gridContainer}>
                     {rooms.length === 0 ? (
                         <div className={`${styles.emptyState} ${styles.fullWidth}`}>
@@ -388,28 +501,41 @@ const Orders = () => {
                             const isOccupied = room.status === "OCCUPIED";
                             const isActive = room.status === "ACTIVE";
                             const isReserved = room.status === "RESERVED";
+                            const isMaintenance = room.status === "MAINTENANCE";
 
                             let cardClass = styles.card;
                             if (isActive) cardClass += ` ${styles.cardFree}`;
                             else if (isOccupied) cardClass += ` ${styles.cardOccupied}`;
                             else if (isReserved) cardClass += ` ${styles.cardReserved}`;
-                            else cardClass += ` ${styles.cardMaintenance}`;
+                            else if (isMaintenance) cardClass += ` ${styles.cardMaintenance}`;
+
+                            const getRoomIcon = () => {
+                                if (isActive) return <Home size={48} color="#10b981" />;
+                                if (isOccupied) return <Users size={48} color="#ef4444" />;
+                                if (isMaintenance) return <AlertCircle size={48} color="#6b7280" />;
+                                return <Home size={48} color="#f59e0b" />;
+                            };
 
                             return (
-                                <div key={room.id} onClick={() => handleRoomClick(room)} className={cardClass}>
-                                    {(isOccupied || isActive) && !hasOrder && (
+                                <div
+                                    key={room.id}
+                                    onClick={() => handleRoomClick(room)}
+                                    className={cardClass}
+                                    style={isMaintenance ? { cursor: 'not-allowed', opacity: 0.7 } : {}}
+                                >
+                                    {isOccupied && (
                                         <div className={styles.addButton}>
-                                            <PlusCircle size={10} /> {isOccupied ? "Thêm món" : "Gọi món"}
+                                            <PlusCircle size={10} /> Thêm món
                                         </div>
                                     )}
-                                    {hasOrder && (
+                                    {hasOrder && orderStatus && (
                                         <div className={styles.addButton} style={{ background: `linear-gradient(135deg, ${orderColor}, ${orderColor}dd)` }}>
                                             <PlusCircle size={10} /> Thêm món
                                         </div>
                                     )}
 
                                     <div className={styles.cardIcon}>
-                                        <Home size={48} color={isActive ? "#10b981" : isOccupied ? "#ef4444" : isReserved ? "#f59e0b" : "#6b7280"} />
+                                        {getRoomIcon()}
                                     </div>
                                     <div className={styles.cardTitle}>Phòng {room.number}</div>
 
@@ -439,7 +565,9 @@ const Orders = () => {
 
                                     <div className={styles.tableStatus}>
                                         {getStatusIcon(room.status, 'room')}
-                                        <span className={styles.statusText} style={{ color: getStatusColor(room.status, 'room') }}>{getStatusText(room.status, 'room')}</span>
+                                        <span className={styles.statusText} style={{ color: getStatusColor(room.status, 'room') }}>
+                                            {getStatusText(room.status, 'room')}
+                                        </span>
                                     </div>
 
                                     {isOccupied && (

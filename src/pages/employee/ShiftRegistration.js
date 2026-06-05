@@ -130,8 +130,7 @@ const ShiftRegistration = () => {
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedStaffShift, setSelectedStaffShift] = useState(null);
     const [registeringShiftId, setRegisteringShiftId] = useState(null);
-    const [setCancellingShiftId] = useState(null);
-    const [checkingIn, setCheckingIn] = useState(false);
+    const [cancellingShiftId, setCancellingShiftId] = useState(null); const [checkingIn, setCheckingIn] = useState(false);
     const [checkingOut, setCheckingOut] = useState(false);
     const [todayAttendance, setTodayAttendance] = useState(null);
     const [attendanceLoading, setAttendanceLoading] = useState(false);
@@ -219,13 +218,18 @@ const ShiftRegistration = () => {
 
     const handleCancel = async (id) => {
         if (!window.confirm('Hủy đăng ký?')) return;
-        setCancellingShiftId(id);
+        setCancellingShiftId(id);  // ← Bây giờ sẽ hoạt động
         try {
             await axiosClient.delete(`/staff-shifts/${id}`);
             showToast('success', 'Thành công', 'Đã hủy!');
-            setShowDetailModal(false); preloadMonthData(currentMonth); loadDayData(selectedDate);
-        } catch (err) { showToast('error', 'Lỗi', 'Không thể hủy'); }
-        finally { setCancellingShiftId(null); }
+            setShowDetailModal(false);
+            preloadMonthData(currentMonth);
+            loadDayData(selectedDate);
+        } catch (err) {
+            showToast('error', 'Lỗi', 'Không thể hủy');
+        } finally {
+            setCancellingShiftId(null);
+        }
     };
 
     const openDetail = (ss) => {
