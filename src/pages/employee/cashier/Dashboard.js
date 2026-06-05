@@ -99,22 +99,33 @@ const Dashboard = () => {
     // ===== FETCH FUNCTIONS =====
     const fetchCurrentShift = useCallback(async () => {
         const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const staffId = currentUser.id || currentUser.staffId;
-        if (!staffId) { updateState({ currentShift: null, cashTransactions: [] }); return; }
+        const branchId = currentUser.branch?.id || currentUser.branchId;
+        if (!branchId) { updateState({ currentShift: null }); return; }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/cashier-sessions/current/${staffId}`, {
+            const staffRes = await fetch(`${API_BASE_URL}/staff/branch/${branchId}`, {
                 headers: getHeaders()
             });
-            if (response.status === 404) { updateState({ currentShift: null, cashTransactions: [] }); return; }
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!staffRes.ok) { updateState({ currentShift: null }); return; }
+            const staffList = await staffRes.json();
+            const myStaff = staffList.find(s => s.userId === currentUser.id);
+            if (!myStaff) { updateState({ currentShift: null }); return; }
+
+            // Dùng staffId đúng để lấy ca hiện tại
+            const response = await fetch(`${API_BASE_URL}/cashier-sessions/current/${myStaff.id}`, {
+                headers: getHeaders()
+            });
+            if (response.status === 204 || !response.ok) {
+                updateState({ currentShift: null });
+                return;
+            }
             const text = await response.text();
-            if (!text || text === 'null') { updateState({ currentShift: null, cashTransactions: [] }); return; }
+            if (!text || text === 'null') { updateState({ currentShift: null }); return; }
             const data = JSON.parse(text);
-            updateState({ currentShift: data, cashTransactions: data.cashTransactions || [] });
+            updateState({ currentShift: data });
         } catch (error) {
             console.error("Fetch shift error:", error);
-            updateState({ currentShift: null, cashTransactions: [] });
+            updateState({ currentShift: null });
         }
     }, [getHeaders, updateState]);
 
@@ -276,21 +287,19 @@ const Dashboard = () => {
 
     const startShift = async () => {
         const { floatAmount, user } = state;
-        const staffId = user.id || user.staffId;
         const branchId = user.branch?.id || user.branchId;
 
-        if (!floatAmount || parseFloat(floatAmount) <= 0) {
-            showMessage('error', "Vui lòng nhập số tiền quỹ đầu ca hợp lệ");
+        const staffRes = await fetch(`${API_BASE_URL}/staff/branch/${branchId}`, {
+            headers: getHeaders()
+        });
+        const staffList = await staffRes.json();
+        const myStaff = staffList.find(s => s.userId === user.id);
+
+        if (!myStaff) {
+            showMessage('error', 'Tài khoản chưa được gán chức vụ nhân viên!');
             return;
         }
-        if (parseFloat(floatAmount) > 100000000) {
-            showMessage('error', "Số tiền quỹ đầu ca không được vượt quá 100,000,000đ");
-            return;
-        }
-        if (!staffId) {
-            showMessage('error', "Không tìm thấy thông tin nhân viên.");
-            return;
-        }
+        const staffId = myStaff.id;
 
         updateState({ loading: true, error: null });
         try {

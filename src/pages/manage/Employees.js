@@ -48,8 +48,8 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
     const [scheduleForm, setScheduleForm] = useState({
         workDay: new Date().toISOString().split('T')[0],
         shiftId: '',
-        requiredStaff: 1,
-        maxStaff: 10,
+        requiredStaff: '',
+        maxStaff: '',
         branchId: null,
     });
 
@@ -73,6 +73,17 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
     const [filterStaffId, setFilterStaffId] = useState(null);
     const [staffWeekShifts, setStaffWeekShifts] = useState([]);
     const [staffWeekLoading, setStaffWeekLoading] = useState(false);
+
+    const [showEditScheduleModal, setShowEditScheduleModal] = useState(false);
+    const [editingSchedule, setEditingSchedule] = useState(null);
+    const [editScheduleForm, setEditScheduleForm] = useState({
+        workDay: '',
+        shiftId: '',
+        requiredStaff: '',
+        maxStaff: '',
+    });
+    const [showDeleteScheduleModal, setShowDeleteScheduleModal] = useState(false);
+    const [deletingSchedule, setDeletingSchedule] = useState(null);
 
     const API_BASE_URL = 'http://localhost:8080';
 
@@ -196,6 +207,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             );
             if (!res.ok) throw new Error('Không thể tải ca thu ngân');
             const data = await res.json();
+            console.log('Sessions raw:', data);
             setCashierSessions(data);
         } catch (err) {
             showToast('error', 'Lỗi', err.message);
@@ -451,10 +463,112 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                     maxStaff: scheduleForm.maxStaff,
                 }),
             });
-            if (!res.ok) throw new Error(await res.text());
+            const text = await res.text();
+
+            if (!res.ok) {
+                // Thử parse JSON để lấy message đẹp hơn
+                let errorMsg = text;
+                try {
+                    const json = JSON.parse(text);
+                    errorMsg = json.message || json.error || text;
+                } catch (_) { }
+
+                // Nhận diện lỗi trùng lịch ca
+                if (
+                    res.status === 409 ||
+                    errorMsg.toLowerCase().includes('trùng') ||
+                    errorMsg.toLowerCase().includes('duplicate') ||
+                    errorMsg.toLowerCase().includes('exists') ||
+                    errorMsg.toLowerCase().includes('already')
+                ) {
+                    showToast('error', 'Trùng lịch ca', 'Ca này đã được tạo cho ngày đã chọn. Vui lòng chọn ca hoặc ngày khác!');
+                } else {
+                    showToast('error', 'Lỗi', errorMsg || 'Không thể tạo lịch ca');
+                }
+                return;
+            }
+
             showToast('success', 'Thành công', 'Đã tạo lịch ca làm việc!');
             setShowCreateScheduleModal(false);
             fetchShiftSchedules();
+        } catch (err) {
+            showToast('error', 'Lỗi', err.message);
+        }
+    };
+
+    const handleOpenEditSchedule = (sc) => {
+        setEditingSchedule(sc);
+        setEditScheduleForm({
+            workDay: sc.workDay,
+            shiftId: sc.shift?.id || '',
+            requiredStaff: sc.requiredStaff,
+            maxStaff: sc.maxStaff,
+        });
+        setShowEditScheduleModal(true);
+    };
+
+    const handleUpdateSchedule = async () => {
+        if (!editScheduleForm.shiftId) {
+            showToast('error', 'Lỗi', 'Vui lòng chọn ca làm việc!');
+            return;
+        }
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/shift-schedules/${editingSchedule.id}`, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    workDay: editScheduleForm.workDay,
+                    shift: { id: parseInt(editScheduleForm.shiftId) },
+                    branch: { id: currentBranch.id },
+                    requiredStaff: editScheduleForm.requiredStaff,
+                    maxStaff: editScheduleForm.maxStaff,
+                }),
+            });
+
+            const text = await res.text();
+            if (!res.ok) {
+                let msg = text;
+                try { msg = JSON.parse(text).message || text; } catch (_) { }
+                showToast('error', 'Lỗi', msg || 'Không thể cập nhật lịch ca');
+                return;
+            }
+
+            showToast('success', 'Thành công', 'Đã cập nhật lịch ca!');
+            setShowEditScheduleModal(false);
+            setEditingSchedule(null);
+            fetchShiftSchedules();
+            fetchWorkShiftsForWeek();
+        } catch (err) {
+            showToast('error', 'Lỗi', err.message);
+        }
+    };
+
+    const handleDeleteSchedule = async () => {
+        if (!deletingSchedule) return;
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/shift-schedules/${deletingSchedule.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                let msg = text;
+                try { msg = JSON.parse(text).message || text; } catch (_) { }
+                showToast('error', 'Lỗi', msg || 'Không thể xóa lịch ca');
+                return;
+            }
+
+            showToast('success', 'Thành công', 'Đã xóa lịch ca!');
+            setShowDeleteScheduleModal(false);
+            setDeletingSchedule(null);
+            fetchShiftSchedules();
+            fetchWorkShiftsForWeek();
         } catch (err) {
             showToast('error', 'Lỗi', err.message);
         }
@@ -1181,11 +1295,11 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                     border: '1px solid var(--color-border)',
                                                     borderRadius: '12px',
                                                     padding: '20px',
-                                                    background: 'var(--color-bg-card)'
+                                                    background: 'rgb(247, 240, 234)'
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <div>
-                                                            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '600' }}>
+                                                            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '600', color:'var(--color-text-secondary)' }}>
                                                                 <Briefcase size={16} className="mr-2" />
                                                                 {sc.shift?.name} — {sc.shift?.startTime} - {sc.shift?.endTime}
                                                             </h3>
@@ -1199,25 +1313,55 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                                 )}
                                                             </p>
                                                         </div>
-                                                        {/* Progress bar */}
-                                                        <div style={{ width: '120px' }}>
-                                                            <div style={{
-                                                                height: '8px', background: '#E5E7EB', borderRadius: '4px', overflow: 'hidden'
-                                                            }}>
-                                                                <div style={{
-                                                                    height: '100%',
-                                                                    width: `${Math.min(100, (assigned / sc.requiredStaff) * 100)}%`,
-                                                                    background: isFull ? '#10B981' : '#F59E0B',
-                                                                    borderRadius: '4px',
-                                                                    transition: 'width 0.3s'
-                                                                }} />
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {/* Progress bar */}
+                                                            <div style={{ width: '120px' }}>
+                                                                <div style={{ height: '8px', background: '#E5E7EB', borderRadius: '4px', overflow: 'hidden' }}>
+                                                                    <div style={{
+                                                                        height: '100%',
+                                                                        width: `${Math.min(100, (assigned / sc.requiredStaff) * 100)}%`,
+                                                                        background: isFull ? '#10B981' : '#F59E0B',
+                                                                        borderRadius: '4px', transition: 'width 0.3s'
+                                                                    }} />
+                                                                </div>
+                                                                <p style={{ fontSize: '12px', textAlign: 'right', margin: '4px 0 0', color: 'var(--color-text-secondary)' }}>
+                                                                    {assigned}/{sc.requiredStaff}
+                                                                </p>
                                                             </div>
-                                                            <p style={{
-                                                                fontSize: '12px', textAlign: 'right', margin: '4px 0 0',
-                                                                color: 'var(--color-text-secondary)'
-                                                            }}>
-                                                                {assigned}/{sc.requiredStaff}
-                                                            </p>
+
+                                                            {/* Nút sửa */}
+                                                            <button
+                                                                onClick={() => handleOpenEditSchedule(sc)}
+                                                                title="Sửa lịch ca"
+                                                                style={{
+                                                                    padding: '8px 10px',
+                                                                    background: 'rgba(59,130,246,0.1)',
+                                                                    color: '#3B82F6',
+                                                                    border: '1px solid rgba(59,130,246,0.3)',
+                                                                    borderRadius: '8px',
+                                                                    cursor: 'pointer',
+                                                                    display: 'flex', alignItems: 'center'
+                                                                }}
+                                                            >
+                                                                <Edit2 size={15} />
+                                                            </button>
+
+                                                            {/* Nút xóa */}
+                                                            <button
+                                                                onClick={() => { setDeletingSchedule(sc); setShowDeleteScheduleModal(true); }}
+                                                                title="Xóa lịch ca"
+                                                                style={{
+                                                                    padding: '8px 10px',
+                                                                    background: 'rgba(239,68,68,0.1)',
+                                                                    color: '#EF4444',
+                                                                    border: '1px solid rgba(239,68,68,0.3)',
+                                                                    borderRadius: '8px',
+                                                                    cursor: 'pointer',
+                                                                    display: 'flex', alignItems: 'center'
+                                                                }}
+                                                            >
+                                                                <X size={15} />
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1238,11 +1382,11 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                     <thead>
                                         <tr>
-                                            <th style={{ padding: '8px 12px', textAlign: 'left', background: 'var(--color-bg-card)' }}>Ca</th>
+                                            <th style={{ padding: '8px 12px', textAlign: 'left', background: 'rgb(247, 240, 234)' }}>Ca</th>
                                             {getWeekDays(selectedDate).map(d => (
                                                 <th key={d} style={{
                                                     padding: '8px 12px', textAlign: 'center',
-                                                    background: d === selectedDate ? 'rgba(59,130,246,0.1)' : 'var(--color-bg-card)',
+                                                    background: d === selectedDate ? 'rgba(59,130,246,0.1)' : 'rgb(247, 240, 234)',
                                                     fontWeight: d === selectedDate ? '700' : '400'
                                                 }}>
                                                     {new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}
@@ -1459,7 +1603,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                 <tr>
                                                     <th style={{
                                                         padding: '10px 14px', textAlign: 'left',
-                                                        background: 'var(--color-bg-card)',
+                                                        background: 'rgb(247, 240, 234)',
                                                         borderBottom: '2px solid var(--color-border)',
                                                         color: 'var(--color-text-secondary)', fontWeight: 600
                                                     }}>
@@ -1475,7 +1619,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                                     ? 'rgba(59,130,246,0.1)'
                                                                     : isToday
                                                                         ? 'rgba(16,185,129,0.06)'
-                                                                        : 'var(--color-bg-card)',
+                                                                        : 'rgb(247, 240, 234)',
                                                                 borderBottom: '2px solid var(--color-border)',
                                                                 color: isSelected ? '#3B82F6' : isToday ? '#10B981' : 'var(--color-text-secondary)',
                                                                 fontWeight: isSelected || isToday ? 700 : 400,
@@ -2311,6 +2455,139 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                         <div className={styles.modalFooter}>
                             <button onClick={() => setShowSessionDetail(false)} className={styles.secondaryButton}>
                                 Đóng
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* MODAL SỬA LỊCH CA */}
+            {showEditScheduleModal && editingSchedule && (
+                <div className={styles.modalOverlay} onClick={() => setShowEditScheduleModal(false)}>
+                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <div className={styles.modalHeader}>
+                            <h3 className={styles.modalTitle}>
+                                <Edit2 size={20} /> Sửa lịch ca
+                            </h3>
+                            <button onClick={() => setShowEditScheduleModal(false)} className={styles.modalClose}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className={styles.modalBody}>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Ngày làm việc *</label>
+                                <input
+                                    type="date"
+                                    value={editScheduleForm.workDay}
+                                    onChange={e => setEditScheduleForm({ ...editScheduleForm, workDay: e.target.value })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Ca làm việc *</label>
+                                <select
+                                    value={editScheduleForm.shiftId}
+                                    onChange={e => setEditScheduleForm({ ...editScheduleForm, shiftId: e.target.value })}
+                                    className={styles.formInput}
+                                >
+                                    <option value="">-- Chọn ca --</option>
+                                    {shiftTemplates.map(sh => (
+                                        <option key={sh.id} value={sh.id}>
+                                            {sh.name} ({sh.startTime} - {sh.endTime})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Số nhân viên cần *</label>
+                                <input
+                                    type="number" min="1"
+                                    value={editScheduleForm.requiredStaff}
+                                    onChange={e => setEditScheduleForm({ ...editScheduleForm, requiredStaff: parseInt(e.target.value) })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Số nhân viên tối đa</label>
+                                <input
+                                    type="number" min="1"
+                                    value={editScheduleForm.maxStaff}
+                                    onChange={e => setEditScheduleForm({ ...editScheduleForm, maxStaff: parseInt(e.target.value) })}
+                                    className={styles.formInput}
+                                />
+                            </div>
+                        </div>
+
+                        <div className={styles.modalFooter}>
+                            <button onClick={() => setShowEditScheduleModal(false)} className={styles.secondaryButton}>
+                                Hủy
+                            </button>
+                            <button onClick={handleUpdateSchedule} className={styles.primaryButton}>
+                                <Save size={18} /> Lưu thay đổi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL XÁC NHẬN XÓA LỊCH CA */}
+            {showDeleteScheduleModal && deletingSchedule && (
+                <div className={styles.modalOverlay} onClick={() => setShowDeleteScheduleModal(false)}>
+                    <div onClick={e => e.stopPropagation()} style={{
+                        background: 'var(--color-bg-card)',
+                        borderRadius: 16, padding: 28,
+                        width: '100%', maxWidth: 400,
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.25)'
+                    }}>
+                        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                            <div style={{
+                                width: 56, height: 56, borderRadius: '50%',
+                                background: 'rgba(239,68,68,0.1)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                margin: '0 auto 16px'
+                            }}>
+                                <AlertCircle size={28} color="#EF4444" />
+                            </div>
+                            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>
+                                Xóa lịch ca
+                            </h3>
+                            <p style={{ margin: 0, fontSize: 14, color: 'var(--color-text-secondary)' }}>
+                                Bạn có chắc muốn xóa lịch ca{' '}
+                                <strong>{deletingSchedule.shift?.name}</strong>{' '}
+                                ngày <strong>{deletingSchedule.workDay}</strong>?
+                                <br />
+                                <span style={{ color: '#EF4444', fontSize: 13, marginTop: 6, display: 'block' }}>
+                                    ⚠ Lịch phân công nhân viên trong ca này sẽ không bị xóa.
+                                </span>
+                            </p>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <button
+                                onClick={() => { setShowDeleteScheduleModal(false); setDeletingSchedule(null); }}
+                                style={{
+                                    flex: 1, padding: '10px',
+                                    border: '1px solid var(--color-border)',
+                                    borderRadius: 10, background: 'var(--color-bg-card)',
+                                    cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                                    color: 'var(--color-text-primary)'
+                                }}
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleDeleteSchedule}
+                                style={{
+                                    flex: 2, padding: '10px', border: 'none',
+                                    borderRadius: 10, cursor: 'pointer',
+                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                    color: '#fff', fontWeight: 700, fontSize: 14
+                                }}
+                            >
+                                Xác nhận xóa
                             </button>
                         </div>
                     </div>
