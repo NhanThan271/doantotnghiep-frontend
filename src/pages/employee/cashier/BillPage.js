@@ -43,15 +43,12 @@ const BillPage = () => {
     // ===== FETCH ENTITY INFO (TÊN BÀN/PHÒNG VÀ PHÍ PHÒNG) =====
     const fetchEntityInfo = useCallback(async (billId, orderId) => {
         try {
-            console.log(`🔍 Fetching entity info for bill ${billId}, order ${orderId}`);
             const token = localStorage.getItem('token');
             const response = await fetch(`http://localhost:8080/api/customer/orders/${orderId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
                 const orderDetail = await response.json();
-                console.log(`📦 Order detail for bill ${billId}:`, orderDetail);
-
                 const entityName = orderDetail.table?.number
                     ? `Bàn ${orderDetail.table.number}`
                     : orderDetail.room?.number
@@ -59,16 +56,10 @@ const BillPage = () => {
                         : '--';
                 const roomFee = orderDetail.room?.roomFee || 0;
 
-                setEntityInfo(prev => {
-                    const newInfo = {
-                        ...prev,
-                        [billId]: { name: entityName, roomFee: roomFee }
-                    };
-                    console.log(`✅ Updated entityInfo for bill ${billId}:`, newInfo[billId]);
-                    return newInfo;
-                });
-            } else {
-                console.error(`❌ Failed to fetch order ${orderId}: ${response.status}`);
+                setEntityInfo(prev => ({
+                    ...prev,
+                    [billId]: { name: entityName, roomFee: roomFee }
+                }));
             }
         } catch (error) {
             console.error("Error fetching entity info:", error);
@@ -162,46 +153,27 @@ const BillPage = () => {
         setShowDetailModal(true);
 
         if (bill.order?.id) {
-            const orderDetail = await fetchOrderDetail(bill.order.id);
+            let orderDetail = await fetchOrderDetail(bill.order.id);
             if (orderDetail) {
                 const roomFee = entityInfo[bill.id]?.roomFee || orderDetail.room?.roomFee || 0;
 
-                // Tính tổng tiền món từ orderDetail (giá gốc)
-                const itemsTotal = orderDetail.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-                // Tổng tiền món sau khi điều chỉnh = tổng bill - phí phòng
-                const adjustedItemsTotal = bill.totalAmount - roomFee;
-
-                // Tạo bản sao items
-                let adjustedItems = [...orderDetail.items];
-
-                // Chỉ điều chỉnh giá món nếu có chênh lệch
-                if (Math.abs(adjustedItemsTotal - itemsTotal) > 0.01 && itemsTotal > 0) {
-                    const ratio = adjustedItemsTotal / itemsTotal;
-                    adjustedItems = adjustedItems.map(item => ({
-                        ...item,
-                        originalPrice: item.price,
-                        price: item.price * ratio,
-                        subtotal: (item.price * ratio) * item.quantity
-                    }));
-                }
-
-                // Thêm phí phòng (KHÔNG nhân tỷ lệ)
+                // Thêm phí phòng vào danh sách món nếu có
                 if (roomFee > 0) {
-                    adjustedItems.push({
-                        foodName: '🏠 Phí phòng VIP',
-                        name: 'Phí phòng VIP',
-                        quantity: 1,
-                        price: roomFee,
-                        subtotal: roomFee,
-                        isRoomFee: true
-                    });
+                    orderDetail = {
+                        ...orderDetail,
+                        items: [
+                            ...(orderDetail.items || []),
+                            {
+                                foodName: '🏠 Phí phòng VIP',
+                                name: 'Phí phòng VIP',
+                                quantity: 1,
+                                price: roomFee,
+                                subtotal: roomFee,
+                                isRoomFee: true
+                            }
+                        ]
+                    };
                 }
-
-                orderDetail.items = adjustedItems;
-                orderDetail.totalAmount = bill.totalAmount;
-                orderDetail.roomFee = roomFee;
-
                 setSelectedOrderDetail(orderDetail);
             }
         }
@@ -251,14 +223,20 @@ const BillPage = () => {
             let orderDetail = null;
             if (bill.order?.id) {
                 orderDetail = await fetchOrderDetail(bill.order.id);
-                if (orderDetail && bill.totalAmount !== orderDetail.totalAmount) {
-                    const ratio = orderDetail.totalAmount > 0 ? bill.totalAmount / orderDetail.totalAmount : 1;
-                    orderDetail.items = orderDetail.items.map(item => ({
-                        ...item,
-                        price: item.price * ratio,
-                        subtotal: (item.price * ratio) * item.quantity
-                    }));
-                    orderDetail.totalAmount = bill.totalAmount;
+                if (orderDetail) {
+                    const roomFee = entityInfo[bill.id]?.roomFee || orderDetail.room?.roomFee || 0;
+                    if (roomFee > 0) {
+                        orderDetail.items = [
+                            ...(orderDetail.items || []),
+                            {
+                                foodName: 'Phí phòng VIP',
+                                name: 'Phí phòng VIP',
+                                quantity: 1,
+                                price: roomFee,
+                                isRoomFee: true
+                            }
+                        ];
+                    }
                 }
             }
 
@@ -332,9 +310,6 @@ const BillPage = () => {
                     formatCurrencyPDF((item.price || 0) * (item.quantity || 1))
                 ]);
 
-                if (entityInfo[bill.id]?.roomFee > 0) {
-                    tableData.push(['', '', '', 'Phi phong VIP:', formatCurrencyPDF(entityInfo[bill.id].roomFee)]);
-                }
                 tableData.push(['', '', '', 'TONG CONG:', formatCurrencyPDF(bill.totalAmount)]);
 
                 doc.autoTable({
@@ -550,7 +525,7 @@ const BillPage = () => {
                                     <div className={styles.infoGrid}>
                                         <div className={styles.infoRow}><span>Mã hóa đơn:</span><strong>#{selectedBill.id}</strong></div>
                                         <div className={styles.infoRow}><span>Mã đơn hàng:</span><strong>#{displayOrder?.id || '--'}</strong></div>
-                                        <div className={styles.infoRow}><span>Bàn/Phòng:</span><strong>{displayOrder?.table?.number ? `Bàn ${displayOrder.table.number}` : displayOrder?.room?.number ? `Phòng ${displayOrder.room.number}` : '--'}</strong></div>
+                                        <div className={styles.infoRow}><span>Bàn/Phòng:</span><strong>{displayOrder?.table?.number ? `Bàn ${displayOrder.table.number}` : displayOrder?.room?.number ? `Phòng ${displayOrder.room.number}` : entityInfo[selectedBill.id]?.name || '--'}</strong></div>
                                         <div className={styles.infoRow}><span>Khách hàng:</span><strong>{displayOrder?.customerName || 'Khách lẻ'}</strong></div>
                                         <div className={styles.infoRow}><span>Thời gian:</span><strong>{formatDateTime(selectedBill.createdAt)}</strong></div>
                                         <div className={styles.infoRow}><span>Phương thức:</span><strong>{getPaymentMethodLabel(selectedBill.paymentMethod)}</strong></div>

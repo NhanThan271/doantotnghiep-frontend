@@ -1,4 +1,3 @@
-// TableDetail.js - Full code without promotion
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -247,6 +246,7 @@ const TableDetail = () => {
 
         const mergedCart = Object.values(groupedCart);
 
+        // LƯU GIÁ HIỆN TẠI (đã giảm) của tất cả items trong cart
         const currentPrices = {};
         mergedCart.forEach(item => {
             currentPrices[parseInt(item.id)] = item.price;
@@ -261,8 +261,8 @@ const TableDetail = () => {
             if (quantityToAdd > 0) {
                 itemsToAdd.push({
                     foodId,
-                    quantity: quantityToAdd,
-                    price: item.price
+                    quantity: quantityToAdd
+                    // KHÔNG gửi price lên server
                 });
             }
         });
@@ -277,17 +277,49 @@ const TableDetail = () => {
         let updatedCart = [];
 
         try {
+            // Gửi request thêm món (không có price)
             await axiosClient.post(`/customer/orders/${order.id}/add-items`, itemsToAdd);
+            console.log("✅ Đã thêm items mới");
 
-            const getRes = await axiosClient.get(`/customer/orders/${order.id}`);
-            const updatedOrder = getRes.data;
+            // Lấy lại thông tin đơn hàng mới nhất
+            let getRes = await axiosClient.get(`/customer/orders/${order.id}`);
+            let updatedOrder = getRes.data;
 
+            // === CẬP NHẬT GIÁ CHO ORDER_ITEM MỚI ===
+            if (updatedOrder.items && updatedOrder.items.length > 0) {
+                // Tìm các item mới (có trong currentPrices nhưng chưa có trong order cũ)
+                const existingFoodIds = order.items?.map(i => i.foodId || i.food?.id) || [];
+
+                for (const orderItem of updatedOrder.items) {
+                    const foodId = orderItem.foodId || orderItem.food?.id;
+                    // Nếu là item mới (chưa có trong order cũ)
+                    if (!existingFoodIds.includes(foodId) && currentPrices[foodId] && orderItem.id) {
+                        try {
+                            await axiosClient.put(`/api/kitchen/order-items/${orderItem.id}`, {
+                                ...orderItem,
+                                price: currentPrices[foodId],
+                                subtotal: currentPrices[foodId] * orderItem.quantity
+                            });
+                            console.log(`✅ Đã cập nhật giá cho order_item mới #${orderItem.id}: ${currentPrices[foodId]}đ`);
+                        } catch (updateErr) {
+                            console.error(`❌ Lỗi cập nhật order_item #${orderItem.id}:`, updateErr);
+                        }
+                    }
+                }
+            }
+
+            // Lấy lại order sau khi cập nhật
+            const finalRes = await axiosClient.get(`/customer/orders/${order.id}`);
+            updatedOrder = finalRes.data;
             setOrder(updatedOrder);
 
+            // Cập nhật cart nhưng GIỮ NGUYÊN GIÁ ĐÃ GIẢM cho các món
             if (updatedOrder.items && updatedOrder.items.length > 0) {
                 updatedCart = updatedOrder.items.map(item => {
                     const foodId = item.foodId || item.food?.id || item.id;
                     const product = products.find(p => p.id === foodId);
+
+                    // Lấy giá từ currentPrices (đã giảm) nếu có, nếu không thì dùng item.price
                     const displayPrice = currentPrices[parseInt(foodId)] || item.price || 0;
 
                     return {
@@ -305,15 +337,16 @@ const TableDetail = () => {
                 updatedCart.forEach(item => { snapshot[item.id] = item.quantity; });
                 confirmedCartRef.current = snapshot;
 
+                // CẬP NHẬT LOCALSTORAGE VỚI GIÁ MỚI
                 const newPriceMap = {};
                 updatedCart.forEach(item => {
                     newPriceMap[item.id] = item.price;
                 });
-                const key = `discounted_prices_${order.id}`;
-                localStorage.setItem(key, JSON.stringify(newPriceMap));
-                console.log("💾 Đã cập nhật giá trong localStorage:", newPriceMap);
+                localStorage.setItem(`discounted_prices_${order.id}`, JSON.stringify(newPriceMap));
+                console.log("💾 Đã cập nhật localStorage với giá mới:", newPriceMap);
             }
 
+            // Tạo danh sách items mới để gửi socket
             const newItems = itemsToAdd.map(item => {
                 const product = products.find(p => p.id === item.foodId);
                 return {
@@ -346,6 +379,7 @@ const TableDetail = () => {
                 entityArea: entity?.area || (isRoom ? "Khu VIP" : "Khu chính")
             });
 
+            // Tính lại tổng tiền
             const newItemsTotal = updatedCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const newFinalTotal = newItemsTotal + roomFee;
 
@@ -406,55 +440,48 @@ const TableDetail = () => {
 
         setIsConfirming(true);
 
-        try { 
+        try {
+            // TẠO ORDER VỚI ITEMS CÓ GIÁ ĐÃ GIẢM NGAY TỪ ĐẦU
             const orderData = {
                 customerName: customerName || `Khách ${entityType.toLowerCase()} ${entityNumber}`,
                 status: "PENDING",
                 branch: { id: branchId },
-                ...(isRoom ? { room: { id: entity.id } } : { table: { id: entity.id } })
+                ...(isRoom ? { room: { id: entity.id } } : { table: { id: entity.id } }),
+                items: cart.filter(item => item.id && item.quantity > 0).map(item => ({
+                    food: { id: item.id },
+                    quantity: item.quantity,
+                    price: item.price  // ← GỬI TRỰC TIẾP GIÁ ĐÃ GIẢM
+                }))
             };
+
+            console.log("📦 Order data with prices:", orderData);
 
             const res = await axiosClient.post("/customer/orders", orderData);
             const newOrder = res.data;
 
             await updateEntityStatus("OCCUPIED");
 
+            // Lưu vào localStorage để dự phòng (cho lần vào sau)
             const priceMap = {};
             cart.forEach(item => {
                 priceMap[item.id] = item.price;
             });
             if (newOrder.id) {
-                const key = `discounted_prices_${newOrder.id}`;
-                localStorage.setItem(key, JSON.stringify(priceMap));
-                console.log("💾 Đã lưu giá vào localStorage:", priceMap);
+                localStorage.setItem(`discounted_prices_${newOrder.id}`, JSON.stringify(priceMap));
             }
 
-            const itemsToAdd = cart
-                .filter(item => item.id && item.quantity > 0)
-                .map(item => ({
-                    foodId: item.id,
-                    quantity: item.quantity,
-                    price: item.price
-                }));
+            // Lấy order sau khi tạo
+            const finalOrder = await axiosClient.get(`/customer/orders/${newOrder.id}`);
 
-            if (itemsToAdd.length > 0) {
-                await axiosClient.post(`/customer/orders/${newOrder.id}/add-items`, itemsToAdd);
-            }
+            console.log("✅ Final order:", finalOrder.data);
+            setOrder(finalOrder.data);
 
-            const finalRes = await axiosClient.get(`/customer/orders/${newOrder.id}`);
-            const finalOrder = finalRes.data;
-
-            console.log("✅ Final order:", finalOrder);
-            setOrder(finalOrder);
-
-            if (finalOrder.items && finalOrder.items.length > 0) {
-                const savedPrices = localStorage.getItem(`discounted_prices_${newOrder.id}`);
-                const priceMapFromStorage = savedPrices ? JSON.parse(savedPrices) : priceMap;
-
-                const updatedCart = finalOrder.items.map(item => {
+            // Cập nhật cart
+            if (finalOrder.data.items && finalOrder.data.items.length > 0) {
+                const updatedCart = finalOrder.data.items.map(item => {
                     const foodId = item.foodId || item.food?.id || item.id;
                     const product = products.find(p => p.id === foodId);
-                    const displayPrice = priceMapFromStorage[foodId] || item.price || 0;
+                    const displayPrice = priceMap[foodId] || item.price || 0;
 
                     return {
                         id: foodId,
@@ -464,7 +491,6 @@ const TableDetail = () => {
                         image: product?.imageUrl || ''
                     };
                 });
-
                 setCart(updatedCart);
 
                 const snapshot = {};
@@ -472,18 +498,21 @@ const TableDetail = () => {
                 confirmedCartRef.current = snapshot;
             }
 
-            const newItems = itemsToAdd.map(item => {
-                const product = products.find(p => p.id === item.foodId);
-                return {
-                    id: item.foodId,
-                    name: product?.name || `Món #${item.foodId}`,
-                    quantity: item.quantity,
-                    orderId: newOrder.id,
-                    tableNumber: entityNumber,
-                    tableId: entity.id,
-                    status: 'WAITING'
-                };
-            });
+            // Tạo danh sách items để gửi socket
+            const newItems = cart
+                .filter(item => item.id && item.quantity > 0)
+                .map(item => {
+                    const product = products.find(p => p.id === item.id);
+                    return {
+                        id: item.id,
+                        name: product?.name || `Món #${item.id}`,
+                        quantity: item.quantity,
+                        orderId: newOrder.id,
+                        tableNumber: entityNumber,
+                        tableId: entity.id,
+                        status: 'WAITING'
+                    };
+                });
 
             socket.emit("new-order", {
                 orderId: newOrder.id,
