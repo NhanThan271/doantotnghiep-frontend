@@ -139,9 +139,10 @@ const ShiftRegistration = () => {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [allMonthShifts, setAllMonthShifts] = useState([]);
     const [allMonthSchedules, setAllMonthSchedules] = useState([]);
-
+    const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
+    const [cancelTargetId, setCancelTargetId] = useState(null);
     // ========== FUNCTIONS (định nghĩa TRƯỚC) ==========
-
+    const [showCheckoutConfirmModal, setShowCheckoutConfirmModal] = useState(false);
     const initUserData = async () => {
         setLoadingUser(true);
         try {
@@ -217,18 +218,26 @@ const ShiftRegistration = () => {
     };
 
     const handleCancel = async (id) => {
-        if (!window.confirm('Hủy đăng ký?')) return;
-        setCancellingShiftId(id);  // ← Bây giờ sẽ hoạt động
+        setCancelTargetId(id);
+        setShowCancelConfirmModal(true);
+    };
+    const confirmCancel = async () => {
+        if (!cancelTargetId) return;
+
+        setCancellingShiftId(cancelTargetId);
+        setShowCancelConfirmModal(false);
+
         try {
-            await axiosClient.delete(`/staff-shifts/${id}`);
-            showToast('success', 'Thành công', 'Đã hủy!');
+            await axiosClient.delete(`/staff-shifts/${cancelTargetId}`);
+            showToast('success', 'Thành công', 'Đã hủy đăng ký ca!');
             setShowDetailModal(false);
             preloadMonthData(currentMonth);
             loadDayData(selectedDate);
         } catch (err) {
-            showToast('error', 'Lỗi', 'Không thể hủy');
+            showToast('error', 'Lỗi', err.response?.data?.message || 'Không thể hủy đăng ký');
         } finally {
             setCancellingShiftId(null);
+            setCancelTargetId(null);
         }
     };
 
@@ -259,14 +268,28 @@ const ShiftRegistration = () => {
     };
 
     const handleCheckOut = async () => {
-        if (!window.confirm('Check-out?')) return;
+        setShowCheckoutConfirmModal(true);
+    };
+
+    const confirmCheckOut = async () => {
+        setShowCheckoutConfirmModal(false);
         const sd = moment(selectedStaffShift.workDay).format('YYYY-MM-DD');
         const sc = allMonthSchedules.find(s => (s.shift?.id || s.shiftId) === (selectedStaffShift.shift?.id || selectedStaffShift.shiftId) && ((s.workDay || s.work_day) === sd || moment(s.workDay || s.work_day).format('YYYY-MM-DD') === sd));
-        if (!sc) { showToast('error', 'Lỗi', 'Không tìm thấy lịch ca'); return; }
+        if (!sc) {
+            showToast('error', 'Lỗi', 'Không tìm thấy lịch ca');
+            return;
+        }
         setCheckingOut(true);
-        try { await axiosClient.post(`/attendance/check-out/${staffId}`, null, { params: { shiftScheduleId: sc.id } }); showToast('success', 'OK', 'Check-out!'); fetchAttendance(sc.id); fetchMonthlyStats(); }
-        catch (err) { showToast('error', 'Lỗi', err.response?.data?.message); }
-        finally { setCheckingOut(false); }
+        try {
+            await axiosClient.post(`/attendance/check-out/${staffId}`, null, { params: { shiftScheduleId: sc.id } });
+            showToast('success', 'OK', 'Check-out!');
+            fetchAttendance(sc.id);
+            fetchMonthlyStats();
+        } catch (err) {
+            showToast('error', 'Lỗi', err.response?.data?.message);
+        } finally {
+            setCheckingOut(false);
+        }
     };
 
     const calendarEvents = useMemo(() => {
@@ -282,7 +305,96 @@ const ShiftRegistration = () => {
     if (error) return <Container className="py-5"><Alert variant="warning">{error}</Alert></Container>;
     return (
         <div style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%)', minHeight: '100vh', padding: '24px' }}>
+            <Modal show={showCancelConfirmModal} onHide={() => setShowCancelConfirmModal(false)} centered>
+                <Modal.Header closeButton style={{ background: '#dc3545', color: 'white', borderRadius: '12px 12px 0 0' }}>
+                    <Modal.Title><FaExclamationTriangle className="me-2" />Xác nhận hủy đăng ký</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="p-4">
+                    <div className="text-center">
+                        <FaTrashAlt style={{ fontSize: '48px', color: '#dc3545', marginBottom: '16px' }} />
+                        <h5 className="mb-3">Bạn có chắc chắn muốn hủy đăng ký ca này?</h5>
+                        <p className="text-muted mb-0">
+                            Sau khi hủy, bạn sẽ mất suất làm ca này.<br />
+                            Hành động này không thể hoàn tác.
+                        </p>
+                    </div>
+                </Modal.Body>
+                <Modal.Footer className="border-0">
+                    <Button
+                        variant="secondary"
+                        className="rounded-pill px-4"
+                        onClick={() => setShowCancelConfirmModal(false)}
+                    >
+                        <FaTimes className="me-1" /> Quay lại
+                    </Button>
+                    <Button
+                        variant="danger"
+                        className="rounded-pill px-4"
+                        onClick={confirmCancel}
+                        disabled={cancellingShiftId !== null}
+                    >
+                        {cancellingShiftId ? <Spinner size="sm" className="me-1" /> : <FaTrashAlt className="me-1" />}
+                        Xác nhận hủy
+                    </Button>
+                </Modal.Footer>
+            </Modal>
             <Container fluid>
+                <Modal
+                    show={showCheckoutConfirmModal}
+                    onHide={() => setShowCheckoutConfirmModal(false)}
+                    centered
+                    className="checkout-modal"
+                >
+                    <Modal.Header closeButton style={{ background: 'linear-gradient(135deg, #17a2b8, #138496)', color: 'white', borderRadius: '12px 12px 0 0' }}>
+                        <Modal.Title>
+                            <FaClock className="me-2" /> Xác nhận Check-out
+                        </Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body className="p-4 text-center">
+                        <div style={{
+                            width: '80px',
+                            height: '80px',
+                            background: 'linear-gradient(135deg, #d1fae5, #a7f3d0)',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            margin: '0 auto 20px auto'
+                        }}>
+                            <FaCheckCircle style={{ fontSize: '40px', color: '#10b981' }} />
+                        </div>
+                        <h5 className="mb-3">Xác nhận kết thúc ca làm việc?</h5>
+                        <p className="text-muted mb-0">
+                            Sau khi check-out, bạn sẽ không thể check-in lại cho ca này.<br />
+                            Hãy đảm bảo bạn đã hoàn thành công việc.
+                        </p>
+                    </Modal.Body>
+                    <Modal.Footer className="border-0" style={{ padding: '16px 24px 24px' }}>
+                        <Button
+                            variant="light"
+                            className="rounded-pill px-4"
+                            style={{ border: '1.5px solid #e5e7eb', fontWeight: '600' }}
+                            onClick={() => setShowCheckoutConfirmModal(false)}
+                        >
+                            <FaTimes className="me-1" /> Quay lại
+                        </Button>
+                        <Button
+                            variant="primary"
+                            className="rounded-pill px-4"
+                            style={{
+                                background: 'linear-gradient(135deg, #17a2b8, #138496)',
+                                border: 'none',
+                                fontWeight: '600',
+                                boxShadow: '0 2px 8px rgba(23, 162, 184, 0.3)'
+                            }}
+                            onClick={confirmCheckOut}
+                            disabled={checkingOut}
+                        >
+                            {checkingOut ? <Spinner size="sm" className="me-1" /> : <FaCheck className="me-1" />}
+                            Xác nhận Check-out
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
                 <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '16px' }}>
                     <Card.Body className="p-4">
                         <div className="d-flex justify-content-between align-items-center">
