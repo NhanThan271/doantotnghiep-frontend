@@ -495,6 +495,22 @@ const ChefDashboard = () => {
             }
         };
     }, [allItems, lastWarningTime, showToast, sendNotificationToLayout, speakVietnamese, playNotificationSound]);
+
+    // ========== AUTO REFRESH EVERY 6 MINUTES ==========
+    useEffect(() => {
+        // Auto refresh interval: 6 phút = 360,000 ms
+        const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // 360000 ms
+
+        const autoRefreshInterval = setInterval(() => {
+            console.log('🔄 Auto refresh after 6 minutes');
+            fetchData(true); // silent = true để không hiển thị loading
+            showToast('🔄 Tự động cập nhật danh sách món', 'info');
+        }, AUTO_REFRESH_INTERVAL);
+
+        // Cleanup interval khi component unmount
+        return () => clearInterval(autoRefreshInterval);
+    }, [fetchData, showToast]);
+
     // ========== UPDATE STATUS ==========
     const updateStatus = async (itemGroup, status) => {
         console.log("🚀 updateStatus called:", status, "ids:", itemGroup.originalIds);
