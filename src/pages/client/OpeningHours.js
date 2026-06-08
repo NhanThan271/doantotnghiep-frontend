@@ -27,13 +27,13 @@ const OpeningHours = () => {
     };
 
     const schedule = [
-        { day: 'Thứ Hai', dayEn: 'Monday', time: 'ĐÓNG CỬA', status: 'closed' },
-        { day: 'Thứ Ba', dayEn: 'Tuesday', time: '19:00 – 23:00', note: 'Chỉ phục vụ tối' },
-        { day: 'Thứ Tư', dayEn: 'Wednesday', time: '19:00 – 23:00', note: 'Chỉ phục vụ tối' },
-        { day: 'Thứ Năm', dayEn: 'Thursday', time: '19:00 – 23:00', note: 'Chỉ phục vụ tối' },
-        { day: 'Thứ Sáu', dayEn: 'Friday', time: '18:30 – 23:30', note: 'Nhận khách cuối 21:30' },
-        { day: 'Thứ Bảy', dayEn: 'Saturday', time: '18:30 – 23:30', note: 'Nhận khách cuối 21:30' },
-        { day: 'Chủ Nhật', dayEn: 'Sunday', time: 'ĐÓNG CỬA', status: 'closed' },
+        { day: 'Thứ Hai', dayEn: 'Monday', time: '7:00 – 23:00', note: 'Nhận khách cuối 21:30' },
+        { day: 'Thứ Ba', dayEn: 'Tuesday', time: '7:00 – 23:00', note: 'Nhận khách cuối 21:30' },
+        { day: 'Thứ Tư', dayEn: 'Wednesday', time: '7:00 – 23:00', note: 'Nhận khách cuối 21:30' },
+        { day: 'Thứ Năm', dayEn: 'Thursday', time: '7:00 – 23:00', note: 'Nhận khách cuối 21:30' },
+        { day: 'Thứ Sáu', dayEn: 'Friday', time: '7:30 – 23:30', note: 'Nhận khách cuối 21:30' },
+        { day: 'Thứ Bảy', dayEn: 'Saturday', time: '7:30 – 23:30', note: 'Nhận khách cuối 21:30' },
+        { day: 'Chủ Nhật', dayEn: 'Sunday', time: '7:00 – 23:00', note: 'Nhận khách cuối 21:30' },
     ];
 
     return (

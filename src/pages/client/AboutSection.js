@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ChevronRight } from 'lucide-react';
 import './AboutSection.css';
-
+import { Link } from "react-router-dom";
 const images = [
     {
         id: 1,
@@ -69,7 +69,7 @@ const AboutSection = () => {
                     thuần là ẩm thực, mà là một tác phẩm nghệ thuật đương đại đầy tâm huyết. Hãy cùng chúng
                     tôi bước vào một hành trình mỹ vị xa hoa, nơi những cảm xúc thăng hoa sẽ dẫn dắt bạn
                     khám phá đỉnh cao của sự tinh tế và đẳng cấp.{' '}
-                    <button className="abt__read-more">Xem thêm…</button>
+                    
                 </p>
             </div>
 
@@ -87,25 +87,21 @@ const AboutSection = () => {
                 ))}
             </div>
 
-            {/* CTA */}
-            <div className="abt__cta-wrap abt-reveal" style={{ '--delay': '0.45s' }}>
-                <button className="abt__cta">
-                    Khám phá thực đơn <ChevronRight size={16} />
-                </button>
-            </div>
+{/* CTA */}
+<div
+    className="abt__cta-wrap abt-reveal"
+    style={{ '--delay': '0.45s' }}
+>
+    <Link
+        to="/thuc-don"
+        className="abt__cta"
+        onClick={() => window.scrollTo(0, 0)}
+    >
+        Khám phá thực đơn
+        <ChevronRight size={16} />
+    </Link>
+</div>
 
-            {/* Badge — Restaurant Guru */}
-            <div className="abt__badge abt-reveal" style={{ '--delay': '0.5s' }} aria-label="Restaurant Guru 2024 Recommended">
-                <div className="abt__badge-inner">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                            fill="#C9A84C" />
-                    </svg>
-                    <span className="abt__badge-year">Restaurant Guru 2024</span>
-                    <span className="abt__badge-rec">RECOMMENDED</span>
-                    <span className="abt__badge-name">La Costa Restaurant</span>
-                </div>
-            </div>
         </section>
     );
 };
