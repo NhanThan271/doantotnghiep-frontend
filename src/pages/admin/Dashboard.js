@@ -164,8 +164,8 @@ export default function Dashboard() {
             if (!order.items || !Array.isArray(order.items)) return;
 
             order.items.forEach(item => {
-                const productId = item.product?.id;
-                const productName = item.product?.name || 'Sản phẩm';
+                const productId = item.food?.id;
+                const productName = item.food?.name || 'Món ăn';
                 const quantity = item.quantity || 0;
                 const price = item.price || 0;
                 const revenue = price * quantity;
@@ -385,7 +385,11 @@ export default function Dashboard() {
                         </h4>
                     </div>
                     {branchRevenue.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{
+                            display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '150px',
+                            overflowY: 'auto',
+                            paddingRight: '4px'
+                        }}>
                             {branchRevenue.map((branch, idx) => (
                                 <div key={branch.id} style={{
                                     padding: '12px',
@@ -470,11 +474,15 @@ export default function Dashboard() {
                             color: 'var(--color-text-secondary)',
                             margin: 0
                         }}>
-                            Top Sản phẩm Bán chạy
+                            Top Món ăn Bán chạy
                         </h4>
                     </div>
                     {topProducts.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{
+                            display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '150px',
+                            overflowY: 'auto',
+                            paddingRight: '4px'
+                        }}>
                             {topProducts.map((product, idx) => (
                                 <div key={product.id} style={{
                                     padding: '12px',
@@ -541,7 +549,7 @@ export default function Dashboard() {
                             fontSize: '14px',
                             padding: '20px'
                         }}>
-                            Chưa có dữ liệu sản phẩm
+                            Chưa có dữ liệu món ăn
                         </p>
                     )}
                 </div>
