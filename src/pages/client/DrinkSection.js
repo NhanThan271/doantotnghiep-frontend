@@ -115,7 +115,7 @@ const PriceSection = () => {
                     <p className="prs__eyebrow">ĐỒ UỐNG</p>
                     <h2 className="prs__title">
                         Thức Uống<br />
-                        <em>Tinh Tuyển.</em>
+                        Tinh Tuyển.
                     </h2>
                     <p className="prs__body">
                         Danh sách thức uống của chúng tôi được chọn lọc kỹ lưỡng từ những

@@ -130,7 +130,7 @@ const BrandsSection = () => {
             <div className="bms__header bms-reveal" ref={(el) => addReveal(el, 0.08)}>
                 <p className="bms__eyebrow">THỰC ĐƠN NỔI BẬT</p>
                 <h2 className="bms__title">
-                    Những Món Ăn <em>Tinh Hoa</em>
+                    Những Món Ăn Tinh Hoa
                 </h2>
                 <span className="bms__title-bar" />
                 <p className="bms__subtitle">

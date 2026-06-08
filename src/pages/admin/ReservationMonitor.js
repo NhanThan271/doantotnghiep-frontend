@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Users, CheckCircle, XCircle, Phone, Search, RefreshCw, UtensilsCrossed, BookOpen, ChefHat, CreditCard } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Phone, Search, RefreshCw, UtensilsCrossed, BookOpen, ChefHat, CreditCard } from 'lucide-react';
 import axios from 'axios';
 import styles from './ReservationMonitor.module.css';
 
 const API_BASE_URL = 'http://localhost:8080';
 
 const ORDER_STATUS_CONFIG = {
+    PENDING:   { label: 'Chờ xử lý', color: '#FBBF24', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.3)', icon: Clock },
     CONFIRMED: { label: 'Đã xác nhận', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', icon: CheckCircle },
     PREPARING: { label: 'Đang nấu', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', icon: ChefHat },
     COMPLETED: { label: 'Đã hoàn thành', color: '#10B981', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)', icon: CheckCircle },
@@ -227,7 +228,7 @@ function OrdersTab() {
 function ReservationsTab() {
     const [reservations, setReservations] = useState([]);
     const [branches, setBranches] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading] = useState(false);
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterBranch, setFilterBranch] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
