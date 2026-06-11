@@ -14,7 +14,7 @@ import io from 'socket.io-client';
 import styles from '../../layouts/AdminLayout.module.css';
 import { showToast } from '../../hooks/useToast';
 
-const socket = io('http://localhost:3001');
+const socket = io('/', { path: '/socket.io/' });
 
 export default function ManagerInventoryManagement() {
     const [branchIngredients, setBranchIngredients] = useState([]);
@@ -41,7 +41,7 @@ export default function ManagerInventoryManagement() {
     });
     const [notifications, setNotifications] = useState([]);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
     const user = JSON.parse(localStorage.getItem('user'));
     const processedResponses = useRef(new Set());
 
@@ -325,7 +325,7 @@ export default function ManagerInventoryManagement() {
                 default:
                     break;
             }
-        }, 4000); 
+        }, 4000);
 
         return () => clearInterval(intervalId);
     }, [

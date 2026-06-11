@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
-const API = "http://localhost:8080";
+const API = "";
 
 const PaymentSuccess = () => {
     const navigate = useNavigate();

@@ -6,7 +6,7 @@ import { showToast } from '../../hooks/useToast';
 export default function Branches({ openAdd, openEdit, refreshTrigger }) {
     const [branches, setBranches] = useState([]);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const fetchBranches = () => {
         const token = localStorage.getItem('token');

@@ -10,7 +10,7 @@ const Footer = () => {
         const fetchBranches = async () => {
             try {
                 // Gọi API lấy danh sách chi nhánh
-                const response = await axios.get('http://localhost:8080/api/branches');
+                const response = await axios.get('/api/branches');
                 setBranches(response.data);
                 setLoading(false);
             } catch (error) {

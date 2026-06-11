@@ -12,7 +12,7 @@ export default function BranchMenuDistribution() {
     const [filterStatus, setFilterStatus] = useState('all');
     const [editingPrice, setEditingPrice] = useState({});
     const [loading, setLoading] = useState(false);
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     useEffect(() => {
         fetchBranches();

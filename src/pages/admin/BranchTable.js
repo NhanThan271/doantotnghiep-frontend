@@ -23,7 +23,7 @@ export default function TableManagement() {
         status: 'FREE'
     });
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     useEffect(() => {
         fetchBranches();
@@ -99,7 +99,7 @@ export default function TableManagement() {
         e.preventDefault();
 
         // Validation
-        if (!formData.number ) {
+        if (!formData.number) {
             showToast('error', 'Thiếu thông tin', 'Vui lòng điền đầy đủ số bàn');
             return;
         }

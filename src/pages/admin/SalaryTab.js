@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Eye, DollarSign, Users, Building2 } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = '';
 
 export default function SalaryTab({ employees, staffMap, branches }) {
     const [month, setMonth] = useState(new Date().getMonth() + 1);

@@ -78,7 +78,7 @@ const ReportPage = () => {
             const token = localStorage.getItem('token');
             const { startDate, endDate } = getDateRangeByType();
 
-            const response = await fetch(`http://localhost:8080/api/employee/bills`, {
+            const response = await fetch(`/api/employee/bills`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -234,7 +234,7 @@ const ReportPage = () => {
 
             const addDishDetailSheet = async () => {
                 const token = localStorage.getItem('token');
-                const response = await fetch(`http://localhost:8080/api/employee/bills`, {
+                const response = await fetch(`/api/employee/bills`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {

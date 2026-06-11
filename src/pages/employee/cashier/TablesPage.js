@@ -6,8 +6,8 @@ import io from 'socket.io-client';
 import styles from "./TablesPage.module.css";
 import { Utensils, Coffee } from "lucide-react";
 
-const API = "http://localhost:8080";
-const socket = io('http://localhost:3001');
+const API = "";
+const socket = io('/', { path: '/socket.io/' });
 
 const TablesPage = () => {
     const [tables, setTables] = useState([]);

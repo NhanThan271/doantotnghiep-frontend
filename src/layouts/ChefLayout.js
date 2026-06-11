@@ -8,7 +8,7 @@ import {
 import io from 'socket.io-client';
 
 const CHEF_NOTIFICATIONS_KEY = 'chef_notifications';
-const socket = io('http://localhost:3001');
+const socket = io('/', { path: '/socket.io/' });
 
 const ChefLayout = () => {
     const navigate = useNavigate();

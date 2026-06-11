@@ -35,7 +35,7 @@ const ForgotPasswordPage = () => {
         try {
 
             await axios.post(
-                "http://localhost:8080/api/auth/forgot-password",
+                "/api/auth/forgot-password",
                 {
                     email
                 }

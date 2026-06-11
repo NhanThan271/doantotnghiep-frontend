@@ -25,7 +25,7 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
     const [positionForm, setPositionForm] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [activeTab, setActiveTab] = useState('staff');
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     // Fetch chi nhánh
     const fetchBranches = () => {

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosClient from '../../../api/axiosClient';
 import io from 'socket.io-client';
 
-const socket = io('http://localhost:3001');
+const socket = io('/', { path: '/socket.io/' });
 const CASHIER_NOTIFICATIONS_KEY = 'cashier_notifications';
 const WAITER_NOTIFICATIONS_KEY = 'waiter_notifications';
 

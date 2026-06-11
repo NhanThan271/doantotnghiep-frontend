@@ -10,7 +10,7 @@ export default function AddIngredientForm({ closeForm, onSave }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const addRow = () => {
         setIngredients(prev => [...prev, { id: Date.now(), name: '', unit: '' }]);

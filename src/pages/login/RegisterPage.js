@@ -87,7 +87,7 @@ const RegisterPage = () => {
         setIsLoading(true);
 
         try {
-            await axios.post("http://localhost:8080/api/auth/register", {
+            await axios.post("/api/auth/register", {
                 username,
                 email,
                 password,

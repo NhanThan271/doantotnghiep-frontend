@@ -5,7 +5,7 @@ import { showToast } from '../../hooks/useToast';
 
 export default function Categories({ openAdd, openEdit, refreshTrigger }) {
     const [categories, setCategories] = useState([]);
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
     const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const fetchCategories = () => {

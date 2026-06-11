@@ -73,7 +73,7 @@ const RestaurantLocation = () => {
             const token = localStorage.getItem('token');
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-            const response = await fetch("http://localhost:8080/api/branches", { headers });
+            const response = await fetch("/api/branches", { headers });
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);

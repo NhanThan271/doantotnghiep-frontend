@@ -18,7 +18,7 @@ export default function BranchDashboard() {
     const [recentOrders, setRecentOrders] = useState([]);
     const [error, setError] = useState(null);
 
-    const API_BASE = 'http://localhost:8080';
+    const API_BASE = '';
 
     useEffect(() => {
         fetchBranchData();

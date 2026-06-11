@@ -77,7 +77,7 @@ const showToast = useCallback((message, type = "error", duration = 3500) => {
         }
 
         try {
-            const res = await axios.post("http://localhost:8080/api/auth/login", {
+            const res = await axios.post("/api/auth/login", {
                 username,
                 password,
             });
@@ -86,7 +86,7 @@ const showToast = useCallback((message, type = "error", duration = 3500) => {
             localStorage.setItem("token", token);
 
             // Gọi API /me để lấy thông tin đầy đủ
-            const meResponse = await axios.get("http://localhost:8080/api/auth/me", {
+            const meResponse = await axios.get("/api/auth/me", {
                 headers: { Authorization: `Bearer ${token}` }
             });
 

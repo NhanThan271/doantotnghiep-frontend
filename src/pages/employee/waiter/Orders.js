@@ -10,8 +10,8 @@ import { showToast } from "../../../hooks/useToast";
 import io from 'socket.io-client';
 import styles from "./Orders.module.css";
 
-const API = "http://localhost:8080";
-const socket = io('http://localhost:3001');
+const API = "";
+const socket = io('/', { path: '/socket.io/' });
 
 const Orders = () => {
     const navigate = useNavigate();

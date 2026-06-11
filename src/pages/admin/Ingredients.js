@@ -9,7 +9,7 @@ export default function Ingredients({ openAdd, openEdit, refreshTrigger }) {
     const [filterStatus, setFilterStatus] = useState('all');
     const [viewMode, setViewMode] = useState('table');
     const [disableConfirm, setDisableConfirm] = useState(null);
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const fetchIngredients = () => {
         const token = localStorage.getItem('token');

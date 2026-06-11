@@ -19,7 +19,7 @@ export default function Dashboard() {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        const API_BASE = 'http://localhost:8080';
+        const API_BASE = '';
 
         Promise.all([
             // Tổng sản phẩm

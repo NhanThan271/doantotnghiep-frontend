@@ -28,7 +28,7 @@ export default function BranchReports() {
     const [showBillDetail, setShowBillDetail] = useState(false);
     const [selectedBill, setSelectedBill] = useState(null);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     // Fetch current branch
     const fetchCurrentBranch = async () => {

@@ -21,7 +21,7 @@ export default function BranchReservationManager() {
     const [checkedInReservations, setCheckedInReservations] = useState([]);
     const [filterDate, setFilterDate] = useState('');
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
     const token = () => localStorage.getItem('token');
 
     // ── Lấy chi nhánh hiện tại ──

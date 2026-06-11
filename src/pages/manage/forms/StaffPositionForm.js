@@ -16,7 +16,7 @@ export default function StaffPositionForm({ employee, staffInfo, closeForm, onSa
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
     const isEdit = !!staffInfo?.id;
 
     const handleSubmit = async () => {

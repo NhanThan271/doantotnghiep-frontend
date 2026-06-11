@@ -18,7 +18,7 @@ export default function AddPromotionForm({ closeForm, onSave }) {
     const [error, setError] = useState('');
     const [discountType, setDiscountType] = useState('percentage');
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     // Load danh sách sản phẩm
     useEffect(() => {
