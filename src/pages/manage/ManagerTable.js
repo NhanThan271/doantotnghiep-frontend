@@ -17,7 +17,7 @@ export default function ManagerTableManagement() {
     const [currentBranch, setCurrentBranch] = useState(null);
     const [pendingOrders, setPendingOrders] = useState([]);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     // Fetch branch info
     const fetchCurrentBranch = async () => {

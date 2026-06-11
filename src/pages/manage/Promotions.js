@@ -9,7 +9,7 @@ export default function ApplyPromotions() {
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState(null);
     const [foods, setFoods] = useState({});
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     // Lấy thông tin chi nhánh hiện tại
     const fetchCurrentBranch = async () => {

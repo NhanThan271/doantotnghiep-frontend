@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import styles from "./KitchenMonitor.module.css";
 
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
-const socket = io(SOCKET_URL, {
+const socket = io('/', {
+    path: '/socket.io/',
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000

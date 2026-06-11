@@ -9,7 +9,7 @@ export default function BranchMenuManager() {
     const [filterStatus, setFilterStatus] = useState('all');
     const [viewMode, setViewMode] = useState('table');
     const [loading, setLoading] = useState(false);
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const fetchCurrentBranch = async () => {
         try {

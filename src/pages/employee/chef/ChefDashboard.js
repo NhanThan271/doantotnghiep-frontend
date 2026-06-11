@@ -9,8 +9,6 @@ import IngredientWarning from './IngredientWarning';
 import styles from './ChefDashboard.module.css';
 import io from 'socket.io-client';
 
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
-
 const ChefDashboard = () => {
     const [allItems, setAllItems] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -300,7 +298,8 @@ const ChefDashboard = () => {
         if (socketRef.current) socketRef.current.disconnect();
         if (!branchId) return;
 
-        const newSocket = io(SOCKET_URL, {
+        const newSocket = io('/', {
+            path: '/socket.io/',
             autoConnect: true,
             reconnection: true,
             reconnectionAttempts: 5,

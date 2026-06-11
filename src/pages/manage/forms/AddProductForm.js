@@ -15,7 +15,7 @@ export default function AddProductForm({ closeForm, onSave }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     // Lấy danh sách categories khi component mount
     useEffect(() => {

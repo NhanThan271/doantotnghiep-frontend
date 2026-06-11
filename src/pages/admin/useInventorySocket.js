@@ -1,8 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:3001';
-
 export const useInventorySocket = ({
     role,
     branchId,
@@ -16,7 +14,8 @@ export const useInventorySocket = ({
 
     useEffect(() => {
         // Kết nối socket
-        socketRef.current = io(SOCKET_URL, {
+        socketRef.current = io('/', {
+            path: '/socket.io/',
             transports: ['websocket', 'polling']
         });
 

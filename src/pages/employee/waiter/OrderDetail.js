@@ -10,14 +10,14 @@ import io from 'socket.io-client';
 import ToastNotification from "./ToastNotification";
 import styles from "./OrderDetail.module.css";
 
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
-const socket = io(SOCKET_URL, {
+const socket = io('/', {
+    path: '/socket.io/',
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000
 });
 
-const API = "http://localhost:8080";
+const API = "";
 const CASHIER_NOTIFICATIONS_KEY = 'cashier_notifications';
 const WAITER_NOTIFICATIONS_KEY = 'waiter_notifications';
 
@@ -53,7 +53,7 @@ const OrderDetail = () => {
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const branchId = user?.branch?.id;
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     // ===== HELPER: Lấy giá đã giảm từ localStorage =====
     const getDiscountedPrices = useCallback((orderId) => {

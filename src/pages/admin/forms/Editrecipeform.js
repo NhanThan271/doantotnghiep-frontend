@@ -8,7 +8,7 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     useEffect(() => {
         if (recipeData?.recipes?.length) {

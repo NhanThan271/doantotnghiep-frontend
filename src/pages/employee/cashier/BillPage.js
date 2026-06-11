@@ -44,7 +44,7 @@ const BillPage = () => {
     const fetchEntityInfo = useCallback(async (billId, orderId) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:8080/api/customer/orders/${orderId}`, {
+            const response = await fetch(`/api/customer/orders/${orderId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
@@ -71,7 +71,7 @@ const BillPage = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:8080/api/employee/bills`, {
+            const response = await fetch(`/api/employee/bills`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -132,7 +132,7 @@ const BillPage = () => {
         setLoadingDetail(true);
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:8080/api/customer/orders/${orderId}`, {
+            const response = await fetch(`/api/customer/orders/${orderId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.ok) {
@@ -185,7 +185,7 @@ const BillPage = () => {
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(
-                `http://localhost:8080/api/customer/orders/${orderId}/pay?paymentMethod=${paymentMethod}`,
+                `/api/customer/orders/${orderId}/pay?paymentMethod=${paymentMethod}`,
                 {
                     method: 'PUT',
                     headers: {

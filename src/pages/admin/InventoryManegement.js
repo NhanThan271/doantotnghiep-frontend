@@ -12,8 +12,8 @@ import {
 import './InventoryManegement.css';
 import io from 'socket.io-client';
 
-const socket = io('http://localhost:3001');
-const API_BASE_URL = 'http://localhost:8080';
+const socket = io('/', { path: '/socket.io/' });
+const API_BASE_URL = '';
 
 const token = () => localStorage.getItem('token');
 const apiFetch = (url, opts = {}) =>
@@ -486,7 +486,7 @@ export default function InventoryManagement() {
                 default:
                     break;
             }
-        }, 5000); 
+        }, 5000);
 
         return () => clearInterval(id);
     }, [

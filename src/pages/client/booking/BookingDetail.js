@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import styles from "./BookingDetail.module.css";
 
-const API = "http://localhost:8080";
+const API = "";
 
 /* ── helpers ── */
 const getAuthToken = () => localStorage.getItem("token");

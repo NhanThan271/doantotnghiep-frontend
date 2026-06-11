@@ -85,7 +85,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
     const [showDeleteScheduleModal, setShowDeleteScheduleModal] = useState(false);
     const [deletingSchedule, setDeletingSchedule] = useState(null);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const fetchCurrentBranch = async () => {
         try {

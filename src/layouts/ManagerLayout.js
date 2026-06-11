@@ -40,7 +40,7 @@ export default function ManagerLayout() {
             setUser(loggedUser);
             // Fetch lại user để lấy imageUrl mới nhất
             const token = localStorage.getItem('token');
-            fetch(`http://localhost:8080/api/users/${loggedUser.id}`, {
+            fetch(`/api/users/${loggedUser.id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
                 .then(r => r.ok ? r.json() : null)
@@ -291,7 +291,7 @@ export default function ManagerLayout() {
                                             <img
                                                 src={user.imageUrl.startsWith('http')
                                                     ? user.imageUrl
-                                                    : `http://localhost:8080${user.imageUrl.startsWith('/') ? '' : '/'}${user.imageUrl}`}
+                                                    : `${user.imageUrl.startsWith('/') ? '' : '/'}${user.imageUrl}`}
                                                 alt={user.username}
                                                 style={{
                                                     width: '100%',

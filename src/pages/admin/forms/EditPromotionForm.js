@@ -18,7 +18,7 @@ export default function EditPromotionForm({ promotion, closeForm, onSave, refres
     const [error, setError] = useState('');
     const [discountType, setDiscountType] = useState('percentage');
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     useEffect(() => {
         if (promotion) {

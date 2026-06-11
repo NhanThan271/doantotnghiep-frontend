@@ -11,7 +11,7 @@ export default function EditIngredientForm({ closeForm, onSave, ingredientData }
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     useEffect(() => {
         if (ingredientData) {

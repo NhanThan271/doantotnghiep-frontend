@@ -12,7 +12,7 @@ const HeroLanding = () => {
     useEffect(() => {
         const fetchBranches = async () => {
             try {
-                const response = await fetch('http://localhost:8080/api/branches');
+                const response = await fetch('/api/branches');
                 if (!response.ok) {
                     throw new Error('Không thể tải dữ liệu chi nhánh');
                 }

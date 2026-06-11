@@ -23,7 +23,7 @@ export default function EditEmployeeForm({ employee, closeForm, onSave, refreshC
     const [showPassword, setShowPassword] = useState(false);
     const [changePassword, setChangePassword] = useState(false);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     // Load danh sách chi nhánh
     useEffect(() => {

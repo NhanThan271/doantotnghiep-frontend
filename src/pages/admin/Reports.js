@@ -11,7 +11,7 @@ export default function Reports() {
     const [totalOrders, setTotalOrders] = useState(0);
     const [avgOrderValue, setAvgOrderValue] = useState(0);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     useEffect(() => {
         fetchReportData();
