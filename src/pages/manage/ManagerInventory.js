@@ -303,16 +303,41 @@ export default function ManagerInventoryManagement() {
 
     useEffect(() => {
         if (!currentBranch?.id) return;
+
         const intervalId = setInterval(() => {
             if (!showRequestModal) {
                 fetchInventoryRequests();
-                fetchBranchIngredients();
-                fetchBranchAggregated();
-                fetchBranchBatches();
             }
-        }, 5000);
+            switch (activeTab) {
+                case 'ingredients':
+                    fetchBranchIngredients();
+                    fetchBranchAggregated();
+                    fetchBranchBatches();
+                    break;
+
+                case 'requests':
+                    break;
+
+                case 'history':
+                    fetchInventoryHistory();
+                    break;
+
+                default:
+                    break;
+            }
+        }, 4000); 
+
         return () => clearInterval(intervalId);
-    }, [currentBranch?.id, showRequestModal, fetchInventoryRequests, fetchBranchIngredients, fetchBranchAggregated, fetchBranchBatches]);
+    }, [
+        currentBranch?.id,
+        activeTab,
+        showRequestModal,
+        fetchInventoryRequests,
+        fetchBranchIngredients,
+        fetchBranchAggregated,
+        fetchBranchBatches,
+        fetchInventoryHistory,
+    ]);
 
     useEffect(() => {
         let filtered = branchIngredients;
@@ -372,6 +397,8 @@ export default function ManagerInventoryManagement() {
             });
             fetchInventoryRequests();
             fetchBranchIngredients();
+            fetchBranchAggregated();
+            fetchBranchBatches();
         } catch {
             showToast('error', 'Lỗi', 'Không thể xác nhận. Vui lòng thử lại.');
         }
@@ -741,8 +768,8 @@ export default function ManagerInventoryManagement() {
                         const matchSearch = !searchTerm ||
                             item.ingredientName?.toLowerCase().includes(searchTerm.toLowerCase());
                         const matchStock =
-                            filterStock === 'all' ? !item.expired :           // 👈 mặc định bỏ hết hạn
-                                filterStock === 'low' ? (item.totalQuantity < 10 && item.totalQuantity > 0 && !item.expired) :
+                            filterStock === 'all' ? item.totalQuantity > 0 :
+                                filterStock === 'low' ? (item.totalQuantity < 10 && item.totalQuantity > 0) :
                                     filterStock === 'out' ? item.totalQuantity === 0 :
                                         filterStock === 'expired' ? item.expired :
                                             filterStock === 'nearExpiry' ? (item.nearExpired && !item.expired) : true;
@@ -1308,8 +1335,32 @@ export default function ManagerInventoryManagement() {
                                     <textarea
                                         value={requestForm.reason}
                                         onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
-                                        className={styles.searchInput1} placeholder="Nhập lý do yêu cầu nhập kho..."
-                                        rows="3" style={{ width: '100%', resize: 'vertical' }} />
+                                        onFocus={e => {
+                                            e.target.style.background = '#1a1a1a';
+                                            e.target.style.borderColor = '#ffff';
+                                            e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.15)';
+                                        }}
+                                        onBlur={e => {
+                                            e.target.style.background = '#0f0f0f';
+                                            e.target.style.borderColor = 'var(--color-border)';
+                                            e.target.style.boxShadow = 'none';
+                                        }}
+                                        className={styles.searchInput1}
+                                        placeholder="Nhập lý do yêu cầu nhập kho..."
+                                        rows="3"
+                                        style={{
+                                            width: '100%',
+                                            resize: 'vertical',
+                                            padding: '12px 16px',
+                                            background: '#0f0f0f',
+                                            border: '1px solid var(--color-border)',
+                                            borderRadius: '10px',
+                                            color: 'var(--color-text-secondary)',
+                                            fontSize: '14px',
+                                            outline: 'none',
+                                            transition: 'border-color .2s, box-shadow .2s',
+                                            fontFamily: 'inherit'
+                                        }} />
                                 </div>
 
                                 <div className={styles.modalActions}>

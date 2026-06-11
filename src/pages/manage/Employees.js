@@ -274,7 +274,6 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
 
     const fetchBranchEmployees = async () => {
         if (!currentBranch?.id) return;
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const response = await fetch(`${API_BASE_URL}/api/users`, {
@@ -310,7 +309,6 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
 
     const fetchWorkShifts = async (date = selectedDate) => {
         if (!currentBranch?.id) return;
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const staffRes = await fetch(
@@ -392,7 +390,6 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             showToast('error', 'Lỗi', 'Vui lòng chọn nhân viên và ca làm việc!');
             return;
         }
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams({
@@ -576,7 +573,6 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
 
     const fetchEmployees = () => {
         const token = localStorage.getItem('token');
-        setLoading(true);
 
         fetch(`${API_BASE_URL}/api/users`, {
             headers: {
@@ -611,7 +607,6 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             showToast('error', 'Lỗi', 'Vui lòng chọn loại hợp đồng!');
             return;
         }
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(
@@ -634,7 +629,6 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
 
     const handleDeleteEmployee = async () => {
         if (!deleteTarget) return;
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const res = await fetch(`${API_BASE_URL}/api/users/${deleteTarget.id}`, {
@@ -659,7 +653,6 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             showToast('error', 'Lỗi', 'Vui lòng chọn ca làm việc và ngày!');
             return;
         }
-        setLoading(true);
         try {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams({
@@ -693,9 +686,11 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
 
     useEffect(() => {
         if (!currentBranch) return;
+
         fetchShiftTemplates();
         fetchStaffList();
         fetchEmploymentTypes();
+
         if (activeTab === 'employees') {
             fetchBranchEmployees();
             setFilterStaffId(null);
@@ -705,8 +700,53 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             fetchShiftSchedules(selectedDate);
         } else if (activeTab === 'cashier') {
             fetchCashierSessions();
+        } else if (activeTab === 'attendance' && attendanceSubTab === 'overview') {
+            fetchOverviewStats();
         }
-    }, [currentBranch, activeTab]);
+
+        const intervalId = setInterval(() => {
+            switch (activeTab) {
+                case 'employees':
+                    fetchBranchEmployees();
+                    fetchStaffList();
+                    break;
+
+                case 'shifts':
+                    fetchWorkShifts(selectedDate);
+                    fetchWorkShiftsForWeek(selectedDate);
+                    fetchShiftSchedules(selectedDate);
+                    if (shiftsSubTab === 'staffWeek' && filterStaffId) {
+                        fetchStaffWeeklySchedule(filterStaffId, selectedDate);
+                    }
+                    break;
+
+                case 'attendance':
+                    if (attendanceSubTab === 'overview') {
+                        fetchOverviewStats();
+                    } else if (attendanceSubTab === 'detail' && selectedStaffForAttendance) {
+                        fetchMonthlyAttendance(selectedStaffForAttendance);
+                    }
+                    break;
+
+                case 'cashier':
+                    fetchCashierSessions();
+                    break;
+
+                default:
+                    break;
+            }
+        }, 5000);
+
+        return () => clearInterval(intervalId);
+    }, [
+        currentBranch,
+        activeTab,
+        selectedDate,
+        shiftsSubTab,
+        filterStaffId,
+        attendanceSubTab,
+        selectedStaffForAttendance,
+    ]);
 
     useEffect(() => {
         if (!currentBranch || activeTab !== 'shifts') return;
@@ -1299,7 +1339,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <div>
-                                                            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '600', color:'var(--color-text-secondary)' }}>
+                                                            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '600', color: 'var(--color-text-secondary)' }}>
                                                                 <Briefcase size={16} className="mr-2" />
                                                                 {sc.shift?.name} — {sc.shift?.startTime} - {sc.shift?.endTime}
                                                             </h3>
@@ -1592,11 +1632,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                 </div>
 
                                 {/* Bảng lịch tuần */}
-                                {staffWeekLoading ? (
-                                    <div style={{ textAlign: 'center', padding: 40 }}>
-                                        <RefreshCw size={32} className={styles.spinIcon} />
-                                    </div>
-                                ) : (
+                                {(
                                     <div style={{ overflowX: 'auto' }}>
                                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                                             <thead>
@@ -1837,11 +1873,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                 </div>
                             </div>
 
-                            {overviewLoading ? (
-                                <div style={{ textAlign: 'center', padding: 40 }}>
-                                    <RefreshCw size={32} className={styles.spinIcon} />
-                                </div>
-                            ) : (
+                            {(
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
                                     {[
                                         { label: 'Đúng giờ', color: '#10B981', bg: 'rgba(16,185,129,0.1)', icon: CheckCircle, key: 'presentDays' },
@@ -1997,16 +2029,9 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                         <div className={styles.tableCard} style={{ marginTop: 16 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--color-border)' }}>
                                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Danh sách ca thu ngân</h3>
-                                <button onClick={fetchCashierSessions} className={styles.primaryButton}>
-                                    <RefreshCw size={16} /> Làm mới
-                                </button>
                             </div>
 
-                            {cashierLoading ? (
-                                <div style={{ textAlign: 'center', padding: 40 }}>
-                                    <RefreshCw size={32} className={styles.spinIcon} />
-                                </div>
-                            ) : cashierSessions.length === 0 ? (
+                            {cashierSessions.length === 0 ? (
                                 <div className={styles.emptyState} style={{ padding: 60 }}>
                                     <Store size={48} className={styles.emptyIcon} />
                                     <p>Chưa có ca thu ngân nào</p>

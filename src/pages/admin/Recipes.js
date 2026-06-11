@@ -104,7 +104,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
     });
 
     // Stats
-    const totalRecipes = recipes.length;
+    const totalRecipes = Object.keys(groupedRecipes).length;
     const uniqueProducts = Object.keys(groupedRecipes).length;
     const avgIngredientsPerProduct = uniqueProducts > 0 ? (totalRecipes / uniqueProducts).toFixed(1) : 0;
 

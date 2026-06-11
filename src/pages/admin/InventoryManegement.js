@@ -367,7 +367,21 @@ export default function InventoryManagement() {
     const approveReq = async (id) => {
         setReqLoading(true);
         const req = requests.find(r => r.id === id);
-        await apiFetch(`/api/inventory-requests/${id}/approve`, { method: 'PUT' });
+        const res = await apiFetch(`/api/inventory-requests/${id}/approve`, { method: 'PUT' });
+
+        if (!res.ok) {
+            // Đọc message lỗi từ backend (nếu có)
+            let errMsg = 'Duyệt thất bại';
+            try {
+                const body = await res.json();
+                errMsg = body.message || body.error || errMsg;
+            } catch {
+                errMsg = await res.text().catch(() => errMsg);
+            }
+            addToast({ type: 'error', title: `Không thể duyệt #${id}`, message: errMsg });
+            setReqLoading(false);
+            return; // ← dừng lại, không emit socket, không toast success
+        }
         socket.emit('inventory-request-approved', { requestId: id, branchId: req?.branch?.id, approvedBy: user.fullName });
         addToast({ type: 'success', title: `Đã duyệt #${id}`, message: req?.branch?.name });
         await fetchRequests();
@@ -437,13 +451,62 @@ export default function InventoryManagement() {
     }, [selectedWh]);
     useEffect(() => {
         const id = setInterval(() => {
+            fetchWarehouses();
+            fetchNearExpiry();
+
             if (!selectedReq && !rejectModal) {
                 fetchRequests();
-                if (selectedBranch) fetchBranchIngredients(selectedBranch.id);
             }
-        }, 10000);
+
+            switch (tab) {
+                case 'wh-stock':
+                    if (selectedWh) {
+                        fetchWarehouseInventory(selectedWh);
+                        fetchWhBatches(selectedWh);
+                        fetchWhAggregated(selectedWh);
+                    }
+                    break;
+
+                case 'branch-stock':
+                    if (selectedBranch) {
+                        fetchBranchIngredients(selectedBranch.id);
+                        fetchBranchBatches(selectedBranch.id);
+                    }
+                    break;
+
+                case 'history':
+                    fetchExportHistory();
+                    fetchImportHistory();
+                    break;
+
+                case 'import':
+                    fetchIngredients();
+                    break;
+
+                default:
+                    break;
+            }
+        }, 5000); 
+
         return () => clearInterval(id);
-    }, [selectedBranch, selectedReq, rejectModal]);
+    }, [
+        tab,
+        selectedBranch,
+        selectedWh,
+        selectedReq,
+        rejectModal,
+        fetchWarehouses,
+        fetchNearExpiry,
+        fetchRequests,
+        fetchWarehouseInventory,
+        fetchWhBatches,
+        fetchWhAggregated,
+        fetchBranchIngredients,
+        fetchBranchBatches,
+        fetchExportHistory,
+        fetchImportHistory,
+        fetchIngredients,
+    ]);
 
     const pendingCount = requests.filter(r => r?.status === 'PENDING').length;
 
@@ -938,31 +1001,49 @@ export default function InventoryManagement() {
 
                             {/* Tổng hợp */}
                             {branchViewMode === 'aggregate' && (
-                                branchIngredients.length === 0
-                                    ? <div className="empty-state"><Store size={40} /><p>Chưa có nguyên liệu</p></div>
-                                    : (
-                                        <div className="inventory-table-container">
-                                            <table className="inventory-table">
-                                                <thead><tr>
-                                                    {['Nguyên liệu', 'Đơn vị', 'Tồn kho', 'Trạng thái'].map(h =>
-                                                        <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>{h}</th>
-                                                    )}
-                                                </tr></thead>
-                                                <tbody>
-                                                    {branchIngredients.map(item => (
-                                                        <tr key={item.id}>
-                                                            <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
-                                                            <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
-                                                            <td className={qtyClass(item.quantity ?? 0)} style={{ color: 'var(--color-text-secondary)' }}>
-                                                                {item.quantity ?? 0}
-                                                            </td>
-                                                            <td><StockBadge qty={item.quantity ?? 0} /></td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )
+                                (() => {
+                                    // Tính tồn kho chỉ từ lô còn hạn (daysToExpire >= 0)
+                                    const validQtyMap = {};
+                                    branchBatches
+                                        .filter(b => b.daysToExpire !== undefined && b.daysToExpire !== null && b.daysToExpire >= 0)
+                                        .forEach(b => {
+                                            const name = b.ingredientName;
+                                            if (!validQtyMap[name]) {
+                                                validQtyMap[name] = { qty: 0, unit: b.unit };
+                                            }
+                                            validQtyMap[name].qty += (b.remainingQuantity ?? 0);
+                                        });
+
+                                    const validList = Object.entries(validQtyMap)
+                                        .filter(([_, v]) => v.qty > 0)
+                                        .map(([name, v]) => ({ name, qty: v.qty, unit: v.unit }));
+
+                                    return validList.length === 0
+                                        ? <div className="empty-state"><Store size={40} /><p>Chưa có nguyên liệu còn hạn</p></div>
+                                        : (
+                                            <div className="inventory-table-container">
+                                                <table className="inventory-table">
+                                                    <thead><tr>
+                                                        {['Nguyên liệu', 'Đơn vị', 'Tồn kho (còn hạn)', 'Trạng thái'].map(h =>
+                                                            <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>{h}</th>
+                                                        )}
+                                                    </tr></thead>
+                                                    <tbody>
+                                                        {validList.map(item => (
+                                                            <tr key={item.name}>
+                                                                <td className="ingredient-name">{item.name}</td>
+                                                                <td className="ingredient-unit">{item.unit || '—'}</td>
+                                                                <td className={qtyClass(item.qty)} style={{ color: 'var(--color-text-secondary)' }}>
+                                                                    {item.qty}
+                                                                </td>
+                                                                <td><StockBadge qty={item.qty} /></td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        );
+                                })()
                             )}
                             {branchViewMode === 'batch' && (() => {
                                 const pills = [
@@ -995,7 +1076,7 @@ export default function InventoryManagement() {
                                         <div className="inventory-table-container">
                                             <table className="inventory-table">
                                                 <thead><tr>
-                                                    {['Nguyên liệu', 'Đơn vị', 'Còn lại', 'Tổng nhập', 'Từ kho', 'Ngày nhập', 'HSD', 'Trạng thái HSD'].map(h =>
+                                                    {['Nguyên liệu', 'Đơn vị', 'Còn lại', 'Tổng nhập', 'Ngày nhập', 'HSD', 'Trạng thái HSD'].map(h =>
                                                         <th key={h} style={{ color: 'var(--color-text-secondary)', fontWeight: 'bold' }}>{h}</th>
                                                     )}
                                                 </tr></thead>
@@ -1028,9 +1109,6 @@ export default function InventoryManagement() {
                                                                     </td>
                                                                     <td style={{ color: 'var(--color-text-secondary)', opacity: .6 }}>
                                                                         {batch.quantity ?? 0}
-                                                                    </td>
-                                                                    <td style={{ color: 'var(--color-text-secondary)' }}>
-                                                                        {batch.warehouseName || '—'}
                                                                     </td>
                                                                     <td style={{ color: 'var(--color-text-secondary)' }}>
                                                                         {batch.createdAt ? fmtDate(batch.createdAt) : '—'}
