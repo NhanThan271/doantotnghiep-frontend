@@ -195,7 +195,7 @@ export default function Dashboard() {
 
     const statsCards = [
         {
-            title: 'Tổng sản phẩm',
+            title: 'Tổng món ăn',
             value: stats.totalProducts,
             icon: Package,
             color: '#3B82F6',

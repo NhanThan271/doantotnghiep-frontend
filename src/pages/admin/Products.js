@@ -226,7 +226,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                 {totalValue.toLocaleString('vi-VN')}đ
                             </div>
                             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                                Giá trị tồn kho
+                                Giá trị
                             </div>
                         </div>
                     </div>
