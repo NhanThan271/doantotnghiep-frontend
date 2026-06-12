@@ -9,6 +9,7 @@ export default function AddIngredientForm({ closeForm, onSave }) {
     ]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [duplicateIds, setDuplicateIds] = useState(new Set());
 
     const API_BASE_URL = '';
 
@@ -22,10 +23,22 @@ export default function AddIngredientForm({ closeForm, onSave }) {
     };
 
     const handleChange = (id, field, value) => {
-        setIngredients(prev =>
-            prev.map(item => item.id === id ? { ...item, [field]: value } : item)
+        const updated = ingredients.map(item =>
+            item.id === id ? { ...item, [field]: value } : item
         );
+        setIngredients(updated);
         setError('');
+        setError('');
+        if (field === 'name') {
+            const names = updated.map(i => ({ id: i.id, name: i.name.trim().toLowerCase() }));
+            const dupIds = new Set();
+            names.forEach((item, index) => {
+                if (item.name && names.some((other, i) => i !== index && other.name === item.name)) {
+                    dupIds.add(item.id);
+                }
+            });
+            setDuplicateIds(dupIds);
+        }
     };
 
     const validateForm = () => {
@@ -39,6 +52,12 @@ export default function AddIngredientForm({ closeForm, onSave }) {
                 return false;
             }
         }
+        const names = ingredients.map(i => i.name.trim().toLowerCase());
+        const hasDuplicate = names.some((name, index) => names.indexOf(name) !== index);
+        if (hasDuplicate) {
+            showToast('error', 'Trùng tên', 'Có nguyên liệu trùng tên trong danh sách, vui lòng kiểm tra lại');
+            return false;
+        }
         return true;
     };
 
@@ -51,6 +70,26 @@ export default function AddIngredientForm({ closeForm, onSave }) {
 
         try {
             const token = localStorage.getItem('token');
+
+            const existingRes = await fetch(`${API_BASE_URL}/api/ingredients`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const existingList = existingRes.ok ? await existingRes.json() : [];
+            const existingNames = existingList.map(i => i.name.trim().toLowerCase());
+
+            const duplicates = ingredients
+                .map(i => i.name.trim())
+                .filter(name => existingNames.includes(name.toLowerCase()));
+
+            if (duplicates.length > 0) {
+                showToast(
+                    'error',
+                    'Trùng nguyên liệu',
+                    `Các nguyên liệu sau đã tồn tại: ${duplicates.join(', ')}`
+                );
+                setLoading(false);
+                return;
+            }
 
             const results = await Promise.all(
                 ingredients.map(item =>
@@ -207,7 +246,13 @@ export default function AddIngredientForm({ closeForm, onSave }) {
                                         border: '1px solid #2A2A2A',
                                         color: '#FFFFFF',
                                         fontSize: '14px',
-                                        outline: 'none'
+                                        outline: 'none',
+                                        border: duplicateIds.has(item.id)
+                                            ? '1px solid #EF4444'
+                                            : '1px solid #2A2A2A',
+                                        boxShadow: duplicateIds.has(item.id)
+                                            ? '0 0 0 3px rgba(239,68,68,0.15)'
+                                            : 'none',
                                     }}
                                 />
                                 <input
