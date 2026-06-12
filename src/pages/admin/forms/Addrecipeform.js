@@ -43,7 +43,8 @@ export default function AddRecipeForm({ closeForm, onSave }) {
             });
             if (response.ok) {
                 const data = await response.json();
-                setIngredients(data);
+                const sorted = data.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+                setIngredients(sorted);
             }
         } catch (err) {
             console.error('Lỗi khi lấy danh sách nguyên liệu:', err);
