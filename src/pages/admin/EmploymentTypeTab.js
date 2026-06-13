@@ -17,17 +17,16 @@ export default function EmploymentTypeTab() {
         salaryCoefficient: ''
     });
 
-    const token = localStorage.getItem('token');
-    const headers = {
-        'Authorization': `Bearer ${token}`,
+    const getHeaders = () => ({
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
-    };
+    });
 
     useEffect(() => { fetchAll(); }, []);
 
     const fetchAll = () => {
         setLoading(true);
-        fetch(`${API_BASE_URL}/api/employment-types`, { headers })
+        fetch(`${API_BASE_URL}/api/employment-types`, { headers: getHeaders() })
             .then(r => r.ok ? r.json() : [])
             .then(data => setTypes(data))
             .catch(() => setTypes([]))
@@ -51,6 +50,12 @@ export default function EmploymentTypeTab() {
     };
 
     const handleSave = async () => {
+
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        };
         // Validate
         if (!form.name.trim()) {
             showToast('error', 'Lỗi', 'Vui lòng nhập tên loại nhân viên');
@@ -93,7 +98,7 @@ export default function EmploymentTypeTab() {
     const confirmDelete = async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/employment-types/${deleteConfirm}`, {
-                method: 'DELETE', headers
+                method: 'DELETE', headers: getHeaders()
             });
             if (!res.ok) throw new Error();
             showToast('success', 'Đã xóa', 'Xóa loại nhân viên thành công!');
