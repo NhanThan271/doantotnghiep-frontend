@@ -279,7 +279,6 @@ export default function Employees({ openAdd, openEdit, refreshTrigger }) {
                         { key: 'staff', label: 'Nhân viên' },
                         { key: 'type', label: 'Loại nhân viên' },
                         { key: 'shift', label: 'Ca làm' },
-                        { key: 'salary', label: 'Lương' },
                     ].map(tab => (
                         <button
                             key={tab.key}
