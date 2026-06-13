@@ -9,6 +9,13 @@ import IngredientWarning from './IngredientWarning';
 import styles from './ChefDashboard.module.css';
 import io from 'socket.io-client';
 
+const socket = io('/', {
+    path: '/socket.io/',
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000
+});
+
 const ChefDashboard = () => {
     const [allItems, setAllItems] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -298,8 +305,7 @@ const ChefDashboard = () => {
         if (socketRef.current) socketRef.current.disconnect();
         if (!branchId) return;
 
-        const newSocket = io('/', {
-            path: '/socket.io/',
+        const newSocket = io(socket, {
             autoConnect: true,
             reconnection: true,
             reconnectionAttempts: 5,
@@ -440,7 +446,8 @@ const ChefDashboard = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // ========== 5 PHÚT CẢNH BÁO MÓN CHƯA NẤU ==========
+    const [itemWarningSent, setItemWarningSent] = useState({});
+    // ========== 5 PHÚT CẢNH BÁO MÓN CHƯA NẤU (THEO TỪNG MÓN) ==========
     useEffect(() => {
         if (warningIntervalRef.current) {
             clearInterval(warningIntervalRef.current);
@@ -449,43 +456,54 @@ const ChefDashboard = () => {
         warningIntervalRef.current = setInterval(() => {
             const now = Date.now();
 
-            // Chỉ thông báo nếu đã qua 5 phút kể từ lần cuối
-            if (now - lastWarningTime >= 1 * 60 * 1000) {
-                const waitingItems = allItems.filter(item =>
-                    item.status === 'WAITING' &&
-                    !item.isNewlyAdded // Không thông báo món vừa mới thêm
-                );
+            // Lấy danh sách món đang chờ nấu (WAITING) và KHÔNG phải món mới thêm
+            const waitingItems = allItems.filter(item =>
+                item.status === 'WAITING' &&
+                !item.isNewlyAdded // Bỏ qua món vừa mới thêm trong 5 phút đầu
+            );
 
-                if (waitingItems.length > 0) {
-                    // Cập nhật thời gian cảnh báo cuối
-                    setLastWarningTime(now);
+            if (waitingItems.length === 0) return;
 
-                    // ✅ TẠO DANH SÁCH MÓN THEO ĐÚNG FORMAT
-                    const itemList = waitingItems.map(item =>
-                        `${item.name} ${item.quantity} phần`
-                    ).join(' , ');
+            // Kiểm tra từng món
+            waitingItems.forEach(item => {
+                // Tính thời gian đã trôi qua
+                const createdAt = new Date(item.createdAt);
+                const elapsedMinutes = (now - createdAt.getTime()) / 60000;
 
-                    // ✅ THÔNG BÁO HIỂN THỊ
-                    const warningMessage = `⚠️ CẢNH BÁO: ${waitingItems.length} món chưa nấu : \n${itemList}`;
+                // Nếu món đã chờ >= 5 phút
+                if (elapsedMinutes >= 5) {
+                    // Kiểm tra xem đã gửi cảnh báo cho món này chưa
+                    const lastWarningForItem = itemWarningSent[item.id];
 
-                    // Hiển thị toast
-                    showToast(warningMessage, 'warning');
+                    // Nếu chưa cảnh báo lần nào hoặc đã qua 5 phút kể từ lần cảnh báo cuối
+                    if (!lastWarningForItem || (now - lastWarningForItem) >= 5 * 60 * 1000) {
+                        // Đánh dấu đã cảnh báo
+                        setItemWarningSent(prev => ({
+                            ...prev,
+                            [item.id]: now
+                        }));
 
-                    // Gửi notification lên layout
-                    sendNotificationToLayout(warningMessage, 'warning');
+                        // Tạo thông báo cho món này
+                        const itemMessage = `⚠️ CẢNH BÁO: Món "${item.name}" (SL: ${item.quantity}) đã chờ ${Math.floor(elapsedMinutes)} phút chưa nấu tại ${item.displayLocations || item.tables?.join(', ') || 'bàn'}`;
 
-                    // ✅ GIỌNG NÓI ĐỌC THEO ĐÚNG FORMAT
-                    const speechText = `Cảnh báo: ${waitingItems.length} món chưa nấu. ${itemList}`;
-                    speakVietnamese(speechText);
+                        // Hiển thị toast
+                        showToast(itemMessage, 'warning');
 
-                    // Phát âm thanh cảnh báo
-                    playNotificationSound();
+                        // Gửi notification lên layout
+                        sendNotificationToLayout(itemMessage, 'warning');
 
-                    // Log ra console
-                    console.log(`🔔 5-minute warning:`);
-                    console.log(warningMessage);
+                        // Đọc bằng giọng nói (chỉ đọc 1 lần mỗi 5 phút để tránh spam)
+                        if (!lastWarningForItem) {
+                            const speechText = `Cảnh báo: Món ${item.name} số lượng ${item.quantity} đã chờ ${Math.floor(elapsedMinutes)} phút chưa nấu tại ${item.displayLocations || item.tables?.join(', ') || 'bàn'}`;
+                            speakVietnamese(speechText);
+                            playNotificationSound();
+                        }
+
+                        // Log ra console
+                        console.log(`🔔 Warning for item ${item.id}: ${item.name} - ${Math.floor(elapsedMinutes)} minutes`);
+                    }
                 }
-            }
+            });
         }, 30000); // Kiểm tra mỗi 30 giây
 
         return () => {
@@ -493,22 +511,32 @@ const ChefDashboard = () => {
                 clearInterval(warningIntervalRef.current);
             }
         };
-    }, [allItems, lastWarningTime, showToast, sendNotificationToLayout, speakVietnamese, playNotificationSound]);
+    }, [allItems, itemWarningSent, showToast, sendNotificationToLayout, speakVietnamese, playNotificationSound]);
 
-    // ========== AUTO REFRESH EVERY 6 MINUTES ==========
+    // ========== AUTO REFRESH EVERY 2 MINUTES ==========
     useEffect(() => {
-        // Auto refresh interval: 6 phút = 360,000 ms
-        const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // 360000 ms
+        const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // 10 phút
 
         const autoRefreshInterval = setInterval(() => {
-            console.log('🔄 Auto refresh after 6 minutes');
-            fetchData(true); // silent = true để không hiển thị loading
-            showToast('🔄 Tự động cập nhật danh sách món', 'info');
+            console.log('🔄 Auto refresh (backup)');
+            fetchData(true);
         }, AUTO_REFRESH_INTERVAL);
 
-        // Cleanup interval khi component unmount
         return () => clearInterval(autoRefreshInterval);
-    }, [fetchData, showToast]);
+    }, [fetchData]);
+
+    useEffect(() => {
+        const currentItemIds = new Set(allItems.map(item => item.id));
+        setItemWarningSent(prev => {
+            const newState = { ...prev };
+            Object.keys(newState).forEach(id => {
+                if (!currentItemIds.has(parseInt(id))) {
+                    delete newState[id];
+                }
+            });
+            return newState;
+        });
+    }, [allItems]);
 
     // ========== UPDATE STATUS ==========
     const updateStatus = async (itemGroup, status) => {
@@ -537,6 +565,15 @@ const ChefDashboard = () => {
 
             // Reset warning timer khi chef bắt đầu nấu
             setLastWarningTime(Date.now());
+
+            // ✅ XÓA CẢNH BÁO CHO MÓN ĐÃ ĐƯỢC XỬ LÝ
+            setItemWarningSent(prev => {
+                const newState = { ...prev };
+                itemGroup.originalIds.forEach(id => {
+                    delete newState[id];
+                });
+                return newState;
+            });
 
             if (socketRef.current?.connected) {
                 const emitData = {

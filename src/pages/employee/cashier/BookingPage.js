@@ -7,7 +7,7 @@ import {
     MapPin, Clock3, AlertTriangle, Utensils, Coffee,
     Building, DollarSign, Mail, PenSquare, Lock,
     Edit, Trash2, AlertOctagon, UserX, CalendarClock,
-    Eye, Info, Search, Filter, UserCircle, CreditCard
+    Eye, Info, Search, Filter, UserCircle, CreditCard, Plus
 } from "lucide-react";
 import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
@@ -363,6 +363,16 @@ const BookingPage = () => {
         if (!bookingForm.checkoutDate) newErrors.checkoutDate = "Vui lòng chọn ngày trả";
         if (!bookingForm.checkoutTime) newErrors.checkoutTime = "Vui lòng chọn giờ trả";
 
+        // Validate chọn bàn/phòng khi tạo mới (không có selectedEntity)
+        if (!selectedEntity?.id) {
+            if (bookingForm.entityType === "table" && !bookingForm.selectedTableId) {
+                newErrors.selectedTableId = "Vui lòng chọn bàn";
+            }
+            if (bookingForm.entityType === "room" && !bookingForm.selectedRoomId) {
+                newErrors.selectedRoomId = "Vui lòng chọn phòng";
+            }
+        }
+
         if (bookingForm.date && bookingForm.time && bookingForm.checkoutDate && bookingForm.checkoutTime) {
             const checkin = new Date(`${bookingForm.date}T${bookingForm.time}`);
             const checkout = new Date(`${bookingForm.checkoutDate}T${bookingForm.checkoutTime}`);
@@ -395,8 +405,6 @@ const BookingPage = () => {
             const requestData = {
                 userId: userData.id,
                 branchId,
-                tableId: selectedEntity.type === "table" ? selectedEntity.id : undefined,
-                roomId: selectedEntity.type === "room" ? selectedEntity.id : undefined,
                 checkInTime: checkIn,
                 checkOutTime: checkOut,
                 customerName: bookingForm.customerName.trim(),
@@ -406,6 +414,23 @@ const BookingPage = () => {
                 items: []
             };
 
+            // Xử lý theo 2 trường hợp: có selectedEntity (đặt từ card) hoặc tạo mới
+            if (selectedEntity?.id) {
+                // Đặt từ card bàn/phòng
+                if (selectedEntity.type === "table") {
+                    requestData.tableId = selectedEntity.id;
+                } else {
+                    requestData.roomId = selectedEntity.id;
+                }
+            } else {
+                // Tạo mới - lấy từ dropdown
+                if (bookingForm.entityType === "table") {
+                    requestData.tableId = parseInt(bookingForm.selectedTableId);
+                } else {
+                    requestData.roomId = parseInt(bookingForm.selectedRoomId);
+                }
+            }
+
             Object.keys(requestData).forEach(k => {
                 if (requestData[k] === undefined || requestData[k] === null || requestData[k] === '') {
                     delete requestData[k];
@@ -413,7 +438,21 @@ const BookingPage = () => {
             });
 
             const response = await axiosClient.post(`/reservations/full`, requestData);
-            showToast(`Đặt ${selectedEntity.type === "table" ? "bàn" : "phòng"} ${selectedEntity.number} thành công!`, "success");
+
+            let entityName = "";
+            if (selectedEntity?.id) {
+                entityName = `${selectedEntity.type === "table" ? "bàn" : "phòng"} ${selectedEntity.number}`;
+            } else {
+                if (bookingForm.entityType === "table") {
+                    const table = tables.find(t => t.id === parseInt(bookingForm.selectedTableId));
+                    entityName = `bàn ${table?.number || ""}`;
+                } else {
+                    const room = rooms.find(r => r.id === parseInt(bookingForm.selectedRoomId));
+                    entityName = `phòng ${room?.number || ""}`;
+                }
+            }
+
+            showToast(`Đặt ${entityName} thành công!`, "success");
             setShowBookingModal(false);
             refreshAllData();
             socket.emit("new-reservation", response.data);
@@ -445,6 +484,30 @@ const BookingPage = () => {
         if (s === "RESERVED") return styles.statusReserved;
         if (s === "OCCUPIED") return styles.statusOccupied;
         return "";
+    };
+
+    const handleOpenCreateBooking = () => {
+        const today = new Date().toISOString().split('T')[0];
+
+        setSelectedEntity(null);  // Đặt là null để biết đây là tạo mới
+
+        setBookingForm({
+            date: today,
+            time: "",
+            checkoutDate: today,
+            checkoutTime: "",
+            customerName: userData.fullName || "",
+            phone: userData.phone || "",
+            email: userData.email || "",
+            note: "",
+            depositAmount: 0,
+            entityType: "table",  // Thêm field để biết đang chọn bàn hay phòng
+            selectedTableId: "",
+            selectedRoomId: ""
+        });
+
+        setErrors({});
+        setShowBookingModal(true);
     };
 
     // ==================== RENDER ====================
@@ -481,10 +544,17 @@ const BookingPage = () => {
                     <Table size={18} /> Bàn ăn <span className={styles.tabCount}>{tables.length}</span>
                 </button>
                 <button onClick={() => setActiveTab("rooms")} className={`${styles.tabButton} ${activeTab === "rooms" ? styles.activeTab : ""}`}>
-                    <Home size={18} /> Phòng VIP <span className={styles.tabCount}>{rooms.length}</span>
+                    <Home size={18} /> Phòng <span className={styles.tabCount}>{rooms.length}</span>
                 </button>
                 <button onClick={() => setActiveTab("reservations")} className={`${styles.tabButton} ${activeTab === "reservations" ? styles.activeTab : ""}`}>
                     <CheckCircle size={18} /> Đã xác nhận {reservations.length > 0 && <span className={styles.badge}>{reservations.length}</span>}
+                </button>
+                <button
+                    onClick={handleOpenCreateBooking}
+                    className={styles.addBookingButton}
+                >
+                    <Plus size={16} />
+                    Thêm đặt
                 </button>
             </div>
 
@@ -786,23 +856,90 @@ const BookingPage = () => {
             )}
 
             {/* ==================== BOOKING MODAL ==================== */}
-            {showBookingModal && selectedEntity && (
+            {showBookingModal && (
                 <div className={styles.modalOverlay} onClick={() => setShowBookingModal(false)}>
                     <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
-                            <h3><Calendar size={18} /> Đặt {selectedEntity.type === "table" ? "bàn" : "phòng"} {selectedEntity.number}</h3>
+                            <h3>
+                                <Calendar size={18} />
+                                {selectedEntity?.id
+                                    ? `Đặt ${selectedEntity.type === "table" ? "bàn" : "phòng"} ${selectedEntity.number}`
+                                    : "Đặt bàn/phòng mới"}
+                            </h3>
                             <button onClick={() => setShowBookingModal(false)} className={styles.modalClose}><X size={20} /></button>
                         </div>
                         <div className={styles.modalBody}>
-                            <div className={styles.infoBox}>
-                                <div className={styles.infoItem}>
-                                    <span>{selectedEntity.type === "table" ? <Utensils size={16} /> : <Home size={16} />}<strong>{selectedEntity.type === "table" ? "Bàn" : "Phòng"} {selectedEntity.number}</strong></span>
-                                    {selectedEntity.capacity && <span><Users size={14} />{selectedEntity.capacity} người</span>}
-                                </div>
-                                {selectedEntity.area && <div className={styles.infoItem}><MapPin size={14} /><span>{selectedEntity.area}</span></div>}
-                            </div>
-                            <form onSubmit={(e) => { e.preventDefault(); handleSubmitBooking(); }}>
+                            {/* Nếu không có selectedEntity (thêm mới) thì hiển thị dropdown chọn bàn/phòng */}
+                            {!selectedEntity?.id && (
+                                <div className={styles.infoBox} style={{ marginBottom: 20 }}>
+                                    <div className={styles.formGroup}>
+                                        <label>Loại *</label>
+                                        <div className={styles.typeSwitch}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setBookingForm(prev => ({ ...prev, entityType: "table", selectedTableId: "", selectedRoomId: "" }))}
+                                                className={`${styles.typeButton} ${bookingForm.entityType === "table" ? styles.activeType : ""}`}
+                                            >
+                                                <Table size={16} /> Bàn ăn
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setBookingForm(prev => ({ ...prev, entityType: "room", selectedTableId: "", selectedRoomId: "" }))}
+                                                className={`${styles.typeButton} ${bookingForm.entityType === "room" ? styles.activeType : ""}`}
+                                            >
+                                                <Home size={16} /> Phòng VIP
+                                            </button>
+                                        </div>
+                                    </div>
 
+                                    <div className={styles.formGroup}>
+                                        <label>
+                                            {bookingForm.entityType === "table" ? <Table size={14} /> : <Home size={14} />}
+                                            {bookingForm.entityType === "table" ? "Chọn bàn *" : "Chọn phòng *"}
+                                        </label>
+                                        <select
+                                            value={bookingForm.entityType === "table" ? bookingForm.selectedTableId : bookingForm.selectedRoomId}
+                                            onChange={(e) => {
+                                                if (bookingForm.entityType === "table") {
+                                                    setBookingForm({ ...bookingForm, selectedTableId: e.target.value });
+                                                } else {
+                                                    setBookingForm({ ...bookingForm, selectedRoomId: e.target.value });
+                                                }
+                                                setErrors({});
+                                            }}
+                                            className={errors.selectedTableId || errors.selectedRoomId ? styles.inputError : styles.select}
+                                        >
+                                            <option value="">-- Chọn {bookingForm.entityType === "table" ? "bàn" : "phòng"} --</option>
+                                            {bookingForm.entityType === "table"
+                                                ? tables.filter(t => t.status === "FREE").map(table => (
+                                                    <option key={table.id} value={table.id}>Bàn {table.number} - {table.capacity} người - {table.area}</option>
+                                                ))
+                                                : rooms.filter(r => r.status === "FREE" || r.status === "ACTIVE").map(room => (
+                                                    <option key={room.id} value={room.id}>Phòng {room.number} - {room.area}</option>
+                                                ))
+                                            }
+                                        </select>
+                                        {(errors.selectedTableId || errors.selectedRoomId) && (
+                                            <span className={styles.errorMessage}>{errors.selectedTableId || errors.selectedRoomId}</span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Hiển thị thông tin bàn/phòng đã chọn (khi đặt từ card) */}
+                            {selectedEntity?.id && (
+                                <div className={styles.infoBox}>
+                                    <div className={styles.infoItem}>
+                                        <span>{selectedEntity.type === "table" ? <Utensils size={16} /> : <Home size={16} />}
+                                            <strong>{selectedEntity.type === "table" ? "Bàn" : "Phòng"} {selectedEntity.number}</strong>
+                                        </span>
+                                        {selectedEntity.capacity && <span><Users size={14} />{selectedEntity.capacity} người</span>}
+                                    </div>
+                                    {selectedEntity.area && <div className={styles.infoItem}><MapPin size={14} /><span>{selectedEntity.area}</span></div>}
+                                </div>
+                            )}
+
+                            <form onSubmit={(e) => { e.preventDefault(); handleSubmitBooking(); }}>
                                 {/* CHECK-IN */}
                                 <div style={{ marginBottom: 16, padding: 14, background: "#f0fdf4", borderRadius: 12, border: "1px solid #bbf7d0" }}>
                                     <label style={{ fontWeight: 700, color: "#166534", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
@@ -811,12 +948,23 @@ const BookingPage = () => {
                                     <div className={styles.formGrid}>
                                         <div className={styles.formGroup}>
                                             <label><Calendar size={14} /> Ngày *</label>
-                                            <input type="date" value={bookingForm.date} onChange={(e) => { setBookingForm({ ...bookingForm, date: e.target.value, time: "" }); setErrors({}); }} min={new Date().toISOString().split('T')[0]} className={errors.date ? styles.inputError : styles.input} />
+                                            <input
+                                                type="date"
+                                                value={bookingForm.date}
+                                                onChange={(e) => { setBookingForm({ ...bookingForm, date: e.target.value, time: "" }); setErrors({}); }}
+                                                min={new Date().toISOString().split('T')[0]}
+                                                className={errors.date ? styles.inputError : styles.input}
+                                            />
                                             {errors.date && <span className={styles.errorMessage}>{errors.date}</span>}
                                         </div>
                                         <div className={styles.formGroup}>
                                             <label><Clock size={14} /> Giờ *</label>
-                                            <select value={bookingForm.time} onChange={(e) => { setBookingForm({ ...bookingForm, time: e.target.value }); setErrors({}); }} disabled={!bookingForm.date} className={errors.time ? styles.inputError : styles.select}>
+                                            <select
+                                                value={bookingForm.time}
+                                                onChange={(e) => { setBookingForm({ ...bookingForm, time: e.target.value }); setErrors({}); }}
+                                                disabled={!bookingForm.date}
+                                                className={errors.time ? styles.inputError : styles.select}
+                                            >
                                                 <option value="">-- Chọn giờ --</option>
                                                 {getAvailableTimes().map(time => <option key={time} value={time}>{time}</option>)}
                                             </select>
@@ -833,12 +981,23 @@ const BookingPage = () => {
                                     <div className={styles.formGrid}>
                                         <div className={styles.formGroup}>
                                             <label><Calendar size={14} /> Ngày *</label>
-                                            <input type="date" value={bookingForm.checkoutDate} onChange={(e) => { setBookingForm({ ...bookingForm, checkoutDate: e.target.value, checkoutTime: "" }); setErrors({}); }} min={bookingForm.date || new Date().toISOString().split('T')[0]} className={errors.checkoutDate ? styles.inputError : styles.input} />
+                                            <input
+                                                type="date"
+                                                value={bookingForm.checkoutDate}
+                                                onChange={(e) => { setBookingForm({ ...bookingForm, checkoutDate: e.target.value, checkoutTime: "" }); setErrors({}); }}
+                                                min={bookingForm.date || new Date().toISOString().split('T')[0]}
+                                                className={errors.checkoutDate ? styles.inputError : styles.input}
+                                            />
                                             {errors.checkoutDate && <span className={styles.errorMessage}>{errors.checkoutDate}</span>}
                                         </div>
                                         <div className={styles.formGroup}>
                                             <label><Clock size={14} /> Giờ *</label>
-                                            <select value={bookingForm.checkoutTime} onChange={(e) => { setBookingForm({ ...bookingForm, checkoutTime: e.target.value }); setErrors({}); }} disabled={!bookingForm.checkoutDate} className={errors.checkoutTime ? styles.inputError : styles.select}>
+                                            <select
+                                                value={bookingForm.checkoutTime}
+                                                onChange={(e) => { setBookingForm({ ...bookingForm, checkoutTime: e.target.value }); setErrors({}); }}
+                                                disabled={!bookingForm.checkoutDate}
+                                                className={errors.checkoutTime ? styles.inputError : styles.select}
+                                            >
                                                 <option value="">-- Chọn giờ --</option>
                                                 {getAvailableTimes().map(time => <option key={time} value={time}>{time}</option>)}
                                             </select>
@@ -847,12 +1006,71 @@ const BookingPage = () => {
                                     </div>
                                 </div>
 
-                                <div className={styles.formGroup}><label><User size={14} /> Họ tên khách hàng *</label><input type="text" value={bookingForm.customerName} onChange={(e) => setBookingForm({ ...bookingForm, customerName: e.target.value })} className={errors.customerName ? styles.inputError : styles.input} placeholder="Nhập họ tên" />{errors.customerName && <span className={styles.errorMessage}>{errors.customerName}</span>}</div>
-                                <div className={styles.formGroup}><label><Phone size={14} /> Số điện thoại *</label><input type="tel" value={bookingForm.phone} onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })} className={errors.phone ? styles.inputError : styles.input} placeholder="0987654321" />{errors.phone && <span className={styles.errorMessage}>{errors.phone}</span>}</div>
-                                <div className={styles.formGroup}><label><Mail size={14} /> Email</label><input type="email" value={bookingForm.email} onChange={(e) => setBookingForm({ ...bookingForm, email: e.target.value })} className={errors.email ? styles.inputError : styles.input} placeholder="example@email.com" />{errors.email && <span className={styles.errorMessage}>{errors.email}</span>}</div>
-                                <div className={styles.formGroup}><label><DollarSign size={14} /> Tiền cọc (VNĐ)</label><input type="number" min="0" step="10000" value={bookingForm.depositAmount} onChange={(e) => setBookingForm({ ...bookingForm, depositAmount: parseInt(e.target.value) || 0 })} className={errors.depositAmount ? styles.inputError : styles.input} placeholder="0" />{errors.depositAmount && <span className={styles.errorMessage}>{errors.depositAmount}</span>}</div>
-                                <div className={styles.formGroup}><label><PenSquare size={14} /> Ghi chú</label><textarea value={bookingForm.note} onChange={(e) => setBookingForm({ ...bookingForm, note: e.target.value })} className={styles.textarea} rows="2" placeholder="Ghi chú..." /></div>
-                                <div className={styles.notificationInfo}><Bell size={14} /><span>Đặt bàn sẽ ở trạng thái chờ xác nhận.</span></div>
+                                <div className={styles.formGroup}>
+                                    <label><User size={14} /> Họ tên khách hàng *</label>
+                                    <input
+                                        type="text"
+                                        value={bookingForm.customerName}
+                                        onChange={(e) => setBookingForm({ ...bookingForm, customerName: e.target.value })}
+                                        className={errors.customerName ? styles.inputError : styles.input}
+                                        placeholder="Nhập họ tên"
+                                    />
+                                    {errors.customerName && <span className={styles.errorMessage}>{errors.customerName}</span>}
+                                </div>
+
+                                <div className={styles.formGroup}>
+                                    <label><Phone size={14} /> Số điện thoại *</label>
+                                    <input
+                                        type="tel"
+                                        value={bookingForm.phone}
+                                        onChange={(e) => setBookingForm({ ...bookingForm, phone: e.target.value })}
+                                        className={errors.phone ? styles.inputError : styles.input}
+                                        placeholder="0987654321"
+                                    />
+                                    {errors.phone && <span className={styles.errorMessage}>{errors.phone}</span>}
+                                </div>
+
+                                <div className={styles.formGroup}>
+                                    <label><Mail size={14} /> Email</label>
+                                    <input
+                                        type="email"
+                                        value={bookingForm.email}
+                                        onChange={(e) => setBookingForm({ ...bookingForm, email: e.target.value })}
+                                        className={errors.email ? styles.inputError : styles.input}
+                                        placeholder="example@email.com"
+                                    />
+                                    {errors.email && <span className={styles.errorMessage}>{errors.email}</span>}
+                                </div>
+
+                                <div className={styles.formGroup}>
+                                    <label><DollarSign size={14} /> Tiền cọc (VNĐ)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="10000"
+                                        value={bookingForm.depositAmount}
+                                        onChange={(e) => setBookingForm({ ...bookingForm, depositAmount: parseInt(e.target.value) || 0 })}
+                                        className={errors.depositAmount ? styles.inputError : styles.input}
+                                        placeholder="0"
+                                    />
+                                    {errors.depositAmount && <span className={styles.errorMessage}>{errors.depositAmount}</span>}
+                                </div>
+
+                                <div className={styles.formGroup}>
+                                    <label><PenSquare size={14} /> Ghi chú</label>
+                                    <textarea
+                                        value={bookingForm.note}
+                                        onChange={(e) => setBookingForm({ ...bookingForm, note: e.target.value })}
+                                        className={styles.textarea}
+                                        rows="2"
+                                        placeholder="Ghi chú..."
+                                    />
+                                </div>
+
+                                <div className={styles.notificationInfo}>
+                                    <Bell size={14} />
+                                    <span>Đặt bàn sẽ ở trạng thái chờ xác nhận.</span>
+                                </div>
                             </form>
                         </div>
                         <div className={styles.modalFooter}>
