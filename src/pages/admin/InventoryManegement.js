@@ -873,7 +873,7 @@ export default function InventoryManagement() {
                             className="search-input1"
                             style={{ maxWidth: 320 }}
                             value={selectedWh}
-                            onChange={e => { setSelectedWh(e.target.value); setWhBatchHsdFilter('all'); }}
+                            onChange={e => { setSelectedWh(e.target.value); setWhBatchHsdFilter('all'); setWhStockSearch(''); }}
                         >
                             <option value="">-- Chọn kho --</option>
                             {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
@@ -903,8 +903,12 @@ export default function InventoryManagement() {
                             </div>
 
                             {/* Tổng hợp */}
-                            {whViewMode === 'aggregate' && (
-                                whAggregated.length === 0
+                            {whViewMode === 'aggregate' && (() => {
+                                const filteredAgg = whAggregated.filter(item =>
+                                    !whStockSearch ||
+                                    item.ingredient?.name?.toLowerCase().includes(whStockSearch.toLowerCase())
+                                );
+                                return filteredAgg.length === 0
                                     ? <div className="empty-state"><BarChart2 size={40} /><p>Kho trống (không có lô còn hạn)</p></div>
                                     : (
                                         <div className="inventory-table-container">
@@ -915,7 +919,7 @@ export default function InventoryManagement() {
                                                     )}
                                                 </tr></thead>
                                                 <tbody>
-                                                    {whAggregated.map(item => (
+                                                    {filteredAgg.map(item => (
                                                         <tr key={item.id}>
                                                             <td className="ingredient-name">{item.ingredient?.name || 'N/A'}</td>
                                                             <td className="ingredient-unit">{item.ingredient?.unit || '—'}</td>
@@ -928,8 +932,8 @@ export default function InventoryManagement() {
                                                 </tbody>
                                             </table>
                                         </div>
-                                    )
-                            )}
+                                    );
+                            })()}
 
                             {/* Theo lô */}
                             {whViewMode === 'batch' && (
@@ -993,6 +997,7 @@ export default function InventoryManagement() {
                                                                     if (whBatchHsdFilter === 'usable') return d !== null && d > 5;
                                                                     if (whBatchHsdFilter === 'nearExpiry') return d !== null && d >= 0 && d <= 7;
                                                                     if (whBatchHsdFilter === 'expired') return d !== null && d < 0;
+                                                                    if (whStockSearch && !batch.ingredient?.name?.toLowerCase().includes(whStockSearch.toLowerCase())) return false;
                                                                     return true;
                                                                 })
                                                                 .sort((a, b) => new Date(a.expiryDate || '9999') - new Date(b.expiryDate || '9999'))
