@@ -992,12 +992,12 @@ export default function InventoryManagement() {
                                                         <tbody>
                                                             {[...whBatches]
                                                                 .filter(batch => {
+                                                                    if (whStockSearch && !batch.ingredient?.name?.toLowerCase().includes(whStockSearch.toLowerCase())) return false;
                                                                     const d = calcDays(batch.expiryDate);
                                                                     if (whBatchHsdFilter === 'all') return true;
                                                                     if (whBatchHsdFilter === 'usable') return d !== null && d > 5;
                                                                     if (whBatchHsdFilter === 'nearExpiry') return d !== null && d >= 0 && d <= 7;
                                                                     if (whBatchHsdFilter === 'expired') return d !== null && d < 0;
-                                                                    if (whStockSearch && !batch.ingredient?.name?.toLowerCase().includes(whStockSearch.toLowerCase())) return false;
                                                                     return true;
                                                                 })
                                                                 .sort((a, b) => new Date(a.expiryDate || '9999') - new Date(b.expiryDate || '9999'))
