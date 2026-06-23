@@ -298,6 +298,10 @@ export default function InventoryManagement() {
     const [deletingWh, setDeletingWh] = useState(null);
     const [whBatchHsdFilter, setWhBatchHsdFilter] = useState('all');
 
+    const [importSearchTerms, setImportSearchTerms] = useState({});
+    const [importOpenDropdowns, setImportOpenDropdowns] = useState({});
+    const [whStockSearch, setWhStockSearch] = useState('');
+
     const fetchRequests = useCallback(async () => {
         const r = await apiFetch('/api/inventory-requests');
         if (!r.ok) return;
@@ -749,16 +753,78 @@ export default function InventoryManagement() {
                             </div>
                             {importForm.items.map((row, i) => (
                                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, alignItems: 'center' }}>
-                                    <select
-                                        className="search-input1"
-                                        value={row.ingredientId}
-                                        onChange={e => updateImportRow(i, 'ingredientId', e.target.value)}
-                                    >
-                                        <option value="">-- Chọn --</option>
-                                        {ingredients.map(ing => (
-                                            <option key={ing.id} value={ing.id}>{ing.name} ({ing.unit})</option>
-                                        ))}
-                                    </select>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            className="search-input1"
+                                            style={{ width: '100%', boxSizing: 'border-box' }}
+                                            placeholder="Tìm nguyên liệu..."
+                                            value={
+                                                row.ingredientId
+                                                    ? (importOpenDropdowns[i]
+                                                        ? (importSearchTerms[i] ?? '')
+                                                        : (() => {
+                                                            const ing = ingredients.find(x => x.id === parseInt(row.ingredientId));
+                                                            return ing ? `${ing.name} (${ing.unit})` : '';
+                                                        })())
+                                                    : (importSearchTerms[i] ?? '')
+                                            }
+                                            onChange={e => {
+                                                setImportSearchTerms(p => ({ ...p, [i]: e.target.value }));
+                                                setImportOpenDropdowns(p => ({ ...p, [i]: true }));
+                                                if (!e.target.value) updateImportRow(i, 'ingredientId', '');
+                                            }}
+                                            onFocus={() => setImportOpenDropdowns(p => ({ ...p, [i]: true }))}
+                                        />
+                                        {importOpenDropdowns[i] && (
+                                            <>
+                                                <div
+                                                    style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+                                                    onClick={() => setImportOpenDropdowns(p => ({ ...p, [i]: false }))}
+                                                />
+                                                <div style={{
+                                                    position: 'absolute', top: '100%', left: 0, right: 0,
+                                                    background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.15)',
+                                                    borderRadius: 8, zIndex: 100, maxHeight: 200, overflowY: 'auto',
+                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.5)', marginTop: 4
+                                                }}>
+                                                    {ingredients
+                                                        .filter(ing => {
+                                                            const term = (importSearchTerms[i] ?? '').toLowerCase();
+                                                            return !term || ing.name.toLowerCase().includes(term);
+                                                        })
+                                                        .map(ing => (
+                                                            <div
+                                                                key={ing.id}
+                                                                onMouseDown={() => {
+                                                                    updateImportRow(i, 'ingredientId', ing.id);
+                                                                    setImportSearchTerms(p => ({ ...p, [i]: '' }));
+                                                                    setImportOpenDropdowns(p => ({ ...p, [i]: false }));
+                                                                }}
+                                                                style={{
+                                                                    padding: '9px 14px', cursor: 'pointer', fontSize: 13,
+                                                                    color: parseInt(row.ingredientId) === ing.id ? '#667eea' : 'rgba(255,255,255,0.85)',
+                                                                    background: parseInt(row.ingredientId) === ing.id ? 'rgba(102,126,234,0.15)' : 'transparent',
+                                                                    borderBottom: '1px solid rgba(255,255,255,0.05)'
+                                                                }}
+                                                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(102,126,234,0.1)'}
+                                                                onMouseLeave={e => e.currentTarget.style.background =
+                                                                    parseInt(row.ingredientId) === ing.id ? 'rgba(102,126,234,0.15)' : 'transparent'}
+                                                            >
+                                                                {ing.name} ({ing.unit})
+                                                            </div>
+                                                        ))}
+                                                    {ingredients.filter(ing => {
+                                                        const term = (importSearchTerms[i] ?? '').toLowerCase();
+                                                        return !term || ing.name.toLowerCase().includes(term);
+                                                    }).length === 0 && (
+                                                            <div style={{ padding: '14px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13 }}>
+                                                                Không tìm thấy
+                                                            </div>
+                                                        )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                     <input
                                         className="search-input"
                                         style={{ paddingLeft: 16 }}
@@ -824,7 +890,16 @@ export default function InventoryManagement() {
                                         ? `Tổng hợp (${whInventory.length} NL)`
                                         : `Theo lô (${whBatches.length} lô)`}
                                 </h3>
-                                <ViewToggle mode={whViewMode} setMode={setWhViewMode} />
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <input
+                                        className="search-input"
+                                        style={{ paddingLeft: 16, minWidth: 200 }}
+                                        placeholder="Tìm nguyên liệu..."
+                                        value={whStockSearch}
+                                        onChange={e => setWhStockSearch(e.target.value)}
+                                    />
+                                    <ViewToggle mode={whViewMode} setMode={setWhViewMode} />
+                                </div>
                             </div>
 
                             {/* Tổng hợp */}
