@@ -476,10 +476,10 @@ const BookingDetail = () => {
                 roomId: bookingMode === "room" ? data.selectedRoomId : null,
                 checkInTime: bookingMode === "room"
                     ? `${roomDates.checkInDate} ${roomDates.checkInTime}`
-                    : `${data.date} ${data.time}`,
+                    : `${data.checkInDate} ${data.checkInTime}`,
                 checkOutTime: bookingMode === "room"
                     ? `${roomDates.checkOutDate} ${roomDates.checkOutTime}`
-                    : toCheckOut(data.date, data.time),
+                    : `${data.checkOutDate} ${data.checkOutTime}`,
                 depositAmount: payable,
                 customerName: data.customerName.trim(),
                 customerPhone: data.phone.replace(/\s/g, ""),
@@ -532,6 +532,7 @@ const BookingDetail = () => {
 
             sessionStorage.setItem("tempBooking", JSON.stringify({
                 userId: u.id, branchId: cb?.id,
+                branchName: cbName,
                 tableId: null,
                 roomId: data.selectedRoomId,
                 checkInTime: `${roomDates.checkInDate} ${roomDates.checkInTime}`,
