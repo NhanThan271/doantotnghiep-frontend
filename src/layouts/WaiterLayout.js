@@ -6,8 +6,8 @@ import {
     CheckCircle2, AlertTriangle, XCircle, Info, X, Building2
 } from 'lucide-react';
 
-const socket = io('http://localhost:3001');
-const API = "http://localhost:8080";
+const socket = io('/', { path: '/socket.io/' });
+const API = "";
 
 const NOTIFICATIONS_KEY = 'waiter_notifications';
 

@@ -12,8 +12,8 @@ import ToastNotification from "./ToastNotification";
 import styles from "./TableDetail.module.css";
 import CashPaymentModal from "./CashPaymentModal";
 
-const socket = io('http://localhost:3001');
-const API = "http://localhost:8080";
+const socket = io('/', { path: '/socket.io/' });
+const API = "";
 const CASHIER_NOTIFICATIONS_KEY = 'cashier_notifications';
 
 const TableDetail = () => {
@@ -46,7 +46,7 @@ const TableDetail = () => {
     const [roomFee, setRoomFee] = useState(0);
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const getDiscountedPrices = useCallback((orderId) => {
         if (!orderId) return {};

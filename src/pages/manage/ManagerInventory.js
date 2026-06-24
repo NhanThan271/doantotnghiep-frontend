@@ -14,7 +14,7 @@ import io from 'socket.io-client';
 import styles from '../../layouts/AdminLayout.module.css';
 import { showToast } from '../../hooks/useToast';
 
-const socket = io('http://localhost:3001');
+const socket = io('/', { path: '/socket.io/' });
 
 export default function ManagerInventoryManagement() {
     const [branchIngredients, setBranchIngredients] = useState([]);
@@ -41,7 +41,7 @@ export default function ManagerInventoryManagement() {
     });
     const [notifications, setNotifications] = useState([]);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
     const user = JSON.parse(localStorage.getItem('user'));
     const processedResponses = useRef(new Set());
 
@@ -52,6 +52,8 @@ export default function ManagerInventoryManagement() {
     const [branchBatches, setBranchBatches] = useState([]);
 
     const [batchHsdFilter, setBatchHsdFilter] = useState('all');
+    const [itemSearchTerms, setItemSearchTerms] = useState({});
+    const [openDropdowns, setOpenDropdowns] = useState({});
 
     // Notification system
     const addNotification = (notification) => {
@@ -325,7 +327,7 @@ export default function ManagerInventoryManagement() {
                 default:
                     break;
             }
-        }, 4000); 
+        }, 4000);
 
         return () => clearInterval(intervalId);
     }, [
@@ -1293,17 +1295,80 @@ export default function ManagerInventoryManagement() {
                                     </div>
                                     {requestForm.items.map((item, index) => (
                                         <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                                            <select
-                                                value={item.ingredientId}
-                                                onChange={(e) => updateFormItem(index, 'ingredientId', e.target.value)}
-                                                className={styles.searchInput1} style={{ flex: 2 }}>
-                                                <option value="">-- Chọn nguyên liệu --</option>
-                                                {allIngredients.map(ing => (
-                                                    <option key={ing.id} value={ing.id}>
-                                                        {ing.name} ({ing.unit}) — Tồn: {getCurrentStock(ing.id)}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                            <div style={{ flex: 2, position: 'relative' }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Tìm nguyên liệu..."
+                                                    value={
+                                                        item.ingredientId
+                                                            ? (openDropdowns[index]
+                                                                ? (itemSearchTerms[index] ?? '')
+                                                                : (() => {
+                                                                    const ing = allIngredients.find(i => i.id === parseInt(item.ingredientId));
+                                                                    return ing ? `${ing.name} (${ing.unit}) — Tồn: ${getCurrentStock(ing.id)}` : '';
+                                                                })())
+                                                            : (itemSearchTerms[index] ?? '')
+                                                    }
+                                                    onChange={(e) => {
+                                                        setItemSearchTerms(prev => ({ ...prev, [index]: e.target.value }));
+                                                        setOpenDropdowns(prev => ({ ...prev, [index]: true }));
+                                                        if (!e.target.value) updateFormItem(index, 'ingredientId', '');
+                                                    }}
+                                                    onFocus={() => setOpenDropdowns(prev => ({ ...prev, [index]: true }))}
+                                                    className={styles.searchInput1}
+                                                    style={{ width: '100%' }}
+                                                />
+                                                {openDropdowns[index] && (
+                                                    <>
+                                                        {/* Overlay để đóng dropdown khi click ngoài */}
+                                                        <div
+                                                            style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+                                                            onClick={() => setOpenDropdowns(prev => ({ ...prev, [index]: false }))}
+                                                        />
+                                                        <div style={{
+                                                            position: 'absolute', top: '100%', left: 0, right: 0,
+                                                            background: '#1a1a1a', border: '1px solid var(--color-border)',
+                                                            borderRadius: 8, zIndex: 100, maxHeight: 220, overflowY: 'auto',
+                                                            boxShadow: '0 8px 24px rgba(0,0,0,0.4)', marginTop: 4
+                                                        }}>
+                                                            {allIngredients
+                                                                .filter(ing => {
+                                                                    const term = (itemSearchTerms[index] ?? '').toLowerCase();
+                                                                    return !term || ing.name.toLowerCase().includes(term);
+                                                                })
+                                                                .map(ing => (
+                                                                    <div
+                                                                        key={ing.id}
+                                                                        onMouseDown={() => {
+                                                                            updateFormItem(index, 'ingredientId', ing.id);
+                                                                            setItemSearchTerms(prev => ({ ...prev, [index]: '' }));
+                                                                            setOpenDropdowns(prev => ({ ...prev, [index]: false }));
+                                                                        }}
+                                                                        style={{
+                                                                            padding: '10px 14px', cursor: 'pointer', fontSize: 13,
+                                                                            color: parseInt(item.ingredientId) === ing.id ? '#8B5CF6' : '#e5e7eb',
+                                                                            background: parseInt(item.ingredientId) === ing.id ? 'rgba(139,92,246,0.15)' : 'transparent',
+                                                                            borderBottom: '1px solid rgba(255,255,255,0.05)'
+                                                                        }}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.1)'}
+                                                                        onMouseLeave={e => e.currentTarget.style.background = parseInt(item.ingredientId) === ing.id ? 'rgba(139,92,246,0.15)' : 'transparent'}
+                                                                    >
+                                                                        {ing.name} ({ing.unit}) — Tồn: {getCurrentStock(ing.id)}
+                                                                    </div>
+                                                                ))
+                                                            }
+                                                            {allIngredients.filter(ing => {
+                                                                const term = (itemSearchTerms[index] ?? '').toLowerCase();
+                                                                return !term || ing.name.toLowerCase().includes(term);
+                                                            }).length === 0 && (
+                                                                    <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                                                                        Không tìm thấy nguyên liệu
+                                                                    </div>
+                                                                )}
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
                                             <input
                                                 type="number" min="0.01" step="0.01"
                                                 placeholder="Số lượng"

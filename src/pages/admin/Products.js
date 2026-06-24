@@ -9,7 +9,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
     const [filterStatus, setFilterStatus] = useState('all');
     const [viewMode, setViewMode] = useState('table');
     const [deleteConfirm, setDeleteConfirm] = useState(null);
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const fetchProducts = () => {
         const token = localStorage.getItem('token');
@@ -226,7 +226,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                                 {totalValue.toLocaleString('vi-VN')}đ
                             </div>
                             <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                                Giá trị tồn kho
+                                Giá trị
                             </div>
                         </div>
                     </div>

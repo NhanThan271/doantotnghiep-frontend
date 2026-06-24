@@ -13,8 +13,8 @@ import axiosClient from "../../../api/axiosClient";
 import io from 'socket.io-client';
 import styles from "./BookingPage.module.css";
 
-const SOCKET_URL = "http://localhost:3001";
-const socket = io(SOCKET_URL, {
+const socket = io('/', {
+    path: '/socket.io/',
     transports: ['websocket'],
     reconnection: true,
     reconnectionDelay: 1000,

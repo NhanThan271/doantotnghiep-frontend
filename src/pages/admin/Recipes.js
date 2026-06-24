@@ -10,7 +10,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
     const [filterProduct, setFilterProduct] = useState('all');
     const [expandedFoodId, setExpandedFoodId] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const fetchRecipes = () => {
         const token = localStorage.getItem('token');

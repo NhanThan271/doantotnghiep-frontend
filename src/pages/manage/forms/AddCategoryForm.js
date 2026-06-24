@@ -13,7 +13,7 @@ export default function AddCategory({ onClose, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const handleChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));

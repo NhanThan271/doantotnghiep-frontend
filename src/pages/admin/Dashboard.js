@@ -19,7 +19,7 @@ export default function Dashboard() {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        const API_BASE = 'http://localhost:8080';
+        const API_BASE = '';
 
         Promise.all([
             // Tổng sản phẩm
@@ -195,7 +195,7 @@ export default function Dashboard() {
 
     const statsCards = [
         {
-            title: 'Tổng sản phẩm',
+            title: 'Tổng món ăn',
             value: stats.totalProducts,
             icon: Package,
             color: '#3B82F6',

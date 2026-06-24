@@ -16,7 +16,7 @@ export default function AddProductForm({ closeForm, onSave, existingProducts = [
     const [error, setError] = useState('');
     const [existingNames, setExistingNames] = useState([]);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     useEffect(() => {
         fetchCategories();

@@ -22,7 +22,7 @@ export default function AddEmployeeForm({ closeForm, onSave }) {
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     useEffect(() => {
         fetchBranches();

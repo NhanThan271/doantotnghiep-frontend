@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import styles from "./BookingDetail.module.css";
 
-const API = "http://localhost:8080";
+const API = "";
 
 /* ── helpers ── */
 const getAuthToken = () => localStorage.getItem("token");
@@ -476,10 +476,10 @@ const BookingDetail = () => {
                 roomId: bookingMode === "room" ? data.selectedRoomId : null,
                 checkInTime: bookingMode === "room"
                     ? `${roomDates.checkInDate} ${roomDates.checkInTime}`
-                    : `${data.date} ${data.time}`,
+                    : `${data.checkInDate} ${data.checkInTime}`,
                 checkOutTime: bookingMode === "room"
                     ? `${roomDates.checkOutDate} ${roomDates.checkOutTime}`
-                    : toCheckOut(data.date, data.time),
+                    : `${data.checkOutDate} ${data.checkOutTime}`,
                 depositAmount: payable,
                 customerName: data.customerName.trim(),
                 customerPhone: data.phone.replace(/\s/g, ""),
@@ -532,6 +532,7 @@ const BookingDetail = () => {
 
             sessionStorage.setItem("tempBooking", JSON.stringify({
                 userId: u.id, branchId: cb?.id,
+                branchName: cbName,
                 tableId: null,
                 roomId: data.selectedRoomId,
                 checkInTime: `${roomDates.checkInDate} ${roomDates.checkInTime}`,
@@ -687,7 +688,7 @@ const BookingDetail = () => {
                             <div className={styles.selectedTable}>
                                 <span className={styles.selectedDot} />
                                 <span className={styles.selectedText}>
-                                    {data.tableCapacity >= 16 ? "Phòng " : "Bàn "}
+                                    {data.tableCapacity >= 16 ? "Bàn " : "Bàn "}
                                     <strong>{data.tableNumber}</strong>
                                 </span>
                                 <span className={styles.selectedCap}>{data.tableCapacity} người</span>
@@ -839,7 +840,7 @@ const BookingDetail = () => {
                                     )}
                                     {vip.length > 0 && (
                                         <div>
-                                            <div className={styles.tableGroupLabel}>★ Phòng VIP (10–15 người)</div>
+                                            <div className={styles.tableGroupLabel}>★ Bàn VIP (10–15 người)</div>
                                             <div className={styles.tableRow}>
                                                 {vip.map(t => (
                                                     <TableCard key={t.id} table={t}
@@ -853,7 +854,7 @@ const BookingDetail = () => {
                                     )}
                                     {grandVip.length > 0 && (
                                         <div>
-                                            <div className={styles.tableGroupLabel}>👑 Phòng VIP Lớn (16+ người)</div>
+                                            <div className={styles.tableGroupLabel}>👑 Bàn VIP Lớn (16+ người)</div>
                                             <div className={styles.tableRow}>
                                                 {grandVip.map(t => (
                                                     <TableCard key={t.id} table={t}
@@ -1270,12 +1271,12 @@ const TableCard = ({ table, selected, onSelect, isVip = false, isGrandVip = fals
     if (showGrandVip) cls += " " + styles.tableGrandVip;
     else if (showVip) cls += " " + styles.tableVip;
 
-    const label = showGrandVip || showVip ? `Phòng ${table.number}` : table.number;
+    const label = showGrandVip || showVip ? `Bàn ${table.number}` : table.number;
 
     return (
         <div className={cls}
             onClick={() => isFree && !isSelected && onSelect(table)}
-            title={`${showVip ? "Phòng" : "Bàn"} ${table.number} · ${table.capacity} người · ${statusLabel}`}>
+            title={`${showVip ? "Bàn" : "Bàn"} ${table.number} · ${table.capacity} người · ${statusLabel}`}>
             {showGrandVip && !isSelected && <span className={styles.grandVipPill}>👑 GRAND VIP</span>}
             {showVip && !showGrandVip && !isSelected && <span className={styles.vipPill}>VIP</span>}
             <div className={styles.tableName}>{isSelected ? "✓" : label}</div>

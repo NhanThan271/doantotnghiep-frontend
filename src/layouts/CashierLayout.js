@@ -23,7 +23,7 @@ import {
 import io from 'socket.io-client';
 import styles from "./CashierLayout.module.css";
 
-const socket = io('http://localhost:3001');
+const socket = io('/', { path: '/socket.io/' });
 const CASHIER_NOTIFICATIONS_KEY = 'cashier_notifications';
 
 const CashierLayout = () => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, X, Check } from "lucide-react";
 import styles from "./FoodSelectionModal.module.css";
 
-const API = "http://localhost:8080";
+const API = "";
 
 const FoodSelectionModal = ({ show, onClose, onSelectFood, branchId, selectedFoods = [] }) => {
     const [foods, setFoods] = useState([]);

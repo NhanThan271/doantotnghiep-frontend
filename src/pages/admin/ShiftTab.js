@@ -3,7 +3,7 @@ import { Edit2, Trash2, Plus, Clock } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
 import { showToast } from '../../hooks/useToast';
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = '';
 
 export default function ShiftTab() {
     const [shifts, setShifts] = useState([]);

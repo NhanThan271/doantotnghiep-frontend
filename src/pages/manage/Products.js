@@ -9,7 +9,7 @@ export default function BranchMenuManager() {
     const [filterStatus, setFilterStatus] = useState('all');
     const [viewMode, setViewMode] = useState('table');
     const [loading, setLoading] = useState(false);
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = '';
 
     const fetchCurrentBranch = async () => {
         try {
@@ -176,11 +176,11 @@ export default function BranchMenuManager() {
                 <div className={styles.statsGrid}>
                     <div className={styles.statCardSuccess}>
                         <div className={styles.statIcon}>
-                            <Eye size={24} />
+                            <Package size={24} />
                         </div>
                         <div>
                             <div className={styles.statValue}>{activeItems}</div>
-                            <div className={styles.statLabel}>Đang bán</div>
+                            <div className={styles.statLabel}>Tổng món</div>
                         </div>
                     </div>
 
@@ -194,13 +194,13 @@ export default function BranchMenuManager() {
                         </div>
                     </div>
 
-                    <div className={styles.statCardDanger}>
+                    <div className={styles.statCardSuccess}>
                         <div className={styles.statIcon}>
-                            <AlertCircle size={24} />
+                            <Eye size={24} />
                         </div>
                         <div>
-                            <div className={styles.statValue}>{lowStockCount}</div>
-                            <div className={styles.statLabel}>Sắp hết hàng</div>
+                            <div className={styles.statValue}>{activeItems}</div>
+                            <div className={styles.statLabel}>Đang bán</div>
                         </div>
                     </div>
                 </div>

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import PhoneFloatButton from './booking/PhoneFloatButton';
 
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = "/api";
 
 const Promotions = () => {
     const [promotions, setPromotions] = useState([]);
