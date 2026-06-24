@@ -193,8 +193,8 @@ const BookingPage = () => {
     const fetchTables = useCallback(async () => {
         setLoading(true);
         try {
-            const [tablesRes, reservationsRes] = await Promise.all([
-                axiosClient.get(`/tables/branch/${branchId}`),
+            const [areasRes, reservationsRes] = await Promise.all([
+                axiosClient.get(`/tables/branch/${branchId}/areas`),
                 axiosClient.get(`/reservations/tables`).catch(() => ({ data: [] }))
             ]);
 
@@ -203,7 +203,24 @@ const BookingPage = () => {
                 reservationMap[t.id] = t;
             });
 
-            let data = tablesRes.data.map(table => ({
+            const areaRequests = areasRes.data.map(area =>
+                axiosClient.get(`/tables/branch/${branchId}/area/${area}`)
+            );
+            const areaResults = await Promise.all(areaRequests);
+
+            let allTables = [];
+            areaResults.forEach(res => {
+                allTables = [...allTables, ...res.data];
+            });
+
+            const seen = new Set();
+            allTables = allTables.filter(t => {
+                if (seen.has(t.id)) return false;
+                seen.add(t.id);
+                return true;
+            });
+
+            let data = allTables.map(table => ({
                 ...table,
                 ...(reservationMap[table.id] ? {
                     customerName: reservationMap[table.id].customerName,
@@ -214,8 +231,10 @@ const BookingPage = () => {
             if (selectedArea !== "Tất cả") {
                 data = data.filter(t => t.area === selectedArea);
             }
+
             setTables(data);
         } catch (err) {
+            console.error("Lỗi tải bàn:", err);
             setTables([]);
         } finally {
             setLoading(false);
