@@ -134,6 +134,12 @@ const TablesPage = () => {
                 data = data.filter(table => table.area === selectedArea);
             }
 
+            data.sort((a, b) => {
+                const numA = parseInt(String(a.number).replace(/\D/g, '')) || 0;
+                const numB = parseInt(String(b.number).replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
             setTables(data);
         } catch (err) {
             console.error("Lỗi tải bàn:", err);
@@ -163,6 +169,12 @@ const TablesPage = () => {
                     checkInTime: reservationMap[room.id].checkInTime,
                 } : {})
             }));
+
+            data.sort((a, b) => {
+                const numA = parseInt(String(a.number).replace(/\D/g, '')) || 0;
+                const numB = parseInt(String(b.number).replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
 
             setRooms(data);
         } catch (err) {
