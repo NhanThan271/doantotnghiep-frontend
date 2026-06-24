@@ -193,20 +193,60 @@ const BookingPage = () => {
     const fetchTables = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await axiosClient.get(`/reservations/tables`);
-            let data = res.data;
-            if (selectedArea !== "Tất cả") data = data.filter(t => t.area === selectedArea);
+            const [tablesRes, reservationsRes] = await Promise.all([
+                axiosClient.get(`/tables/branch/${branchId}`),
+                axiosClient.get(`/reservations/tables`).catch(() => ({ data: [] }))
+            ]);
+
+            const reservationMap = {};
+            reservationsRes.data.forEach(t => {
+                reservationMap[t.id] = t;
+            });
+
+            let data = tablesRes.data.map(table => ({
+                ...table,
+                ...(reservationMap[table.id] ? {
+                    customerName: reservationMap[table.id].customerName,
+                    checkInTime: reservationMap[table.id].checkInTime,
+                } : {})
+            }));
+
+            if (selectedArea !== "Tất cả") {
+                data = data.filter(t => t.area === selectedArea);
+            }
             setTables(data);
-        } catch (err) { setTables([]); }
-        finally { setLoading(false); }
-    }, [selectedArea]);
+        } catch (err) {
+            setTables([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [branchId, selectedArea]);
 
     const fetchRooms = useCallback(async () => {
         try {
-            const res = await axiosClient.get(`/reservations/rooms`);
-            setRooms(res.data);
-        } catch (err) { setRooms([]); }
-    }, []);
+            const [roomsRes, reservationsRes] = await Promise.all([
+                axiosClient.get(`/rooms/branch/${branchId}`),
+                axiosClient.get(`/reservations/rooms`).catch(() => ({ data: [] }))
+            ]);
+
+            const reservationMap = {};
+            reservationsRes.data.forEach(r => {
+                reservationMap[r.id] = r;
+            });
+
+            const data = roomsRes.data.map(room => ({
+                ...room,
+                ...(reservationMap[room.id] ? {
+                    customerName: reservationMap[room.id].customerName,
+                    checkInTime: reservationMap[room.id].checkInTime,
+                } : {})
+            }));
+
+            setRooms(data);
+        } catch (err) {
+            setRooms([]);
+        }
+    }, [branchId]);
 
     const fetchReservations = useCallback(async () => {
         try {
