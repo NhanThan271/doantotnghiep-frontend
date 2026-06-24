@@ -54,6 +54,7 @@ export default function ManagerInventoryManagement() {
     const [batchHsdFilter, setBatchHsdFilter] = useState('all');
     const [itemSearchTerms, setItemSearchTerms] = useState({});
     const [openDropdowns, setOpenDropdowns] = useState({});
+    const [expandedRequests, setExpandedRequests] = useState({});
 
     // Notification system
     const addNotification = (notification) => {
@@ -1052,25 +1053,47 @@ export default function ManagerInventoryManagement() {
 
                                                         {items.length > 0 && (
                                                             <div style={{ background: '#fff', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
-                                                                <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px', fontWeight: '600', textTransform: 'uppercase' }}>
-                                                                    Nguyên liệu yêu cầu ({items.length} loại)
+                                                                <div
+                                                                    onClick={() => setExpandedRequests(prev => ({ ...prev, [request.id]: !prev[request.id] }))}
+                                                                    style={{
+                                                                        fontSize: '12px', color: '#9ca3af', marginBottom: expandedRequests[request.id] ? '8px' : 0,
+                                                                        fontWeight: '600', textTransform: 'uppercase',
+                                                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                                        cursor: 'pointer', userSelect: 'none'
+                                                                    }}
+                                                                >
+                                                                    <span>Nguyên liệu yêu cầu ({items.length} loại)</span>
+                                                                    <span style={{ fontSize: 11, color: '#8B5CF6', fontWeight: 700 }}>
+                                                                        {expandedRequests[request.id] ? '▲ Thu gọn' : '▼ Xem chi tiết'}
+                                                                    </span>
                                                                 </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                                    {items.map((item, idx) => {
-                                                                        const currentQty = getCurrentStock(item.ingredient?.id);
-                                                                        return (
-                                                                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#F7F0EA', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '6px' }}>
-                                                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                                                    <span style={{ color: '#B8B8B8', fontWeight: '600', fontSize: '14px' }}>{item.ingredient?.name || 'N/A'}</span>
-                                                                                    <span style={{ color: '#B8B8B8', fontSize: '12px' }}>Tồn hiện tại: {currentQty} {item.ingredient?.unit || ''}</span>
+
+                                                                {expandedRequests[request.id] && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                        {items.map((item, idx) => {
+                                                                            const currentQty = getCurrentStock(item.ingredient?.id);
+                                                                            return (
+                                                                                <div key={idx} style={{
+                                                                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                                                                    padding: '8px 12px', background: '#F7F0EA',
+                                                                                    border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '6px'
+                                                                                }}>
+                                                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                                        <span style={{ color: '#B8B8B8', fontWeight: '600', fontSize: '14px' }}>
+                                                                                            {item.ingredient?.name || 'N/A'}
+                                                                                        </span>
+                                                                                        <span style={{ color: '#B8B8B8', fontSize: '12px' }}>
+                                                                                            Tồn hiện tại: {currentQty} {item.ingredient?.unit || ''}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <span style={{ color: '#8B5CF6', fontWeight: '700', fontSize: '15px' }}>
+                                                                                        +{item.quantity} {item.ingredient?.unit || ''}
+                                                                                    </span>
                                                                                 </div>
-                                                                                <span style={{ color: '#8B5CF6', fontWeight: '700', fontSize: '15px' }}>
-                                                                                    +{item.quantity} {item.ingredient?.unit || ''}
-                                                                                </span>
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
