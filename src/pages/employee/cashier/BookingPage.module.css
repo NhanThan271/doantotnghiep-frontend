@@ -2204,3 +2204,21 @@
         flex-wrap: wrap;
     }
 }
+
+.addBookingButton {
+    margin-left: auto;
+    height: 42px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 10px;
+    background: #10b981;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.addBookingButton:hover {
+    background: #059669;
+    transform: translateY(-1px);
+}
