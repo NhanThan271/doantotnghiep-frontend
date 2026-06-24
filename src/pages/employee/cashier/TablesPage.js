@@ -174,10 +174,8 @@ const TablesPage = () => {
         if (branchId) {
             fetchAreas();
             fetchExistingOrders();
-            fetchTablesWithReservations();
-            fetchRoomsWithReservations();
         }
-    }, [branchId, fetchAreas, fetchExistingOrders, fetchTablesWithReservations, fetchRoomsWithReservations]);
+    }, [branchId, fetchAreas, fetchExistingOrders]);
 
     // Gọi API khi activeTab hoặc selectedArea thay đổi (Bàn)
     useEffect(() => {
