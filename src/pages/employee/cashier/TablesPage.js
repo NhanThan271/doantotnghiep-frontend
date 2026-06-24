@@ -135,9 +135,9 @@ const TablesPage = () => {
             }
 
             data.sort((a, b) => {
-                const numA = parseInt(String(a.number).replace(/\D/g, '')) || 0;
-                const numB = parseInt(String(b.number).replace(/\D/g, '')) || 0;
-                return numA - numB;
+                const areaCompare = (a.area || "").localeCompare(b.area || "");
+                if (areaCompare !== 0) return areaCompare;
+                return (a.number || 0) - (b.number || 0);
             });
 
             setTables(data);
