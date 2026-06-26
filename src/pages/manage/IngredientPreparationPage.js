@@ -7,7 +7,6 @@ import styles from '../../layouts/AdminLayout.module.css';
 import { showToast } from '../../hooks/useToast';
 
 export default function IngredientPreparationPage() {
-    const [branches, setBranches] = useState([]);
     const [branchId, setBranchId] = useState('');
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
@@ -16,24 +15,16 @@ export default function IngredientPreparationPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterMode, setFilterMode] = useState('all');
     const [expandedIngredient, setExpandedIngredient] = useState(null);
+    const [currentBranch, setCurrentBranch] = useState(null);
 
     const API_BASE_URL = '';
     const token = () => localStorage.getItem('token');
 
-    // ── Lấy danh sách chi nhánh ──
+    useEffect(() => { fetchCurrentBranch(); }, []);
     useEffect(() => {
-        const fetchBranches = async () => {
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/branches`, {
-                    headers: { Authorization: `Bearer ${token()}` }
-                });
-                if (res.ok) setBranches(await res.json());
-            } catch {
-                showToast('error', 'Lỗi', 'Không thể tải danh sách chi nhánh.');
-            }
-        };
-        fetchBranches();
-    }, []);
+        if (!currentBranch) return;
+        setBranchId(currentBranch.id);
+    }, [currentBranch]);
 
     useEffect(() => {
         const now = new Date();
@@ -43,6 +34,59 @@ export default function IngredientPreparationPage() {
         setFrom(fmt(now));
         setTo(fmt(end));
     }, []);
+
+    useEffect(() => {
+        if (!data || !branchId || !from || !to) return;
+        const interval = setInterval(() => {
+            fetchData(branchId, from, to);
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [data, branchId, from, to]);
+
+    const fetchCurrentBranch = async () => {
+        try {
+            const userStr = localStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+            let branchId = user?.branch?.id || user?.branchId;
+
+            if (!branchId) {
+                const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                    headers: { Authorization: `Bearer ${token()}` }
+                });
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                branchId = data.branch?.id;
+                if (branchId) {
+                    localStorage.setItem('user', JSON.stringify({ ...user, branchId, branch: data.branch }));
+                }
+            }
+
+            if (!branchId) {
+                showToast('error', 'Lỗi', 'Tài khoản chưa được gán chi nhánh.');
+                return;
+            }
+
+            const res = await fetch(`${API_BASE_URL}/api/branches/${branchId}`, {
+                headers: { Authorization: `Bearer ${token()}` }
+            });
+            if (res.ok) setCurrentBranch(await res.json());
+        } catch {
+            showToast('error', 'Lỗi', 'Không thể tải thông tin chi nhánh.');
+        }
+    };
+
+    const fetchData = async (bId, f, t) => {
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/api/ingredient-preparation?branchId=${bId}&from=${f}T00:00:00&to=${t}T23:59:59`,
+                { headers: { Authorization: `Bearer ${token()}` } }
+            );
+            if (!res.ok) throw new Error();
+            setData(await res.json());
+        } catch {
+
+        }
+    };
 
     // ── Tính toán ──
     const handleCalculate = async () => {
@@ -80,7 +124,13 @@ export default function IngredientPreparationPage() {
 
     const shortageCount = data?.ingredients?.filter(i => i.shortage > 0).length ?? 0;
     const okCount = data?.ingredients?.filter(i => i.shortage === 0).length ?? 0;
-    const selectedBranch = branches.find(b => String(b.id) === String(branchId));
+
+    if (!currentBranch) return (
+        <div style={{ textAlign: 'center', padding: 80, color: '#9ca3af' }}>
+            <RefreshCw size={36} className={styles.spinIcon} style={{ marginBottom: 12 }} />
+            <p style={{ fontSize: 15 }}>Đang tải thông tin chi nhánh...</p>
+        </div>
+    );
 
     return (
         <div className={styles.pageContainer}>
@@ -128,29 +178,16 @@ export default function IngredientPreparationPage() {
 
                 {/* ── Bộ lọc ── */}
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-                    {/* Chi nhánh */}
-                    <div style={{ position: 'relative' }}>
-                        <Store size={15} style={{
-                            position: 'absolute', left: 10, top: '50%',
-                            transform: 'translateY(-50%)', color: 'var(--color-text-secondary)', pointerEvents: 'none'
-                        }} />
-                        <select
-                            value={branchId}
-                            onChange={e => setBranchId(e.target.value)}
-                            style={{
-                                paddingLeft: 32, paddingRight: 16, paddingTop: 9, paddingBottom: 9,
-                                border: '1px solid var(--color-border)', borderRadius: 10,
-                                fontSize: 14, color: 'var(--color-text-secondary)',
-                                background: 'var(--color-card)', cursor: 'pointer', minWidth: 180
-                            }}
-                        >
-                            <option value="">-- Chọn chi nhánh --</option>
-                            {branches.map(b => (
-                                <option key={b.id} value={b.id}>{b.name}</option>
-                            ))}
-                        </select>
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '9px 14px', borderRadius: 10,
+                        background: 'var(--color-card)',
+                        border: '1px solid var(--color-border)',
+                        fontSize: 14, color: 'var(--color-text-secondary)'
+                    }}>
+                        <Store size={15} />
+                        <span style={{ fontWeight: 600 }}>{currentBranch.name}</span>
                     </div>
-
                     {/* Từ ngày */}
                     <div style={{ position: 'relative' }}>
                         <Calendar size={15} style={{
