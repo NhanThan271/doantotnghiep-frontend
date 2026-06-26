@@ -385,13 +385,17 @@ const BookingPage = () => {
         e.stopPropagation();
         try {
             const pending = reservations.find(r =>
-                type === "table" ? r.tableNumber === entity.number : r.roomNumber === entity.number
+                type === "table"
+                    ? String(r.tableNumber) === String(entity.number)
+                    : String(r.roomNumber) === String(entity.number)
             );
-            if (pending) {
-                await confirmReservation(pending.id);
-                await axiosClient.put(`/reservations/${pending.id}/status?status=CHECKED_IN`);
+            if (!pending) {
+                showToast("Không tìm thấy đơn đặt!", "error");
+                return;
             }
-            showToast(`Check-in ${entity.number} thành công!`, "success");
+            await axiosClient.put(`/reservations/${pending.id}/status?status=CHECKED_IN`);
+            showToast(`Check-in ${type === "table" ? "bàn" : "phòng"} ${entity.number} thành công!`, "success");
+            socket.emit("reservation-updated", { reservationId: pending.id, status: "CHECKED_IN" });
             refreshAllData();
         } catch (err) {
             showToast("Check-in thất bại!", "error");
@@ -686,7 +690,11 @@ const BookingPage = () => {
                                         </div>
                                         <div className={styles.cardActions}>
                                             {isFree && <button onClick={() => openBookingModal(table, "table")} className={styles.bookButton}><Calendar size={14} /> Đặt bàn</button>}
-                                            {isRes && <button onClick={(e) => handleCheckIn(table, "table", e)} className={styles.checkinButton}><CheckCircle size={14} /> Check-in</button>}
+                                            {(isRes || table.hasUpcomingReservation) && (
+                                                <button onClick={(e) => handleCheckIn(table, "table", e)} className={styles.checkinButton}>
+                                                    <CheckCircle size={14} /> Check-in
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -755,7 +763,7 @@ const BookingPage = () => {
                                                     <Calendar size={14} /> Đặt phòng
                                                 </button>
                                             )}
-                                            {(isRes || room.hasUpcomingReservation) && (
+                                            {(isRes || hasReservation) && (  // ← bỏ room.hasUpcomingReservation, dùng biến local hasReservation
                                                 <button onClick={(e) => handleCheckIn(room, "room", e)} className={styles.checkinButton}>
                                                     <CheckCircle size={14} /> Check-in
                                                 </button>
