@@ -225,6 +225,7 @@ const BookingPage = () => {
                 ...(reservationMap[table.id] ? {
                     customerName: reservationMap[table.id].customerName,
                     checkInTime: reservationMap[table.id].checkInTime,
+                    hasUpcomingReservation: reservationMap[table.id].hasUpcomingReservation,
                 } : {})
             }));
 
@@ -264,6 +265,7 @@ const BookingPage = () => {
                 ...(reservationMap[room.id] ? {
                     customerName: reservationMap[room.id].customerName,
                     checkInTime: reservationMap[room.id].checkInTime,
+                    hasUpcomingReservation: reservationMap[room.id].hasUpcomingReservation,
                 } : {})
             }));
 
