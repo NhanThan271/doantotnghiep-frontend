@@ -35,12 +35,11 @@ export default function IngredientPreparationPage() {
         fetchBranches();
     }, []);
 
-    // ── Set mặc định khoảng thời gian: hôm nay → 7 ngày tới ──
     useEffect(() => {
         const now = new Date();
         const end = new Date();
         end.setDate(end.getDate() + 7);
-        const fmt = d => d.toISOString().slice(0, 16);
+        const fmt = d => d.toISOString().slice(0, 10);
         setFrom(fmt(now));
         setTo(fmt(end));
     }, []);
@@ -55,7 +54,7 @@ export default function IngredientPreparationPage() {
         setData(null);
         try {
             const res = await fetch(
-                `${API_BASE_URL}/api/ingredient-preparation?branchId=${branchId}&from=${from}:00&to=${to}:00`,
+                `${API_BASE_URL}/api/ingredient-preparation?branchId=${branchId}&from=${from}T00:00:00&to=${to}T23:59:59`,
                 { headers: { Authorization: `Bearer ${token()}` } }
             );
             if (!res.ok) throw new Error();
@@ -159,7 +158,7 @@ export default function IngredientPreparationPage() {
                             transform: 'translateY(-50%)', color: 'var(--color-text-secondary)', pointerEvents: 'none'
                         }} />
                         <input
-                            type="datetime-local"
+                            type="date"
                             value={from}
                             onChange={e => setFrom(e.target.value)}
                             style={{
@@ -178,7 +177,7 @@ export default function IngredientPreparationPage() {
                             transform: 'translateY(-50%)', color: 'var(--color-text-secondary)', pointerEvents: 'none'
                         }} />
                         <input
-                            type="datetime-local"
+                            type="date"
                             value={to}
                             onChange={e => setTo(e.target.value)}
                             style={{
