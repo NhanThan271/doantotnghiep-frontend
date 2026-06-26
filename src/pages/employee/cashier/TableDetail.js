@@ -50,8 +50,6 @@ const TableDetail = () => {
     const confirmedCartRef = useRef({});
     const [branchInfo, setBranchInfo] = useState(null);
     const [roomFee, setRoomFee] = useState(0);
-    const depositPaid = order?.reservation?.depositAmount || 0;
-    const remainingAmount = Math.max(0, finalTotal - depositPaid);
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
     const API_BASE_URL = '';
@@ -208,6 +206,8 @@ const TableDetail = () => {
     const itemsTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const finalTotal = itemsTotal + roomFee;
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const depositPaid = order?.reservation?.depositAmount || 0;
+    const remainingAmount = Math.max(0, finalTotal - depositPaid);
 
     const handleUpdateOrder = async () => {
         if (cart.length === 0) {
@@ -853,7 +853,7 @@ const TableDetail = () => {
         processExistingOrder();
     }, [products, existingOrderFromState, entity, checkExistingOrder, getDiscountedPrices]);
 
-    const canPay = order?.status === "COMPLETED";
+    const canPay = order?.status === "COMPLETED" && remainingAmount > 0;
     const canPrint = order?.status === "COMPLETED" || order?.status === "PAID";
     const canEdit = order && order.status !== "PAID" && order.status !== "CANCELED";
     const isNewOrder = !order;
@@ -1022,7 +1022,20 @@ const TableDetail = () => {
                                     {canEdit && cart.length > 0 && <button className={styles.updateBtn} onClick={handleUpdateOrder} disabled={isUpdating}>{isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}</button>}
                                     {isNewOrder && cart.length > 0 && <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>{isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}</button>}
                                     {canPrint && <button className={styles.printBtn} onClick={printBill}><Printer size={18} />In hóa đơn</button>}
-                                    {canPay && <button className={styles.payBtn} onClick={() => setShowPaymentMethodModal(true)} disabled={processingPayment}>{processingPayment ? "Đang xử lý..." : "Thanh toán"}</button>}
+                                    {order?.status === "COMPLETED" && remainingAmount <= 0 && depositPaid > 0 && (
+                                        <button
+                                            className={styles.payBtn}
+                                            onClick={() => handleCompletePayment(order?.id, "cash", {})}
+                                            disabled={processingPayment}
+                                        >
+                                            {processingPayment ? "Đang xử lý..." : "Hoàn tất (Đã thanh toán đủ)"}
+                                        </button>
+                                    )}
+                                    {canPay && (
+                                        <button className={styles.payBtn} onClick={() => setShowPaymentMethodModal(true)} disabled={processingPayment}>
+                                            {processingPayment ? "Đang xử lý..." : "Thanh toán"}
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         )}
