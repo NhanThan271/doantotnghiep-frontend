@@ -333,7 +333,11 @@ export default function BranchReservationManager() {
                                             color: isTable ? '#E07B39' : '#4361ee',
                                             border: `1px solid ${isTable ? '#fcd34d' : '#c5b8f8'}`
                                         }}>
-                                            {isTable ? `Bàn ${reservation.tableNumber}` : isRoom ? `Phòng ${reservation.roomNumber}` : 'Chưa chọn chỗ'}
+                                            {isTable
+                                                ? `Bàn ${reservation.tableNumber}${reservation.area ? ` - ${reservation.area}` : ''}`
+                                                : isRoom
+                                                    ? `Phòng ${reservation.roomNumber}${reservation.area ? ` - ${reservation.area}` : ''}`
+                                                    : 'Chưa chọn chỗ'}
                                         </span>
                                         {/* Badge PENDING */}
                                         <span style={{
@@ -385,6 +389,14 @@ export default function BranchReservationManager() {
                                             <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2 }}>Check-out</div>
                                             <div style={{ fontWeight: 600, fontSize: 14, color: '#9ca3af' }}>{new Date(reservation.checkOutTime).toLocaleString('vi-VN')}</div>
                                         </div>
+                                        {reservation.area && (
+                                            <div style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px' }}>
+                                                <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2 }}>Khu vực</div>
+                                                <div style={{ fontWeight: 600, fontSize: 14, color: '#9ca3af' }}>
+                                                    {reservation.area}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {reservation.email && (
