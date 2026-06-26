@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, Users, ShoppingBag, Tag, LogOut, ChevronLeft, ChevronRight, Table, DoorOpen } from 'lucide-react';
+import { BarChart3, Users, ShoppingBag, Tag, LogOut, ChevronLeft, ChevronRight, Table, DoorOpen, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import styles from './AdminLayout.module.css';
 
@@ -24,6 +24,7 @@ import ManagerTableManagement from '../pages/manage/ManagerTable';
 import ManagerInventoryManagement from '../pages/manage/ManagerInventory';
 import BranchReservationManager from '../pages/manage/BranchReservation';
 import ManagerRoomManagement from '../pages/manage/Managerroom';
+import IngredientPreparationPage from '../pages/manage/IngredientPreparationPage';
 
 export default function ManagerLayout() {
     const navigate = useNavigate();
@@ -86,6 +87,7 @@ export default function ManagerLayout() {
         { id: 'promotions', label: 'Quản lý Khuyến mãi', icon: Tag },
         { id: 'employees', label: 'Quản lý Nhân viên', icon: Users },
         { id: 'branchreservation', label: 'Đặt bàn Chi nhánh', icon: Table },
+        { id: 'ingredientpreparation', label: 'NL cần chuẩn bị', icon: Package },
         { id: 'reports', label: 'Báo cáo Tổng quan', icon: BarChart3 },
     ];
 
@@ -174,6 +176,8 @@ export default function ManagerLayout() {
                 />;
             case 'branchreservation':
                 return <BranchReservationManager />;
+            case 'ingredientpreparation':
+                return < IngredientPreparationPage />;
             case 'reports': return <Reports />;
             default: return null;
         }
