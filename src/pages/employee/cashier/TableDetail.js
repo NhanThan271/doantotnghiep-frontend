@@ -50,6 +50,8 @@ const TableDetail = () => {
     const confirmedCartRef = useRef({});
     const [branchInfo, setBranchInfo] = useState(null);
     const [roomFee, setRoomFee] = useState(0);
+    const depositPaid = order?.reservation?.depositAmount || 0;
+    const remainingAmount = Math.max(0, finalTotal - depositPaid);
 
     const branchId = JSON.parse(localStorage.getItem('user') || '{}')?.branch?.id;
     const API_BASE_URL = '';
@@ -506,10 +508,9 @@ const TableDetail = () => {
 
             console.log("📦 Items gửi lên PayOS:", items);
 
-            // ✅ SỬA: axiosClient đã parse JSON, không cần .json()
             const paymentResponse = await axiosClient.post("/payos/create", {
                 orderCode: tempOrderCode,
-                amount: Math.floor(finalTotal),
+                amount: Math.floor(remainingAmount),
                 description: shortDesc,
                 returnUrl: `${window.location.origin}/cashier-payment-success`,
                 cancelUrl: `${window.location.origin}/cashier-payment-cancel`,
@@ -1004,6 +1005,19 @@ const TableDetail = () => {
                                         <span><Wallet size={14} /> Tổng cộng:</span>
                                         <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
                                     </div>
+                                    {depositPaid > 0 && (
+                                        <div className={styles.totalRow} style={{ color: '#10b981' }}>
+                                            <span>Đã cọc:</span>
+                                            <span>- {depositPaid.toLocaleString('vi-VN')}đ</span>
+                                        </div>
+                                    )}
+
+                                    {depositPaid > 0 && (
+                                        <div className={styles.totalRow} style={{ fontWeight: 700, color: '#ef4444', fontSize: 16 }}>
+                                            <span>Còn lại cần thanh toán:</span>
+                                            <span className={styles.totalAmount}>{remainingAmount.toLocaleString('vi-VN')}đ</span>
+                                        </div>
+                                    )}
 
                                     {canEdit && cart.length > 0 && <button className={styles.updateBtn} onClick={handleUpdateOrder} disabled={isUpdating}>{isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}</button>}
                                     {isNewOrder && cart.length > 0 && <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>{isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}</button>}
@@ -1017,7 +1031,7 @@ const TableDetail = () => {
             </div>
 
             <PaymentMethodModal show={showPaymentMethodModal} onClose={() => setShowPaymentMethodModal(false)} onSelect={(method) => { setShowPaymentMethodModal(false); if (method === "transfer" || method === "momo") { handlePayOSPayment(); } else if (method === "cash") { setShowCashModal(true); } else if (method === "card") { handleCompletePayment(order?.id, "card"); } }} />
-            <CashPaymentModal show={showCashModal} onClose={() => setShowCashModal(false)} onConfirm={() => { handleCompletePayment(order?.id, "cash"); }} totalAmount={finalTotal} />
+            <CashPaymentModal show={showCashModal} onClose={() => setShowCashModal(false)} onConfirm={() => { handleCompletePayment(order?.id, "cash"); }} totalAmount={remainingAmount} />
 
             <div className={styles.toastContainer}>
                 {toasts.map((toast) => (
