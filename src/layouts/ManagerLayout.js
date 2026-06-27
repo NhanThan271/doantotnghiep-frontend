@@ -25,6 +25,7 @@ import ManagerInventoryManagement from '../pages/manage/ManagerInventory';
 import BranchReservationManager from '../pages/manage/BranchReservation';
 import ManagerRoomManagement from '../pages/manage/Managerroom';
 import IngredientPreparationPage from '../pages/manage/IngredientPreparationPage';
+import FoodForecastPage from '../pages/manage/Foodforecastpage';
 
 export default function ManagerLayout() {
     const navigate = useNavigate();
@@ -88,6 +89,7 @@ export default function ManagerLayout() {
         { id: 'employees', label: 'Quản lý Nhân viên', icon: Users },
         { id: 'branchreservation', label: 'Đặt bàn Chi nhánh', icon: Table },
         { id: 'ingredientpreparation', label: 'NL cần chuẩn bị', icon: Package },
+        { id: 'foodforecast', label: 'Thống kê món bán chạy', icon: BarChart3 },
         { id: 'reports', label: 'Báo cáo Tổng quan', icon: BarChart3 },
     ];
 
@@ -178,6 +180,8 @@ export default function ManagerLayout() {
                 return <BranchReservationManager />;
             case 'ingredientpreparation':
                 return < IngredientPreparationPage />;
+            case 'foodforecast':
+                return < FoodForecastPage />;
             case 'reports': return <Reports />;
             default: return null;
         }
