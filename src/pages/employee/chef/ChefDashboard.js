@@ -325,7 +325,6 @@ const ChefDashboard = () => {
 
             if (orderData.branchId && branchId && Number(orderData.branchId) !== Number(branchId)) return;
 
-            // Reset warning timer khi có đơn mới
             setLastWarningTime(Date.now());
 
             const notiKey = `${orderData.orderId}_${orderData.tableNumber}_${JSON.stringify(orderData.items)}`;
@@ -338,14 +337,13 @@ const ChefDashboard = () => {
             playNotificationSound();
             fetchData();
 
-            if (orderData.items?.length) {
-                const areaName = orderData.areaName || (orderData.isRoom ? "Khu VIP" : "Khu chính");
-                const locationName = orderData.locationName ||
-                    (orderData.isRoom ? `Phòng ${orderData.tableNumber}` : `Bàn ${orderData.tableNumber}`);
+            const areaName = orderData.areaName || (orderData.isRoom ? "Khu VIP" : "Khu chính");
+            const locationName = orderData.locationName ||
+                (orderData.isRoom ? `Phòng ${orderData.tableNumber}` : `Bàn ${orderData.tableNumber}`);
 
+            if (orderData.items?.length) {
                 const itemDetails = orderData.items.map(item => `${item.name} x${item.quantity}`).join(', ');
                 const message = `🆕 ĐƠN MỚI - ${areaName} - ${locationName}: ${itemDetails}`;
-
                 showToast(message, 'info');
                 sendNotificationToLayout(message, 'order');
 
@@ -353,6 +351,11 @@ const ChefDashboard = () => {
                     `${item.name} ${item.quantity === 1 ? 'một phần' : `${item.quantity} phần`}`
                 ).join(', ')}`;
                 speakVietnamese(speechText);
+            } else {
+                const message = `🆕 ĐƠN MỚI - ${areaName} - ${locationName}`;
+                showToast(message, 'info');
+                sendNotificationToLayout(message, 'order');
+                speakVietnamese(`Đơn hàng mới tại ${areaName} ${locationName}`);
             }
         };
 
