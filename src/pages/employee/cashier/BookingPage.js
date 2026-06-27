@@ -691,7 +691,11 @@ const BookingPage = () => {
                                             )}
                                         </div>
                                         <div className={styles.cardActions}>
-                                            {isFree && <button onClick={() => openBookingModal(table, "table")} className={styles.bookButton}><Calendar size={14} /> Đặt bàn</button>}
+                                            {isFree && !table.hasUpcomingReservation && (
+                                                <button onClick={() => openBookingModal(table, "table")} className={styles.bookButton}>
+                                                    <Calendar size={14} /> Đặt bàn
+                                                </button>
+                                            )}
                                             {(isRes || table.hasUpcomingReservation) && (
                                                 <button onClick={(e) => handleCheckIn(table, "table", e)} className={styles.checkinButton}>
                                                     <CheckCircle size={14} /> Check-in
