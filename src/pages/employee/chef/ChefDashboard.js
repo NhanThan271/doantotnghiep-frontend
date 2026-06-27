@@ -401,6 +401,7 @@ const ChefDashboard = () => {
             const message = `${data.message} | Khách: ${data.customerName} | ${data.table} | Giờ đến: ${data.time} | Món: ${foodList}`;
 
             playNotificationSound();
+            fetchData();
             showToast(message, 'warning');
             sendNotificationToLayout(message, 'warning');
             speakVietnamese(`Chuẩn bị món cho khách ${data.customerName} tại ${data.table}, đến lúc ${data.time}`);
@@ -433,9 +434,11 @@ const ChefDashboard = () => {
     useEffect(() => { if (branchId) return setupSocket(); }, [branchId, setupSocket]);
 
     useEffect(() => {
-        const interval = setInterval(() => { if (!isSocketConnected) fetchData(true); }, 30000);
+        const interval = setInterval(() => {
+            fetchData(true);
+        }, 30000);
         return () => clearInterval(interval);
-    }, [fetchData, isSocketConnected]);
+    }, [fetchData]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -511,18 +514,6 @@ const ChefDashboard = () => {
             }
         };
     }, [allItems, itemWarningSent, showToast, sendNotificationToLayout, speakVietnamese, playNotificationSound]);
-
-    // ========== AUTO REFRESH EVERY 2 MINUTES ==========
-    useEffect(() => {
-        const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // 10 phút
-
-        const autoRefreshInterval = setInterval(() => {
-            console.log('🔄 Auto refresh (backup)');
-            fetchData(true);
-        }, AUTO_REFRESH_INTERVAL);
-
-        return () => clearInterval(autoRefreshInterval);
-    }, [fetchData]);
 
     useEffect(() => {
         const currentItemIds = new Set(allItems.map(item => item.id));
