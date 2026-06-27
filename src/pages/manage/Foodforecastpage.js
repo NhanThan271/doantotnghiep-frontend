@@ -7,7 +7,7 @@ import {
 import styles from '../../layouts/AdminLayout.module.css';
 import { showToast } from '../../hooks/useToast';
 
-const API = '/api/food-forecast';
+const API_BASE_URL = '';
 
 const TREND_CONFIG = {
     UP: { icon: TrendingUp, color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)', label: 'Tăng' },
@@ -15,7 +15,6 @@ const TREND_CONFIG = {
     STABLE: { icon: Minus, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', label: 'Ổn định' },
 };
 
-// Mini bar chart SVG
 function MiniBar({ data = [] }) {
     if (!data.length) return <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>;
     const max = Math.max(...data, 1);
@@ -25,20 +24,40 @@ function MiniBar({ data = [] }) {
         <svg width={W} height={H}>
             {data.map((v, i) => {
                 const h = Math.max(3, (v / max) * H);
+                return <rect key={i} x={i * (bw + gap)} y={H - h} width={bw} height={h} fill="#93c5fd" rx={2} />;
+            })}
+        </svg>
+    );
+}
+
+function LargeBar({ data = [], mode }) {
+    if (!data.length) return null;
+    const max = Math.max(...data, 1);
+    const H = 60, count = data.length;
+    return (
+        <svg width="100%" height={H} style={{ display: 'block' }} viewBox={`0 0 ${count * 32} ${H}`} preserveAspectRatio="none">
+            {data.map((v, i) => {
+                const bw = 28, x = i * 32;
+                const h = Math.max(4, (v / max) * (H - 16));
                 return (
-                    <rect key={i}
-                        x={i * (bw + gap)} y={H - h}
-                        width={bw} height={h}
-                        fill="#93c5fd" rx={2} />
+                    <g key={i}>
+                        <rect x={x} y={H - h - 16} width={bw} height={h} fill="#93c5fd" rx={3} />
+                        <text x={x + bw / 2} y={H - 2} textAnchor="middle" fontSize={9} fill="#9ca3af">
+                            {mode === 'WEEK' ? `T${i + 1}` : `Th${i + 1}`}
+                        </text>
+                        <text x={x + bw / 2} y={H - h - 20} textAnchor="middle" fontSize={9} fill="#6b7280" fontWeight="600">
+                            {v}
+                        </text>
+                    </g>
                 );
             })}
         </svg>
     );
 }
 
-export default function FoodForecastPage({ branches = [] }) {
+export default function FoodForecastPage() {
+    const [currentBranch, setCurrentBranch] = useState(null);
     const [mode, setMode] = useState('WEEK');
-    const [branchId, setBranchId] = useState('');
     const [topN, setTopN] = useState(10);
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -47,12 +66,43 @@ export default function FoodForecastPage({ branches = [] }) {
 
     const token = () => localStorage.getItem('token');
 
+    // ── Lấy chi nhánh từ tài khoản đăng nhập (giống BranchReservationManager) ──
+    const fetchCurrentBranch = async () => {
+        try {
+            const userStr = localStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+            let branchId = user?.branch?.id || user?.branchId;
+
+            if (!branchId) {
+                const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                    headers: { Authorization: `Bearer ${token()}` }
+                });
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                branchId = data.branch?.id;
+                if (branchId) {
+                    localStorage.setItem('user', JSON.stringify({ ...user, branchId, branch: data.branch }));
+                }
+            }
+
+            if (!branchId) { alert('Tài khoản chưa được gán chi nhánh.'); return; }
+
+            const res = await fetch(`${API_BASE_URL}/api/branches/${branchId}`, {
+                headers: { Authorization: `Bearer ${token()}` }
+            });
+            if (res.ok) setCurrentBranch(await res.json());
+        } catch {
+            showToast('error', 'Lỗi', 'Không thể tải thông tin chi nhánh. Vui lòng thử lại.');
+        }
+    };
+
+    // ── Fetch dự báo theo branchId của chi nhánh hiện tại ──
     const fetchData = async () => {
+        if (!currentBranch?.id) return;
         setLoading(true);
         try {
-            const params = new URLSearchParams({ mode, topN });
-            if (branchId) params.set('branchId', branchId);
-            const res = await fetch(`${API}?${params}`, {
+            const params = new URLSearchParams({ mode, topN, branchId: currentBranch.id });
+            const res = await fetch(`${API_BASE_URL}/api/food-forecast?${params}`, {
                 headers: { Authorization: `Bearer ${token()}` }
             });
             if (!res.ok) throw new Error();
@@ -64,7 +114,8 @@ export default function FoodForecastPage({ branches = [] }) {
         }
     };
 
-    useEffect(() => { fetchData(); }, [mode, branchId, topN]);
+    useEffect(() => { fetchCurrentBranch(); }, []);
+    useEffect(() => { fetchData(); }, [currentBranch, mode, topN]);
 
     const filtered = data.filter(row =>
         row.foodName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -75,7 +126,12 @@ export default function FoodForecastPage({ branches = [] }) {
     const downCount = data.filter(r => r.trend === 'DOWN').length;
     const periodLabel = mode === 'WEEK' ? 'tuần tới' : 'tháng tới';
 
-    const selectedBranchName = branches.find(b => String(b.id) === String(branchId))?.name || 'Tất cả chi nhánh';
+    if (!currentBranch) return (
+        <div className={styles.loadingContainer}>
+            <RefreshCw size={48} className={styles.spinIcon} />
+            <p className={styles.loadingText}>Đang tải thông tin chi nhánh...</p>
+        </div>
+    );
 
     return (
         <div className={styles.pageContainer}>
@@ -87,10 +143,10 @@ export default function FoodForecastPage({ branches = [] }) {
                         <h2 className={styles.pageTitle}>Dự báo món bán chạy</h2>
                         <p className={styles.branchInfo}>
                             <Store size={16} />
-                            <span className={styles.branchName}>{selectedBranchName}</span>
-                            <span className={styles.branchAddress}>
-                                • {mode === 'WEEK' ? 'Dự báo theo tuần' : 'Dự báo theo tháng'}
-                            </span>
+                            <span className={styles.branchName}>{currentBranch.name}</span>
+                            {currentBranch.address && (
+                                <span className={styles.branchAddress}>• {currentBranch.address}</span>
+                            )}
                         </p>
                     </div>
                     <button
@@ -135,7 +191,6 @@ export default function FoodForecastPage({ branches = [] }) {
 
                 {/* Filter bar */}
                 <div className={styles.filterBar}>
-                    {/* Search */}
                     <div className={styles.searchBox}>
                         <Search size={20} className={styles.searchIcon} />
                         <input
@@ -147,43 +202,22 @@ export default function FoodForecastPage({ branches = [] }) {
                         />
                     </div>
 
-                    {/* Mode toggle tabs */}
                     <div style={{ display: 'flex', gap: 6 }}>
                         {[
-                            { value: 'WEEK', label: 'Theo tuần', icon: Calendar },
-                            { value: 'MONTH', label: 'Theo tháng', icon: Calendar },
-                        ].map(({ value, label, icon: Icon }) => (
+                            { value: 'WEEK', label: 'Theo tuần' },
+                            { value: 'MONTH', label: 'Theo tháng' },
+                        ].map(({ value, label }) => (
                             <button
                                 key={value}
                                 onClick={() => setMode(value)}
                                 className={mode === value ? styles.tabActive : styles.tabInactive}
                                 style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                             >
-                                <Icon size={15} /> {label}
+                                <Calendar size={15} /> {label}
                             </button>
                         ))}
                     </div>
 
-                    {/* Branch select */}
-                    {branches.length > 0 && (
-                        <select
-                            value={branchId}
-                            onChange={e => setBranchId(e.target.value)}
-                            style={{
-                                padding: '8px 12px', borderRadius: 8,
-                                border: '1px solid var(--color-border)',
-                                fontSize: 14, background: 'var(--color-bg)',
-                                color: 'var(--color-text-secondary)', cursor: 'pointer'
-                            }}
-                        >
-                            <option value="">Tất cả chi nhánh</option>
-                            {branches.map(b => (
-                                <option key={b.id} value={b.id}>{b.name}</option>
-                            ))}
-                        </select>
-                    )}
-
-                    {/* TopN select */}
                     <select
                         value={topN}
                         onChange={e => setTopN(Number(e.target.value))}
@@ -220,8 +254,6 @@ export default function FoodForecastPage({ branches = [] }) {
 
                     return (
                         <div key={row.foodId} className={styles.tableCard} style={{ marginBottom: 12 }}>
-
-                            {/* Card header */}
                             <div
                                 onClick={() => setExpandedId(isExpanded ? null : row.foodId)}
                                 style={{
@@ -230,7 +262,7 @@ export default function FoodForecastPage({ branches = [] }) {
                                     borderBottom: isExpanded ? '1px solid var(--color-border)' : 'none'
                                 }}
                             >
-                                {/* Rank badge */}
+                                {/* Rank */}
                                 <div style={{
                                     width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
                                     background: idx < 3
@@ -247,8 +279,6 @@ export default function FoodForecastPage({ branches = [] }) {
                                         <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-secondary)' }}>
                                             {row.foodName}
                                         </span>
-
-                                        {/* Trend badge */}
                                         <span style={{
                                             padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
                                             background: T.bg, color: T.color, border: `1px solid ${T.border}`,
@@ -256,8 +286,6 @@ export default function FoodForecastPage({ branches = [] }) {
                                         }}>
                                             <Icon size={12} /> {T.label}
                                         </span>
-
-                                        {/* Forecast badge */}
                                         <span style={{
                                             padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
                                             background: 'rgba(37,99,235,0.08)', color: '#2563eb',
@@ -266,7 +294,6 @@ export default function FoodForecastPage({ branches = [] }) {
                                             Dự báo {periodLabel}: <strong>{row.forecastNextPeriod}</strong>
                                         </span>
                                     </div>
-
                                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: 'var(--color-text-secondary)' }}>
                                             <Hash size={13} /> Đã bán: {row.totalPast}
@@ -277,21 +304,16 @@ export default function FoodForecastPage({ branches = [] }) {
                                     </div>
                                 </div>
 
-                                {/* Mini sparkline preview */}
                                 <div style={{ flexShrink: 0, opacity: 0.7 }}>
                                     <MiniBar data={row.history} />
                                 </div>
-
                                 <div style={{ color: 'var(--color-text-secondary)', flexShrink: 0 }}>
                                     {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                                 </div>
                             </div>
 
-                            {/* Expanded detail */}
                             {isExpanded && (
                                 <div style={{ padding: '16px 20px', background: 'rgba(0,0,0,0.02)' }}>
-
-                                    {/* Stat grid */}
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
                                         <div style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px' }}>
                                             <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2 }}>Tổng đã bán</div>
@@ -307,7 +329,6 @@ export default function FoodForecastPage({ branches = [] }) {
                                         </div>
                                     </div>
 
-                                    {/* History sparkline larger */}
                                     {row.history?.length > 0 && (
                                         <div style={{
                                             padding: '12px 14px', borderRadius: 8,
@@ -320,7 +341,6 @@ export default function FoodForecastPage({ branches = [] }) {
                                         </div>
                                     )}
 
-                                    {/* Trend indicator */}
                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                         <span style={{
                                             padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600,
@@ -337,7 +357,6 @@ export default function FoodForecastPage({ branches = [] }) {
                 })
             )}
 
-            {/* Footer summary */}
             {!loading && filtered.length > 0 && (
                 <div style={{
                     marginTop: 8, padding: '12px 20px', borderRadius: 12,
@@ -350,38 +369,5 @@ export default function FoodForecastPage({ branches = [] }) {
                 </div>
             )}
         </div>
-    );
-}
-
-// Larger bar chart with labels
-function LargeBar({ data = [], mode }) {
-    if (!data.length) return null;
-    const max = Math.max(...data, 1);
-    const W = '100%';
-    const H = 60;
-    const gap = 4;
-    const count = data.length;
-
-    return (
-        <svg width={W} height={H} style={{ display: 'block' }} viewBox={`0 0 ${count * 32} ${H}`} preserveAspectRatio="none">
-            {data.map((v, i) => {
-                const bw = 28;
-                const x = i * 32;
-                const h = Math.max(4, (v / max) * (H - 16));
-                return (
-                    <g key={i}>
-                        <rect x={x} y={H - h - 16} width={bw} height={h} fill="#93c5fd" rx={3} />
-                        <text x={x + bw / 2} y={H - 2} textAnchor="middle"
-                            fontSize={9} fill="#9ca3af">
-                            {mode === 'WEEK' ? `T${i + 1}` : `Th${i + 1}`}
-                        </text>
-                        <text x={x + bw / 2} y={H - h - 20} textAnchor="middle"
-                            fontSize={9} fill="#6b7280" fontWeight="600">
-                            {v}
-                        </text>
-                    </g>
-                );
-            })}
-        </svg>
     );
 }
