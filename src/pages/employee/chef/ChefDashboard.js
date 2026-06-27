@@ -81,7 +81,7 @@ const ChefDashboard = () => {
                 audioContext = new AudioContextClass();
                 audioContextRef.current = audioContext;
             }
-
+            console.log("🔊 AudioContext state:", audioContext.state);
             const now = audioContext.currentTime;
 
             const osc1 = audioContext.createOscillator();
