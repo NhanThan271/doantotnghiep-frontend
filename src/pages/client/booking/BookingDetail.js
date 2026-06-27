@@ -481,6 +481,8 @@ const BookingDetail = () => {
                     ? `${roomDates.checkOutDate} ${roomDates.checkOutTime}`
                     : `${data.checkOutDate} ${data.checkOutTime}`,
                 depositAmount: payable,
+                originalTotal: grandTotal,       
+                discountPercent: data.payment === "full" ? 10 : 0,
                 customerName: data.customerName.trim(),
                 customerPhone: data.phone.replace(/\s/g, ""),
                 customerEmail: data.email || "",
@@ -1090,7 +1092,7 @@ const BookingDetail = () => {
                                 <div className={styles.payOpts}>
                                     {[
                                         { val: "deposit", label: "Đặt cọc 20%", amt: Math.floor(roomFeeAmount * 0.2) },
-                                        { val: "full", label: "Thanh toán toàn bộ", amt: Math.floor(roomFeeAmount * 0.9), badge: "−10%" },
+                                        { val: "full", label: "Thanh toán toàn bộ (giảm 10%)", amt: Math.floor(grandTotal * 0.9), badge: "−10%" },
                                     ].map(opt => (
                                         <div key={opt.val}
                                             className={`${styles.payOpt}${data.payment === opt.val ? " " + styles.payOptActive : ""}`}
