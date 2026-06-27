@@ -9,13 +9,6 @@ import IngredientWarning from './IngredientWarning';
 import styles from './ChefDashboard.module.css';
 import io from 'socket.io-client';
 
-const socket = io('/', {
-    path: '/socket.io/',
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000
-});
-
 const ChefDashboard = () => {
     const [allItems, setAllItems] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -305,8 +298,8 @@ const ChefDashboard = () => {
         if (socketRef.current) socketRef.current.disconnect();
         if (!branchId) return;
 
-        const newSocket = io(socket, {
-            autoConnect: true,
+        const newSocket = io('/', {
+            path: '/socket.io/',
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
@@ -330,7 +323,7 @@ const ChefDashboard = () => {
         const handleNewOrder = (orderData) => {
             console.log("📦 NEW ORDER in Chef:", orderData);
 
-            if (orderData.branchId && branchId && orderData.branchId !== branchId) return;
+            if (orderData.branchId && branchId && Number(orderData.branchId) !== Number(branchId)) return;
 
             // Reset warning timer khi có đơn mới
             setLastWarningTime(Date.now());
@@ -366,7 +359,7 @@ const ChefDashboard = () => {
         const handleOrderUpdated = (data) => {
             console.log("📦 ORDER UPDATED in Chef:", data);
 
-            if (data.branchId && branchId && data.branchId !== branchId) return;
+            if (data.branchId && branchId && Number(data.branchId) !== Number(branchId)) return;
 
             // Reset warning timer khi có cập nhật đơn
             setLastWarningTime(Date.now());
