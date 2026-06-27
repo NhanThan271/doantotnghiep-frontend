@@ -393,8 +393,14 @@ const ChefDashboard = () => {
         };
 
         const handleReservationUpcoming = (data) => {
+            console.log("RESERVATION UPCOMING:", data);
+
+            if (data.branchId && branchId && Number(data.branchId) !== Number(branchId)) return;
+
             const foodList = data.foods?.map(f => `${f.foodName} x${f.quantity}`).join(', ') || '';
-            const message = `📅 ${data.message} | Khách: ${data.customerName} | ${data.table} - ${data.branch} | Giờ đến: ${data.time} | Món: ${foodList}`;
+            const message = `${data.message} | Khách: ${data.customerName} | ${data.table} | Giờ đến: ${data.time} | Món: ${foodList}`;
+
+            playNotificationSound();
             showToast(message, 'warning');
             sendNotificationToLayout(message, 'warning');
             speakVietnamese(`Chuẩn bị món cho khách ${data.customerName} tại ${data.table}, đến lúc ${data.time}`);
