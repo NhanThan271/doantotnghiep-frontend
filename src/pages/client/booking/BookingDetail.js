@@ -485,7 +485,7 @@ const BookingDetail = () => {
                 customerPhone: data.phone.replace(/\s/g, ""),
                 customerEmail: data.email || "",
                 note: data.note || "",
-                items: data.selectedFoods.map(f => ({ branchFoodId: f.branchFoodId, quantity: f.quantity })),
+                items: data.selectedFoods.map(f => ({ branchFoodId: f.branchFoodId, quantity: f.quantity, price: f.price })),
                 selectedFoods: data.selectedFoods,
                 paymentMethod: data.payment,
                 orderCode: tempOrderCode,
