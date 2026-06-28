@@ -260,7 +260,6 @@ export default function FoodForecastPage() {
                                     <th style={thStyle('forecastNextPeriod')} onClick={() => handleSort('forecastNextPeriod')}>
                                         Dự báo {periodLabel} <SortIcon k="forecastNextPeriod" />
                                     </th>
-                                    <th style={{ ...thStyle('history'), cursor: 'default' }}>Lịch sử</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -331,11 +330,6 @@ export default function FoodForecastPage() {
                                                 }}>
                                                     {row.forecastNextPeriod}
                                                 </span>
-                                            </td>
-
-                                            {/* Mini chart */}
-                                            <td style={{ textAlign: 'center', padding: '10px 14px' }}>
-                                                <MiniBar data={row.history} />
                                             </td>
                                         </tr>
                                     );

@@ -88,7 +88,7 @@ export default function ManagerLayout() {
         { id: 'promotions', label: 'Quản lý Khuyến mãi', icon: Tag },
         { id: 'employees', label: 'Quản lý Nhân viên', icon: Users },
         { id: 'branchreservation', label: 'Đặt bàn Chi nhánh', icon: Table },
-        { id: 'ingredientpreparation', label: 'NL cần chuẩn bị', icon: Package },
+        { id: 'ingredientpreparation', label: 'Dự trù nguyên liệu', icon: Package },
         { id: 'foodforecast', label: 'Thống kê món bán chạy', icon: BarChart3 },
         { id: 'reports', label: 'Báo cáo Tổng quan', icon: BarChart3 },
     ];
