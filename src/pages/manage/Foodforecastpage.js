@@ -74,7 +74,18 @@ export default function FoodForecastPage() {
                 headers: { Authorization: `Bearer ${token()}` }
             });
             if (!res.ok) throw new Error();
-            setData(await res.json());
+            const json = await res.json();
+
+            console.table(json.map(r => ({
+                tên: r.foodName,
+                trend: r.trend,
+                history: JSON.stringify(r.history),
+                'kỳ trước': r.history?.at(-2),
+                'kỳ này': r.history?.at(-1),
+            })));
+
+            setData(json);
+
         } catch {
             showToast('error', 'Lỗi', 'Không thể tải dữ liệu dự báo. Vui lòng thử lại.');
         } finally {
