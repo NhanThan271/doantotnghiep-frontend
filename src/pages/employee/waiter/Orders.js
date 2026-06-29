@@ -10,8 +10,13 @@ import { showToast } from "../../../hooks/useToast";
 import io from 'socket.io-client';
 import styles from "./Orders.module.css";
 
-const API = "";
-const socket = io('/', { path: '/socket.io/' });
+const socket = io('/', {
+    path: '/socket.io/',
+    transports: ['websocket'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionAttempts: 5
+});
 
 const Orders = () => {
     const navigate = useNavigate();
@@ -66,27 +71,20 @@ const Orders = () => {
         });
     };
 
-    // ========== API CALLS (đúng thứ tự) ==========
+    // ========== API CALLS (đã sửa hết sang axiosClient) ==========
 
     // 1. fetchTablesLegacy - API cũ để fallback
     const fetchTablesLegacy = useCallback(async () => {
         try {
             if (selectedArea !== "Tất cả") {
-                const response = await fetch(`${API}/api/tables/branch/${branchId}/area/${selectedArea}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    setTables(data);
-                }
+                const response = await axiosClient.get(`/tables/branch/${branchId}/area/${selectedArea}`);
+                setTables(response.data);
             } else {
-                const areasRes = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
-                const areasData = await areasRes.json();
+                const areasRes = await axiosClient.get(`/tables/branch/${branchId}/areas`);
                 let allTables = [];
-                for (const area of areasData) {
-                    const res = await fetch(`${API}/api/tables/branch/${branchId}/area/${area}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        allTables = [...allTables, ...data];
-                    }
+                for (const area of areasRes.data) {
+                    const res = await axiosClient.get(`/tables/branch/${branchId}/area/${area}`);
+                    allTables = [...allTables, ...res.data];
                 }
                 setTables(allTables);
             }
@@ -98,11 +96,8 @@ const Orders = () => {
     // 2. fetchRoomsLegacy - API cũ để fallback
     const fetchRoomsLegacy = useCallback(async () => {
         try {
-            const response = await fetch(`${API}/api/rooms/branch/${branchId}`);
-            if (response.ok) {
-                const data = await response.json();
-                setRooms(data);
-            }
+            const response = await axiosClient.get(`/rooms/branch/${branchId}`);
+            setRooms(response.data);
         } catch (err) {
             console.error("Lỗi tải phòng legacy:", err);
         }
@@ -113,21 +108,12 @@ const Orders = () => {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch(`${API}/api/reservations/tables`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (selectedArea !== "Tất cả") {
-                    setTables(data.filter(table => table.area === selectedArea));
-                } else {
-                    setTables(data);
-                }
-            } else {
-                await fetchTablesLegacy();
+            const response = await axiosClient.get('/reservations/tables');
+            let data = response.data;
+            if (selectedArea !== "Tất cả") {
+                data = data.filter(table => table.area === selectedArea);
             }
+            setTables(data);
         } catch (err) {
             console.error("Lỗi tải bàn từ API reservations:", err);
             setError("Không thể tải danh sách bàn");
@@ -140,17 +126,8 @@ const Orders = () => {
     // 4. fetchRoomsWithReservations
     const fetchRoomsWithReservations = useCallback(async () => {
         try {
-            const response = await fetch(`${API}/api/rooms/branch/${branchId}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setRooms(data);
-            } else {
-                await fetchRoomsLegacy();
-            }
+            const response = await axiosClient.get(`/rooms/branch/${branchId}`);
+            setRooms(response.data);
         } catch (err) {
             console.error("Lỗi tải phòng:", err);
             await fetchRoomsLegacy();
@@ -160,11 +137,8 @@ const Orders = () => {
     // 5. fetchAreas
     const fetchAreas = useCallback(async () => {
         try {
-            const response = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
-            if (response.ok) {
-                const data = await response.json();
-                setAreas(["Tất cả", ...data]);
-            }
+            const response = await axiosClient.get(`/tables/branch/${branchId}/areas`);
+            setAreas(["Tất cả", ...response.data]);
         } catch (err) {
             console.error("Lỗi tải khu vực:", err);
         }

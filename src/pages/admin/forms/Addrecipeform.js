@@ -12,6 +12,10 @@ export default function AddRecipeForm({ closeForm, onSave }) {
     const [ingredients, setIngredients] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [productSearch, setProductSearch] = useState('');
+    const [productOpen, setProductOpen] = useState(false);
+    const [ingSearchTerms, setIngSearchTerms] = useState({});
+    const [ingOpenDropdowns, setIngOpenDropdowns] = useState({});
 
     const API_BASE_URL = '';
 
@@ -251,7 +255,7 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                             borderRadius: '8px', marginBottom: '20px'
                         }}>
                             <p style={{ fontSize: '13px', color: '#F97316', margin: 0 }}>
-                                💡 <strong>Lưu ý:</strong> Mỗi sản phẩm chỉ có thể có một công thức cho mỗi nguyên liệu.
+                                <strong>Lưu ý:</strong> Mỗi sản phẩm chỉ có thể có một công thức cho mỗi nguyên liệu.
                             </p>
                         </div>
 
@@ -265,19 +269,76 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                             </label>
                             <div style={{ position: 'relative' }}>
                                 <Package size={18} style={iconStyle} />
-                                <select
-                                    value={productId}
-                                    onChange={(e) => { setProductId(e.target.value); setError(''); }}
-                                    style={inputStyle}
-                                    required
-                                >
-                                    <option value="">-- Chọn sản phẩm --</option>
-                                    {products.map(product => (
-                                        <option key={product.id} value={product.id}>
-                                            {product.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <input
+                                    type="text"
+                                    placeholder="Tìm sản phẩm..."
+                                    value={
+                                        productId
+                                            ? (productOpen
+                                                ? productSearch
+                                                : products.find(p => p.id === parseInt(productId))?.name || '')
+                                            : productSearch
+                                    }
+                                    onChange={e => {
+                                        setProductSearch(e.target.value);
+                                        setProductOpen(true);
+                                        if (!e.target.value) setProductId('');
+                                        setError('');
+                                    }}
+                                    onFocus={() => setProductOpen(true)}
+                                    style={{
+                                        width: '100%', padding: '12px 16px 12px 44px',
+                                        background: '#0F0F0F', borderRadius: '12px',
+                                        border: '1px solid #2A2A2A', color: '#FFFFFF',
+                                        fontSize: '14px', outline: 'none', boxSizing: 'border-box'
+                                    }}
+                                />
+                                {productOpen && (
+                                    <>
+                                        <div
+                                            style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+                                            onClick={() => setProductOpen(false)}
+                                        />
+                                        <div style={{
+                                            position: 'absolute', top: '100%', left: 0, right: 0,
+                                            background: '#1a1a1a', border: '1px solid #2A2A2A',
+                                            borderRadius: '10px', zIndex: 100, maxHeight: 220,
+                                            overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                            marginTop: 4
+                                        }}>
+                                            {products
+                                                .filter(p => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                                                .map(p => (
+                                                    <div
+                                                        key={p.id}
+                                                        onMouseDown={() => {
+                                                            setProductId(String(p.id));
+                                                            setProductSearch('');
+                                                            setProductOpen(false);
+                                                            setError('');
+                                                        }}
+                                                        style={{
+                                                            padding: '10px 16px', cursor: 'pointer', fontSize: 14,
+                                                            color: parseInt(productId) === p.id ? '#F97316' : '#e5e7eb',
+                                                            background: parseInt(productId) === p.id ? 'rgba(249,115,22,0.15)' : 'transparent',
+                                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                            transition: 'background 0.1s'
+                                                        }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background =
+                                                            parseInt(productId) === p.id ? 'rgba(249,115,22,0.15)' : 'transparent'}
+                                                    >
+                                                        {p.name}
+                                                    </div>
+                                                ))}
+                                            {products.filter(p => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
+                                                <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                                                    Không tìm thấy sản phẩm
+                                                </div>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -372,19 +433,85 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                         <div style={{ marginBottom: '10px' }}>
                                             <div style={{ position: 'relative' }}>
                                                 <Beaker size={18} style={iconStyle} />
-                                                <select
-                                                    value={item.ingredientId}
-                                                    onChange={(e) => handleItemChange(index, 'ingredientId', e.target.value)}
-                                                    style={inputStyle}
-                                                    required
-                                                >
-                                                    <option value="">-- Chọn nguyên liệu --</option>
-                                                    {ingredients.map(ing => (
-                                                        <option key={ing.id} value={ing.id}>
-                                                            {ing.name} ({ing.unit})
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Tìm nguyên liệu..."
+                                                    value={
+                                                        item.ingredientId
+                                                            ? (ingOpenDropdowns[index]
+                                                                ? (ingSearchTerms[index] ?? '')
+                                                                : (() => {
+                                                                    const ing = ingredients.find(i => i.id === parseInt(item.ingredientId));
+                                                                    return ing ? `${ing.name} (${ing.unit})` : '';
+                                                                })())
+                                                            : (ingSearchTerms[index] ?? '')
+                                                    }
+                                                    onChange={e => {
+                                                        setIngSearchTerms(prev => ({ ...prev, [index]: e.target.value }));
+                                                        setIngOpenDropdowns(prev => ({ ...prev, [index]: true }));
+                                                        if (!e.target.value) handleItemChange(index, 'ingredientId', '');
+                                                        setError('');
+                                                    }}
+                                                    onFocus={() => setIngOpenDropdowns(prev => ({ ...prev, [index]: true }))}
+                                                    style={{
+                                                        width: '100%', padding: '12px 16px 12px 44px',
+                                                        background: '#0F0F0F', borderRadius: '12px',
+                                                        border: '1px solid #2A2A2A', color: '#FFFFFF',
+                                                        fontSize: '14px', outline: 'none', boxSizing: 'border-box'
+                                                    }}
+                                                />
+                                                {ingOpenDropdowns[index] && (
+                                                    <>
+                                                        <div
+                                                            style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+                                                            onClick={() => setIngOpenDropdowns(prev => ({ ...prev, [index]: false }))}
+                                                        />
+                                                        <div style={{
+                                                            position: 'absolute', top: '100%', left: 0, right: 0,
+                                                            background: '#1a1a1a', border: '1px solid #2A2A2A',
+                                                            borderRadius: '10px', zIndex: 100, maxHeight: 200,
+                                                            overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                                            marginTop: 4
+                                                        }}>
+                                                            {ingredients
+                                                                .filter(ing => {
+                                                                    const term = (ingSearchTerms[index] ?? '').toLowerCase();
+                                                                    return !term || ing.name.toLowerCase().includes(term);
+                                                                })
+                                                                .map(ing => (
+                                                                    <div
+                                                                        key={ing.id}
+                                                                        onMouseDown={() => {
+                                                                            handleItemChange(index, 'ingredientId', ing.id);
+                                                                            setIngSearchTerms(prev => ({ ...prev, [index]: '' }));
+                                                                            setIngOpenDropdowns(prev => ({ ...prev, [index]: false }));
+                                                                            setError('');
+                                                                        }}
+                                                                        style={{
+                                                                            padding: '10px 16px', cursor: 'pointer', fontSize: 13,
+                                                                            color: parseInt(item.ingredientId) === ing.id ? '#F97316' : '#e5e7eb',
+                                                                            background: parseInt(item.ingredientId) === ing.id ? 'rgba(249,115,22,0.15)' : 'transparent',
+                                                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                                            transition: 'background 0.1s'
+                                                                        }}
+                                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
+                                                                        onMouseLeave={e => e.currentTarget.style.background =
+                                                                            parseInt(item.ingredientId) === ing.id ? 'rgba(249,115,22,0.15)' : 'transparent'}
+                                                                    >
+                                                                        {ing.name} <span style={{ color: '#9ca3af', fontSize: 12 }}>({ing.unit})</span>
+                                                                    </div>
+                                                                ))}
+                                                            {ingredients.filter(ing => {
+                                                                const term = (ingSearchTerms[index] ?? '').toLowerCase();
+                                                                return !term || ing.name.toLowerCase().includes(term);
+                                                            }).length === 0 && (
+                                                                    <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                                                                        Không tìm thấy nguyên liệu
+                                                                    </div>
+                                                                )}
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 

@@ -6,8 +6,13 @@ import io from 'socket.io-client';
 import styles from "./TablesPage.module.css";
 import { Utensils, Coffee } from "lucide-react";
 
-const API = "";
-const socket = io('/', { path: '/socket.io/' });
+const socket = io('/', {
+    path: '/socket.io/',
+    transports: ['websocket'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionAttempts: 5
+});
 
 const TablesPage = () => {
     const [tables, setTables] = useState([]);
@@ -77,21 +82,14 @@ const TablesPage = () => {
     const fetchTablesLegacy = useCallback(async () => {
         try {
             if (selectedArea !== "Tất cả") {
-                const response = await fetch(`${API}/api/tables/branch/${branchId}/area/${selectedArea}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    setTables(data);
-                }
+                const response = await axiosClient.get(`/tables/branch/${branchId}/area/${selectedArea}`);
+                setTables(response.data);
             } else {
-                const areasRes = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
-                const areasData = await areasRes.json();
+                const areasRes = await axiosClient.get(`/tables/branch/${branchId}/areas`);
                 let allTables = [];
-                for (const area of areasData) {
-                    const res = await fetch(`${API}/api/tables/branch/${branchId}/area/${area}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        allTables = [...allTables, ...data];
-                    }
+                for (const area of areasRes.data) {
+                    const res = await axiosClient.get(`/tables/branch/${branchId}/area/${area}`);
+                    allTables = [...allTables, ...res.data];
                 }
                 setTables(allTables);
             }
@@ -103,60 +101,82 @@ const TablesPage = () => {
     // 2. fetchRoomsLegacy - API cũ để fallback (phải định nghĩa TRƯỚC fetchRoomsWithReservations)
     const fetchRoomsLegacy = useCallback(async () => {
         try {
-            const response = await fetch(`${API}/api/rooms/branch/${branchId}`);
-            if (response.ok) {
-                const data = await response.json();
-                setRooms(data);
-            }
+            const response = await axiosClient.get(`/rooms/branch/${branchId}`);
+            setRooms(response.data);
         } catch (err) {
             console.error("Lỗi tải phòng legacy:", err);
         }
     }, [branchId]);
 
-    // 3. fetchTablesWithReservations - Lấy danh sách bàn từ API /reservations/tables
     const fetchTablesWithReservations = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API}/api/reservations/tables`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
+            const [tablesRes, reservationsRes] = await Promise.all([
+                axiosClient.get(`/tables/branch/${branchId}`),
+                axiosClient.get(`/reservations/tables`).catch(() => ({ data: [] }))
+            ]);
+
+            const reservationMap = {};
+            reservationsRes.data.forEach(t => {
+                reservationMap[t.id] = t;
             });
-            if (response.ok) {
-                const data = await response.json();
-                if (selectedArea !== "Tất cả") {
-                    setTables(data.filter(table => table.area === selectedArea));
-                } else {
-                    setTables(data);
-                }
-            } else {
-                await fetchTablesLegacy();
+
+            let data = tablesRes.data.map(table => ({
+                ...table,
+                ...(reservationMap[table.id] ? {
+                    hasUpcomingReservation: true,
+                    customerName: reservationMap[table.id].customerName,
+                    checkInTime: reservationMap[table.id].checkInTime,
+                } : {})
+            }));
+
+            if (selectedArea !== "Tất cả") {
+                data = data.filter(table => table.area === selectedArea);
             }
+
+            data.sort((a, b) => {
+                const areaCompare = (a.area || "").localeCompare(b.area || "");
+                if (areaCompare !== 0) return areaCompare;
+                return (a.number || 0) - (b.number || 0);
+            });
+
+            setTables(data);
         } catch (err) {
-            console.error("Lỗi tải bàn từ API reservations:", err);
+            console.error("Lỗi tải bàn:", err);
             await fetchTablesLegacy();
         } finally {
             setLoading(false);
         }
-    }, [selectedArea, fetchTablesLegacy]);
+    }, [branchId, selectedArea, fetchTablesLegacy]);
 
-    // 4. fetchRoomsWithReservations - Lấy danh sách phòng từ API /reservations/rooms
     const fetchRoomsWithReservations = useCallback(async () => {
         try {
-            // Gọi API /api/rooms/branch/{branchId} thay vì /api/reservations/rooms
-            const response = await fetch(`${API}/api/rooms/branch/${branchId}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
+            const [roomsRes, reservationsRes] = await Promise.all([
+                axiosClient.get(`/rooms/branch/${branchId}`),
+                axiosClient.get(`/reservations/rooms`).catch(() => ({ data: [] }))
+            ]);
+
+            const reservationMap = {};
+            reservationsRes.data.forEach(r => {
+                reservationMap[r.id] = r;
             });
-            if (response.ok) {
-                const data = await response.json();
-                console.log("🏠 Rooms data from API:", data);
-                console.log("💰 First room fee:", data[0]?.roomFee);
-                setRooms(data);
-            } else {
-                await fetchRoomsLegacy();
-            }
+
+            const data = roomsRes.data.map(room => ({
+                ...room,
+                ...(reservationMap[room.id] ? {
+                    hasUpcomingReservation: true,
+                    customerName: reservationMap[room.id].customerName,
+                    checkInTime: reservationMap[room.id].checkInTime,
+                } : {})
+            }));
+
+            data.sort((a, b) => {
+                const numA = parseInt(String(a.number).replace(/\D/g, '')) || 0;
+                const numB = parseInt(String(b.number).replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
+            setRooms(data);
         } catch (err) {
             console.error("Lỗi tải phòng:", err);
             await fetchRoomsLegacy();
@@ -166,11 +186,8 @@ const TablesPage = () => {
     // 5. fetchAreas - Lấy danh sách khu vực
     const fetchAreas = useCallback(async () => {
         try {
-            const response = await fetch(`${API}/api/tables/branch/${branchId}/areas`);
-            if (response.ok) {
-                const data = await response.json();
-                setAreas(["Tất cả", ...data]);
-            }
+            const response = await axiosClient.get(`/tables/branch/${branchId}/areas`);
+            setAreas(["Tất cả", ...response.data]);
         } catch (err) {
             console.error("Lỗi tải khu vực:", err);
         }

@@ -353,7 +353,7 @@ const BookingDetail = () => {
     const roomFeeAmount = bookingMode === "room" ? Number(data.roomFee || 0) : 0;
     const totalFoodAmount = data.selectedFoods.reduce((s, f) => s + f.price * f.quantity, 0);
     const grandTotal = totalFoodAmount + roomFeeAmount;
-    const payable = Math.floor(grandTotal * (data.payment === "full" ? 0.9 : 0.2));
+    const payable = Math.floor(grandTotal * (data.payment === "full" ? 1 : 0.2));
 
     /* ── available times ── */
     const getAvailableTimes = (dateRef) => {
@@ -485,7 +485,7 @@ const BookingDetail = () => {
                 customerPhone: data.phone.replace(/\s/g, ""),
                 customerEmail: data.email || "",
                 note: data.note || "",
-                items: data.selectedFoods.map(f => ({ branchFoodId: f.branchFoodId, quantity: f.quantity })),
+                items: data.selectedFoods.map(f => ({ branchFoodId: f.branchFoodId, quantity: f.quantity, price: f.price })),
                 selectedFoods: data.selectedFoods,
                 paymentMethod: data.payment,
                 orderCode: tempOrderCode,
@@ -521,7 +521,7 @@ const BookingDetail = () => {
         if (!roomDates.checkInDate || !roomDates.checkInTime || !roomDates.checkOutDate || !roomDates.checkOutTime)
             return alert("Vui lòng chọn đầy đủ thời gian nhận/trả phòng");
 
-        const depositAmt = Math.floor(roomFeeAmount * (data.payment === "full" ? 0.9 : 0.2));
+        const depositAmt = Math.floor(roomFeeAmount * (data.payment === "full" ? 1 : 0.2));
 
         setLoading(true);
         try {
@@ -1090,7 +1090,7 @@ const BookingDetail = () => {
                                 <div className={styles.payOpts}>
                                     {[
                                         { val: "deposit", label: "Đặt cọc 20%", amt: Math.floor(roomFeeAmount * 0.2) },
-                                        { val: "full", label: "Thanh toán toàn bộ", amt: Math.floor(roomFeeAmount * 0.9), badge: "−10%" },
+                                        { val: "full", label: "Thanh toán toàn bộ", amt: Math.floor(roomFeeAmount * 1) },
                                     ].map(opt => (
                                         <div key={opt.val}
                                             className={`${styles.payOpt}${data.payment === opt.val ? " " + styles.payOptActive : ""}`}
@@ -1156,7 +1156,7 @@ const BookingDetail = () => {
                         <div className={styles.payOpts}>
                             {[
                                 { val: "deposit", label: "Đặt cọc 20%", amt: Math.floor(grandTotal * 0.2) },
-                                { val: "full", label: "Thanh toán toàn bộ", amt: Math.floor(grandTotal * 0.9), badge: "−10%" },
+                                { val: "full", label: "Thanh toán toàn bộ", amt: Math.floor(grandTotal * 1) },
                             ].map(opt => (
                                 <div key={opt.val}
                                     className={`${styles.payOpt}${data.payment === opt.val ? " " + styles.payOptActive : ""}`}

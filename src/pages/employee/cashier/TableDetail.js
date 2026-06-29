@@ -12,7 +12,13 @@ import ToastNotification from "./ToastNotification";
 import styles from "./TableDetail.module.css";
 import CashPaymentModal from "./CashPaymentModal";
 
-const socket = io('/', { path: '/socket.io/' });
+const socket = io('/', {
+    path: '/socket.io/',
+    transports: ['websocket'],
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionAttempts: 5
+});
 const API = "";
 const CASHIER_NOTIFICATIONS_KEY = 'cashier_notifications';
 
@@ -87,42 +93,29 @@ const TableDetail = () => {
 
     const fetchProducts = useCallback(async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(
-                `${API_BASE_URL}/api/branch-foods/branch/${branchId}/with-promotions`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            if (res.ok) {
-                const data = await res.json();
-                console.log("📦 Dữ liệu sản phẩm từ API:", data);
-                const activeProducts = data.filter(p => p.isActive !== false);
-                setProducts(activeProducts);
-                const cats = ["Tất cả", ...new Set(activeProducts.map(p => p.categoryName).filter(Boolean))];
-                setCategories(cats);
-            }
+            const res = await axiosClient.get(`/branch-foods/branch/${branchId}/with-promotions`);
+            console.log("📦 Dữ liệu sản phẩm từ API:", res.data);
+            const activeProducts = res.data.filter(p => p.isActive !== false);
+            setProducts(activeProducts);
+            const cats = ["Tất cả", ...new Set(activeProducts.map(p => p.categoryName).filter(Boolean))];
+            setCategories(cats);
         } catch (err) {
             console.error("Lỗi tải sản phẩm:", err);
         } finally {
             setLoading(false);
         }
-    }, [branchId, API_BASE_URL]);
+    }, [branchId]);
+
 
     const fetchBranchInfo = useCallback(async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_BASE_URL}/api/branches/${branchId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setBranchInfo(data);
-                console.log("📋 Branch info:", data);
-            }
+            const res = await axiosClient.get(`/branches/${branchId}`);
+            setBranchInfo(res.data);
+            console.log("📋 Branch info:", res.data);
         } catch (err) {
             console.error("Lỗi tải thông tin chi nhánh:", err);
         }
-    }, [branchId, API_BASE_URL]);
+    }, [branchId]);
 
     const checkExistingOrder = useCallback(async () => {
         try {
@@ -213,6 +206,8 @@ const TableDetail = () => {
     const itemsTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const finalTotal = itemsTotal + roomFee;
     const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const depositPaid = order?.reservation?.depositAmount || 0;
+    const remainingAmount = Math.max(0, finalTotal - depositPaid);
 
     const handleUpdateOrder = async () => {
         if (cart.length === 0) {
@@ -335,30 +330,17 @@ const TableDetail = () => {
     const updateEntityStatus = useCallback(async (newStatus) => {
         try {
             const updateUrl = isRoom
-                ? `${API}/api/rooms/${entity.id}/status?status=${newStatus}`
-                : `${API}/api/tables/${entity.id}/status?status=${newStatus}`;
+                ? `/rooms/${entity.id}/status?status=${newStatus}`
+                : `/tables/${entity.id}/status?status=${newStatus}`;
 
-            const token = localStorage.getItem("token");
-            const response = await fetch(updateUrl, {
-                method: "PUT",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                }
-            });
-
-            if (response.ok) {
-                console.log(`✅ Đã cập nhật ${entityType} ${entityNumber} thành ${newStatus}`);
-                if (isRoom) {
-                    entity.status = newStatus;
-                } else {
-                    entity.status = newStatus;
-                }
-                return true;
+            await axiosClient.put(updateUrl);
+            console.log(`✅ Đã cập nhật ${entityType} ${entityNumber} thành ${newStatus}`);
+            if (isRoom) {
+                entity.status = newStatus;
             } else {
-                console.error(`Lỗi cập nhật status: ${response.status}`);
-                return false;
+                entity.status = newStatus;
             }
+            return true;
         } catch (err) {
             console.error(`Lỗi cập nhật trạng thái ${entityType}:`, err);
             return false;
@@ -492,7 +474,6 @@ const TableDetail = () => {
 
         setProcessingPayment(true);
         try {
-            const token = localStorage.getItem("token");
             const tempOrderCode = Date.now() % 2147483647;
             const shortDesc = `Thanh toan don ${order.id}`.substring(0, 25);
 
@@ -527,30 +508,22 @@ const TableDetail = () => {
 
             console.log("📦 Items gửi lên PayOS:", items);
 
-            const paymentResponse = await fetch(`${API}/api/payos/create`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    orderCode: tempOrderCode,
-                    amount: Math.floor(finalTotal),
-                    description: shortDesc,
-                    returnUrl: `${window.location.origin}/cashier-payment-success`,
-                    cancelUrl: `${window.location.origin}/cashier-payment-cancel`,
-                    items: items
-                }),
+            const paymentResponse = await axiosClient.post("/payos/create", {
+                orderCode: tempOrderCode,
+                amount: Math.floor(remainingAmount),
+                description: shortDesc,
+                returnUrl: `${window.location.origin}/cashier-payment-success`,
+                cancelUrl: `${window.location.origin}/cashier-payment-cancel`,
+                items: items
             });
 
-            const paymentResult = await paymentResponse.json();
-            console.log("PayOS response:", paymentResult);
+            console.log("PayOS response:", paymentResponse.data);
 
-            if (paymentResult.code !== "00" || !paymentResult.data?.checkoutUrl) {
-                throw new Error(paymentResult.desc || "Không thể tạo link thanh toán");
+            if (paymentResponse.data.code !== "00" || !paymentResponse.data.data?.checkoutUrl) {
+                throw new Error(paymentResponse.data.desc || "Không thể tạo link thanh toán");
             }
 
-            window.location.href = paymentResult.data.checkoutUrl;
+            window.location.href = paymentResponse.data.data.checkoutUrl;
 
         } catch (err) {
             console.error("Payment error:", err);
@@ -624,14 +597,7 @@ const TableDetail = () => {
                         : `${API}/api/tables/${entity.id}/status?status=${newStatus}`;
 
                     try {
-                        const token = localStorage.getItem("token");
-                        await fetch(updateUrl, {
-                            method: "PUT",
-                            headers: {
-                                "Authorization": `Bearer ${token}`,
-                                "Content-Type": "application/json"
-                            }
-                        });
+                        await axiosClient.put(updateUrl);
                         console.log(`✅ Đã cập nhật ${entityType.toLowerCase()} ${entityNumber} thành ${newStatus}`);
                     } catch (err) {
                         console.error("Lỗi cập nhật trạng thái:", err);
@@ -887,7 +853,7 @@ const TableDetail = () => {
         processExistingOrder();
     }, [products, existingOrderFromState, entity, checkExistingOrder, getDiscountedPrices]);
 
-    const canPay = order?.status === "COMPLETED";
+    const canPay = order?.status === "COMPLETED" && remainingAmount > 0;
     const canPrint = order?.status === "COMPLETED" || order?.status === "PAID";
     const canEdit = order && order.status !== "PAID" && order.status !== "CANCELED";
     const isNewOrder = !order;
@@ -1039,11 +1005,37 @@ const TableDetail = () => {
                                         <span><Wallet size={14} /> Tổng cộng:</span>
                                         <span className={styles.totalAmount}>{finalTotal.toLocaleString('vi-VN')}đ</span>
                                     </div>
+                                    {depositPaid > 0 && (
+                                        <div className={styles.totalRow} style={{ color: '#10b981' }}>
+                                            <span>Đã cọc:</span>
+                                            <span>- {depositPaid.toLocaleString('vi-VN')}đ</span>
+                                        </div>
+                                    )}
+
+                                    {depositPaid > 0 && (
+                                        <div className={styles.totalRow} style={{ fontWeight: 700, color: '#ef4444', fontSize: 16 }}>
+                                            <span>Còn lại cần thanh toán:</span>
+                                            <span className={styles.totalAmount}>{remainingAmount.toLocaleString('vi-VN')}đ</span>
+                                        </div>
+                                    )}
 
                                     {canEdit && cart.length > 0 && <button className={styles.updateBtn} onClick={handleUpdateOrder} disabled={isUpdating}>{isUpdating ? "Đang cập nhật..." : "CẬP NHẬT THÊM MÓN"}</button>}
                                     {isNewOrder && cart.length > 0 && <button className={styles.orderBtn} onClick={handleConfirmOrder} disabled={isConfirming}>{isConfirming ? "Đang xử lý..." : "Xác nhận đơn"}</button>}
                                     {canPrint && <button className={styles.printBtn} onClick={printBill}><Printer size={18} />In hóa đơn</button>}
-                                    {canPay && <button className={styles.payBtn} onClick={() => setShowPaymentMethodModal(true)} disabled={processingPayment}>{processingPayment ? "Đang xử lý..." : "Thanh toán"}</button>}
+                                    {order?.status === "COMPLETED" && remainingAmount <= 0 && depositPaid > 0 && (
+                                        <button
+                                            className={styles.payBtn}
+                                            onClick={() => handleCompletePayment(order?.id, "cash", {})}
+                                            disabled={processingPayment}
+                                        >
+                                            {processingPayment ? "Đang xử lý..." : "Hoàn tất (Đã thanh toán đủ)"}
+                                        </button>
+                                    )}
+                                    {canPay && (
+                                        <button className={styles.payBtn} onClick={() => setShowPaymentMethodModal(true)} disabled={processingPayment}>
+                                            {processingPayment ? "Đang xử lý..." : "Thanh toán"}
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         )}
@@ -1052,7 +1044,7 @@ const TableDetail = () => {
             </div>
 
             <PaymentMethodModal show={showPaymentMethodModal} onClose={() => setShowPaymentMethodModal(false)} onSelect={(method) => { setShowPaymentMethodModal(false); if (method === "transfer" || method === "momo") { handlePayOSPayment(); } else if (method === "cash") { setShowCashModal(true); } else if (method === "card") { handleCompletePayment(order?.id, "card"); } }} />
-            <CashPaymentModal show={showCashModal} onClose={() => setShowCashModal(false)} onConfirm={() => { handleCompletePayment(order?.id, "cash"); }} totalAmount={finalTotal} />
+            <CashPaymentModal show={showCashModal} onClose={() => setShowCashModal(false)} onConfirm={() => { handleCompletePayment(order?.id, "cash"); }} totalAmount={remainingAmount} />
 
             <div className={styles.toastContainer}>
                 {toasts.map((toast) => (

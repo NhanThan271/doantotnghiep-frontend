@@ -9,13 +9,6 @@ import IngredientWarning from './IngredientWarning';
 import styles from './ChefDashboard.module.css';
 import io from 'socket.io-client';
 
-const socket = io('/', {
-    path: '/socket.io/',
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000
-});
-
 const ChefDashboard = () => {
     const [allItems, setAllItems] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -88,7 +81,7 @@ const ChefDashboard = () => {
                 audioContext = new AudioContextClass();
                 audioContextRef.current = audioContext;
             }
-
+            console.log("🔊 AudioContext state:", audioContext.state);
             const now = audioContext.currentTime;
 
             const osc1 = audioContext.createOscillator();
@@ -305,8 +298,8 @@ const ChefDashboard = () => {
         if (socketRef.current) socketRef.current.disconnect();
         if (!branchId) return;
 
-        const newSocket = io(socket, {
-            autoConnect: true,
+        const newSocket = io('/', {
+            path: '/socket.io/',
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
@@ -330,9 +323,8 @@ const ChefDashboard = () => {
         const handleNewOrder = (orderData) => {
             console.log("📦 NEW ORDER in Chef:", orderData);
 
-            if (orderData.branchId && branchId && orderData.branchId !== branchId) return;
+            if (orderData.branchId && branchId && Number(orderData.branchId) !== Number(branchId)) return;
 
-            // Reset warning timer khi có đơn mới
             setLastWarningTime(Date.now());
 
             const notiKey = `${orderData.orderId}_${orderData.tableNumber}_${JSON.stringify(orderData.items)}`;
@@ -345,14 +337,13 @@ const ChefDashboard = () => {
             playNotificationSound();
             fetchData();
 
-            if (orderData.items?.length) {
-                const areaName = orderData.areaName || (orderData.isRoom ? "Khu VIP" : "Khu chính");
-                const locationName = orderData.locationName ||
-                    (orderData.isRoom ? `Phòng ${orderData.tableNumber}` : `Bàn ${orderData.tableNumber}`);
+            const areaName = orderData.areaName || (orderData.isRoom ? "Khu VIP" : "Khu chính");
+            const locationName = orderData.locationName ||
+                (orderData.isRoom ? `Phòng ${orderData.tableNumber}` : `Bàn ${orderData.tableNumber}`);
 
+            if (orderData.items?.length) {
                 const itemDetails = orderData.items.map(item => `${item.name} x${item.quantity}`).join(', ');
                 const message = `🆕 ĐƠN MỚI - ${areaName} - ${locationName}: ${itemDetails}`;
-
                 showToast(message, 'info');
                 sendNotificationToLayout(message, 'order');
 
@@ -360,13 +351,18 @@ const ChefDashboard = () => {
                     `${item.name} ${item.quantity === 1 ? 'một phần' : `${item.quantity} phần`}`
                 ).join(', ')}`;
                 speakVietnamese(speechText);
+            } else {
+                const message = `🆕 ĐƠN MỚI - ${areaName} - ${locationName}`;
+                showToast(message, 'info');
+                sendNotificationToLayout(message, 'order');
+                speakVietnamese(`Đơn hàng mới tại ${areaName} ${locationName}`);
             }
         };
 
         const handleOrderUpdated = (data) => {
             console.log("📦 ORDER UPDATED in Chef:", data);
 
-            if (data.branchId && branchId && data.branchId !== branchId) return;
+            if (data.branchId && branchId && Number(data.branchId) !== Number(branchId)) return;
 
             // Reset warning timer khi có cập nhật đơn
             setLastWarningTime(Date.now());
@@ -400,8 +396,15 @@ const ChefDashboard = () => {
         };
 
         const handleReservationUpcoming = (data) => {
+            console.log("RESERVATION UPCOMING:", data);
+
+            if (data.branchId && branchId && Number(data.branchId) !== Number(branchId)) return;
+
             const foodList = data.foods?.map(f => `${f.foodName} x${f.quantity}`).join(', ') || '';
-            const message = `📅 ${data.message} | Khách: ${data.customerName} | ${data.table} - ${data.branch} | Giờ đến: ${data.time} | Món: ${foodList}`;
+            const message = `${data.message} | Khách: ${data.customerName} | ${data.table} | Giờ đến: ${data.time} | Món: ${foodList}`;
+
+            playNotificationSound();
+            fetchData();
             showToast(message, 'warning');
             sendNotificationToLayout(message, 'warning');
             speakVietnamese(`Chuẩn bị món cho khách ${data.customerName} tại ${data.table}, đến lúc ${data.time}`);
@@ -434,9 +437,11 @@ const ChefDashboard = () => {
     useEffect(() => { if (branchId) return setupSocket(); }, [branchId, setupSocket]);
 
     useEffect(() => {
-        const interval = setInterval(() => { if (!isSocketConnected) fetchData(true); }, 30000);
+        const interval = setInterval(() => {
+            fetchData(true);
+        }, 30000);
         return () => clearInterval(interval);
-    }, [fetchData, isSocketConnected]);
+    }, [fetchData]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -512,18 +517,6 @@ const ChefDashboard = () => {
             }
         };
     }, [allItems, itemWarningSent, showToast, sendNotificationToLayout, speakVietnamese, playNotificationSound]);
-
-    // ========== AUTO REFRESH EVERY 2 MINUTES ==========
-    useEffect(() => {
-        const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000; // 10 phút
-
-        const autoRefreshInterval = setInterval(() => {
-            console.log('🔄 Auto refresh (backup)');
-            fetchData(true);
-        }, AUTO_REFRESH_INTERVAL);
-
-        return () => clearInterval(autoRefreshInterval);
-    }, [fetchData]);
 
     useEffect(() => {
         const currentItemIds = new Set(allItems.map(item => item.id));

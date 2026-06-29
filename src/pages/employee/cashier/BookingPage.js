@@ -193,20 +193,93 @@ const BookingPage = () => {
     const fetchTables = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await axiosClient.get(`/reservations/tables`);
-            let data = res.data;
-            if (selectedArea !== "Tất cả") data = data.filter(t => t.area === selectedArea);
+            const [areasRes, reservationsRes] = await Promise.all([
+                axiosClient.get(`/tables/branch/${branchId}/areas`),
+                axiosClient.get(`/reservations/tables`).catch(() => ({ data: [] }))
+            ]);
+
+            const reservationMap = {};
+            reservationsRes.data.forEach(t => {
+                reservationMap[t.id] = t;
+            });
+
+            const areaRequests = areasRes.data.map(area =>
+                axiosClient.get(`/tables/branch/${branchId}/area/${area}`)
+            );
+            const areaResults = await Promise.all(areaRequests);
+
+            let allTables = [];
+            areaResults.forEach(res => {
+                allTables = [...allTables, ...res.data];
+            });
+
+            const seen = new Set();
+            allTables = allTables.filter(t => {
+                if (seen.has(t.id)) return false;
+                seen.add(t.id);
+                return true;
+            });
+
+            let data = allTables.map(table => ({
+                ...table,
+                ...(reservationMap[table.id] ? {
+                    customerName: reservationMap[table.id].customerName,
+                    checkInTime: reservationMap[table.id].checkInTime,
+                    hasUpcomingReservation: reservationMap[table.id].hasUpcomingReservation,
+                } : {})
+            }));
+
+            if (selectedArea !== "Tất cả") {
+                data = data.filter(t => t.area === selectedArea);
+            }
+
+            data.sort((a, b) => {
+                const numA = parseInt(String(a.number).replace(/\D/g, '')) || 0;
+                const numB = parseInt(String(b.number).replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
             setTables(data);
-        } catch (err) { setTables([]); }
-        finally { setLoading(false); }
-    }, [selectedArea]);
+        } catch (err) {
+            console.error("Lỗi tải bàn:", err);
+            setTables([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [branchId, selectedArea]);
 
     const fetchRooms = useCallback(async () => {
         try {
-            const res = await axiosClient.get(`/reservations/rooms`);
-            setRooms(res.data);
-        } catch (err) { setRooms([]); }
-    }, []);
+            const [roomsRes, reservationsRes] = await Promise.all([
+                axiosClient.get(`/rooms/branch/${branchId}`),
+                axiosClient.get(`/reservations/rooms`).catch(() => ({ data: [] }))
+            ]);
+
+            const reservationMap = {};
+            reservationsRes.data.forEach(r => {
+                reservationMap[r.id] = r;
+            });
+
+            const data = roomsRes.data.map(room => ({
+                ...room,
+                ...(reservationMap[room.id] ? {
+                    customerName: reservationMap[room.id].customerName,
+                    checkInTime: reservationMap[room.id].checkInTime,
+                    hasUpcomingReservation: reservationMap[room.id].hasUpcomingReservation,
+                } : {})
+            }));
+
+            data.sort((a, b) => {
+                const numA = parseInt(String(a.number).replace(/\D/g, '')) || 0;
+                const numB = parseInt(String(b.number).replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
+            setRooms(data);
+        } catch (err) {
+            setRooms([]);
+        }
+    }, [branchId]);
 
     const fetchReservations = useCallback(async () => {
         try {
@@ -314,13 +387,17 @@ const BookingPage = () => {
         e.stopPropagation();
         try {
             const pending = reservations.find(r =>
-                type === "table" ? r.tableNumber === entity.number : r.roomNumber === entity.number
+                type === "table"
+                    ? String(r.tableNumber) === String(entity.number)
+                    : String(r.roomNumber) === String(entity.number)
             );
-            if (pending) {
-                await confirmReservation(pending.id);
-                await axiosClient.put(`/reservations/${pending.id}/status?status=CHECKED_IN`);
+            if (!pending) {
+                showToast("Không tìm thấy đơn đặt!", "error");
+                return;
             }
-            showToast(`Check-in ${entity.number} thành công!`, "success");
+            await axiosClient.put(`/reservations/${pending.id}/status?status=CHECKED_IN`);
+            showToast(`Check-in ${type === "table" ? "bàn" : "phòng"} ${entity.number} thành công!`, "success");
+            socket.emit("reservation-updated", { reservationId: pending.id, status: "CHECKED_IN" });
             refreshAllData();
         } catch (err) {
             showToast("Check-in thất bại!", "error");
@@ -614,8 +691,16 @@ const BookingPage = () => {
                                             )}
                                         </div>
                                         <div className={styles.cardActions}>
-                                            {isFree && <button onClick={() => openBookingModal(table, "table")} className={styles.bookButton}><Calendar size={14} /> Đặt bàn</button>}
-                                            {isRes && <button onClick={(e) => handleCheckIn(table, "table", e)} className={styles.checkinButton}><CheckCircle size={14} /> Check-in</button>}
+                                            {isFree && !table.hasUpcomingReservation && (
+                                                <button onClick={() => openBookingModal(table, "table")} className={styles.bookButton}>
+                                                    <Calendar size={14} /> Đặt bàn
+                                                </button>
+                                            )}
+                                            {(isRes || table.hasUpcomingReservation) && (
+                                                <button onClick={(e) => handleCheckIn(table, "table", e)} className={styles.checkinButton}>
+                                                    <CheckCircle size={14} /> Check-in
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -684,7 +769,7 @@ const BookingPage = () => {
                                                     <Calendar size={14} /> Đặt phòng
                                                 </button>
                                             )}
-                                            {(isRes || room.hasUpcomingReservation) && (
+                                            {(isRes || hasReservation) && (  // ← bỏ room.hasUpcomingReservation, dùng biến local hasReservation
                                                 <button onClick={(e) => handleCheckIn(room, "room", e)} className={styles.checkinButton}>
                                                     <CheckCircle size={14} /> Check-in
                                                 </button>
