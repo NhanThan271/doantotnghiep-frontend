@@ -25,6 +25,12 @@ export default function FoodForecastPage() {
     const [sortAsc, setSortAsc] = useState(false);
 
     const token = () => localStorage.getItem('token');
+    const [dateFrom, setDateFrom] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 30);
+        return d.toISOString().split('T')[0];
+    });
+    const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
 
     const fetchCurrentBranch = async () => {
         try {
@@ -54,7 +60,12 @@ export default function FoodForecastPage() {
         if (!currentBranch?.id) return;
         setLoading(true);
         try {
-            const params = new URLSearchParams({ mode, topN, branchId: currentBranch.id });
+            const params = new URLSearchParams({
+                mode, topN,
+                branchId: currentBranch.id,
+                from: dateFrom,
+                to: dateTo
+            });
             const res = await fetch(`${API_BASE_URL}/api/food-forecast?${params}`, {
                 headers: { Authorization: `Bearer ${token()}` }
             });
@@ -78,7 +89,7 @@ export default function FoodForecastPage() {
     };
 
     useEffect(() => { fetchCurrentBranch(); }, []);
-    useEffect(() => { fetchData(); }, [currentBranch, mode, topN]);
+    useEffect(() => { fetchData(); }, [currentBranch, mode, topN, dateFrom, dateTo]);
 
     const handleSort = (key) => {
         if (sortKey === key) setSortAsc(a => !a);
@@ -178,17 +189,30 @@ export default function FoodForecastPage() {
                         />
                     </div>
 
-                    <div style={{ display: 'flex', gap: 6 }}>
-                        {[{ value: 'WEEK', label: 'Theo tuần' }, { value: 'MONTH', label: 'Theo tháng' }].map(({ value, label }) => (
-                            <button
-                                key={value}
-                                onClick={() => setMode(value)}
-                                className={mode === value ? styles.tabActive : styles.tabInactive}
-                                style={{ display: 'flex', alignItems: 'center', gap: 5 }}
-                            >
-                                <Calendar size={13} /> {label}
-                            </button>
-                        ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                            type="date"
+                            value={dateFrom}
+                            onChange={e => setDateFrom(e.target.value)}
+                            style={{
+                                padding: '8px 10px', borderRadius: 8,
+                                border: '1px solid var(--color-border)',
+                                fontSize: 13, background: 'var(--color-bg)',
+                                color: 'var(--color-text-secondary)'
+                            }}
+                        />
+                        <span style={{ color: '#9ca3af' }}>→</span>
+                        <input
+                            type="date"
+                            value={dateTo}
+                            onChange={e => setDateTo(e.target.value)}
+                            style={{
+                                padding: '8px 10px', borderRadius: 8,
+                                border: '1px solid var(--color-border)',
+                                fontSize: 13, background: 'var(--color-bg)',
+                                color: 'var(--color-text-secondary)'
+                            }}
+                        />
                     </div>
 
                     <select
