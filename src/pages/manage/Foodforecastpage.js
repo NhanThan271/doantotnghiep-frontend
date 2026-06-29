@@ -14,21 +14,6 @@ const TREND_CONFIG = {
     STABLE: { icon: Minus, color: '#d97706', bg: 'rgba(217,119,6,0.1)', border: 'rgba(217,119,6,0.25)', label: 'Ổn định' },
 };
 
-function MiniBar({ data = [] }) {
-    if (!data.length) return <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>;
-    const max = Math.max(...data, 1);
-    const W = 72, H = 24, gap = 2;
-    const bw = (W - gap * (data.length - 1)) / data.length;
-    return (
-        <svg width={W} height={H}>
-            {data.map((v, i) => {
-                const h = Math.max(3, (v / max) * H);
-                return <rect key={i} x={i * (bw + gap)} y={H - h} width={bw} height={h} fill="#93c5fd" rx={1.5} />;
-            })}
-        </svg>
-    );
-}
-
 export default function FoodForecastPage() {
     const [currentBranch, setCurrentBranch] = useState(null);
     const [mode, setMode] = useState('WEEK');
@@ -108,8 +93,6 @@ export default function FoodForecastPage() {
         });
 
     const totalForecast = data.reduce((s, r) => s + (r.forecastNextPeriod || 0), 0);
-    const upCount = data.filter(r => r.trend === 'UP').length;
-    const downCount = data.filter(r => r.trend === 'DOWN').length;
     const periodLabel = mode === 'WEEK' ? 'tuần tới' : 'tháng tới';
 
     const SortIcon = ({ k }) => {
@@ -180,20 +163,6 @@ export default function FoodForecastPage() {
                             <div className={styles.statLabel}>Tổng món theo dõi</div>
                         </div>
                     </div>
-                    <div className={styles.statCardSuccess}>
-                        <div className={styles.statIcon}><TrendingUp size={22} /></div>
-                        <div>
-                            <div className={styles.statValue}>{upCount}</div>
-                            <div className={styles.statLabel}>Xu hướng tăng</div>
-                        </div>
-                    </div>
-                    <div className={styles.statCardDanger}>
-                        <div className={styles.statIcon}><TrendingDown size={22} /></div>
-                        <div>
-                            <div className={styles.statValue}>{downCount}</div>
-                            <div className={styles.statLabel}>Xu hướng giảm</div>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Filter bar */}
@@ -258,9 +227,6 @@ export default function FoodForecastPage() {
                                     <th style={thStyle('foodName')} onClick={() => handleSort('foodName')}>
                                         Tên món <SortIcon k="foodName" />
                                     </th>
-                                    <th style={thStyle('trend')} onClick={() => handleSort('trend')}>
-                                        Xu hướng <SortIcon k="trend" />
-                                    </th>
                                     <th style={thStyle('totalPast')} onClick={() => handleSort('totalPast')}>
                                         Đã bán <SortIcon k="totalPast" />
                                     </th>
@@ -275,7 +241,6 @@ export default function FoodForecastPage() {
                             <tbody>
                                 {filtered.map((row, idx) => {
                                     const T = TREND_CONFIG[row.trend] || TREND_CONFIG.STABLE;
-                                    const Icon = T.icon;
                                     const isTop3 = idx < 3;
 
                                     return (
@@ -306,17 +271,6 @@ export default function FoodForecastPage() {
                                             {/* Tên món */}
                                             <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
                                                 {row.foodName}
-                                            </td>
-
-                                            {/* Xu hướng */}
-                                            <td style={{ textAlign: 'center', padding: '10px 14px' }}>
-                                                <span style={{
-                                                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                                                    padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                                                    background: T.bg, color: T.color, border: `1px solid ${T.border}`,
-                                                }}>
-                                                    <Icon size={12} /> {T.label}
-                                                </span>
                                             </td>
 
                                             {/* Đã bán */}
