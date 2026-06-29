@@ -79,9 +79,8 @@ export default function FoodForecastPage() {
             console.table(json.map(r => ({
                 tên: r.foodName,
                 trend: r.trend,
+                'số kỳ': r.history?.length,
                 history: JSON.stringify(r.history),
-                'kỳ trước': r.history?.at(-2),
-                'kỳ này': r.history?.at(-1),
             })));
 
             setData(json);
