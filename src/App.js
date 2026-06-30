@@ -40,6 +40,7 @@ import Home from "./layouts/Home";
 import TuyenDung from './pages/client/TuyenDung';
 import ShiftRegistration from './pages/employee/ShiftRegistration';
 import '@tabler/icons-webfont/dist/tabler-icons.min.css';
+import RoleSelectPage from "./pages/selecthome/RoleSelectPage";
 
 // Layout wrapper cho trang công khai
 const PublicLayout = ({ children }) => (
@@ -56,6 +57,9 @@ function App() {
       <Routes>
         {/* ===== Trang Hero — KHÔNG có Header/Footer ===== */}
         <Route path="/" element={<HeroLanding />} />
+
+        {/* Trang chọn vai trò */}
+        <Route path="/role-select" element={<RoleSelectPage />} />
 
         {/* Trang đăng nhập */}
         <Route path="/login" element={<LoginPage />} />

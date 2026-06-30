@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import "./LoginPage.css";
 
 // Toast component
@@ -19,25 +19,27 @@ const Toast = ({ toasts, removeToast }) => (
 );
 
 const LoginPage = () => {
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const [username, setUsername] = useState(location.state?.username || "");
+    const [password, setPassword] = useState(location.state?.password || "");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
     const [toasts, setToasts] = useState([]);
-    const navigate = useNavigate();
 
-const showToast = useCallback((message, type = "error", duration = 3500) => {
-    const id = Date.now();
-    setToasts((prev) => {
-        // Xoá toast cùng type cũ, thay bằng toast mới
-        const filtered = prev.filter((t) => t.type !== type);
-        // Giới hạn tối đa 3 toast
-        const limited = filtered.slice(-2);
-        return [...limited, { id, message, type }];
-    });
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), duration);
-}, []);
+    const showToast = useCallback((message, type = "error", duration = 3500) => {
+        const id = Date.now();
+        setToasts((prev) => {
+            // Xoá toast cùng type cũ, thay bằng toast mới
+            const filtered = prev.filter((t) => t.type !== type);
+            // Giới hạn tối đa 3 toast
+            const limited = filtered.slice(-2);
+            return [...limited, { id, message, type }];
+        });
+        setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), duration);
+    }, []);
 
     const removeToast = useCallback((id) => {
         setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -45,6 +47,7 @@ const showToast = useCallback((message, type = "error", duration = 3500) => {
 
     // Load thông tin đã lưu khi component mount
     useEffect(() => {
+        if (location.state?.username) return;
         const savedCredentials = localStorage.getItem("savedCredentials");
         if (savedCredentials) {
             const { username: savedUsername, password: savedPassword, remember } = JSON.parse(savedCredentials);
@@ -54,7 +57,7 @@ const showToast = useCallback((message, type = "error", duration = 3500) => {
                 setRememberMe(true);
             }
         }
-    }, []);
+    }, [location.state]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
