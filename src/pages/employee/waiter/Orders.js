@@ -106,28 +106,74 @@ const Orders = () => {
     // 3. fetchTablesWithReservations
     const fetchTablesWithReservations = useCallback(async () => {
         setLoading(true);
-        setError(null);
         try {
-            const response = await axiosClient.get('/reservations/tables');
-            let data = response.data;
+            const [tablesRes, reservationsRes] = await Promise.all([
+                axiosClient.get(`/tables/branch/${branchId}`),
+                axiosClient.get(`/reservations/tables`).catch(() => ({ data: [] }))
+            ]);
+
+            const reservationMap = {};
+            reservationsRes.data.forEach(t => {
+                reservationMap[t.id] = t;
+            });
+
+            let data = tablesRes.data.map(table => ({
+                ...table,
+                ...(reservationMap[table.id] ? {
+                    hasUpcomingReservation: true,
+                    customerName: reservationMap[table.id].customerName,
+                    checkInTime: reservationMap[table.id].checkInTime,
+                } : {})
+            }));
+
             if (selectedArea !== "Tất cả") {
                 data = data.filter(table => table.area === selectedArea);
             }
+
+            data.sort((a, b) => {
+                const areaCompare = (a.area || "").localeCompare(b.area || "");
+                if (areaCompare !== 0) return areaCompare;
+                return (a.number || 0) - (b.number || 0);
+            });
+
             setTables(data);
         } catch (err) {
-            console.error("Lỗi tải bàn từ API reservations:", err);
-            setError("Không thể tải danh sách bàn");
+            console.error("Lỗi tải bàn:", err);
             await fetchTablesLegacy();
         } finally {
             setLoading(false);
         }
-    }, [selectedArea, fetchTablesLegacy]);
+    }, [branchId, selectedArea, fetchTablesLegacy]);
 
     // 4. fetchRoomsWithReservations
     const fetchRoomsWithReservations = useCallback(async () => {
         try {
-            const response = await axiosClient.get(`/rooms/branch/${branchId}`);
-            setRooms(response.data);
+            const [roomsRes, reservationsRes] = await Promise.all([
+                axiosClient.get(`/rooms/branch/${branchId}`),
+                axiosClient.get(`/reservations/rooms`).catch(() => ({ data: [] }))
+            ]);
+
+            const reservationMap = {};
+            reservationsRes.data.forEach(r => {
+                reservationMap[r.id] = r;
+            });
+
+            const data = roomsRes.data.map(room => ({
+                ...room,
+                ...(reservationMap[room.id] ? {
+                    hasUpcomingReservation: true,
+                    customerName: reservationMap[room.id].customerName,
+                    checkInTime: reservationMap[room.id].checkInTime,
+                } : {})
+            }));
+
+            data.sort((a, b) => {
+                const numA = parseInt(String(a.number).replace(/\D/g, '')) || 0;
+                const numB = parseInt(String(b.number).replace(/\D/g, '')) || 0;
+                return numA - numB;
+            });
+
+            setRooms(data);
         } catch (err) {
             console.error("Lỗi tải phòng:", err);
             await fetchRoomsLegacy();
