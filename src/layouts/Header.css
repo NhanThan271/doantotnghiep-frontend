@@ -408,25 +408,36 @@
     .noir-header__top-inner {
         padding: 0 56px 0 16px;
         gap: 8px;
+        position: relative;
     }
 
     .noir-chon-mien {
         padding: 5px 8px;
         font-size: 10px;
+        z-index: 1;
+    }
+
+    .noir-logo {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        align-items: center;
     }
 
     .noir-logo__svg {
-        width: 130px;
-        height: 40px;
+        width: 120px;
+        height: 36px;
     }
 
     .noir-logo__branch {
         font-size: 8px;
         padding: 2px 8px 2px 10px;
-        max-width: 90px;
+        max-width: 80px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        margin: 0 auto;
     }
 
     .noir-header__top-right {
