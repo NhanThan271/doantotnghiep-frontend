@@ -111,17 +111,33 @@ const TablesPage = () => {
     const fetchTablesWithReservations = useCallback(async () => {
         setLoading(true);
         try {
-            const [tablesRes, reservationsRes] = await Promise.all([
-                axiosClient.get(`/tables/branch/${branchId}`),
-                axiosClient.get(`/reservations/tables`).catch(() => ({ data: [] }))
-            ]);
+            let tablesData = [];
+
+            if (selectedArea !== "Tất cả") {
+                const res = await axiosClient.get(`/tables/branch/${branchId}/area/${selectedArea}`);
+                tablesData = res.data;
+            } else {
+                const areasRes = await axiosClient.get(`/tables/branch/${branchId}/areas`);
+                const results = await Promise.all(
+                    areasRes.data.map(area =>
+                        axiosClient.get(`/tables/branch/${branchId}/area/${area}`)
+                    )
+                );
+                tablesData = results.flatMap(r => r.data);
+            }
+
+            const reservationsRes = await axiosClient
+                .get(`/reservations/tables`)
+                .catch(() => ({ data: [] }));
 
             const reservationMap = {};
             reservationsRes.data.forEach(t => {
-                reservationMap[t.id] = t;
+                if (t.hasUpcomingReservation) {
+                    reservationMap[t.id] = t;
+                }
             });
 
-            let data = tablesRes.data.map(table => ({
+            let data = tablesData.map(table => ({
                 ...table,
                 ...(reservationMap[table.id] ? {
                     hasUpcomingReservation: true,
@@ -129,10 +145,6 @@ const TablesPage = () => {
                     checkInTime: reservationMap[table.id].checkInTime,
                 } : {})
             }));
-
-            if (selectedArea !== "Tất cả") {
-                data = data.filter(table => table.area === selectedArea);
-            }
 
             data.sort((a, b) => {
                 const areaCompare = (a.area || "").localeCompare(b.area || "");
