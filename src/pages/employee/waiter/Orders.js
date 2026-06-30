@@ -196,7 +196,9 @@ const Orders = () => {
             const response = await axiosClient.get('/customer/orders');
             const data = response.data;
             const branchOrders = data.filter(o => o.branch?.id === branchId);
-            const activeOrders = branchOrders.filter(o => o.status !== "PAID" && o.status !== "CANCELED");
+
+            const kitchenStatuses = ["PENDING", "PREPARING", "SERVED", "COMPLETED"];
+            const activeOrders = branchOrders.filter(o => kitchenStatuses.includes(o.status));
 
             const orderMap = {};
             activeOrders.forEach(order => {
