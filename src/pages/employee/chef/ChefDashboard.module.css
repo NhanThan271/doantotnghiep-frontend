@@ -1027,3 +1027,20 @@
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+@media (max-width: 768px) {
+    .headerRight {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+
+    .clock {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .refreshBtn,
+    button[onClick] {
+    }
+}
