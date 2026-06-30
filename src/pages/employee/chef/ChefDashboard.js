@@ -79,7 +79,7 @@ const ChefDashboard = () => {
             if (!audioContext || audioContext.state === 'closed') {
                 const AudioContextClass = window.AudioContext || window.webkitAudioContext;
                 audioContext = new AudioContextClass();
-                audioContextRef.current = audioContext; 
+                audioContextRef.current = audioContext;
             }
             console.log("🔊 AudioContext state:", audioContext.state);
             const now = audioContext.currentTime;
@@ -688,7 +688,7 @@ const ChefDashboard = () => {
                 </div>
 
                 {/* Right: Đồng hồ + Làm mới */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className={styles.headerRight} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <div style={{
                         display: 'flex', alignItems: 'center', gap: 8,
                         background: '#1e293b', color: 'white', padding: '10px 16px', borderRadius: 10
@@ -739,6 +739,7 @@ const ChefDashboard = () => {
                         color: activeTab === tab.key ? 'white' : '#64748b',
                         border: activeTab === tab.key ? 'none' : '2px solid #e2e8f0',
                         borderRadius: 10, cursor: 'pointer',
+                        flexShrink: 0,
                         fontSize: 14, fontWeight: activeTab === tab.key ? 600 : 500,
                         whiteSpace: 'nowrap'
                     }}>
