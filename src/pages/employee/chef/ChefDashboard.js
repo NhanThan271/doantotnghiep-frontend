@@ -725,7 +725,11 @@ const ChefDashboard = () => {
             <div style={{
                 background: 'white', borderRadius: 16, padding: '8px 16px',
                 marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                display: 'flex', gap: 8
+                display: 'flex', gap: 8,
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                width: '100%',
+                boxSizing: 'border-box'
             }}>
                 {[
                     { key: 'ALL', label: 'Tất cả', icon: '📋', count: counts.ALL, color: '#3b82f6' },

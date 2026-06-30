@@ -139,7 +139,7 @@ const ChefLayout = () => {
     };
 
     return (
-        <div style={{ minHeight: '100vh', background: '#f1f5f9' }}>
+        <div style={{ minHeight: '100vh', width: '100%', maxWidth: '100vw', overflowX: 'hidden', background: '#f1f5f9', boxSizing: 'border-box' }}>
             {/* HEADER */}
             <div style={{
                 background: '#1e293b', color: 'white', padding: '12px 24px',
@@ -147,7 +147,7 @@ const ChefLayout = () => {
                 flexWrap: 'wrap', gap: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', position: 'relative', zIndex: 100
             }}>
                 {/* Left */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minWidth: 0 }}>
                     <div style={{ background: '#f59e0b', width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <ChefHat size={24} color="#1e293b" />
                     </div>
@@ -163,7 +163,7 @@ const ChefLayout = () => {
                 </div>
 
                 {/* Center: Menu */}
-                <div style={{ display: 'flex', gap: 4 }}>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', overflowX: 'auto', maxWidth: '100%' }}>
                     {menuItems.map((item, index) => (
                         <button key={index} onClick={() => navigate(item.path)} style={{
                             padding: '8px 18px',
