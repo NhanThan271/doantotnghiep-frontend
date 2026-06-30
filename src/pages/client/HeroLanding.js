@@ -153,7 +153,6 @@ const HeroLanding = () => {
                             </div>
 
                             <div className="branch-content">
-                                <div className="branch-num">{branch.num}</div>
                                 <div className="branch-label">{branch.label}</div>
                                 <div className="branch-name">{branch.name}</div>
                                 <div className={`branch-cta${isHovered ? ' visible' : ''}`}>

@@ -543,26 +543,98 @@ tbody tr:hover {
     }
 }
 
+/* ========== MOBILE MENU BUTTON (ẩn mặc định, chỉ hiện trên mobile) ========== */
+.mobile-menu-button {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    color: #3d1f1f;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-menu-button:hover {
+    background: rgba(212, 175, 55, 0.1);
+}
+
+/* ========== OVERLAY khi mở sidebar trên mobile ========== */
+.mobileOverlay {
+    display: none;
+}
+
 @media (max-width: 768px) {
+    .wrapper {
+        position: relative;
+        overflow-x: hidden;
+    }
+
     .sidebar {
         position: fixed;
         left: 0;
         top: 0;
         height: 100vh;
-        z-index: 100;
+        width: 260px;
+        z-index: 200;
         transform: translateX(-100%);
+        transition: transform 0.3s ease;
     }
 
     .sidebar.collapsed {
+        width: 260px;
+    }
+
+    .sidebar.mobileOpen {
         transform: translateX(0);
     }
 
+    .sidebar.collapsed .nav-button span {
+        display: inline;
+    }
+
+    .sidebar.collapsed .brand-icon-collapsed {
+        display: none;
+    }
+
+    .sidebar.collapsed .sidebar-header {
+        justify-content: flex-start;
+        padding: 24px 20px;
+    }
+
+    .toggle-button {
+        display: none;
+    }
+
+    .mobile-menu-button {
+        display: flex;
+    }
+
+    .mobileOverlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 150;
+    }
+
     .topbar {
-        padding: 16px 20px;
+        padding: 14px 16px;
+    }
+
+    .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .page-title {
+        font-size: 18px;
     }
 
     .content {
-        padding: 20px;
+        padding: 16px;
     }
 
     .grid-4,
@@ -572,6 +644,69 @@ tbody tr:hover {
 
     .user-name {
         display: none;
+    }
+
+    .user-info {
+        padding: 6px 10px;
+    }
+
+    .logout-button span {
+        display: none;
+    }
+
+    .logout-button {
+        padding: 10px;
+    }
+
+    .tableWrapper,
+    .table-wrapper,
+    .table-wrapper1 {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table {
+        min-width: 640px;
+    }
+
+    .statsGrid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .gridContainer {
+        grid-template-columns: 1fr;
+    }
+
+    .filterBar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .searchBox {
+        min-width: 100%;
+        max-width: 100%;
+    }
+
+    .modal,
+    .modal-container,
+    .modal-container-food {
+        width: 95%;
+        max-height: 90vh;
+    }
+}
+
+@media (max-width: 480px) {
+    .statsGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .pageTitle {
+        font-size: 22px;
+    }
+
+    .headerCard {
+        padding: 16px;
     }
 }
 
