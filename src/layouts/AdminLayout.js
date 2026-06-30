@@ -40,6 +40,7 @@ export default function AdminLayout() {
     const navigate = useNavigate();
     const [activeMenu, setActiveMenu] = useState('dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
     const [user, setUser] = useState(null);
 
     // Kiểm tra login
@@ -353,8 +354,14 @@ export default function AdminLayout() {
 
     return (
         <div className={styles.wrapper}>
+            {mobileSidebarOpen && (
+                <div
+                    className={styles.mobileOverlay}
+                    onClick={() => setMobileSidebarOpen(false)}
+                />
+            )}
             {/* Sidebar */}
-            <div className={`${styles.sidebar} ${!sidebarOpen ? styles.collapsed : ''}`}>
+            <div className={`${styles.sidebar} ${!sidebarOpen ? styles.collapsed : ''}${mobileSidebarOpen ? styles.mobileOpen : ''}`}>
                 <div className={styles['sidebar-header']}>
                     {sidebarOpen && (
                         <div className={styles['brand-container']}>
@@ -374,7 +381,10 @@ export default function AdminLayout() {
                             <button
                                 key={item.id}
                                 className={`${styles['nav-button']} ${activeMenu === item.id ? styles.active : ''}`}
-                                onClick={() => setActiveMenu(item.id)}
+                                onClick={() => {
+                                    setActiveMenu(item.id);
+                                    setMobileSidebarOpen(false);
+                                }}
                             >
                                 <Icon size={20} />
                                 {sidebarOpen && <span>{item.label}</span>}
@@ -396,6 +406,12 @@ export default function AdminLayout() {
                 {/* Topbar */}
                 <div className={styles.topbar}>
                     <div className={styles['topbar-left']}>
+                        <button
+                            className={styles['mobile-menu-button']}
+                            onClick={() => setMobileSidebarOpen(true)}
+                        >
+                            <MenuSquare size={22} />
+                        </button>
                         <h2 className={styles['page-title']}>
                             {menuItems.find(item => item.id === activeMenu)?.label || 'Dashboard'}
                         </h2>
