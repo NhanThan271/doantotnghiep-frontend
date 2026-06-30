@@ -161,6 +161,13 @@ const Header = () => {
                             </a>
                         )}
                     </div>
+                    {/* ===== Mobile hamburger ===== */}
+                    <button
+                        className={`noir-hamburger${menuOpen ? ' open' : ''}`}
+                        onClick={() => setMenuOpen(!menuOpen)}
+                    >
+                        <span /><span /><span />
+                    </button>
                 </div>
             </div>
 
@@ -187,14 +194,6 @@ const Header = () => {
                     ))}
                 </div>
             </div>
-
-            {/* ===== Mobile hamburger ===== */}
-            <button
-                className={`noir-hamburger${menuOpen ? ' open' : ''}`}
-                onClick={() => setMenuOpen(!menuOpen)}
-            >
-                <span /><span /><span />
-            </button>
 
             {menuOpen && (
                 <div className="noir-mobile-menu">
