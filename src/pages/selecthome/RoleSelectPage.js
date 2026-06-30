@@ -8,8 +8,8 @@ const ROLES = [
         label: 'Admin',
         icon: ShieldCheck,
         color: '#7c3aed',
-        username: 'admin',
-        password: '123456',
+        username: 'truongnhan',
+        password: '12345',
     },
     {
         key: 'manager',
@@ -24,7 +24,7 @@ const ROLES = [
         label: 'Thu ngân',
         icon: Wallet,
         color: '#16a34a',
-        username: 'cashier1',
+        username: 'thungan1',
         password: '123456',
     },
     {
@@ -32,7 +32,7 @@ const ROLES = [
         label: 'Phục vụ',
         icon: Utensils,
         color: '#d97706',
-        username: 'waiter1',
+        username: 'nhanvien1',
         password: '123456',
     },
     {
@@ -40,7 +40,7 @@ const ROLES = [
         label: 'Đầu bếp',
         icon: ChefHat,
         color: '#dc2626',
-        username: 'chef1',
+        username: 'bep1',
         password: '123456',
     },
     {
@@ -48,8 +48,6 @@ const ROLES = [
         label: 'Khách hàng',
         icon: User,
         color: '#0891b2',
-        username: 'customer1',
-        password: '123456',
     },
 ];
 
@@ -57,6 +55,10 @@ export default function RoleSelectPage() {
     const navigate = useNavigate();
 
     const handleSelect = (role) => {
+        if (role.key === 'customer') {
+            navigate('/');
+            return;
+        }
         navigate('/login', {
             state: {
                 username: role.username,
