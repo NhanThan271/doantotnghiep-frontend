@@ -363,6 +363,24 @@
     .h-ring-5 {
         display: none;
     }
+
+    .branch-menu-popup {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .branch-name {
+        font-size: 22px;
+    }
+
+    .branch-content {
+        padding: 12px 12px 20px;
+    }
+
+    .branch-num {
+        font-size: 16px;
+    }
 }
 
 
