@@ -304,7 +304,7 @@ const ShiftRegistration = () => {
     if (loadingUser) return <Container className="text-center py-5"><Spinner /></Container>;
     if (error) return <Container className="py-5"><Alert variant="warning">{error}</Alert></Container>;
     return (
-        <div style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%)', minHeight: '100vh', padding: '24px' }}>
+        <div className="shift-registration-wrapper" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%)', minHeight: '100vh' }}>
             <Modal show={showCancelConfirmModal} onHide={() => setShowCancelConfirmModal(false)} centered>
                 <Modal.Header closeButton style={{ background: '#dc3545', color: 'white', borderRadius: '12px 12px 0 0' }}>
                     <Modal.Title><FaExclamationTriangle className="me-2" />Xác nhận hủy đăng ký</Modal.Title>
@@ -397,10 +397,10 @@ const ShiftRegistration = () => {
                 </Modal>
                 <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '16px' }}>
                     <Card.Body className="p-4">
-                        <div className="d-flex justify-content-between align-items-center">
+                        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
-                                <h3 className="mb-1" style={{ color: '#2c3e50', fontWeight: 700 }}><FaCalendarAlt className="me-2" />Quản lý ca làm việc</h3>
-                                <div className="d-flex align-items-center gap-3 mt-2">
+                                <h3 className="mb-1 header-title" style={{ color: '#2c3e50', fontWeight: 700 }}><FaCalendarAlt className="me-2" />Quản lý ca làm việc</h3>
+                                <div className="d-flex align-items-center gap-3 mt-2 flex-wrap">
                                     <span className="text-muted"><FaUser className="me-1" size={14} /><strong>{staffInfo?.user?.fullName}</strong></span>
                                     <span className="text-muted">|</span>
                                     <span className="text-muted"><FaBuilding className="me-1" size={14} /><strong>{staffInfo?.branch?.name}</strong></span>
@@ -422,7 +422,7 @@ const ShiftRegistration = () => {
 
                 <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px' }}>
                     <Card.Body className="py-2 px-4">
-                        <div className="d-flex align-items-center gap-2">
+                        <div className="d-flex align-items-center gap-2 flex-wrap">
                             <span className="fw-bold"><FaChartBar className="me-1" />Thống kê:</span>
                             <Form.Select size="sm" value={selectedMonth} onChange={e => setSelectedMonth(+e.target.value)} style={{ width: 130 }}>
                                 {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>Tháng {m}</option>)}
@@ -444,7 +444,7 @@ const ShiftRegistration = () => {
                     <Card.Body className="p-4">
                         {viewMode === 'list' && (
                             <>
-                                <div className="d-flex justify-content-between align-items-center mb-4">
+                                <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                                     <div className="date-display"><h5 className="mb-0 d-flex align-items-center"><FaCalendarAlt className="me-2" /><span>{moment(selectedDate).format('dddd, DD/MM/YYYY')}</span>{isToday(selectedDate) && <Badge className="ms-2 rounded-pill px-3">Hôm nay</Badge>}</h5></div>
                                     <Form.Control type="date" className="date-picker" value={moment(selectedDate).format('YYYY-MM-DD')} onChange={e => loadDayData(new Date(e.target.value))} style={{ width: 180 }} />
                                 </div>
@@ -456,7 +456,7 @@ const ShiftRegistration = () => {
                                                 {staffShifts.map(ss => (
                                                     <Card key={ss.id} className="mb-2 border-0 shadow-sm" style={{ borderRadius: '12px', borderLeft: '4px solid #28a745', cursor: 'pointer' }} onClick={() => openDetail(ss)}>
                                                         <Card.Body className="py-3 px-4">
-                                                            <div className="d-flex justify-content-between align-items-center">
+                                                            <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 shift-card-row">
                                                                 <div><strong className="text-success">{ss.shift?.name}</strong><span className="text-muted ms-3"><FiClock className="me-1" size={14} />{formatTime(ss.shift?.startTime)} - {formatTime(ss.shift?.endTime)}</span></div>
                                                                 <div className="d-flex gap-2">{isToday(ss.workDay) && <Badge bg="warning" className="rounded-pill px-3">Hôm nay</Badge>}<Badge bg="success" className="rounded-pill px-3"><FaCheck className="me-1" />Đã đăng ký</Badge></div>
                                                             </div>

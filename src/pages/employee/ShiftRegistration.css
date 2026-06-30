@@ -1004,3 +1004,40 @@
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+.shift-registration-wrapper {
+    padding: 24px;
+}
+
+@media (max-width: 768px) {
+    .shift-registration-wrapper {
+        padding: 12px;
+    }
+}
+
+@media (max-width: 576px) {
+    .header-title {
+        font-size: 1.3rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .shift-card-row {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    .shift-card-row .btn {
+        width: 100%;
+    }
+}
+
+.calendar-wrapper {
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .rbc-calendar {
+        min-width: 700px;
+    }
+}
