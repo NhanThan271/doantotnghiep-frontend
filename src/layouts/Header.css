@@ -396,6 +396,24 @@
     text-transform: uppercase;
 }
 
+.noir-mobile-menu__logout {
+    margin: 4px 24px 0;
+    background: transparent;
+    color: #ff8a8a;
+    border: 1.5px solid rgba(255, 138, 138, 0.4);
+    border-radius: 4px;
+    padding: 11px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.noir-mobile-menu__logout:hover {
+    background: rgba(255, 138, 138, 0.1);
+}
+
 @media (max-width: 900px) {
     .noir-header__nav {
         display: none;
