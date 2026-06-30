@@ -219,7 +219,58 @@ const Header = () => {
                             {link.label}
                         </a>
                     ))}
-                    {/* ✅ Nút ĐẶT BÀN mobile — dùng handleDatBan */}
+
+                    {user && isCustomer ? (
+                        <>
+                            <a
+                                className="noir-mobile-menu__link"
+                                href="/customer/profile"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    navigate("/customer/profile");
+                                    setMenuOpen(false);
+                                }}
+                            >
+                                Thông tin tài khoản
+                            </a>
+
+                            <a
+                                className="noir-mobile-menu__link"
+                                href="/customer/orders"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    navigate("/customer/orders");
+                                    setMenuOpen(false);
+                                }}
+                            >
+                                Lịch sử đặt bàn
+                            </a>
+
+                            <button
+                                className="noir-mobile-menu__logout"
+                                onClick={() => {
+                                    handleLogout();
+                                    setMenuOpen(false);
+                                }}
+                            >
+                                Đăng xuất
+                            </button>
+                        </>
+                    ) : (
+                        <a
+                            className="noir-mobile-menu__link"
+                            href="/login"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                navigate("/login");
+                                setMenuOpen(false);
+                            }}
+                        >
+                            Đăng nhập
+                        </a>
+                    )}
+
+                    {/* Nút ĐẶT BÀN mobile — dùng handleDatBan */}
                     <button
                         className="noir-mobile-menu__datban"
                         onClick={() => { handleDatBan(); setMenuOpen(false); }}
