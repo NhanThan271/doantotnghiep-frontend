@@ -1365,4 +1365,21 @@
     .order-layout {
         grid-template-columns: 1fr;
     }
+
+    .waiter-nav-tabs {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-white);
+        border-top: 1px solid var(--border);
+        padding: 6px;
+        z-index: 100;
+        justify-content: space-around;
+    }
+
+    .waiter-nav-tab span {
+        display: none;
+    }
 }

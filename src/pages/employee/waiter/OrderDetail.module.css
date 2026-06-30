@@ -789,6 +789,17 @@
 }
 
 @media (max-width: 768px) {
+    .leftContent {
+        margin-right: 0;
+    }
+
+    .cartSidebar {
+        width: 100%;
+        height: auto !important;
+        position: static;
+        margin-top: 20px;
+    }
+
     .container {
         padding: 16px;
     }
