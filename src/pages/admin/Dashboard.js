@@ -259,14 +259,7 @@ export default function Dashboard() {
     return (
         <div>
             <div style={{ marginBottom: '32px' }}>
-                <h2 style={{
-                    fontSize: '32px',
-                    fontWeight: '800',
-                    marginBottom: '8px',
-                    color: '#D4AF37',
-                    letterSpacing: '-0.5px',
-
-                }}>
+                <h2 className={styles.dashboardTitle}>
                     Dashboard
                 </h2>
                 <p style={{
@@ -575,7 +568,7 @@ export default function Dashboard() {
                             Trạng thái Chi nhánh
                         </h4>
                     </div>
-                    <div style={{ display: 'flex', gap: '16px' }}>
+                    <div className={styles.dashboardStatusRow}>
                         <div style={{
                             flex: 1,
                             padding: '16px',
