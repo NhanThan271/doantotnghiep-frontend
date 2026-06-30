@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     TrendingUp, TrendingDown, Minus, BarChart2,
-    RefreshCw, Search, Store, UtensilsCrossed, Calendar
+    RefreshCw, Search, Store, UtensilsCrossed, ChevronRight
 } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
 import { showToast } from '../../hooks/useToast';
@@ -23,6 +23,9 @@ export default function FoodForecastPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortKey, setSortKey] = useState('totalPast');
     const [sortAsc, setSortAsc] = useState(false);
+    const [expandedFoodId, setExpandedFoodId] = useState(null);
+    const [recipeCache, setRecipeCache] = useState({});
+    const [recipeLoading, setRecipeLoading] = useState(false);
 
     const token = () => localStorage.getItem('token');
     const [dateFrom, setDateFrom] = useState(() => {
@@ -88,6 +91,33 @@ export default function FoodForecastPage() {
         }
     };
 
+    const fetchRecipe = async (foodId) => {
+        if (recipeCache[foodId]) return;
+        setRecipeLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/recipes/food/${foodId}`, {
+                headers: { Authorization: `Bearer ${token()}` }
+            });
+            if (!res.ok) throw new Error();
+            const json = await res.json();
+            setRecipeCache(prev => ({ ...prev, [foodId]: json }));
+        } catch {
+            showToast('error', 'Lỗi', 'Không thể tải công thức món ăn.');
+            setRecipeCache(prev => ({ ...prev, [foodId]: [] }));
+        } finally {
+            setRecipeLoading(false);
+        }
+    };
+
+    const handleRowClick = (foodId) => {
+        if (expandedFoodId === foodId) {
+            setExpandedFoodId(null);
+        } else {
+            setExpandedFoodId(foodId);
+            fetchRecipe(foodId);
+        }
+    };
+
     useEffect(() => { fetchCurrentBranch(); }, []);
     useEffect(() => { fetchData(); }, [currentBranch, mode, topN, dateFrom, dateTo]);
 
@@ -132,6 +162,7 @@ export default function FoodForecastPage() {
             <p className={styles.loadingText}>Đang tải thông tin chi nhánh...</p>
         </div>
     );
+
 
     return (
         <div className={styles.pageContainer}>
@@ -266,60 +297,127 @@ export default function FoodForecastPage() {
                                 {filtered.map((row, idx) => {
                                     const T = TREND_CONFIG[row.trend] || TREND_CONFIG.STABLE;
                                     const isTop3 = idx < 3;
+                                    const isExpanded = expandedFoodId === row.foodId;
+                                    const recipe = recipeCache[row.foodId];
 
                                     return (
-                                        <tr
-                                            key={row.foodId}
-                                            style={{
-                                                borderBottom: '1px solid var(--color-border)',
-                                                background: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)',
-                                                transition: 'background 0.15s',
-                                            }}
-                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(37,99,235,0.04)'}
-                                            onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)'}
-                                        >
-                                            {/* Rank */}
-                                            <td style={{ textAlign: 'center', padding: '10px 8px' }}>
-                                                <div style={{
-                                                    width: 30, height: 30, borderRadius: '50%', margin: '0 auto',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    fontWeight: 700, fontSize: 13, color: '#fff',
-                                                    background: isTop3
-                                                        ? 'linear-gradient(135deg, #E07B39, #B85C1E)'
-                                                        : 'linear-gradient(135deg, #4361ee, #3a0ca3)',
-                                                }}>
-                                                    {idx + 1}
-                                                </div>
-                                            </td>
+                                        <React.Fragment key={row.foodId}>
+                                            <tr
+                                                style={{
+                                                    borderBottom: '1px solid var(--color-border)',
+                                                    background: isExpanded
+                                                        ? 'rgba(37,99,235,0.06)'
+                                                        : (idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)'),
+                                                    transition: 'background 0.15s',
+                                                    cursor: 'pointer',
+                                                }}
+                                                onClick={() => handleRowClick(row.foodId)}
+                                                onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'rgba(37,99,235,0.04)'; }}
+                                                onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)'; }}
+                                            >
+                                                {/* Rank */}
+                                                <td style={{ textAlign: 'center', padding: '10px 8px' }}>
+                                                    <div style={{
+                                                        width: 30, height: 30, borderRadius: '50%', margin: '0 auto',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        fontWeight: 700, fontSize: 13, color: '#fff',
+                                                        background: isTop3
+                                                            ? 'linear-gradient(135deg, #E07B39, #B85C1E)'
+                                                            : 'linear-gradient(135deg, #4361ee, #3a0ca3)',
+                                                    }}>
+                                                        {idx + 1}
+                                                    </div>
+                                                </td>
 
-                                            {/* Tên món */}
-                                            <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                                                {row.foodName}
-                                            </td>
+                                                {/* Tên món */}
+                                                <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <ChevronRight
+                                                            size={14}
+                                                            style={{
+                                                                color: '#9ca3af',
+                                                                transition: 'transform 0.15s',
+                                                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                                                flexShrink: 0,
+                                                            }}
+                                                        />
+                                                        {row.foodName}
+                                                    </span>
+                                                </td>
 
-                                            {/* Đã bán */}
-                                            <td style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 600, color: '#374151' }}>
-                                                {row.totalPast?.toLocaleString()}
-                                            </td>
+                                                {/* Đã bán */}
+                                                <td style={{ textAlign: 'center', padding: '10px 14px', fontWeight: 600, color: '#374151' }}>
+                                                    {row.totalPast?.toLocaleString()}
+                                                </td>
 
-                                            {/* TB/kỳ */}
-                                            <td style={{ textAlign: 'center', padding: '10px 14px', color: '#6b7280' }}>
-                                                {row.avgPerPeriod?.toFixed(1)}
-                                            </td>
+                                                {/* TB/kỳ */}
+                                                <td style={{ textAlign: 'center', padding: '10px 14px', color: '#6b7280' }}>
+                                                    {row.avgPerPeriod?.toFixed(1)}
+                                                </td>
 
-                                            {/* Dự báo */}
-                                            <td style={{ textAlign: 'center', padding: '10px 14px' }}>
-                                                <span style={{
-                                                    display: 'inline-block',
-                                                    padding: '3px 12px', borderRadius: 20,
-                                                    background: 'rgba(37,99,235,0.08)',
-                                                    color: '#2563eb', fontWeight: 700, fontSize: 13,
-                                                    border: '1px solid rgba(37,99,235,0.2)',
-                                                }}>
-                                                    {row.forecastNextPeriod}
-                                                </span>
-                                            </td>
-                                        </tr>
+                                                {/* Dự báo */}
+                                                <td style={{ textAlign: 'center', padding: '10px 14px' }}>
+                                                    <span style={{
+                                                        display: 'inline-block',
+                                                        padding: '3px 12px', borderRadius: 20,
+                                                        background: 'rgba(37,99,235,0.08)',
+                                                        color: '#2563eb', fontWeight: 700, fontSize: 13,
+                                                        border: '1px solid rgba(37,99,235,0.2)',
+                                                    }}>
+                                                        {row.forecastNextPeriod}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {/* Hàng công thức mở rộng */}
+                                            {isExpanded && (
+                                                <tr>
+                                                    <td colSpan={5} style={{ padding: 0, background: 'rgba(37,99,235,0.03)' }}>
+                                                        <div style={{ padding: '14px 20px 18px 52px' }}>
+                                                            {recipeLoading && !recipe ? (
+                                                                <div style={{ fontSize: 13, color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                    <RefreshCw size={14} className={styles.spinIcon} />
+                                                                    Đang tải công thức...
+                                                                </div>
+                                                            ) : !recipe || recipe.length === 0 ? (
+                                                                <div style={{ fontSize: 13, color: '#9ca3af' }}>
+                                                                    Chưa có công thức cho món này.
+                                                                </div>
+                                                            ) : (
+                                                                <div>
+                                                                    <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                                                        Nguyên liệu cần cho 1 phần
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                                                        {recipe.map(r => (
+                                                                            <div
+                                                                                key={r.id}
+                                                                                style={{
+                                                                                    display: 'flex', alignItems: 'center', gap: 6,
+                                                                                    padding: '6px 12px', borderRadius: 8,
+                                                                                    background: '#fff',
+                                                                                    border: '1px solid var(--color-border)',
+                                                                                    fontSize: 13,
+                                                                                }}
+                                                                            >
+                                                                                <span style={{ fontWeight: 600, color: '#374151' }}>
+                                                                                    {r.ingredient?.name}
+                                                                                </span>
+                                                                                <span style={{ color: '#2563eb', fontWeight: 700 }}>
+                                                                                    {r.quantityRequired}
+                                                                                </span>
+                                                                                <span style={{ color: '#9ca3af' }}>
+                                                                                    {r.ingredient?.unit}
+                                                                                </span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </React.Fragment>
                                     );
                                 })}
                             </tbody>
