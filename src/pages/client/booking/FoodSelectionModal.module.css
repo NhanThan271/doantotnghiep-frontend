@@ -329,3 +329,62 @@
         transform: rotate(360deg);
     }
 }
+
+@media (max-width: 900px) {
+    .modal {
+        width: 96%;
+        height: 92%;
+        border-radius: 14px;
+    }
+
+    .foodGrid {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 14px;
+        gap: 10px;
+    }
+
+    .categoryTabs {
+        padding: 0 14px 10px;
+    }
+
+    .searchBox {
+        margin: 8px 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .foodGrid {
+        grid-template-columns: 1fr;
+        /* 1 cột, ảnh + info nằm ngang */
+    }
+
+    .foodCard {
+        flex-direction: row;
+    }
+
+    .imageWrapper {
+        width: 100px;
+        height: 90px;
+        flex-shrink: 0;
+    }
+
+    .footer {
+        flex-direction: column;
+        height: auto;
+        gap: 10px;
+        padding: 12px 14px;
+    }
+
+    .footerButtons {
+        width: 100%;
+    }
+
+    .cancelFooterBtn,
+    .confirmBtn {
+        flex: 1;
+    }
+
+    .header h2 {
+        font-size: 17px;
+    }
+}

@@ -1221,3 +1221,134 @@
 .historyBtn:hover {
     opacity: 0.8;
 }
+
+/* ════════════════════════════════════════════════════
+   RESPONSIVE
+════════════════════════════════════════════════════ */
+
+/* Tablet ngang / màn nhỏ: thu cột form & cart lại */
+@media (max-width: 1200px) {
+    .bookingPage {
+        grid-template-columns: 280px 1fr 320px;
+    }
+}
+
+/* Tablet dọc trở xuống: xếp dọc 3 cột thành 1 cột cuộn */
+@media (max-width: 900px) {
+    .bookingPage {
+        display: flex;
+        flex-direction: column;
+        min-height: auto;
+    }
+
+    .colForm,
+    .colMid,
+    .colCart {
+        border-right: none;
+        box-shadow: none;
+        width: 100%;
+    }
+
+    .colForm {
+        order: 1;
+        padding: 20px 16px;
+        border-bottom: 1px solid rgba(180, 140, 20, 0.15);
+    }
+
+    .colMid {
+        order: 2;
+    }
+
+    .colCart {
+        order: 3;
+        padding: 20px 16px;
+        border-top: 1px solid rgba(180, 140, 20, 0.15);
+    }
+
+    .formRow {
+        grid-template-columns: 1fr;
+        /* nhận/trả bàn xếp dọc thay vì 2 cột */
+        gap: 12px;
+    }
+
+    .mapSection {
+        padding: 18px 16px 12px;
+    }
+
+    .sectionDivider {
+        margin: 0 16px;
+    }
+
+    .menuSection {
+        padding: 14px 16px 16px;
+    }
+
+    .modeToggle {
+        padding: 8px 16px;
+    }
+
+    /* Bàn/phòng: cho phép cuộn ngang thay vì wrap rối trên màn hẹp */
+    .tableRow {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tableCard,
+    .tableCard.tableVip,
+    .tableCard.tableGrandVip {
+        flex-shrink: 0;
+    }
+
+    .foodGrid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        max-height: 420px;
+        /* tránh kéo dài vô tận trên 1 cột */
+    }
+
+    .cartList {
+        max-height: 220px;
+    }
+
+    /* Nút xác nhận dính đáy màn hình trên mobile cho dễ bấm */
+    .confirmBtnRight {
+        position: sticky;
+        bottom: 12px;
+        z-index: 5;
+    }
+}
+
+/* Điện thoại nhỏ */
+@media (max-width: 480px) {
+    .formTitle {
+        font-size: 18px;
+    }
+
+    .floorTabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+    }
+
+    .floorTab {
+        flex-shrink: 0;
+    }
+
+    .foodGrid {
+        grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+        gap: 8px;
+    }
+
+    .foodCardImg {
+        height: 64px;
+    }
+
+    .successModal {
+        padding: 24px 18px;
+    }
+
+    .modalActions {
+        flex-direction: column;
+    }
+}
