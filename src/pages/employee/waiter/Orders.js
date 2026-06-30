@@ -112,6 +112,8 @@ const Orders = () => {
                 axiosClient.get(`/reservations/tables`).catch(() => ({ data: [] }))
             ]);
 
+            console.log("RESERVATIONS RAW:", reservationsRes.data);
+
             const reservationMap = {};
             reservationsRes.data.forEach(t => {
                 reservationMap[t.id] = t;
@@ -152,6 +154,8 @@ const Orders = () => {
                 axiosClient.get(`/rooms/branch/${branchId}`),
                 axiosClient.get(`/reservations/rooms`).catch(() => ({ data: [] }))
             ]);
+
+            console.log("RESERVATIONS RAW:", reservationsRes.data);
 
             const reservationMap = {};
             reservationsRes.data.forEach(r => {
