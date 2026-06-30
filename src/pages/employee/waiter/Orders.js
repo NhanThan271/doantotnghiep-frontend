@@ -431,13 +431,13 @@ const Orders = () => {
                             const reservationCustomer = table.customerName;
                             const reservationTime = table.checkInTime;
                             const isOccupied = table.status === "OCCUPIED";
-                            const isReserved = table.status === "RESERVED";
-                            const isFree = table.status === "FREE";
+                            const isReserved = table.status === "RESERVED" || hasReservation;
+                            const isFree = table.status === "FREE" && !hasReservation;
 
                             let cardClass = styles.card;
-                            if (isFree) cardClass += ` ${styles.cardFree}`;
+                            if (isOccupied) cardClass += ` ${styles.cardOccupied}`;
                             else if (isReserved) cardClass += ` ${styles.cardReserved}`;
-                            else cardClass += ` ${styles.cardOccupied}`;
+                            else cardClass += ` ${styles.cardFree}`;
 
                             return (
                                 <div key={table.id} onClick={() => handleTableClick(table)} className={cardClass}>
@@ -453,9 +453,9 @@ const Orders = () => {
                                     )}
 
                                     <div className={styles.cardIcon}>
-                                        {isFree ? <Utensils size={48} color="#10b981" /> :
+                                        {isOccupied ? <Coffee size={48} color="#ef4444" /> :
                                             isReserved ? <Calendar size={48} color="#f59e0b" /> :
-                                                <Coffee size={48} color="#ef4444" />}
+                                                <Utensils size={48} color="#10b981" />}
                                     </div>
                                     <div className={styles.cardTitle}>Bàn {table.number}</div>
 
@@ -484,8 +484,12 @@ const Orders = () => {
                                     )}
 
                                     <div className={styles.tableStatus}>
-                                        {getStatusIcon(table.status, 'table')}
-                                        <span className={styles.statusText} style={{ color: getStatusColor(table.status) }}>{getStatusText(table.status)}</span>
+                                        {isOccupied ? <XCircle size={14} color="#ef4444" /> :
+                                            isReserved ? <Clock size={14} color="#f59e0b" /> :
+                                                <CheckCircle size={14} color="#10b981" />}
+                                        <span className={styles.statusText} style={{ color: isOccupied ? "#ef4444" : isReserved ? "#f59e0b" : "#10b981" }}>
+                                            {isOccupied ? "Đã có khách" : isReserved ? "Đã đặt" : "Trống"}
+                                        </span>
                                     </div>
 
                                     {isOccupied && (
