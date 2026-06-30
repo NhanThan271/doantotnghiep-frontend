@@ -37,7 +37,7 @@ const HeroLanding = () => {
                     image: getLocalImage(b.id),
                     alt: b.name,
                     menuImage: b.menuImage || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=220&fit=crop',
-                }));
+                })).sort((a, b) => a.id - b.id);
 
                 setBranches(formattedData);
             } catch (err) {
@@ -83,7 +83,7 @@ const HeroLanding = () => {
 
     return (
         <>
-            <div className="hero-slider" style={{ height: '100vh' }}>
+            <div className="hero-slider" data-count={branches.length} style={{ height: '100vh' }}>
                 <div className="hero-title-wrap">
                     <svg className="hero-noir-text" viewBox="0 0 500 120" xmlns="http://www.w3.org/2000/svg">
                         <text

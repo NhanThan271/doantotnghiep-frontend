@@ -322,22 +322,66 @@
 @media (max-width: 768px) {
     .hero-slider {
         flex-direction: column;
+        height: auto !important;
     }
 
     .branch {
         flex: none !important;
-        height: 160px;
         width: 100%;
-        transition: height 0.5s ease;
+        transition: none;
     }
 
     .branch:hover {
-        height: 300px;
+        height: auto;
+    }
+
+    .hero-slider[data-count="1"] .branch {
+        height: 100vh;
+    }
+
+    .hero-slider[data-count="2"] .branch {
+        height: 50vh;
+        min-height: 320px;
+    }
+
+    .hero-slider[data-count="3"] .branch,
+    .hero-slider[data-count="4"] .branch,
+    .hero-slider[data-count="5"] .branch {
+        height: 240px;
+    }
+
+    .hero-slider:not([data-count="1"]):not([data-count="2"]):not([data-count="3"]):not([data-count="4"]):not([data-count="5"]) .branch {
+        height: 180px;
+    }
+
+    .branch-content {
+        padding: 16px 16px 22px;
     }
 
     .branch-name {
-        font-size: 28px;
+        font-size: 26px;
         white-space: normal;
+        line-height: 1.15;
+    }
+
+    .branch-num {
+        font-size: 14px;
+    }
+
+    .branch-label {
+        font-size: 11px;
+        letter-spacing: 2px;
+    }
+
+    .branch-cta {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+        margin-top: 8px;
+    }
+
+    .branch-cta span {
+        font-size: 9px;
+        padding: 5px 14px;
     }
 
     .branch-divider {
@@ -351,14 +395,15 @@
     }
 
     .hero-title-wrap {
-        height: 140px;
+        height: 110px;
     }
 
     .hero-noir-text {
-        width: 280px;
-        height: 80px;
+        width: 240px;
+        height: 64px;
     }
 
+    .h-ring-3,
     .h-ring-4,
     .h-ring-5 {
         display: none;
@@ -375,11 +420,20 @@
     }
 
     .branch-content {
-        padding: 12px 12px 20px;
+        padding: 12px 12px 18px;
     }
 
     .branch-num {
-        font-size: 16px;
+        font-size: 13px;
+    }
+
+    .hero-slider[data-count="1"] .branch {
+        height: 100vh;
+    }
+
+    .hero-slider[data-count="2"] .branch {
+        height: 46vh;
+        min-height: 280px;
     }
 }
 
