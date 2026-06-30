@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Package, Search, Grid, List, TrendingUp, AlertCircle, Store, Eye, RefreshCw } from 'lucide-react';
+import { Package, Search, Grid, List, TrendingUp, Store, Eye, RefreshCw, ChevronRight } from 'lucide-react';
 import styles from '../../layouts/AdminLayout.module.css';
 
 export default function BranchMenuManager() {
@@ -9,6 +9,9 @@ export default function BranchMenuManager() {
     const [filterStatus, setFilterStatus] = useState('all');
     const [viewMode, setViewMode] = useState('table');
     const [loading, setLoading] = useState(false);
+    const [expandedFoodId, setExpandedFoodId] = useState(null);
+    const [recipeCache, setRecipeCache] = useState({});
+    const [recipeLoading, setRecipeLoading] = useState(false);
     const API_BASE_URL = '';
 
     const fetchCurrentBranch = async () => {
@@ -120,6 +123,34 @@ export default function BranchMenuManager() {
         } catch (error) {
             console.error('Lỗi khi cập nhật trạng thái:', error);
             alert('Không thể cập nhật trạng thái món ăn. Vui lòng thử lại.');
+        }
+    };
+
+    const fetchRecipe = async (foodId) => {
+        if (recipeCache[foodId]) return;
+        setRecipeLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_BASE_URL}/api/recipes/food/${foodId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error();
+            const data = await res.json();
+            setRecipeCache(prev => ({ ...prev, [foodId]: data }));
+        } catch (error) {
+            console.error('Lỗi khi tải công thức:', error);
+            setRecipeCache(prev => ({ ...prev, [foodId]: [] }));
+        } finally {
+            setRecipeLoading(false);
+        }
+    };
+
+    const handleRowClick = (foodId) => {
+        if (expandedFoodId === foodId) {
+            setExpandedFoodId(null);
+        } else {
+            setExpandedFoodId(foodId);
+            fetchRecipe(foodId);
         }
     };
 
@@ -280,44 +311,115 @@ export default function BranchMenuManager() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredItems.map((item) => (
-                                        <tr key={item.id}>
-                                            <td>
-                                                <div className={styles.productCell}>
-                                                    {item.imageUrl ? (
-                                                        <img
-                                                            src={getImageUrl(item.imageUrl)}
-                                                            alt={item.name}
-                                                            className={styles.productImage}
-                                                        />
-                                                    ) : (
-                                                        <div className={styles.productImagePlaceholder}>
-                                                            <Package size={24} />
-                                                        </div>
-                                                    )}
-                                                    <span className={styles.productName}>{item.name}</span>
-                                                </div>
-                                            </td>
-                                            <td className={styles.textRight}>
-                                                <div className={styles.priceCell}>
-                                                    <span className={styles.finalPrice}>
-                                                        {item.finalPrice?.toLocaleString('vi-VN')}đ
-                                                    </span>
-                                                    {item.discountPercentage > 0 && (
-                                                        <span className={styles.discount}>
-                                                            -{item.discountPercentage}%
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
+                                    filteredItems.map((item) => {
+                                        const foodId = item.foodId ?? item.id; // kiểm tra lại field đúng từ API
+                                        const isExpanded = expandedFoodId === foodId;
+                                        const recipe = recipeCache[foodId];
 
-                                            <td className={styles.textCenter}>
-                                                <span className={item.isActive ? styles.badgeSuccess : styles.badgeInactive}>
-                                                    {item.isActive ? 'Đang bán' : 'Ngừng bán'}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))
+                                        return (
+                                            <React.Fragment key={item.id}>
+                                                <tr
+                                                    onClick={() => handleRowClick(foodId)}
+                                                    style={{
+                                                        cursor: 'pointer',
+                                                        background: isExpanded ? 'rgba(37,99,235,0.06)' : undefined,
+                                                    }}
+                                                >
+                                                    <td>
+                                                        <div className={styles.productCell}>
+                                                            <ChevronRight
+                                                                size={14}
+                                                                style={{
+                                                                    color: '#9ca3af',
+                                                                    transition: 'transform 0.15s',
+                                                                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                                                                    flexShrink: 0,
+                                                                }}
+                                                            />
+                                                            {item.imageUrl ? (
+                                                                <img
+                                                                    src={getImageUrl(item.imageUrl)}
+                                                                    alt={item.name}
+                                                                    className={styles.productImage}
+                                                                />
+                                                            ) : (
+                                                                <div className={styles.productImagePlaceholder}>
+                                                                    <Package size={24} />
+                                                                </div>
+                                                            )}
+                                                            <span className={styles.productName}>{item.name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className={styles.textRight}>
+                                                        <div className={styles.priceCell}>
+                                                            <span className={styles.finalPrice}>
+                                                                {item.finalPrice?.toLocaleString('vi-VN')}đ
+                                                            </span>
+                                                            {item.discountPercentage > 0 && (
+                                                                <span className={styles.discount}>
+                                                                    -{item.discountPercentage}%
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+
+                                                    <td className={styles.textCenter}>
+                                                        <span className={item.isActive ? styles.badgeSuccess : styles.badgeInactive}>
+                                                            {item.isActive ? 'Đang bán' : 'Ngừng bán'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                {isExpanded && (
+                                                    <tr>
+                                                        <td colSpan={3} style={{ padding: 0, background: 'rgba(37,99,235,0.03)' }}>
+                                                            <div style={{ padding: '14px 20px 18px 44px' }}>
+                                                                {recipeLoading && !recipe ? (
+                                                                    <div style={{ fontSize: 13, color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                        <RefreshCw size={14} className={styles.spinIcon} />
+                                                                        Đang tải công thức...
+                                                                    </div>
+                                                                ) : !recipe || recipe.length === 0 ? (
+                                                                    <div style={{ fontSize: 13, color: '#9ca3af' }}>
+                                                                        Chưa có công thức cho món này.
+                                                                    </div>
+                                                                ) : (
+                                                                    <div>
+                                                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                                                            Nguyên liệu cần cho 1 phần
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                                                            {recipe.map(r => (
+                                                                                <div
+                                                                                    key={r.id}
+                                                                                    style={{
+                                                                                        display: 'flex', alignItems: 'center', gap: 6,
+                                                                                        padding: '6px 12px', borderRadius: 8,
+                                                                                        background: '#fff',
+                                                                                        border: '1px solid var(--color-border)',
+                                                                                        fontSize: 13,
+                                                                                    }}
+                                                                                >
+                                                                                    <span style={{ fontWeight: 600, color: '#374151' }}>
+                                                                                        {r.ingredient?.name}
+                                                                                    </span>
+                                                                                    <span style={{ color: '#2563eb', fontWeight: 700 }}>
+                                                                                        {r.quantityRequired}
+                                                                                    </span>
+                                                                                    <span style={{ color: '#9ca3af' }}>
+                                                                                        {r.ingredient?.unit}
+                                                                                    </span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
