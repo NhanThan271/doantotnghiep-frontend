@@ -2838,3 +2838,23 @@ tbody tr:hover {
     font-size: 15px;
     color: #B8B8B8;
 }
+
+/* ========== DASHBOARD RESPONSIVE ========== */
+.dashboardTitle {
+    font-size: clamp(22px, 4vw, 32px);
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: #D4AF37;
+    letter-spacing: -0.5px;
+}
+
+.dashboardStatusRow {
+    display: flex;
+    gap: 16px;
+}
+
+@media (max-width: 480px) {
+    .dashboardStatusRow {
+        flex-direction: column;
+    }
+}
