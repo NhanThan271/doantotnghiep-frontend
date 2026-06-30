@@ -105,57 +105,59 @@ const Orders = () => {
 
     // 3. fetchTablesWithReservations
     const fetchTablesWithReservations = useCallback(async () => {
-    setLoading(true);
-    try {
-        let tablesData = [];
+        setLoading(true);
+        try {
+            let tablesData = [];
 
-        if (selectedArea !== "Tất cả") {
-            const res = await axiosClient.get(`/tables/branch/${branchId}/area/${selectedArea}`);
-            tablesData = res.data;
-        } else {
-            const areasRes = await axiosClient.get(`/tables/branch/${branchId}/areas`);
-            const results = await Promise.all(
-                areasRes.data.map(area =>
-                    axiosClient.get(`/tables/branch/${branchId}/area/${area}`)
-                )
-            );
-            tablesData = results.flatMap(r => r.data);
+            if (selectedArea !== "Tất cả") {
+                const res = await axiosClient.get(`/tables/branch/${branchId}/area/${selectedArea}`);
+                tablesData = res.data;
+            } else {
+                const areasRes = await axiosClient.get(`/tables/branch/${branchId}/areas`);
+                const results = await Promise.all(
+                    areasRes.data.map(area =>
+                        axiosClient.get(`/tables/branch/${branchId}/area/${area}`)
+                    )
+                );
+                tablesData = results.flatMap(r => r.data);
+            }
+
+            const reservationsRes = await axiosClient
+                .get(`/reservations/tables`)
+                .catch(() => ({ data: [] }));
+
+            console.log("RESERVATIONS RAW:", reservationsRes.data);
+
+            const reservationMap = {};
+            reservationsRes.data.forEach(t => {
+                if (t.hasUpcomingReservation) {
+                    reservationMap[t.id] = t;
+                }
+            });
+
+            let data = tablesData.map(table => ({
+                ...table,
+                ...(reservationMap[table.id] ? {
+                    hasUpcomingReservation: true,
+                    customerName: reservationMap[table.id].customerName,
+                    checkInTime: reservationMap[table.id].checkInTime,
+                } : {})
+            }));
+
+            data.sort((a, b) => {
+                const areaCompare = (a.area || "").localeCompare(b.area || "");
+                if (areaCompare !== 0) return areaCompare;
+                return (a.number || 0) - (b.number || 0);
+            });
+
+            setTables(data);
+        } catch (err) {
+            console.error("Lỗi tải bàn:", err);
+            await fetchTablesLegacy();
+        } finally {
+            setLoading(false);
         }
-
-        const reservationsRes = await axiosClient
-            .get(`/reservations/tables`)
-            .catch(() => ({ data: [] }));
-
-        console.log("RESERVATIONS RAW:", reservationsRes.data);
-
-        const reservationMap = {};
-        reservationsRes.data.forEach(t => {
-            reservationMap[t.id] = t;
-        });
-
-        let data = tablesData.map(table => ({
-            ...table,
-            ...(reservationMap[table.id] ? {
-                hasUpcomingReservation: true,
-                customerName: reservationMap[table.id].customerName,
-                checkInTime: reservationMap[table.id].checkInTime,
-            } : {})
-        }));
-
-        data.sort((a, b) => {
-            const areaCompare = (a.area || "").localeCompare(b.area || "");
-            if (areaCompare !== 0) return areaCompare;
-            return (a.number || 0) - (b.number || 0);
-        });
-
-        setTables(data);
-    } catch (err) {
-        console.error("Lỗi tải bàn:", err);
-        await fetchTablesLegacy();
-    } finally {
-        setLoading(false);
-    }
-}, [branchId, selectedArea, fetchTablesLegacy]);
+    }, [branchId, selectedArea, fetchTablesLegacy]);
 
     // 4. fetchRoomsWithReservations
     const fetchRoomsWithReservations = useCallback(async () => {
