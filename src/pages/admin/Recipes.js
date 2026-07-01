@@ -104,7 +104,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
     });
 
     // Stats
-    const totalRecipes = Object.keys(groupedRecipes).length;
+    const totalRecipes = recipes.length;
     const uniqueProducts = Object.keys(groupedRecipes).length;
     const avgIngredientsPerProduct = uniqueProducts > 0 ? (totalRecipes / uniqueProducts).toFixed(1) : 0;
 
@@ -228,7 +228,7 @@ export default function Recipes({ openAdd, openEdit, refreshTrigger }) {
                         </div>
                         <div>
                             <div style={{ fontSize: '24px', fontWeight: '700', color: '#10B981' }}>{uniqueProducts}</div>
-                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Sản phẩm có công thức</div>
+                            <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Món ăn có công thức</div>
                         </div>
                     </div>
 

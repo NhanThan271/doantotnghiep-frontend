@@ -631,13 +631,13 @@ export default function BranchReports() {
                                                 </div>
                                             </td>
                                             <td>
-                                                <div style={{ fontSize: '14px' }}>
+                                                <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)' }}>
                                                     {formatDate(bill.issuedAt)}
                                                 </div>
                                             </td>
                                             <td>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <ShoppingCart size={16} style={{ color: 'var(--color-text-secondary)' }} />
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)' }}>
+                                                    <ShoppingCart size={16} style={{ color: 'var(--color-primary)' }} />
                                                     Đơn #{bill.order?.id || '-'}
                                                 </div>
                                             </td>

@@ -1779,26 +1779,26 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             )}
 
             {showCreateScheduleModal && (
-                <div className={styles.modalOverlay} onClick={() => setShowCreateScheduleModal(false)}>
-                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
-                        <div className={styles.modalHeader}>
-                            <h3 className={styles.modalTitle}>📋 Tạo lịch ca</h3>
-                            <button onClick={() => setShowCreateScheduleModal(false)} className={styles.modalClose}>
+                <div className={styles['modalOverlay-light']} onClick={() => setShowCreateScheduleModal(false)}>
+                    <div className={styles['modal-light']} onClick={e => e.stopPropagation()}>
+                        <div className={styles['modalHeader-light']}>
+                            <h3 className={styles['modalTitle-light']}> Tạo lịch ca</h3>
+                            <button onClick={() => setShowCreateScheduleModal(false)} className={styles['modalClose-light']}>
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className={styles.modalBody}>
+                        <div className={styles['modalBody-light']}>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Ngày làm việc *</label>
+                                <label className={styles['formLabel-light']}>Ngày làm việc *</label>
                                 <input type="date" value={scheduleForm.workDay}
                                     onChange={e => setScheduleForm({ ...scheduleForm, workDay: e.target.value })}
-                                    className={styles.formInput} required />
+                                    className={styles['formInput-light']} required />
                             </div>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Ca làm việc *</label>
+                                <label className={styles['formLabel-light']}>Ca làm việc *</label>
                                 <select value={scheduleForm.shiftId}
                                     onChange={e => setScheduleForm({ ...scheduleForm, shiftId: e.target.value })}
-                                    className={styles.formInput} required>
+                                    className={styles['formInput-light']} required>
                                     <option value="">-- Chọn ca --</option>
                                     {shiftTemplates.map(sh => (
                                         <option key={sh.id} value={sh.id}>
@@ -1808,20 +1808,20 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                 </select>
                             </div>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Số nhân viên cần *</label>
+                                <label className={styles['formLabel-light']}>Số nhân viên cần *</label>
                                 <input type="number" min="1" value={scheduleForm.requiredStaff}
                                     onChange={e => setScheduleForm({ ...scheduleForm, requiredStaff: parseInt(e.target.value) })}
-                                    className={styles.formInput} required />
+                                    className={styles['formInput-light']} required />
                             </div>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Số nhân viên tối đa</label>
+                                <label className={styles['formLabel-light']}>Số nhân viên tối đa</label>
                                 <input type="number" min="1" value={scheduleForm.maxStaff}
                                     onChange={e => setScheduleForm({ ...scheduleForm, maxStaff: parseInt(e.target.value) })}
-                                    className={styles.formInput} />
+                                    className={styles['formInput-light']} />
                             </div>
                         </div>
-                        <div className={styles.modalFooter}>
-                            <button onClick={() => setShowCreateScheduleModal(false)} className={styles.secondaryButton}>
+                        <div className={styles['modalFooter-light']}>
+                            <button onClick={() => setShowCreateScheduleModal(false)} className={styles['secondaryButton-light']}>
                                 Hủy
                             </button>
                             <button onClick={handleCreateSchedule} className={styles.primaryButton}>
@@ -1862,14 +1862,14 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
                                     Tháng {attendanceMonth}/{attendanceYear} — {currentBranch?.name}
                                 </h3>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <select value={attendanceMonth} onChange={e => setAttendanceMonth(parseInt(e.target.value))} className={styles.formInput} style={{ width: 120 }}>
+                                <div style={{ display: 'flex', gap: 8, background: '#fff' }}>
+                                    <select value={attendanceMonth} onChange={e => setAttendanceMonth(parseInt(e.target.value))} className={styles['formInput-light']} style={{ width: 120 }}>
                                         {Array.from({ length: 12 }, (_, i) => (
                                             <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>
                                         ))}
                                     </select>
                                     <input type="number" value={attendanceYear} onChange={e => setAttendanceYear(parseInt(e.target.value))}
-                                        className={styles.formInput} style={{ width: 90 }} min="2020" max="2030" />
+                                        className={styles['formInput-light']} style={{ width: 90 }} min="2020" max="2030" />
                                 </div>
                             </div>
 
@@ -1908,7 +1908,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                         setSelectedStaffForAttendance(e.target.value);
                                         setMonthlyReport(null);
                                     }}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     style={{ minWidth: '220px' }}
                                 >
                                     <option value="">-- Chọn nhân viên --</option>
@@ -1922,7 +1922,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                 <select
                                     value={attendanceMonth}
                                     onChange={e => setAttendanceMonth(parseInt(e.target.value))}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     style={{ width: '120px' }}
                                 >
                                     {Array.from({ length: 12 }, (_, i) => (
@@ -1934,7 +1934,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                     type="number"
                                     value={attendanceYear}
                                     onChange={e => setAttendanceYear(parseInt(e.target.value))}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     style={{ width: '100px' }}
                                     min="2020" max="2030"
                                 />
@@ -2105,28 +2105,28 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
 
             {/* MODAL PHÂN CA */}
             {showAssignModal && (
-                <div className={styles.modalOverlay} onClick={() => setShowAssignModal(false)}>
-                    <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                        <div className={styles.modalHeader}>
+                <div className={styles['modalOverlay-light']} onClick={() => setShowAssignModal(false)}>
+                    <div className={styles['modal-light']} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles['modalTitle-light']}>
                             <h3 className={styles.modalTitle}>
                                 <CalendarPlus size={24} />
                                 Phân ca làm việc
                             </h3>
                             <button
                                 onClick={() => setShowAssignModal(false)}
-                                className={styles.modalClose}
+                                className={styles['modalClose-light']}
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <div className={styles.modalBody}>
+                        <div className={styles['modalBody-light']}>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Nhân viên *</label>
+                                <label className={styles['formLabel-light']}>Nhân viên *</label>
                                 <select
                                     value={assignForm.staffId}
                                     onChange={(e) => setAssignForm({ ...assignForm, staffId: e.target.value })}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     required
                                 >
                                     <option value="">-- Chọn nhân viên --</option>
@@ -2142,11 +2142,11 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
 
                             {/* Chọn ca (template) */}
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Ca làm việc *</label>
+                                <label className={styles['formLabel-light']}>Ca làm việc *</label>
                                 <select
                                     value={assignForm.shiftId}
                                     onChange={(e) => setAssignForm({ ...assignForm, shiftId: e.target.value })}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     required
                                 >
                                     <option value="">-- Chọn ca --</option>
@@ -2160,22 +2160,22 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
 
                             {/* Ngày làm */}
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Ngày làm việc *</label>
+                                <label className={styles['formLabel-light']}>Ngày làm việc *</label>
                                 <input
                                     type="date"
                                     value={assignForm.workDay}
                                     onChange={(e) => setAssignForm({ ...assignForm, workDay: e.target.value })}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     required
                                 />
                             </div>
                         </div>
 
-                        <div className={styles.modalFooter}>
+                        <div className={styles['modalFooter-light']}>
                             <button
                                 type="button"
                                 onClick={() => setShowAssignModal(false)}
-                                className={styles.secondaryButton}
+                                className={styles['secondaryButton-light']}
                             >
                                 Hủy
                             </button>
@@ -2194,34 +2194,34 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             )}
             {/* MODAL SỬA CA */}
             {showEditModal && editingShift && (
-                <div className={styles.modalOverlay} onClick={() => setShowEditModal(false)}>
-                    <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-                        <div className={styles.modalHeader}>
-                            <h3 className={styles.modalTitle}><Edit2 size={24} /> Chỉnh sửa ca làm việc</h3>
-                            <button onClick={() => setShowEditModal(false)} className={styles.modalClose}>
+                <div className={styles['modalOverlay-light']} onClick={() => setShowEditModal(false)}>
+                    <div className={styles['modal-light']} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles['modalHeader-light']}>
+                            <h3 className={styles['modalTitle-light']}><Edit2 size={24} /> Chỉnh sửa ca làm việc</h3>
+                            <button onClick={() => setShowEditModal(false)} className={styles['modalClose-light']}>
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <div className={styles.modalBody}>
+                        <div className={styles['modalBody-light']}>
                             {/* Hiển thị tên nhân viên (readonly) */}
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Nhân viên</label>
+                                <label className={styles['formLabel-light']}>Nhân viên</label>
                                 <input
                                     type="text"
                                     value={editingShift.staff?.user?.fullName || editingShift.staff?.user?.username || ''}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     disabled
                                 />
                             </div>
 
                             {/* Đổi ca */}
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Ca làm việc *</label>
+                                <label className={styles['formLabel-light']}>Ca làm việc *</label>
                                 <select
                                     value={editForm.shiftId}
                                     onChange={(e) => setEditForm({ ...editForm, shiftId: e.target.value })}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     required
                                 >
                                     <option value="">-- Chọn ca --</option>
@@ -2235,12 +2235,12 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
 
                             {/* Đổi ngày */}
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Ngày làm việc *</label>
+                                <label className={styles['formLabel-light']}>Ngày làm việc *</label>
                                 <input
                                     type="date"
                                     value={editForm.workDay}
                                     onChange={(e) => setEditForm({ ...editForm, workDay: e.target.value })}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     required
                                 />
                             </div>
@@ -2256,8 +2256,8 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                             </div>
                         </div>
 
-                        <div className={styles.modalFooter}>
-                            <button type="button" onClick={() => setShowEditModal(false)} className={styles.secondaryButton}>
+                        <div className={styles['modalFooter-light']}>
+                            <button type="button" onClick={() => setShowEditModal(false)} className={styles['secondaryButton-light']}>
                                 Hủy
                             </button>
                             <button type="button" onClick={handleUpdateShift} className={styles.primaryButton} disabled={loading}>
@@ -2283,32 +2283,32 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             )}
 
             {showEmploymentModal && employmentTarget && (
-                <div className={styles.modalOverlay} onClick={() => setShowEmploymentModal(false)}>
-                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
-                        <div className={styles.modalHeader}>
-                            <h3 className={styles.modalTitle}>
+                <div className={styles['modalOverlay-light']} onClick={() => setShowEmploymentModal(false)}>
+                    <div className={styles['modal-light']} onClick={e => e.stopPropagation()}>
+                        <div className={styles['modalHeader-light']}>
+                            <h3 className={styles['modalTitle-light']}>
                                 <FileText size={20} /> Gán loại hợp đồng
                             </h3>
-                            <button onClick={() => setShowEmploymentModal(false)} className={styles.modalClose}>
+                            <button onClick={() => setShowEmploymentModal(false)} className={styles['modalClose-light']}>
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <div className={styles.modalBody}>
+                        <div className={styles['modalBody-light']}>
                             {/* Tên nhân viên readonly */}
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Nhân viên</label>
+                                <label className={styles['formLabel-light']}>Nhân viên</label>
                                 <input
                                     type="text"
                                     value={employmentTarget.empName}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                     disabled
                                 />
                             </div>
 
                             {/* Chọn loại hợp đồng */}
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Loại hợp đồng *</label>
+                                <label className={styles['formLabel-light']}>Loại hợp đồng *</label>
                                 {employmentTypes.length === 0 ? (
                                     <div style={{
                                         padding: '12px',
@@ -2323,7 +2323,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                     <select
                                         value={selectedEmploymentTypeId}
                                         onChange={e => setSelectedEmploymentTypeId(e.target.value)}
-                                        className={styles.formInput}
+                                        className={styles['formInput-light']}
                                     >
                                         <option value="">-- Chọn loại hợp đồng --</option>
                                         {employmentTypes.map(et => (
@@ -2336,10 +2336,10 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                             </div>
                         </div>
 
-                        <div className={styles.modalFooter}>
+                        <div className={styles['modalFooter-light']}>
                             <button
                                 onClick={() => setShowEmploymentModal(false)}
-                                className={styles.secondaryButton}
+                                className={styles['secondaryButton-light']}
                             >
                                 Hủy
                             </button>
