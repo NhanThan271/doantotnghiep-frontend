@@ -2939,3 +2939,143 @@ tbody tr:hover {
     background: #FFFFFF;
     flex-shrink: 0;
 }
+
+/* ========== MODAL FORM LIGHT VARIANT (Phân ca, Tạo lịch ca, v.v.) ========== */
+.modalOverlay-light {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.modal-light {
+    background: #FFFFFF;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border: 1px solid #E5E7EB;
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease-out;
+}
+
+.modalHeader-light {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #E5E7EB;
+    background: #FFFFFF;
+}
+
+.modalTitle-light {
+    font-size: 20px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modalTitle-light svg {
+    color: #F97316;
+}
+
+.modalClose-light {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    color: #6B7280;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modalClose-light:hover {
+    background-color: #F3F4F6;
+    color: #111827;
+}
+
+.modalBody-light {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.formLabel-light {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.formInput-light,
+.formInput-light select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #D1D5DB;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #111827;
+    background-color: #F9FAFB;
+    transition: all 0.2s;
+}
+
+.formInput-light:focus {
+    outline: none;
+    border-color: #F97316;
+    background-color: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+.formInput-light:disabled {
+    background-color: #F3F4F6;
+    color: #9CA3AF;
+    cursor: not-allowed;
+    border-color: #E5E7EB;
+}
+
+.modalFooter-light {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 1px solid #E5E7EB;
+    background: #FFFFFF;
+}
+
+.secondaryButton-light {
+    padding: 11px 24px;
+    background: #F3F4F6;
+    color: #374151;
+    border: 1px solid #D1D5DB;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.secondaryButton-light:hover {
+    background-color: #E5E7EB;
+    border-color: #9CA3AF;
+    color: #111827;
+}
