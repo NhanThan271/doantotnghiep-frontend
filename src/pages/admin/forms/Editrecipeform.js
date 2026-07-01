@@ -108,11 +108,11 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
 
     /* ---------- render ---------- */
     return (
-        <div className={styles['modal-backdrop']} onClick={closeForm}>
-            <div className={styles['modal-container']} onClick={(e) => e.stopPropagation()}>
+        <div className={styles['modal-backdrop-light']} onClick={closeForm}>
+            <div className={styles['modal-container-light']} onClick={(e) => e.stopPropagation()}>
 
                 {/* ── Header ── */}
-                <div className={styles['modal-header']}>
+                <div className={styles['modal-header-light']}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{
                             width: '40px', height: '40px',
@@ -123,10 +123,10 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                             <ChefHat size={20} color="#F97316" />
                         </div>
                         <div>
-                            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#FFFFFF' }}>
+                            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#111827' }}>
                                 Chỉnh sửa công thức
                             </h2>
-                            <p style={{ fontSize: '13px', color: '#B8B8B8', margin: '4px 0 0 0' }}>
+                            <p style={{ fontSize: '13px', color: '#6B7280', margin: '4px 0 0 0' }}>
                                 Cập nhật định lượng nguyên liệu
                             </p>
                         </div>
@@ -136,8 +136,8 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                         onClick={closeForm}
                         style={{
                             width: '32px', height: '32px', borderRadius: '8px',
-                            border: '1px solid #2A2A2A', background: 'transparent',
-                            color: '#B8B8B8', cursor: 'pointer',
+                            border: '1px solid #D1D5DB', background: 'transparent',
+                            color: '#6B7280', cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             transition: 'all 0.2s',
                         }}
@@ -148,8 +148,8 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                         }}
                         onMouseOut={(e) => {
                             e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = '#2A2A2A';
-                            e.currentTarget.style.color = '#B8B8B8';
+                            e.currentTarget.style.borderColor = '#D1D5DB';
+                            e.currentTarget.style.color = '#6B7280';
                         }}
                     >
                         <X size={18} />
@@ -157,7 +157,7 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                 </div>
 
                 {/* ── Body ── */}
-                <div className={styles['modal-body']}>
+                <div className={styles['modal-body-light']}>
                     <form onSubmit={handleSubmit}>
 
                         {/* Error */}
@@ -184,7 +184,7 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                                 <Package size={20} color="#F97316" />
                                 <div>
                                     <p style={{
-                                        fontSize: '11px', color: '#B8B8B8', margin: 0,
+                                        fontSize: '11px', color: '#6B7280', margin: 0,
                                         textTransform: 'uppercase', letterSpacing: '0.5px',
                                     }}>
                                         Sản phẩm
@@ -213,12 +213,12 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                         <div style={{ marginBottom: '8px' }}>
                             <label style={{
                                 display: 'block', marginBottom: '12px',
-                                fontSize: '14px', fontWeight: '600', color: '#FFFFFF',
+                                fontSize: '14px', fontWeight: '600', color: '#111827',
                             }}>
                                 Danh sách nguyên liệu <span style={{ color: '#EF4444' }}>*</span>
                                 <span style={{
                                     marginLeft: '8px', fontSize: '12px',
-                                    color: '#B8B8B8', fontWeight: '400',
+                                    color: '#6B7280', fontWeight: '400',
                                 }}>
                                     ({rows.length} nguyên liệu)
                                 </span>
@@ -227,8 +227,8 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                             {rows.length === 0 && (
                                 <div style={{
                                     padding: '24px', textAlign: 'center',
-                                    color: '#B8B8B8', fontSize: '14px',
-                                    border: '1px dashed #2A2A2A', borderRadius: '12px',
+                                    color: '#6B7280', fontSize: '14px',
+                                    border: '1px dashed #D1D5DB', borderRadius: '12px',
                                 }}>
                                     Chưa có nguyên liệu nào
                                 </div>
@@ -240,8 +240,8 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                                     style={{
                                         display: 'flex', alignItems: 'center', gap: '10px',
                                         padding: '12px 14px',
-                                        background: '#0F0F0F',
-                                        border: '1px solid #2A2A2A',
+                                        background: '#F9FAFB',
+                                        border: '1px solid #E5E7EB',
                                         borderRadius: '12px',
                                         marginBottom: '10px',
                                     }}
@@ -256,7 +256,7 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                                         }}>
                                             {row.ingredientName}
                                         </p>
-                                        <p style={{ fontSize: '11px', color: '#B8B8B8', margin: '2px 0 0 0' }}>
+                                        <p style={{ fontSize: '11px', color: '#6B7280', margin: '2px 0 0 0' }}>
                                             Đơn vị: {row.unit || 'N/A'}
                                         </p>
                                     </div>
@@ -268,7 +268,7 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                                             style={{
                                                 position: 'absolute', left: '10px',
                                                 top: '50%', transform: 'translateY(-50%)',
-                                                color: '#B8B8B8',
+                                                color: '#6B7280',
                                             }}
                                         />
                                         <input
@@ -281,10 +281,10 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                                             style={{
                                                 width: '100%',
                                                 padding: '8px 10px 8px 30px',
-                                                background: '#1A1A1A',
+                                                background: '#FFFFFF',
                                                 borderRadius: '8px',
-                                                border: '1px solid #2A2A2A',
-                                                color: '#FFFFFF',
+                                                border: '1px solid #D1D5DB',
+                                                color: '#111827',
                                                 fontSize: '14px',
                                                 outline: 'none',
                                                 transition: 'all 0.2s ease',
@@ -294,7 +294,7 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                                                 e.currentTarget.style.borderColor = '#F97316';
                                             }}
                                             onBlur={(e) => {
-                                                e.currentTarget.style.borderColor = '#2A2A2A';
+                                                e.currentTarget.style.borderColor = '#D1D5DB';
                                             }}
                                             required
                                         />
@@ -307,9 +307,9 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                                         style={{
                                             width: '32px', height: '32px', flexShrink: 0,
                                             borderRadius: '8px',
-                                            border: '1px solid #2A2A2A',
+                                            border: '1px solid #D1D5DB',
                                             background: 'transparent',
-                                            color: '#B8B8B8', cursor: 'pointer',
+                                            color: '#6B7280', cursor: 'pointer',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             transition: 'all 0.2s',
                                         }}
@@ -320,8 +320,8 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                                         }}
                                         onMouseOut={(e) => {
                                             e.currentTarget.style.background = 'transparent';
-                                            e.currentTarget.style.borderColor = '#2A2A2A';
-                                            e.currentTarget.style.color = '#B8B8B8';
+                                            e.currentTarget.style.borderColor = '#D1D5DB';
+                                            e.currentTarget.style.color = '#6B7280';
                                         }}
                                     >
                                         <Trash2 size={15} />
@@ -333,25 +333,25 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                 </div>
 
                 {/* ── Footer ── */}
-                <div className={styles['modal-footer']}>
+                <div className={styles['modal-footer-light']}>
                     <div style={{ display: 'flex', gap: '12px' }}>
                         <button
                             type="button"
                             onClick={closeForm}
                             style={{
                                 flex: 1, padding: '12px',
-                                background: 'transparent', color: '#B8B8B8',
-                                border: '1px solid #2A2A2A', borderRadius: '12px',
+                                background: 'transparent', color: '#6B7280',
+                                border: '1px solid #D1D5DB', borderRadius: '12px',
                                 fontWeight: '600', cursor: 'pointer',
                                 fontSize: '14px', transition: 'all 0.2s',
                             }}
                             onMouseOver={(e) => {
                                 e.currentTarget.style.background = 'rgba(249, 115, 22, 0.1)';
-                                e.currentTarget.style.color = '#FFFFFF';
+                                e.currentTarget.style.color = '#111827';
                             }}
                             onMouseOut={(e) => {
                                 e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.color = '#B8B8B8';
+                                e.currentTarget.style.color = '#6B7280';
                             }}
                         >
                             Hủy
@@ -364,7 +364,7 @@ export default function EditRecipeForm({ closeForm, onSave, recipeData }) {
                             style={{
                                 flex: 1, padding: '12px',
                                 background: loading
-                                    ? '#B8B8B8'
+                                    ? '#D1D5DB'
                                     : 'linear-gradient(135deg, #F97316, #EA580C)',
                                 color: loading ? '#666' : '#FFF',
                                 border: 'none', borderRadius: '12px',
