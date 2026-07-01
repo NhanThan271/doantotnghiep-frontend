@@ -2487,10 +2487,10 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             )}
             {/* MODAL SỬA LỊCH CA */}
             {showEditScheduleModal && editingSchedule && (
-                <div className={styles.modalOverlay} onClick={() => setShowEditScheduleModal(false)}>
-                    <div className={styles.modal} onClick={e => e.stopPropagation()}>
-                        <div className={styles.modalHeader}>
-                            <h3 className={styles.modalTitle}>
+                <div className={styles['modalOverlay-light']} onClick={() => setShowEditScheduleModal(false)}>
+                    <div className={styles['modal-light']} onClick={e => e.stopPropagation()}>
+                        <div className={styles['modalHeader-light']}>
+                            <h3 className={styles['modalTitle-light']}>
                                 <Edit2 size={20} /> Sửa lịch ca
                             </h3>
                             <button onClick={() => setShowEditScheduleModal(false)} className={styles.modalClose}>
@@ -2498,23 +2498,23 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                             </button>
                         </div>
 
-                        <div className={styles.modalBody}>
+                        <div className={styles['modalBody-light']}>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Ngày làm việc *</label>
+                                <label className={styles['formLabel-light']}>Ngày làm việc *</label>
                                 <input
                                     type="date"
                                     value={editScheduleForm.workDay}
                                     onChange={e => setEditScheduleForm({ ...editScheduleForm, workDay: e.target.value })}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                 />
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Ca làm việc *</label>
+                                <label className={styles['formLabel-light']}>Ca làm việc *</label>
                                 <select
                                     value={editScheduleForm.shiftId}
                                     onChange={e => setEditScheduleForm({ ...editScheduleForm, shiftId: e.target.value })}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                 >
                                     <option value="">-- Chọn ca --</option>
                                     {shiftTemplates.map(sh => (
@@ -2526,28 +2526,28 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Số nhân viên cần *</label>
+                                <label className={styles['formLabel-light']}>Số nhân viên cần *</label>
                                 <input
                                     type="number" min="1"
                                     value={editScheduleForm.requiredStaff}
                                     onChange={e => setEditScheduleForm({ ...editScheduleForm, requiredStaff: parseInt(e.target.value) })}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                 />
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Số nhân viên tối đa</label>
+                                <label className={styles['formLabel-light']}>Số nhân viên tối đa</label>
                                 <input
                                     type="number" min="1"
                                     value={editScheduleForm.maxStaff}
                                     onChange={e => setEditScheduleForm({ ...editScheduleForm, maxStaff: parseInt(e.target.value) })}
-                                    className={styles.formInput}
+                                    className={styles['formInput-light']}
                                 />
                             </div>
                         </div>
 
-                        <div className={styles.modalFooter}>
-                            <button onClick={() => setShowEditScheduleModal(false)} className={styles.secondaryButton}>
+                        <div className={styles['modalFooter-light']}>
+                            <button onClick={() => setShowEditScheduleModal(false)} className={styles['secondaryButton-light']}>
                                 Hủy
                             </button>
                             <button onClick={handleUpdateSchedule} className={styles.primaryButton}>
