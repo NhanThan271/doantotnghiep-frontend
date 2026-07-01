@@ -185,10 +185,10 @@ export default function AddRecipeForm({ closeForm, onSave }) {
     };
 
     return (
-        <div className={styles['modal-backdrop']} onClick={closeForm}>
-            <div className={styles['modal-container']} onClick={(e) => e.stopPropagation()}>
+        <div className={styles['modal-backdrop-rc']} onClick={closeForm}>
+            <div className={styles['modal-containerrc']} onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
-                <div className={styles['modal-header']}>
+                <div className={styles['modal-header-rc']}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{
                             width: '40px', height: '40px',
