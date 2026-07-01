@@ -199,10 +199,10 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                             <ChefHat size={20} color="#F97316" />
                         </div>
                         <div>
-                            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#FFFFFF' }}>
+                            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: '#111827' }}>
                                 Thêm công thức mới
                             </h2>
-                            <p style={{ fontSize: '13px', color: '#B8B8B8', margin: '4px 0 0 0' }}>
+                            <p style={{ fontSize: '13px', color: '#6B7280', margin: '4px 0 0 0' }}>
                                 Tạo công thức cho món ăn
                             </p>
                         </div>
@@ -211,8 +211,8 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                         onClick={closeForm}
                         style={{
                             width: '32px', height: '32px', borderRadius: '8px',
-                            border: '1px solid #2A2A2A', background: 'transparent',
-                            color: '#B8B8B8', cursor: 'pointer',
+                            border: '1px solid #D1D5DB', background: 'transparent',
+                            color: '#6B7280', cursor: 'pointer',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             transition: 'all 0.2s'
                         }}
@@ -223,8 +223,8 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                         }}
                         onMouseOut={(e) => {
                             e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = '#2A2A2A';
-                            e.currentTarget.style.color = '#B8B8B8';
+                            e.currentTarget.style.borderColor = '#D1D5DB';
+                            e.currentTarget.style.color = '#6B7280';
                         }}
                     >
                         <X size={18} />
@@ -263,7 +263,7 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                         <div style={{ marginBottom: '20px' }}>
                             <label style={{
                                 display: 'block', marginBottom: '8px',
-                                fontSize: '14px', fontWeight: '600', color: '#FFFFFF'
+                                fontSize: '14px', fontWeight: '600', color: '#111827'
                             }}>
                                 Sản phẩm <span style={{ color: '#EF4444' }}>*</span>
                             </label>
@@ -288,8 +288,8 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                     onFocus={() => setProductOpen(true)}
                                     style={{
                                         width: '100%', padding: '12px 16px 12px 44px',
-                                        background: '#0F0F0F', borderRadius: '12px',
-                                        border: '1px solid #2A2A2A', color: '#FFFFFF',
+                                        background: '#F9FAFB', borderRadius: '12px',
+                                        border: '1px solid #D1D5DB', color: '#111827',
                                         fontSize: '14px', outline: 'none', boxSizing: 'border-box'
                                     }}
                                 />
@@ -301,9 +301,9 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                         />
                                         <div style={{
                                             position: 'absolute', top: '100%', left: 0, right: 0,
-                                            background: '#1a1a1a', border: '1px solid #2A2A2A',
+                                            background: '#FFFFFF', border: '1px solid #D1D5DB',
                                             borderRadius: '10px', zIndex: 100, maxHeight: 220,
-                                            overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                            overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                                             marginTop: 4
                                         }}>
                                             {products
@@ -319,9 +319,9 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                                         }}
                                                         style={{
                                                             padding: '10px 16px', cursor: 'pointer', fontSize: 14,
-                                                            color: parseInt(productId) === p.id ? '#F97316' : '#e5e7eb',
+                                                            color: parseInt(productId) === p.id ? '#F97316' : '#374151',
                                                             background: parseInt(productId) === p.id ? 'rgba(249,115,22,0.15)' : 'transparent',
-                                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                            borderBottom: '1px solid #F3F4F6',
                                                             transition: 'background 0.1s'
                                                         }}
                                                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
@@ -348,7 +348,7 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                 display: 'flex', alignItems: 'center',
                                 justifyContent: 'space-between', marginBottom: '12px'
                             }}>
-                                <label style={{ fontSize: '14px', fontWeight: '600', color: '#FFFFFF' }}>
+                                <label style={{ fontSize: '14px', fontWeight: '600', color: '#111827' }}>
                                     Nguyên liệu <span style={{ color: '#EF4444' }}>*</span>
                                 </label>
                                 <button
@@ -384,8 +384,8 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                         key={index}
                                         style={{
                                             padding: '16px',
-                                            background: 'rgba(255,255,255,0.02)',
-                                            border: '1px solid #2A2A2A',
+                                            background: '#F9FAFB',
+                                            border: '1px solid #E5E7EB',
                                             borderRadius: '12px',
                                             marginBottom: '12px'
                                         }}
@@ -455,8 +455,8 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                                     onFocus={() => setIngOpenDropdowns(prev => ({ ...prev, [index]: true }))}
                                                     style={{
                                                         width: '100%', padding: '12px 16px 12px 44px',
-                                                        background: '#0F0F0F', borderRadius: '12px',
-                                                        border: '1px solid #2A2A2A', color: '#FFFFFF',
+                                                        background: '#F9FAFB', borderRadius: '12px',
+                                                        border: '1px solid #D1D5DB', color: '#111827',
                                                         fontSize: '14px', outline: 'none', boxSizing: 'border-box'
                                                     }}
                                                 />
@@ -468,9 +468,9 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                                         />
                                                         <div style={{
                                                             position: 'absolute', top: '100%', left: 0, right: 0,
-                                                            background: '#1a1a1a', border: '1px solid #2A2A2A',
+                                                            background: '#FFFFFF', border: '1px solid #D1D5DB',
                                                             borderRadius: '10px', zIndex: 100, maxHeight: 200,
-                                                            overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                                            overflowY: 'auto', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                                                             marginTop: 4
                                                         }}>
                                                             {ingredients
@@ -489,9 +489,9 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                                                         }}
                                                                         style={{
                                                                             padding: '10px 16px', cursor: 'pointer', fontSize: 13,
-                                                                            color: parseInt(item.ingredientId) === ing.id ? '#F97316' : '#e5e7eb',
+                                                                            color: parseInt(item.ingredientId) === ing.id ? '#F97316' : '#374151',
                                                                             background: parseInt(item.ingredientId) === ing.id ? 'rgba(249,115,22,0.15)' : 'transparent',
-                                                                            borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                                            borderBottom: '1px solid #F3F4F6',
                                                                             transition: 'background 0.1s'
                                                                         }}
                                                                         onMouseEnter={e => e.currentTarget.style.background = 'rgba(249,115,22,0.1)'}
@@ -519,7 +519,7 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                         <div>
                                             <label style={{
                                                 display: 'block', marginBottom: '6px',
-                                                fontSize: '13px', color: '#B8B8B8'
+                                                fontSize: '13px', color: '#6B7280'
                                             }}>
                                                 Định lượng
                                                 {selectedIng && (
@@ -540,10 +540,10 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                                                     style={{
                                                         width: '100%',
                                                         padding: '12px 16px 12px 44px',
-                                                        background: '#0F0F0F',
+                                                        background: '#F9FAFB',
                                                         borderRadius: '12px',
-                                                        border: '1px solid #2A2A2A',
-                                                        color: '#FFFFFF',
+                                                        border: '1px solid #D1D5DB',
+                                                        color: '#111827',
                                                         fontSize: '14px',
                                                         outline: 'none',
                                                         transition: 'all 0.2s ease',
@@ -568,18 +568,18 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                             onClick={closeForm}
                             style={{
                                 flex: 1, padding: '12px',
-                                background: 'transparent', color: '#B8B8B8',
-                                border: '1px solid #2A2A2A', borderRadius: '12px',
+                                background: 'transparent', color: '#6B7280',
+                                border: '1px solid #D1D5DB', borderRadius: '12px',
                                 fontWeight: '600', cursor: 'pointer',
                                 fontSize: '14px', transition: 'all 0.2s'
                             }}
                             onMouseOver={(e) => {
                                 e.currentTarget.style.background = 'rgba(249, 115, 22, 0.1)';
-                                e.currentTarget.style.color = '#FFFFFF';
+                                e.currentTarget.style.color = '#111827';
                             }}
                             onMouseOut={(e) => {
                                 e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.color = '#B8B8B8';
+                                e.currentTarget.style.color = '#6B7280';
                             }}
                         >
                             Hủy
@@ -591,7 +591,7 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                             style={{
                                 flex: 1, padding: '12px',
                                 background: loading
-                                    ? '#B8B8B8'
+                                    ? '#D1D5DB'
                                     : 'linear-gradient(135deg, #F97316, #EA580C)',
                                 color: loading ? '#666' : '#FFF',
                                 border: 'none', borderRadius: '12px',
