@@ -397,6 +397,7 @@ const ChefDashboard = () => {
 
         const handleReservationUpcoming = (data) => {
             console.log("RESERVATION UPCOMING:", data);
+            console.log('branchId data:', data.branchId, typeof data.branchId);
 
             if (data.branchId && branchId && Number(data.branchId) !== Number(branchId)) return;
 

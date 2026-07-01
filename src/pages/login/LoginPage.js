@@ -203,7 +203,7 @@ const LoginPage = () => {
             <Toast toasts={toasts} removeToast={removeToast} />
 
             {/* Back Home Button */}
-            <button className="back-home-btn" onClick={() => navigate("/")}>
+            <button className="back-home-btn" onClick={() => navigate("/home")}>
                 ← Trang chủ
             </button>
 

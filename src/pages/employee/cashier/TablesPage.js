@@ -407,10 +407,14 @@ const TablesPage = () => {
                                 const reservationCustomer = table.customerName;
                                 const reservationTime = table.checkInTime;
 
+                                const isOccupied = table.status === "OCCUPIED";
+                                const isReserved = table.status === "RESERVED" || hasReservation;
+                                const isFree = table.status === "FREE" && !hasReservation;
+
                                 let cardClass = styles.card;
-                                if (table.status === "FREE") cardClass += ` ${styles.cardFree}`;
-                                else if (table.status === "RESERVED") cardClass += ` ${styles.cardReserved}`;
-                                else cardClass += ` ${styles.cardOccupied}`;
+                                if (isOccupied) cardClass += ` ${styles.cardOccupied}`;
+                                else if (isReserved) cardClass += ` ${styles.cardReserved}`;
+                                else cardClass += ` ${styles.cardFree}`;
 
                                 return (
                                     <div
@@ -418,18 +422,17 @@ const TablesPage = () => {
                                         onClick={() => handleTableClick(table)}
                                         className={cardClass}
                                     >
-                                        {table.status !== "FREE" && (
+                                        {!isFree && (
                                             <div className={styles.addButton}>
-                                                <PlusCircle size={10} />
-                                                Thêm món
+                                                <PlusCircle size={10} /> Thêm món
                                             </div>
                                         )}
-
                                         <div className={styles.cardIcon}>
-                                            {table.status === "FREE" ? <Utensils size={48} color="#10b981" /> :
-                                                table.status === "RESERVED" ? <Calendar size={48} color="#f59e0b" /> :
-                                                    <Coffee size={48} color="#ef4444" />}
+                                            {isOccupied ? <Coffee size={48} color="#ef4444" /> :
+                                                isReserved ? <Calendar size={48} color="#f59e0b" /> :
+                                                    <Utensils size={48} color="#10b981" />}
                                         </div>
+
                                         <div className={styles.cardTitle}>Bàn {table.number}</div>
 
                                         <div className={styles.location}>
@@ -460,19 +463,17 @@ const TablesPage = () => {
                                         )}
 
                                         <div className={styles.tableStatus}>
-                                            {table.status === "FREE" ? (
-                                                <CheckCircle size={14} color="#10b981" />
-                                            ) : table.status === "RESERVED" ? (
-                                                <Clock size={14} color="#f59e0b" />
-                                            ) : (
-                                                <XCircle size={14} color="#ef4444" />
-                                            )}
-                                            <span className={styles.statusText} style={{ color: getStatusColor(table.status) }}>
-                                                {getStatusText(table.status)}
+                                            {isOccupied ? <XCircle size={14} color="#ef4444" /> :
+                                                isReserved ? <Clock size={14} color="#f59e0b" /> :
+                                                    <CheckCircle size={14} color="#10b981" />}
+                                            <span className={styles.statusText} style={{
+                                                color: isOccupied ? "#ef4444" : isReserved ? "#f59e0b" : "#10b981"
+                                            }}>
+                                                {isOccupied ? "Đã có khách" : isReserved ? "Đã đặt" : "Trống"}
                                             </span>
                                         </div>
 
-                                        {table.status === "OCCUPIED" && (
+                                        {isOccupied && (
                                             <div className={styles.timeInfo}>
                                                 <Clock size={12} />
                                                 {elapsedTime ? `Đã dùng: ${elapsedTime}` : 'Đang cập nhật...'}
