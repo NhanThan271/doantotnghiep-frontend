@@ -2108,13 +2108,13 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                 <div className={styles['modalOverlay-light']} onClick={() => setShowAssignModal(false)}>
                     <div className={styles['modal-light']} onClick={(e) => e.stopPropagation()}>
                         <div className={styles['modalTitle-light']}>
-                            <h3 className={styles.modalTitle}>
+                            <h3 className={styles['modalTitle-light']}>
                                 <CalendarPlus size={24} />
                                 Phân ca làm việc
                             </h3>
                             <button
                                 onClick={() => setShowAssignModal(false)}
-                                className={styles['modalClose-light']}
+                                className={styles.modalClose}
                             >
                                 <X size={20} />
                             </button>
