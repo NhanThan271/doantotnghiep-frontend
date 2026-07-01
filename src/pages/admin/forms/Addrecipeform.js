@@ -159,10 +159,10 @@ export default function AddRecipeForm({ closeForm, onSave }) {
     const inputStyle = {
         width: '100%',
         padding: '12px 16px 12px 44px',
-        background: '#0F0F0F',
+        background: '#F9FAFB',
         borderRadius: '12px',
-        border: '1px solid #2A2A2A',
-        color: '#FFFFFF',
+        border: '1px solid #D1D5DB',
+        color: '#111827',
         fontSize: '14px',
         outline: 'none',
         appearance: 'none',
@@ -179,16 +179,16 @@ export default function AddRecipeForm({ closeForm, onSave }) {
         left: '14px',
         top: '50%',
         transform: 'translateY(-50%)',
-        color: '#B8B8B8',
+        color: '#6B7280',
         pointerEvents: 'none',
         zIndex: 1
     };
 
     return (
-        <div className={styles['modal-backdrop-rc']} onClick={closeForm}>
-            <div className={styles['modal-containerrc']} onClick={(e) => e.stopPropagation()}>
+        <div className={styles['modal-backdrop-light']} onClick={closeForm}>
+            <div className={styles['modal-container-light']} onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
-                <div className={styles['modal-header-rc']}>
+                <div className={styles['modal-header-light']}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{
                             width: '40px', height: '40px',
@@ -232,7 +232,7 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                 </div>
 
                 {/* Body */}
-                <div className={styles['modal-body']}>
+                <div className={styles['modal-body-light']}>
                     <form onSubmit={handleSubmit}>
                         {/* Error */}
                         {error && (
@@ -561,7 +561,7 @@ export default function AddRecipeForm({ closeForm, onSave }) {
                 </div>
 
                 {/* Footer */}
-                <div className={styles['modal-footer']}>
+                <div className={styles['modal-footer-light']}>
                     <div style={{ display: 'flex', gap: '12px' }}>
                         <button
                             type="button"
