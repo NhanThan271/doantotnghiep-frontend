@@ -429,6 +429,18 @@ tbody tr:hover {
     animation: fadeIn 0.2s ease;
 }
 
+.modal-backdrop-rc {
+    position: fixed;
+    inset: 0;
+    background-color: #fff;
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    animation: fadeIn 0.2s ease;
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -691,6 +703,12 @@ tbody tr:hover {
     .modal,
     .modal-container,
     .modal-container-food {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .modal-container-rc,
+    .modal-container-food-rc {
         width: 95%;
         max-height: 90vh;
     }
@@ -2791,7 +2809,43 @@ tbody tr:hover {
     box-shadow: var(--shadow-lg);
 }
 
+.modal-containerrc {
+    background: var(--color-bg-card);
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    width: 90%;
+    max-width: 800px;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-container-food-rc {
+    background: var(--color-bg-card);
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+    width: 90%;
+    max-width: 1000px;
+    height: 700px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
 .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+    background: var(--color-bg-card);
+}
+
+.modal-header-rc {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2826,10 +2880,42 @@ tbody tr:hover {
     background: #3A3A3A;
 }
 
+.modal-body-rc {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 24px;
+}
+
+.modal-body-rc::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-body-rc::-webkit-scrollbar-track {
+    background: #fff;
+    border-radius: 4px;
+}
+
+.modal-body-rc::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+}
+
+.modal-body-rc::-webkit-scrollbar-thumb:hover {
+    background: #3A3A3A;
+}
+
 .modal-footer {
     padding: 24px;
     border-top: 1px solid var(--color-border);
     background: var(--color-bg-card);
+    flex-shrink: 0;
+}
+
+.modal-footer-rc {
+    padding: 24px;
+    border-top: 1px solid var(--color-border);
+    background: #fff;
     flex-shrink: 0;
 }
 
