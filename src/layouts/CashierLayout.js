@@ -28,7 +28,9 @@ const CASHIER_NOTIFICATIONS_KEY = 'cashier_notifications';
 
 const CashierLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-        return sessionStorage.getItem('cashier_sidebar') !== 'closed';
+        const saved = sessionStorage.getItem('cashier_sidebar');
+        if (saved) return saved !== 'closed';
+        return window.innerWidth > 768;
     });
     const [user, setUser] = useState({});
     const navigate = useNavigate();
@@ -193,7 +195,7 @@ const CashierLayout = () => {
 
     const handleNavigation = (path, closeSidebar = false) => {
         navigate(path);
-        if (closeSidebar) {
+        if (closeSidebar && window.innerWidth <= 768) {
             setIsSidebarOpen(false);
             sessionStorage.setItem('cashier_sidebar', 'closed');
         }
@@ -204,6 +206,12 @@ const CashierLayout = () => {
 
     return (
         <div className={styles.layout}>
+            {isSidebarOpen && (
+                <div
+                    className={styles.mobileOverlay}
+                    onClick={toggleSidebar}
+                />
+            )}
             {/* Sidebar */}
             <div className={`${styles.sidebar} ${!isSidebarOpen ? styles.closed : ''}`}>
                 <div className={styles.sidebarHeader}>
@@ -212,28 +220,28 @@ const CashierLayout = () => {
                 </div>
                 <div className={styles.sidebarMenu}>
                     <div
-                        onClick={() => handleNavigation("/cashier/dashboard")}
+                        onClick={() => handleNavigation("/cashier/dashboard", true)}
                         className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/dashboard" ? styles.active : ''}`}
                     >
                         <LayoutDashboard size={18} />
                         <span>Dashboard</span>
                     </div>
                     <div
-                        onClick={() => handleNavigation("/cashier/bill")}
+                        onClick={() => handleNavigation("/cashier/bill", true)}
                         className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/bill" ? styles.active : ''}`}
                     >
                         <Receipt size={18} />
                         <span>Đơn hàng</span>
                     </div>
                     <div
-                        onClick={() => handleNavigation("/cashier/report")}
+                        onClick={() => handleNavigation("/cashier/report", true)}
                         className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/report" ? styles.active : ''}`}
                     >
                         <BarChart3 size={18} />
                         <span>Báo cáo</span>
                     </div>
                     <div
-                        onClick={() => handleNavigation("/cashier/shift")}
+                        onClick={() => handleNavigation("/cashier/shift", true)}
                         className={`${styles.sidebarMenuItem} ${location.pathname === "/cashier/shift" ? styles.active : ''}`}
                     >
                         <Calendar size={18} />

@@ -793,3 +793,19 @@
     transform: translateY(-4px);
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
 }
+
+/* ========== MOBILE OVERLAY (đóng sidebar khi bấm ra ngoài) ========== */
+.mobileOverlay {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobileOverlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 150;
+        /* thấp hơn sidebar (200), cao hơn topbar (99) */
+    }
+}
