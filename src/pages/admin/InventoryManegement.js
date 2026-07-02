@@ -1166,8 +1166,8 @@ export default function InventoryManagement() {
                                                             const d = batch.daysToExpire;
                                                             if (whBatchHsdFilter === 'all') return true;
                                                             if (whBatchHsdFilter === 'usable') return d !== null && d !== undefined && d > 5;
-                                                            if (whBatchHsdFilter === 'nearExpiry') return d !== null && d !== undefined && d >= 0 && d <= 7;
-                                                            if (whBatchHsdFilter === 'expired') return d !== null && d !== undefined && d < 0;
+                                                            if (whBatchHsdFilter === 'nearExpiry') return d !== null && d !== undefined && d >= 5 && d <= 7;
+                                                            if (whBatchHsdFilter === 'expired') return d !== null && d !== undefined && d <= 1;
                                                             return true;
                                                         })
                                                         .sort((a, b) => (a.daysToExpire ?? 9999) - (b.daysToExpire ?? 9999))

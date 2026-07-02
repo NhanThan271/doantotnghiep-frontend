@@ -787,8 +787,8 @@ export default function ManagerInventoryManagement() {
                         const matchHsd =
                             batchHsdFilter === 'all' ? true :
                                 batchHsdFilter === 'usable' ? (d !== null && d !== undefined && d > 5) :
-                                    batchHsdFilter === 'nearExpiry' ? (d !== null && d !== undefined && d >= 0 && d <= 7) :
-                                        batchHsdFilter === 'expired' ? (d !== null && d !== undefined && d < 0) :
+                                    batchHsdFilter === 'nearExpiry' ? (d !== null && d !== undefined && d >= 5 && d <= 7) :
+                                        batchHsdFilter === 'expired' ? (d !== null && d !== undefined && d <= 1) :
                                             batchHsdFilter === 'unknown' ? (d === null || d === undefined) : true;
                         return matchSearch && matchHsd;
                     }).sort((a, b) => (a.daysToExpire ?? 9999) - (b.daysToExpire ?? 9999));
