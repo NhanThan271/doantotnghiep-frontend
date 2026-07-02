@@ -11,6 +11,78 @@ const POSITION_MAP = {
     CASHIER: { label: 'Thu ngân', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
     STOCK: { label: 'Kho', color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
 };
+
+function SearchableSelect({ options, value, onChange, placeholder = 'Tìm kiếm...', getLabel, getValue, disabled }) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const wrapperRef = React.useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const selected = options.find(o => String(getValue(o)) === String(value));
+    const filtered = options.filter(o => getLabel(o).toLowerCase().includes(query.toLowerCase()));
+
+    return (
+        <div ref={wrapperRef} style={{ position: 'relative' }}>
+            <div
+                onClick={() => !disabled && setOpen(!open)}
+                style={{
+                    padding: '12px 16px', border: '1px solid var(--color-border)',
+                    borderRadius: 12, background: disabled ? '#f3f4f6' : '#fff',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14
+                }}
+            >
+                <span style={{ color: selected ? 'inherit' : '#9CA3AF' }}>
+                    {selected ? getLabel(selected) : placeholder}
+                </span>
+                <ChevronDown size={16} />
+            </div>
+
+            {open && (
+                <div style={{
+                    position: 'absolute', top: '110%', left: 0, right: 0, background: '#fff',
+                    border: '1px solid var(--color-border)', borderRadius: 12,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 30, maxHeight: 260, display: 'flex', flexDirection: 'column'
+                }}>
+                    <div style={{ padding: 8 }}>
+                        <input
+                            autoFocus type="text" value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Gõ để tìm..."
+                            style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 13, outline: 'none' }}
+                        />
+                    </div>
+                    <div style={{ overflowY: 'auto' }}>
+                        {filtered.length === 0 ? (
+                            <div style={{ padding: '10px 14px', fontSize: 13, color: '#9CA3AF' }}>Không tìm thấy</div>
+                        ) : filtered.map(o => (
+                            <div
+                                key={getValue(o)}
+                                onClick={() => { onChange(String(getValue(o))); setOpen(false); setQuery(''); }}
+                                style={{
+                                    padding: '10px 14px', fontSize: 14, cursor: 'pointer',
+                                    background: String(getValue(o)) === String(value) ? 'rgba(59,130,246,0.08)' : 'transparent'
+                                }}
+                                onMouseOver={e => e.currentTarget.style.background = 'rgba(0,0,0,0.04)'}
+                                onMouseOut={e => e.currentTarget.style.background = String(getValue(o)) === String(value) ? 'rgba(59,130,246,0.08)' : 'transparent'}
+                            >
+                                {getLabel(o)}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }) {
     const [employees, setEmployees] = useState([]);
     const [workShifts, setWorkShifts] = useState([]);
@@ -27,6 +99,8 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
     const [weekShifts, setWeekShifts] = useState([]);
     const [positionForm, setPositionForm] = useState(null);
     const [employmentTypes, setEmploymentTypes] = useState([]);
+    const [assignDateShifts, setAssignDateShifts] = useState([]);
+    const [assignShiftsLoading, setAssignShiftsLoading] = useState(false);
 
     // State cho modal phân ca
     const [showAssignModal, setShowAssignModal] = useState(false);
@@ -195,6 +269,29 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
             setOverviewLoading(false);
         }
     };
+
+    const fetchShiftsForAssignDate = async (date) => {
+        if (!currentBranch?.id || !date) { setAssignDateShifts([]); return; }
+        setAssignShiftsLoading(true);
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(
+                `${API_BASE_URL}/api/shift-schedules/branch/${currentBranch.id}/work-day?workDay=${date}`,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            if (!res.ok) { setAssignDateShifts([]); return; }
+            setAssignDateShifts(await res.json());
+        } catch (err) {
+            console.error('Lỗi lấy ca theo ngày:', err);
+            setAssignDateShifts([]);
+        } finally {
+            setAssignShiftsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (showAssignModal) fetchShiftsForAssignDate(assignForm.workDay);
+    }, [showAssignModal]);
 
     const fetchCashierSessions = async () => {
         if (!currentBranch?.id) return;
@@ -2112,10 +2209,7 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                 <CalendarPlus size={24} />
                                 Phân ca làm việc
                             </h3>
-                            <button
-                                onClick={() => setShowAssignModal(false)}
-                                className={styles.modalClose}
-                            >
+                            <button onClick={() => setShowAssignModal(false)} className={styles.modalClose}>
                                 <X size={20} />
                             </button>
                         </div>
@@ -2123,24 +2217,31 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                         <div className={styles['modalBody-light']}>
                             <div className={styles.formGroup}>
                                 <label className={styles['formLabel-light']}>Nhân viên *</label>
-                                <select
+                                <SearchableSelect
+                                    options={staffList.filter(s => s.status !== 'INACTIVE')}
                                     value={assignForm.staffId}
-                                    onChange={(e) => setAssignForm({ ...assignForm, staffId: e.target.value })}
-                                    className={styles['formInput-light']}
-                                    required
-                                >
-                                    <option value="">-- Chọn nhân viên --</option>
-                                    {staffList
-                                        .filter(s => s.status !== 'INACTIVE')
-                                        .map(s => (
-                                            <option key={s.id} value={s.id}>
-                                                {s.fullName || s.username} — {POSITION_MAP[s.position]?.label || s.position}
-                                            </option>
-                                        ))}
-                                </select>
+                                    onChange={(val) => setAssignForm({ ...assignForm, staffId: val })}
+                                    placeholder="-- Chọn nhân viên --"
+                                    getValue={(s) => s.id}
+                                    getLabel={(s) => `${s.fullName || s.username} — ${POSITION_MAP[s.position]?.label || s.position}`}
+                                />
                             </div>
 
-                            {/* Chọn ca (template) */}
+                            <div className={styles.formGroup}>
+                                <label className={styles['formLabel-light']}>Ngày làm việc *</label>
+                                <input
+                                    type="date"
+                                    value={assignForm.workDay}
+                                    onChange={(e) => {
+                                        const newDate = e.target.value;
+                                        setAssignForm({ ...assignForm, workDay: newDate, shiftId: '' });
+                                        fetchShiftsForAssignDate(newDate);
+                                    }}
+                                    className={styles['formInput-light']}
+                                    required
+                                />
+                            </div>
+
                             <div className={styles.formGroup}>
                                 <label className={styles['formLabel-light']}>Ca làm việc *</label>
                                 <select
@@ -2148,43 +2249,36 @@ export default function BranchEmployeesManager({ openAdd, openEdit, openDelete }
                                     onChange={(e) => setAssignForm({ ...assignForm, shiftId: e.target.value })}
                                     className={styles['formInput-light']}
                                     required
+                                    disabled={assignShiftsLoading || assignDateShifts.length === 0}
                                 >
-                                    <option value="">-- Chọn ca --</option>
-                                    {shiftTemplates.map(sh => (
-                                        <option key={sh.id} value={sh.id}>
-                                            {sh.name} ({sh.startTime} - {sh.endTime})
-                                        </option>
-                                    ))}
+                                    {assignShiftsLoading ? (
+                                        <option value="">Đang tải ca...</option>
+                                    ) : assignDateShifts.length === 0 ? (
+                                        <option value="">Không có ca nào được tạo cho ngày này</option>
+                                    ) : (
+                                        <>
+                                            <option value="">-- Chọn ca --</option>
+                                            {assignDateShifts.map(sc => (
+                                                <option key={sc.id} value={sc.shift?.id}>
+                                                    {sc.shift?.name} ({sc.shift?.startTime} - {sc.shift?.endTime})
+                                                </option>
+                                            ))}
+                                        </>
+                                    )}
                                 </select>
-                            </div>
-
-                            {/* Ngày làm */}
-                            <div className={styles.formGroup}>
-                                <label className={styles['formLabel-light']}>Ngày làm việc *</label>
-                                <input
-                                    type="date"
-                                    value={assignForm.workDay}
-                                    onChange={(e) => setAssignForm({ ...assignForm, workDay: e.target.value })}
-                                    className={styles['formInput-light']}
-                                    required
-                                />
+                                {!assignShiftsLoading && assignDateShifts.length === 0 && (
+                                    <p style={{ margin: '6px 0 0', fontSize: 12, color: '#EF4444' }}>
+                                        ⚠ Chưa có lịch ca nào cho ngày này. Hãy tạo lịch ca trước ở tab "Lịch ca".
+                                    </p>
+                                )}
                             </div>
                         </div>
 
                         <div className={styles['modalFooter-light']}>
-                            <button
-                                type="button"
-                                onClick={() => setShowAssignModal(false)}
-                                className={styles['secondaryButton-light']}
-                            >
+                            <button type="button" onClick={() => setShowAssignModal(false)} className={styles['secondaryButton-light']}>
                                 Hủy
                             </button>
-                            <button
-                                type="submit"
-                                onClick={handleAssignShift}
-                                className={styles.primaryButton}
-                                disabled={loading}
-                            >
+                            <button type="submit" onClick={handleAssignShift} className={styles.primaryButton} disabled={loading}>
                                 <Save size={18} />
                                 {loading ? 'Đang lưu...' : 'Phân ca'}
                             </button>
