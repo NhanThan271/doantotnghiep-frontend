@@ -1275,193 +1275,156 @@ export default function ManagerInventoryManagement() {
             </div>
 
             {/* Create Request Modal */}
-            {
-                showRequestModal && (
-                    <div className={styles.modalOverlay}>
-                        <div className={styles.modalContent}>
-                            <div className={styles.modalHeader}>
-                                <div>
-                                    <h2 className={styles.modalTitle}>Tạo yêu cầu nhập kho</h2>
-                                    <p className={styles.modalSubtitle}>Chọn nguyên liệu cần nhập từ kho tổng</p>
-                                </div>
-                                <button onClick={() => {
-                                    setShowRequestModal(false);
-                                    setRequestForm({ warehouseId: '', reason: '', type: 'IMPORT', items: [{ ingredientId: '', quantity: '' }] });
-                                }} className={styles.modalCloseButton}>
-                                    <X size={24} />
-                                </button>
+            {showRequestModal && (
+                <div className={styles.invReqOverlay}>
+                    <div className={styles.invReqModal}>
+                        <div className={styles.invReqHeader}>
+                            <div>
+                                <h2 className={styles.invReqTitle}>Tạo yêu cầu nhập kho</h2>
+                                <p className={styles.invReqSubtitle}>Chọn nguyên liệu cần nhập từ kho tổng</p>
+                            </div>
+                            <button onClick={() => {
+                                setShowRequestModal(false);
+                                setRequestForm({ warehouseId: '', reason: '', type: 'IMPORT', items: [{ ingredientId: '', quantity: '' }] });
+                            }} className={styles.invReqCloseBtn}>
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div className={styles.invReqBody}>
+
+                            {/* Chọn kho tổng */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <label className={styles.invReqLabel}>Kho tổng *</label>
+                                <select
+                                    value={requestForm.warehouseId}
+                                    onChange={(e) => setRequestForm({ ...requestForm, warehouseId: e.target.value })}
+                                    className={styles.invReqInput} style={{ width: '100%' }}>
+                                    <option value="">-- Chọn kho tổng --</option>
+                                    {warehouses.map(w => (
+                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                    ))}
+                                </select>
                             </div>
 
-                            <div className={styles.modalBody}>
-
-                                {/* Chọn kho tổng */}
-                                <div style={{ marginBottom: '20px' }}>
-                                    <label className={styles.infoLabel} style={{ display: 'block', marginBottom: '8px' }}>Kho tổng *</label>
-                                    <select
-                                        value={requestForm.warehouseId}
-                                        onChange={(e) => setRequestForm({ ...requestForm, warehouseId: e.target.value })}
-                                        className={styles.searchInput1} style={{ width: '100%' }}>
-                                        <option value="">-- Chọn kho tổng --</option>
-                                        {warehouses.map(w => (
-                                            <option key={w.id} value={w.id}>{w.name}</option>
-                                        ))}
-                                    </select>
+                            {/* Danh sách nguyên liệu (multi-item) */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                    <label className={styles.invReqLabel}>Nguyên liệu *</label>
+                                    <button onClick={addFormItem} style={{ fontSize: '13px', color: '#7C3AED', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <Plus size={14} /> Thêm nguyên liệu
+                                    </button>
                                 </div>
-
-                                {/* Danh sách nguyên liệu (multi-item) */}
-                                <div style={{ marginBottom: '20px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                        <label className={styles.infoLabel}>Nguyên liệu *</label>
-                                        <button onClick={addFormItem} style={{ fontSize: '13px', color: '#8B5CF6', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            <Plus size={14} /> Thêm nguyên liệu
-                                        </button>
-                                    </div>
-                                    {requestForm.items.map((item, index) => (
-                                        <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                                            <div style={{ flex: 2, position: 'relative' }}>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Tìm nguyên liệu..."
-                                                    value={
-                                                        item.ingredientId
-                                                            ? (openDropdowns[index]
-                                                                ? (itemSearchTerms[index] ?? '')
-                                                                : (() => {
-                                                                    const ing = allIngredients.find(i => i.id === parseInt(item.ingredientId));
-                                                                    return ing ? `${ing.name} (${ing.unit}) — Tồn: ${getCurrentStock(ing.id)}` : '';
-                                                                })())
-                                                            : (itemSearchTerms[index] ?? '')
-                                                    }
-                                                    onChange={(e) => {
-                                                        setItemSearchTerms(prev => ({ ...prev, [index]: e.target.value }));
-                                                        setOpenDropdowns(prev => ({ ...prev, [index]: true }));
-                                                        if (!e.target.value) updateFormItem(index, 'ingredientId', '');
-                                                    }}
-                                                    onFocus={() => setOpenDropdowns(prev => ({ ...prev, [index]: true }))}
-                                                    className={styles.searchInput1}
-                                                    style={{ width: '100%' }}
-                                                />
-                                                {openDropdowns[index] && (
-                                                    <>
-                                                        {/* Overlay để đóng dropdown khi click ngoài */}
-                                                        <div
-                                                            style={{ position: 'fixed', inset: 0, zIndex: 99 }}
-                                                            onClick={() => setOpenDropdowns(prev => ({ ...prev, [index]: false }))}
-                                                        />
-                                                        <div style={{
-                                                            position: 'absolute', top: '100%', left: 0, right: 0,
-                                                            background: '#1a1a1a', border: '1px solid var(--color-border)',
-                                                            borderRadius: 8, zIndex: 100, maxHeight: 220, overflowY: 'auto',
-                                                            boxShadow: '0 8px 24px rgba(0,0,0,0.4)', marginTop: 4
-                                                        }}>
-                                                            {allIngredients
-                                                                .filter(ing => {
-                                                                    const term = (itemSearchTerms[index] ?? '').toLowerCase();
-                                                                    return !term || ing.name.toLowerCase().includes(term);
-                                                                })
-                                                                .map(ing => (
-                                                                    <div
-                                                                        key={ing.id}
-                                                                        onMouseDown={() => {
-                                                                            updateFormItem(index, 'ingredientId', ing.id);
-                                                                            setItemSearchTerms(prev => ({ ...prev, [index]: '' }));
-                                                                            setOpenDropdowns(prev => ({ ...prev, [index]: false }));
-                                                                        }}
-                                                                        style={{
-                                                                            padding: '10px 14px', cursor: 'pointer', fontSize: 13,
-                                                                            color: parseInt(item.ingredientId) === ing.id ? '#8B5CF6' : '#e5e7eb',
-                                                                            background: parseInt(item.ingredientId) === ing.id ? 'rgba(139,92,246,0.15)' : 'transparent',
-                                                                            borderBottom: '1px solid rgba(255,255,255,0.05)'
-                                                                        }}
-                                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.1)'}
-                                                                        onMouseLeave={e => e.currentTarget.style.background = parseInt(item.ingredientId) === ing.id ? 'rgba(139,92,246,0.15)' : 'transparent'}
-                                                                    >
-                                                                        {ing.name} ({ing.unit}) — Tồn: {getCurrentStock(ing.id)}
-                                                                    </div>
-                                                                ))
-                                                            }
-                                                            {allIngredients.filter(ing => {
+                                {requestForm.items.map((item, index) => (
+                                    <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                                        <div style={{ flex: 2, position: 'relative' }}>
+                                            <input
+                                                type="text"
+                                                placeholder="Tìm nguyên liệu..."
+                                                value={
+                                                    item.ingredientId
+                                                        ? (openDropdowns[index]
+                                                            ? (itemSearchTerms[index] ?? '')
+                                                            : (() => {
+                                                                const ing = allIngredients.find(i => i.id === parseInt(item.ingredientId));
+                                                                return ing ? `${ing.name} (${ing.unit}) — Tồn: ${getCurrentStock(ing.id)}` : '';
+                                                            })())
+                                                        : (itemSearchTerms[index] ?? '')
+                                                }
+                                                onChange={(e) => {
+                                                    setItemSearchTerms(prev => ({ ...prev, [index]: e.target.value }));
+                                                    setOpenDropdowns(prev => ({ ...prev, [index]: true }));
+                                                    if (!e.target.value) updateFormItem(index, 'ingredientId', '');
+                                                }}
+                                                onFocus={() => setOpenDropdowns(prev => ({ ...prev, [index]: true }))}
+                                                className={styles.invReqInput}
+                                                style={{ width: '100%' }}
+                                            />
+                                            {openDropdowns[index] && (
+                                                <>
+                                                    <div
+                                                        style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+                                                        onClick={() => setOpenDropdowns(prev => ({ ...prev, [index]: false }))}
+                                                    />
+                                                    <div className={styles.invReqDropdown}>
+                                                        {allIngredients
+                                                            .filter(ing => {
                                                                 const term = (itemSearchTerms[index] ?? '').toLowerCase();
                                                                 return !term || ing.name.toLowerCase().includes(term);
-                                                            }).length === 0 && (
-                                                                    <div style={{ padding: '16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                                                                        Không tìm thấy nguyên liệu
-                                                                    </div>
-                                                                )}
-                                                        </div>
-                                                    </>
-                                                )}
-                                            </div>
-                                            <input
-                                                type="number" min="0.01" step="0.01"
-                                                placeholder="Số lượng"
-                                                value={item.quantity}
-                                                onChange={(e) => updateFormItem(index, 'quantity', e.target.value)}
-                                                className={styles.searchInput1} style={{ flex: 1 }} />
-                                            {requestForm.items.length > 1 && (
-                                                <button onClick={() => removeFormItem(index)}
-                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}>
-                                                    <X size={18} />
-                                                </button>
+                                                            })
+                                                            .map(ing => (
+                                                                <div
+                                                                    key={ing.id}
+                                                                    onMouseDown={() => {
+                                                                        updateFormItem(index, 'ingredientId', ing.id);
+                                                                        setItemSearchTerms(prev => ({ ...prev, [index]: '' }));
+                                                                        setOpenDropdowns(prev => ({ ...prev, [index]: false }));
+                                                                    }}
+                                                                    className={`${styles.invReqDropdownItem} ${parseInt(item.ingredientId) === ing.id ? styles.invReqDropdownItemActive : ''}`}
+                                                                >
+                                                                    {ing.name} ({ing.unit}) — Tồn: {getCurrentStock(ing.id)}
+                                                                </div>
+                                                            ))
+                                                        }
+                                                        {allIngredients.filter(ing => {
+                                                            const term = (itemSearchTerms[index] ?? '').toLowerCase();
+                                                            return !term || ing.name.toLowerCase().includes(term);
+                                                        }).length === 0 && (
+                                                                <div style={{ padding: '16px', textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>
+                                                                    Không tìm thấy nguyên liệu
+                                                                </div>
+                                                            )}
+                                                    </div>
+                                                </>
                                             )}
                                         </div>
-                                    ))}
-                                </div>
-
-                                {requestForm.ingredientId && (
-                                    <div style={{ marginBottom: '20px', padding: '12px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '8px' }}>
-                                        <div style={{ fontSize: '13px', color: '#9ca3af' }}>Tồn kho hiện tại</div>
-                                        <div style={{ fontSize: '22px', fontWeight: '700', color: '#8B5CF6' }}>
-                                            {getCurrentStock(requestForm.ingredientId)} {allIngredients.find(i => i.id === parseInt(requestForm.ingredientId))?.unit || ''}
-                                        </div>
+                                        <input
+                                            type="number" min="0.01" step="0.01"
+                                            placeholder="Số lượng"
+                                            value={item.quantity}
+                                            onChange={(e) => updateFormItem(index, 'quantity', e.target.value)}
+                                            className={styles.invReqInput} style={{ flex: 1 }} />
+                                        {requestForm.items.length > 1 && (
+                                            <button onClick={() => removeFormItem(index)}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: '4px' }}>
+                                                <X size={18} />
+                                            </button>
+                                        )}
                                     </div>
-                                )}
+                                ))}
+                            </div>
 
-                                {/* Lý do */}
-                                <div style={{ marginBottom: '20px' }}>
-                                    <label className={styles.infoLabel} style={{ display: 'block', marginBottom: '8px' }}>Lý do yêu cầu *</label>
-                                    <textarea
-                                        value={requestForm.reason}
-                                        onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
-                                        onFocus={e => {
-                                            e.target.style.background = '#1a1a1a';
-                                            e.target.style.borderColor = '#ffff';
-                                            e.target.style.boxShadow = '0 0 0 3px rgba(139,92,246,0.15)';
-                                        }}
-                                        onBlur={e => {
-                                            e.target.style.background = '#0f0f0f';
-                                            e.target.style.borderColor = 'var(--color-border)';
-                                            e.target.style.boxShadow = 'none';
-                                        }}
-                                        className={styles.searchInput1}
-                                        placeholder="Nhập lý do yêu cầu nhập kho..."
-                                        rows="3"
-                                        style={{
-                                            width: '100%',
-                                            resize: 'vertical',
-                                            padding: '12px 16px',
-                                            background: '#0f0f0f',
-                                            border: '1px solid var(--color-border)',
-                                            borderRadius: '10px',
-                                            color: 'var(--color-text-secondary)',
-                                            fontSize: '14px',
-                                            outline: 'none',
-                                            transition: 'border-color .2s, box-shadow .2s',
-                                            fontFamily: 'inherit'
-                                        }} />
+                            {requestForm.ingredientId && (
+                                <div className={styles.invReqStockBox}>
+                                    <div style={{ fontSize: '13px', color: '#6B7280' }}>Tồn kho hiện tại</div>
+                                    <div style={{ fontSize: '22px', fontWeight: '700', color: '#7C3AED' }}>
+                                        {getCurrentStock(requestForm.ingredientId)} {allIngredients.find(i => i.id === parseInt(requestForm.ingredientId))?.unit || ''}
+                                    </div>
                                 </div>
+                            )}
 
-                                <div className={styles.modalActions}>
-                                    <button onClick={() => { setShowRequestModal(false); setRequestForm({ warehouseId: '', reason: '', type: 'IMPORT', items: [{ ingredientId: '', quantity: '' }] }); }}
-                                        className={styles.buttonDanger}><X size={20} /> Hủy</button>
-                                    <button onClick={createInventoryRequest} className={styles.buttonSuccess}>
-                                        <Plus size={20} /> Gửi yêu cầu</button>
-                                </div>
+                            {/* Lý do */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <label className={styles.invReqLabel}>Lý do yêu cầu *</label>
+                                <textarea
+                                    value={requestForm.reason}
+                                    onChange={(e) => setRequestForm({ ...requestForm, reason: e.target.value })}
+                                    className={styles.invReqInput}
+                                    placeholder="Nhập lý do yêu cầu nhập kho..."
+                                    rows="3"
+                                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit' }} />
+                            </div>
+
+                            <div className={styles.invReqActions}>
+                                <button onClick={() => { setShowRequestModal(false); setRequestForm({ warehouseId: '', reason: '', type: 'IMPORT', items: [{ ingredientId: '', quantity: '' }] }); }}
+                                    className={styles.invReqBtnCancel}><X size={20} /> Hủy</button>
+                                <button onClick={createInventoryRequest} className={styles.invReqBtnSubmit}>
+                                    <Plus size={20} /> Gửi yêu cầu</button>
                             </div>
                         </div>
                     </div>
-                )
-            }
+                </div>
+            )}
 
             {
                 loading && (

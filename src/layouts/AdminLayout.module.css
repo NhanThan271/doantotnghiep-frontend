@@ -3080,3 +3080,201 @@ tbody tr:hover {
     border-color: #9CA3AF;
     color: #111827;
 }
+
+/* ========== MODAL TẠO YÊU CẦU NHẬP KHO (WHITE THEME - RIÊNG BIỆT) ========== */
+.invReqOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.invReqModal {
+    background: #FFFFFF;
+    border-radius: 16px;
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: hidden;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease-out;
+}
+
+.invReqHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 24px;
+    border-bottom: 1px solid #E5E7EB;
+    background: #FFFFFF;
+}
+
+.invReqTitle {
+    font-size: 22px;
+    font-weight: 700;
+    color: #7C3AED;
+    margin: 0;
+}
+
+.invReqSubtitle {
+    font-size: 14px;
+    color: #6B7280;
+    margin: 4px 0 0 0;
+}
+
+.invReqCloseBtn {
+    background: #F3F4F6;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    color: #374151;
+    transition: all 0.2s;
+}
+
+.invReqCloseBtn:hover {
+    background: #E5E7EB;
+    border-color: #D1D5DB;
+}
+
+.invReqBody {
+    padding: 24px;
+    overflow-y: auto;
+    background: #FFFFFF;
+    flex: 1;
+}
+
+.invReqLabel {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.invReqInput {
+    width: 100%;
+    padding: 12px 16px;
+    background: #F9FAFB;
+    border: 1px solid #D1D5DB;
+    border-radius: 10px;
+    color: #111827;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.invReqInput:focus {
+    border-color: #8B5CF6;
+    background: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.invReqInput::placeholder {
+    color: #9CA3AF;
+}
+
+.invReqDropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #FFFFFF;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    z-index: 100;
+    max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    margin-top: 4px;
+}
+
+.invReqDropdownItem {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #111827;
+    background: #FFFFFF;
+    border-bottom: 1px solid #F3F4F6;
+    transition: background 0.15s;
+}
+
+.invReqDropdownItem:hover {
+    background: #F5F3FF;
+}
+
+.invReqDropdownItemActive {
+    color: #7C3AED;
+    background: #EDE9FE;
+}
+
+.invReqActions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #E5E7EB;
+}
+
+.invReqBtnCancel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: #FEF2F2;
+    color: #DC2626;
+    border: 1px solid #FECACA;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.2s;
+}
+
+.invReqBtnCancel:hover {
+    background: #FEE2E2;
+    border-color: #FCA5A5;
+}
+
+.invReqBtnSubmit {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: #10B981;
+    color: #FFFFFF;
+    border: 1px solid #059669;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.2s;
+}
+
+.invReqBtnSubmit:hover {
+    background: #059669;
+}
+
+.invReqStockBox {
+    margin-bottom: 20px;
+    padding: 12px;
+    background: #F5F3FF;
+    border: 1px solid #DDD6FE;
+    border-radius: 8px;
+}
