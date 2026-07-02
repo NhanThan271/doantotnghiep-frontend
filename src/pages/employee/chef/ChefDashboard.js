@@ -548,7 +548,7 @@ const ChefDashboard = () => {
 
             for (const id of idsToUpdate) {
                 await axiosClient.put(
-                    `/kitchen/order-items/${id}/status?status=${status}&quantity=${itemGroup.quantity}`
+                    `/kitchen-order-items/${id}/status?status=${status}&quantity=${itemGroup.quantity}`
                 );
             }
 
@@ -596,7 +596,6 @@ const ChefDashboard = () => {
         } catch (err) {
             console.error("❌ Error in updateStatus:", err);
             console.error("❌ Response data:", err.response?.data);
-            showToast(`Lỗi: ${err.response?.data?.message || err.message}`, 'error');
         } finally {
             setItemUpdating(prev => ({ ...prev, [itemGroup.id]: false }));
         }
