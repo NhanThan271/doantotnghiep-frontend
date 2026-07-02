@@ -1163,17 +1163,15 @@ export default function InventoryManagement() {
                                                 <tbody>
                                                     {[...branchBatches]
                                                         .filter(batch => {
-                                                            const d = calcDays(batch.expiryDate);
+                                                            const d = batch.daysToExpire;
                                                             if (whBatchHsdFilter === 'all') return true;
-                                                            if (whBatchHsdFilter === 'usable') return d !== null && d > 5;
-                                                            if (whBatchHsdFilter === 'nearExpiry') return d !== null && d >= 0 && d <= 7;
-                                                            if (whBatchHsdFilter === 'expired') return d !== null && d < 0;
+                                                            if (whBatchHsdFilter === 'usable') return d !== null && d !== undefined && d > 5;
+                                                            if (whBatchHsdFilter === 'nearExpiry') return d !== null && d !== undefined && d >= 0 && d <= 7;
+                                                            if (whBatchHsdFilter === 'expired') return d !== null && d !== undefined && d < 0;
                                                             return true;
                                                         })
-                                                        .sort((a, b) => new Date(a.expiryDate || '9999') - new Date(b.expiryDate || '9999'))
                                                         .sort((a, b) => (a.daysToExpire ?? 9999) - (b.daysToExpire ?? 9999))
                                                         .map(batch => {
-                                                            // Ước tính ngày HSD từ daysToExpire
                                                             const approxExpiry = (() => {
                                                                 if (batch.daysToExpire === undefined) return '—';
                                                                 const d = new Date();
