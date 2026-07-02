@@ -385,7 +385,7 @@ export default function Products({ openAdd, openEdit, refreshTrigger }) {
                     borderRadius: '16px',
                     overflow: 'hidden'
                 }}>
-                    <table className={styles.dataTable}>
+                    <table className={styles.table} style={{ minWidth: '700px' }}>
                         <thead>
                             <tr>
                                 <th style={{ width: '100px' }}>Hình ảnh</th>
